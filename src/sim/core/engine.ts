@@ -1,0 +1,470 @@
+/**
+ * MOTOR DE SIMULAÇÃO — independente da interface (sem DOM, React ou Three.js).
+ *
+ * Executa passos de tempo FIXOS (dt, padrão 0,02 s = 50 Hz) a partir de um
+ * acumulador de tempo real × fator de aceleração; a taxa de quadros da
+ * interface não afeta a física. A ordem dos módulos em cada passo é:
+ *
+ *  1. controle automático (a partir das leituras dos sensores)
+ *  2. atuadores de lemes, mastro do snorkel
+ *  3. ar AP + tanques de lastro principal
+ *  4. compensação, trim, banda, alagamentos
+ *  5. planta hidráulica
+ *  6. propulsão (eixo/hélice)
+ *  7. propriedades de massa (CG, inércia) a partir de todos os tanques
+ *  8. corpo rígido 6-GL (RK4)
+ *  9. sensores e navegação estimada
+ * 10. balanço elétrico (bateria, geradores, combustível)
+ * 11. supervisão de alarmes; balanços de massa e energia
+ */
+import type { SimConfig, VesselConfig } from '../config/types';
+import { Environment } from '../environment/environment';
+import { buildHullGeometry, type HullGeometry } from '../physics/hullGeometry';
+import { computeMassProps, resolveLightship, type MassProps, type ResolvedMass } from '../physics/massProperties';
+import { computeForces, fullAddedMass, rk4Step, type AddedMass, type BodyState, type ForceBreakdown, type ForceInputs } from '../physics/dynamics';
+import { makeDepthOf, type StepContext } from './context';
+import { mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLocal, mulMat3TVec as mulMat3TVecLocal, vCross as vCrossLocal, type Mat3, type Quat, type Vec3 } from './math';
+import { computeHydrostatics as computeHydrostaticsLocal } from '../physics/hydrostatics';
+import type { SimState } from './state';
+import { updateBallastTank } from '../systems/ballast';
+import { bankPressure, bankTempK, drawFromManifold, updateCompressor, updateHpManifold } from '../systems/hpAir';
+import { updateCompensation, updateTransfer } from '../systems/internalTanks';
+import { updatePropulsion } from '../systems/propulsion';
+import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updateSnorkel, updateSurfaces } from '../systems/actuation';
+import { updateElectrical, updateGenerators } from '../systems/electrical';
+import { updateAutopilot, type ApReadings } from '../systems/autopilot';
+import { updateNavigation, updateSensors, type TrueValues } from '../systems/sensors';
+import { evaluateAlarms } from '../systems/alarms';
+
+export interface SimOutputs {
+  mp: MassProps;
+  forces: ForceBreakdown;
+  euler: { roll: number; pitch: number; heading: number }; // graus
+  depthAxis: number;
+  depthKeel: number;
+  pressureKeel: number;
+  bottomDepth: number;
+  altitude: number;
+  velNED: Vec3;
+  verticalSpeed: number; // m/s (+ descendo)
+  speed: number; // m/s (u)
+  speedOverGround: number;
+  courseOverGround: number;
+  netBuoyancyKg: number; // + = flutuabilidade positiva (empuxo > peso)
+  displacementKg: number; // ρ·V_imerso
+  depthRateCalc: number; // calculada a partir dos profundímetros
+  rhoLocal: number;
+  seaTemp: number;
+  salinity: number;
+  /** momentos estáticos em torno de B, mundo (N·m): + = proa para cima / adernar BE */
+  staticPitchMoment: number;
+  staticRollMoment: number;
+  /** momento devido à separação longitudinal/transversal entre G e B (N·m) */
+  weightTrimMoment: number;
+  weightHeelMoment: number;
+  /** rigidez hidrostática (N·m/rad) e ângulos de equilíbrio estático previstos */
+  pitchStiffness: number;
+  rollStiffness: number;
+  staticPitchEq: number; // graus
+  staticRollEq: number; // graus
+  BG: number;
+  airIntake: boolean;
+  hpManifoldBar: number;
+  massAudit: number; // kg — erro do balanço de massa (deve ser ≈ 0)
+  energyAudit: number; // J — erro do balanço energético do barramento
+  rpm: number;
+}
+
+export type CommandSink = (text: string, group: string) => void;
+
+export class SimulationEngine {
+  readonly config: SimConfig;
+  readonly env: Environment;
+  readonly geom: HullGeometry;
+  readonly light: ResolvedMass;
+  readonly added: AddedMass;
+  readonly compressibleVolume: number;
+  state: SimState;
+  outputs!: SimOutputs;
+  /** pose do passo anterior (interpolação visual) */
+  prevPos: Vec3;
+  prevQuat: Quat;
+  private scratch: Float64Array;
+  private scratch2: Float64Array;
+  private readings: ApReadings;
+
+  constructor(config: SimConfig, state: SimState) {
+    this.config = config;
+    this.env = new Environment(config.environment);
+    this.geom = buildHullGeometry(config.vessel.hull);
+    this.light = resolveLightship(config.vessel, this.geom);
+    this.added = fullAddedMass(config.vessel, this.geom, 1025);
+    this.compressibleVolume = this.geom.volume - config.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
+    this.state = state;
+    this.scratch = new Float64Array(this.geom.slices.length);
+    this.scratch2 = new Float64Array(this.geom.slices.length);
+    this.prevPos = { ...state.body.pos };
+    this.prevQuat = { ...state.body.quat };
+    this.readings = { heading: 0, yawRate: 0, depth: 0, depthRate: 0, pitch: 0, pitchRate: 0, speed: 0 };
+    this.computeOutputs();
+    this.refreshReadings();
+    if (state.ledger.mass0 === 0) state.ledger.mass0 = this.outputs.mp.internalMass;
+  }
+
+  get vessel(): VesselConfig {
+    return this.config.vessel;
+  }
+
+  log(text: string, group: string): void {
+    this.state.commands.push({ t: this.state.t, text, group });
+    if (this.state.commands.length > 500) this.state.commands.splice(0, this.state.commands.length - 500);
+  }
+
+  /** Leituras dos sensores usadas pelo controle automático (não o estado real). */
+  get apReadings(): ApReadings {
+    return this.readings;
+  }
+
+  private refreshReadings(): void {
+    const s = this.state;
+    this.readings = {
+      heading: s.sensors.GIRO.value,
+      yawRate: s.sensors.INSW.value,
+      depth: 0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value),
+      depthRate: s.nav.depthRate,
+      pitch: s.sensors.INSP.value,
+      pitchRate: s.sensors.INSQ.value,
+      speed: s.sensors.DVLU.value,
+    };
+  }
+
+  private forceInputs(mp: MassProps): ForceInputs {
+    const s = this.state;
+    const rho = this.env.densityAt(Math.max(0, s.body.pos.z));
+    const k = rho / 1025;
+    const A = this.added;
+    return {
+      cfg: this.vessel,
+      geom: this.geom,
+      env: this.env,
+      mp,
+      added: { X: A.X * k, Y: A.Y * k, Z: A.Z * k, K: A.K * k, M: A.M * k, N: A.N * k },
+      finAngles: finGeometricAngles(this.vessel, s),
+      thrust: s.propulsion.thrust,
+      propTorque: s.propulsion.propTorque,
+      compressibleVolume: this.compressibleVolume,
+      sliceScratch: this.scratch,
+    };
+  }
+
+  /** Executa um passo fixo de simulação. */
+  step(): void {
+    const s = this.state;
+    const cfg = this.vessel;
+    const env = this.env;
+    const dt = this.config.settings.dt;
+    const R: Mat3 = qToMat3(s.body.quat);
+    const pos = s.body.pos;
+    const axisDepth = pos.z;
+    const ctx: StepContext = {
+      cfg,
+      env,
+      geom: this.geom,
+      dt,
+      t: s.t,
+      R,
+      pos,
+      depthOf: makeDepthOf(pos, R),
+      busPowered: s.electrical.energized,
+      hydraulicFactor: hydraulicFactor(cfg, s),
+      rhoLocal: env.densityAt(Math.max(0, axisDepth)),
+      seaTempK: env.temperatureAt(Math.max(0, axisDepth)) + 273.15,
+      airIntakeAvailable: false,
+      hydraulicDemand: 0,
+      log: (t, g) => this.log(t, g),
+    };
+
+    // 1–2. controle automático e atuadores
+    updateAutopilot(cfg, s, this.readings, dt);
+    updateSurfaces(cfg, s, ctx);
+    ctx.airIntakeAvailable = updateSnorkel(cfg, s, ctx);
+
+    // 3. ar AP e lastro principal
+    let strokes = updateHpManifold(cfg.hpAir, s, ctx);
+    let drawn = 0;
+    const Tb = bankTempK(cfg.hpAir);
+    for (const t of cfg.ballast.tanks) {
+      const r = updateBallastTank(t, s.ballast[t.id], ctx, s.hpAir.manifoldPressure, Tb);
+      drawn += r.airDrawn;
+      s.ledger.airVented += r.airVented;
+      s.ledger.airSpilled += r.airSpilled;
+      strokes += r.valveStrokes;
+    }
+    drawFromManifold(cfg.hpAir, s, drawn);
+    const comp = updateCompressor(cfg.hpAir, s, ctx);
+    s.ledger.airCompressed += comp.added;
+
+    // 4. tanques internos e alagamento
+    const rc = updateCompensation(cfg.compensation, s.compensation, ctx);
+    const rt = updateTransfer(cfg.trim, s.trim, ctx);
+    const rh = updateTransfer(cfg.heel, s.heel, ctx);
+    s.ledger.seaIn += rc.seaIn;
+    s.ledger.seaOut += rc.seaOut;
+    strokes += rc.strokes + rt.strokes + rh.strokes;
+    s.ledger.floodIn += updateFlooding(cfg, s, ctx);
+
+    // 5. hidráulica
+    ctx.hydraulicDemand += strokes * cfg.hydraulics.consumptionPerStroke;
+    const hydPower = updateHydraulics(cfg, s, ctx);
+
+    // 6. propulsão
+    const propX = -cfg.hull.length / 2 + 0.5;
+    const propDepth = ctx.depthOf({ x: propX, y: 0, z: 0 });
+    const Rp = cfg.propulsion.propeller.diameter / 2;
+    const propImm = Math.max(0, Math.min(1, (propDepth + Rp) / (2 * Rp)));
+    updatePropulsion(cfg.propulsion, s.propulsion, dt, s.body.vel.x, ctx.rhoLocal, ctx.busPowered, s.electrical.propulsionLimit, propImm);
+    s.ledger.propellerWork += s.propulsion.propTorque * s.propulsion.omega * dt;
+
+    // 7–8. massa e corpo rígido
+    const mp = computeMassProps(cfg, s, this.light, ctx.rhoLocal);
+    const fi = this.forceInputs(mp);
+    const body: BodyState = { pos: s.body.pos, quat: s.body.quat, vel: s.body.vel, omega: s.body.omega };
+    this.prevPos = { ...s.body.pos };
+    this.prevQuat = { ...s.body.quat };
+    const nb = rk4Step(body, fi, dt);
+    s.body.pos = nb.pos;
+    s.body.quat = nb.quat;
+    s.body.vel = nb.vel;
+    s.body.omega = nb.omega;
+
+    s.t += dt;
+    s.step += 1;
+
+    // 9. sensores e saídas
+    this.computeOutputs(mp);
+    const o = this.outputs;
+    updateSensors(cfg, s, this.trueValues(), dt, this.config.settings.advancedInstrumentation);
+    const depthRate = updateNavigation(s, dt, o.velNED, s.nav.prevDepth);
+    // taxa calculada filtrada (1ª ordem, 2 s)
+    s.nav.depthRate += Math.min(1, dt / 2) * (depthRate - s.nav.depthRate);
+    s.nav.prevDepth = 0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value);
+    o.depthRateCalc = s.nav.depthRate;
+    this.refreshReadings();
+    s.nav.trailTimer += dt;
+    if (s.nav.trailTimer >= 5) {
+      s.nav.trailTimer = 0;
+      s.nav.trail.push({ n: s.body.pos.x, e: s.body.pos.y, z: s.body.pos.z });
+      if (s.nav.trail.length > 1500) s.nav.trail.splice(0, s.nav.trail.length - 1500);
+    }
+
+    // 10. balanço elétrico
+    const genAvail = updateGenerators(cfg.electrical, s, ctx);
+    const demands: Record<string, number> = {
+      MEP: s.propulsion.elecPower,
+      BC: rc.power,
+      BT: rt.power,
+      BB: rh.power,
+      HID: hydPower,
+      COMP: comp.power,
+      HOTEL: cfg.electrical.hotelLoad,
+      NAV: cfg.electrical.navLoad,
+    };
+    const er = updateElectrical(cfg.electrical, s, ctx, demands, genAvail, s.propulsion.elecPower);
+    void er;
+    s.contact = o.forces.contactActive;
+
+    // 11. alarmes
+    this.evaluateAlarms();
+    // balanço de massa
+    const L = s.ledger;
+    const expected = L.mass0 + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
+    o.massAudit = o.mp.internalMass - expected;
+    o.energyAudit = L.batteryChemical - L.batteryOut - L.batteryLoss;
+  }
+
+  private trueValues(): TrueValues {
+    const o = this.outputs;
+    const s = this.state;
+    return {
+      depthKeel: o.depthKeel,
+      pressureKeel: o.pressureKeel,
+      heading: o.euler.heading,
+      pitch: o.euler.pitch,
+      roll: o.euler.roll,
+      q: s.body.omega.y * RAD,
+      r: s.body.omega.z * RAD,
+      u: s.body.vel.x,
+      v: s.body.vel.y,
+      altitude: o.altitude,
+      gravity: this.env.cfg.gravity,
+      atm: this.env.cfg.atmosphericPressure,
+      declination: this.env.cfg.magneticDeclination,
+    };
+  }
+
+  private evaluateAlarms(): void {
+    const s = this.state;
+    const o = this.outputs;
+    const cfg = this.vessel;
+    const stuck: string[] = [];
+    const noHyd: string[] = [];
+    const hyd = hydraulicFactor(cfg, s) > 0;
+    const checkValve = (name: string, v: { cmd: number; pos: number; stuck: boolean }) => {
+      if (Math.abs(v.cmd - v.pos) > 0.02) {
+        if (v.stuck) stuck.push(name);
+        else if (!hyd) noHyd.push(name);
+      }
+    };
+    for (const t of cfg.ballast.tanks) {
+      checkValve(t.ventValve.name, s.ballast[t.id].vent);
+      checkValve(t.blowValve.name, s.ballast[t.id].blow);
+    }
+    checkValve(cfg.compensation.inletValve.name, s.compensation.inlet);
+    checkValve(cfg.compensation.dischargeValve.name, s.compensation.discharge);
+    cfg.compensation.tankValves.forEach((v) => checkValve(v.name, s.compensation.tankValves[v.id]));
+    for (const [sys, st] of [
+      [cfg.trim, s.trim],
+      [cfg.heel, s.heel],
+    ] as const) {
+      checkValve(sys.valveA.name, st.valveA);
+      checkValve(sys.valveB.name, st.valveB);
+      checkValve(sys.directionValve.name, st.direction);
+    }
+    for (const b of cfg.hpAir.banks) checkValve(b.valve.name, s.hpAir.banks[b.id].valve);
+    const failedPumps: string[] = [];
+    if (s.compensation.pump.failed) failedPumps.push(cfg.compensation.pump.name);
+    if (s.trim.pump.failed) failedPumps.push(cfg.trim.pump.name);
+    if (s.heel.pump.failed) failedPumps.push(cfg.heel.pump.name);
+    if (s.propulsion.failed) failedPumps.push('Motor elétrico principal');
+    let hpMin = Infinity;
+    for (const b of cfg.hpAir.banks) hpMin = Math.min(hpMin, bankPressure(cfg.hpAir, b.id, s.hpAir.banks[b.id].mass) / 1e5);
+    evaluateAlarms(
+      {
+        cfg,
+        s,
+        depthTrue: o.depthKeel,
+        altitude: o.altitude,
+        verticalSpeed: o.verticalSpeed,
+        pitch: o.euler.pitch,
+        roll: o.euler.roll,
+        netBuoyancyKg: o.netBuoyancyKg,
+        hpMinPressureBar: hpMin,
+        stuckValves: stuck,
+        unpoweredValves: noHyd,
+        failedPumps,
+        contact: s.contact,
+        speed: s.body.vel.x,
+        declination: this.env.cfg.magneticDeclination,
+      },
+      this.config.settings.dt,
+    );
+  }
+
+  /** Recalcula as grandezas derivadas para a interface a partir do estado atual. */
+  computeOutputs(mpIn?: MassProps): void {
+    const s = this.state;
+    const cfg = this.vessel;
+    const env = this.env;
+    const R = qToMat3(s.body.quat);
+    const pos = s.body.pos;
+    const rho = env.densityAt(Math.max(0, pos.z));
+    const mp = mpIn ?? computeMassProps(cfg, s, this.light, rho);
+    const fi = this.forceInputs(mp);
+    const forces = computeForces({ pos: s.body.pos, quat: s.body.quat, vel: s.body.vel, omega: s.body.omega }, fi);
+    // copia a imersão por fatia (o buffer é reutilizado)
+    forces.hs = { ...forces.hs, sliceImmersion: Float64Array.from(forces.hs.sliceImmersion) };
+    const e = qToEuler(s.body.quat);
+    const depthOf = makeDepthOf(pos, R);
+    const depthKeel = depthOf(cfg.hull.keelRef);
+    const velNED = mulMat3Vec(R, s.body.vel);
+    const bottom = env.bottomDepthAt(pos.x, pos.y);
+    const g = env.cfg.gravity;
+    const B = forces.hs.center;
+    const G = mp.cg;
+    const W = mp.mass * g;
+    const dispKg = rho * forces.displacedVolume;
+    const BGvert = G.z - B.z;
+    // momentos hidrostáticos (peso + empuxo) no corpo e rigidez por diferenças finitas
+    const m0 = this.hydrostaticMoment(mp, s.body.quat);
+    const d = 0.003;
+    const mP = this.hydrostaticMoment(mp, qFromEulerLocal(e.phi, e.theta + d, e.psi));
+    const mR = this.hydrostaticMoment(mp, qFromEulerLocal(e.phi + d, e.theta, e.psi));
+    const pitchStiff = Math.max(1, -(mP.y - m0.y) / d);
+    const rollStiff = Math.max(1, -(mR.x - m0.x) / d);
+    const hpBar = s.hpAir.manifoldPressure / 1e5;
+    this.outputs = {
+      mp,
+      forces,
+      euler: { roll: e.phi * RAD, pitch: e.theta * RAD, heading: wrap360(e.psi * RAD) },
+      depthAxis: pos.z,
+      depthKeel,
+      pressureKeel: env.pressureAt(depthKeel),
+      bottomDepth: bottom,
+      altitude: bottom - Math.max(depthKeel, pos.z + cfg.hull.diameter / 2),
+      velNED,
+      verticalSpeed: velNED.z,
+      speed: s.body.vel.x,
+      speedOverGround: Math.sqrt(velNED.x * velNED.x + velNED.y * velNED.y),
+      courseOverGround: wrap360(Math.atan2(velNED.y, velNED.x) * RAD),
+      netBuoyancyKg: dispKg - mp.mass,
+      displacementKg: dispKg,
+      depthRateCalc: s.nav.depthRate,
+      rhoLocal: rho,
+      seaTemp: env.temperatureAt(Math.max(0, pos.z)),
+      salinity: env.salinityAt(Math.max(0, pos.z)),
+      staticPitchMoment: m0.y,
+      staticRollMoment: m0.x,
+      weightTrimMoment: -W * (G.x - B.x),
+      weightHeelMoment: W * (G.y - B.y),
+      pitchStiffness: pitchStiff,
+      rollStiffness: rollStiff,
+      staticPitchEq: (e.theta + m0.y / pitchStiff) * RAD,
+      staticRollEq: (e.phi + m0.x / rollStiff) * RAD,
+      BG: BGvert,
+      airIntake: s.snorkel.headValveOpen,
+      hpManifoldBar: hpBar,
+      massAudit: this.outputs ? this.outputs.massAudit : 0,
+      energyAudit: this.outputs ? this.outputs.energyAudit : 0,
+      rpm: (s.propulsion.omega * 60) / (2 * Math.PI),
+    };
+  }
+
+  /** Momento (corpo) de peso + empuxo para uma atitude dada, posição fixa. */
+  hydrostaticMoment(mp: MassProps, quat: Quat): Vec3 {
+    const R = qToMat3(quat);
+    const pos = this.state.body.pos;
+    const hs = computeHydrostaticsLocal(this.geom, pos, R, this.scratch2);
+    const rho = this.env.densityAt(Math.max(0, pos.z));
+    const g = this.env.cfg.gravity;
+    const dp = this.env.gaugePressureAt(Math.max(0, pos.z));
+    const vol = Math.max(0, hs.volume - this.vessel.hull.compressibility * dp * this.compressibleVolume * hs.immersedFraction);
+    const Wb = mulMat3TVecLocal(R, { x: 0, y: 0, z: mp.mass * g });
+    const Bb = mulMat3TVecLocal(R, { x: 0, y: 0, z: -rho * g * vol });
+    const mw = vCrossLocal(mp.cg, Wb);
+    const mb = vCrossLocal(hs.center, Bb);
+    return { x: mw.x + mb.x, y: mw.y + mb.y, z: mw.z + mb.z };
+  }
+
+  /** Inicializa as leituras dos sensores com os valores verdadeiros atuais. */
+  primeSensors(): void {
+    this.computeOutputs();
+    const s = this.state;
+    for (const k in s.sensors) {
+      s.sensors[k].filtered = 0;
+      s.sensors[k].value = 0;
+    }
+    updateSensors(this.vessel, s, this.trueValues(), this.config.settings.dt, false);
+    s.nav.prevDepth = 0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value);
+    s.nav.depthRate = 0;
+    this.refreshReadings();
+    this.outputs.depthRateCalc = 0;
+  }
+
+  /** Avança a simulação por um intervalo de tempo de simulação (s). Retorna nº de passos. */
+  advanceSim(simSeconds: number): number {
+    const n = Math.round(simSeconds / this.config.settings.dt);
+    for (let i = 0; i < n; i++) this.step();
+    return n;
+  }
+}
+
