@@ -7,6 +7,14 @@
 - **Trim e banda** redistribuem pesos e mudam a atitude de equilíbrio estático.
 - **Lemes** produzem forças dinâmicas ∝ U². Sem velocidade não há efeito; com velocidade, mantêm a profundidade mesmo com pequenos desequilíbrios.
 
+## Tela de pilotagem
+
+A aba **Pilotagem** mostra o submarino em 3D (vista lateral, de perseguição ou livre) com os comandos ao lado:
+- **Telégrafo:** rotação do eixo; a velocidade cresce lentamente pela inércia.
+- **Lemes:** vante e ré (SUBIR/DESCER) e direção (BB/BE). Só funcionam com velocidade.
+- **Lastro principal:** suspiros, sopro e sopro de emergência.
+- **Manobras rápidas:** "Imergir para X m" (velocidade, suspiros e piloto de profundidade; os suspiros fecham quando os TLP enchem), "Emergir" (sobe com lemes até a cota periscópica e sopra os TLP) e "Manter profundidade". Elas apenas emitem comandos registrados; o comportamento é o da física.
+
 ## Sequência completa (cenário "Superfície — pronto para imergir")
 
 1. **Preparar:** telégrafo **AV MEIA** (75 rpm). Aguarde > 4 nós. A compensação já está pré-calculada para ~40 m.

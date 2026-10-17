@@ -13,7 +13,7 @@ import type { SimRunner } from '../sim/core/runner';
 import { qToMat3, DEG } from '../sim/core/math';
 import { tankVolume } from '../sim/systems/internalTanks';
 
-export type ViewMode = 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre';
+export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre';
 
 interface TankVis {
   water: THREE.Mesh;
@@ -40,6 +40,24 @@ export interface Label3D {
 
 const P = (n: number, e: number, d: number) => new THREE.Vector3(e, -d, -n);
 
+/** Textura circular suave para partículas (bolhas, neve marinha, espuma). */
+function dotTexture(): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  if (!g) return null;
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.45, 'rgba(255,255,255,0.75)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export class SubmarineScene {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
@@ -60,6 +78,14 @@ export class SubmarineScene {
   private seabed: THREE.Mesh | null = null;
   private seabedCenter = { n: 1e12, e: 1e12 };
   private particles: Particle[] = [];
+  /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
+  private snow: THREE.Points;
+  private snowBase: Float32Array;
+  private static readonly SNOW_N = 1400;
+  private static readonly SNOW_BOX = { h: 140, v: 60 };
+  /** esteira na superfície (gerada pela velocidade real quando o hélice está próximo da superfície) */
+  private wake: Particle[] = [];
+  private wakePts: THREE.Points;
   private bubbles: THREE.Points;
   private trail: THREE.Line;
   private depthLine: THREE.Line;
@@ -71,9 +97,10 @@ export class SubmarineScene {
   showTrail = true;
   realisticFog = true;
   private clock = new THREE.Clock();
+  private dot = dotTexture();
   private env: () => SimulationEngine;
 
-  constructor(private container: HTMLElement, runner: SimRunner) {
+  constructor(private container: HTMLElement, runner: SimRunner, initialView: ViewMode = 'perspectiva') {
     this.runner = runner;
     this.env = () => this.runner.engine;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -97,7 +124,7 @@ export class SubmarineScene {
     this.scene.add(sun);
 
     // submarino
-    this.hullMat = new THREE.MeshStandardMaterial({ color: 0x2a323c, metalness: 0.35, roughness: 0.55 });
+    this.hullMat = new THREE.MeshStandardMaterial({ color: 0x323c48, metalness: 0.3, roughness: 0.55, emissive: 0x0b141c });
     this.sailMat = this.hullMat;
     this.buildSubmarine();
     this.scene.add(this.sub);
@@ -120,9 +147,28 @@ export class SubmarineScene {
     // bolhas
     const bg = new THREE.BufferGeometry();
     bg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(600 * 3), 3));
-    this.bubbles = new THREE.Points(bg, new THREE.PointsMaterial({ color: 0xdff2ff, size: 0.6, transparent: true, opacity: 0.85 }));
+    this.bubbles = new THREE.Points(bg, new THREE.PointsMaterial({ color: 0xdff2ff, size: 0.9, transparent: true, opacity: 0.85, map: this.dot, depthWrite: false }));
     this.bubbles.frustumCulled = false;
     this.scene.add(this.bubbles);
+
+    // partículas em suspensão (neve marinha), fixas no referencial do mundo
+    const nS = SubmarineScene.SNOW_N;
+    this.snowBase = new Float32Array(nS * 3);
+    for (let i = 0; i < nS; i++) {
+      this.snowBase[i * 3] = Math.random() * SubmarineScene.SNOW_BOX.h;
+      this.snowBase[i * 3 + 1] = Math.random() * SubmarineScene.SNOW_BOX.h;
+      this.snowBase[i * 3 + 2] = Math.random() * SubmarineScene.SNOW_BOX.v;
+    }
+    const sgeo = new THREE.BufferGeometry();
+    sgeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(nS * 3), 3));
+    this.snow = new THREE.Points(sgeo, new THREE.PointsMaterial({ color: 0xbfe3ff, size: 0.5, transparent: true, opacity: 0.6, depthWrite: false, map: this.dot }));
+    this.snow.frustumCulled = false;
+    this.scene.add(this.snow);
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(500 * 3), 3));
+    this.wakePts = new THREE.Points(wg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.8, transparent: true, opacity: 0.75, depthWrite: false, map: this.dot }));
+    this.wakePts.frustumCulled = false;
+    this.scene.add(this.wakePts);
 
     // trajetória e linha de profundidade
     const tg = new THREE.BufferGeometry();
@@ -139,7 +185,9 @@ export class SubmarineScene {
     this.resize();
     const s = this.env().state;
     this.lastSubPos.copy(P(0, 0, s.body.pos.z));
-    this.camera.position.copy(this.cameraTarget('perspectiva'));
+    this.view = initialView;
+    this.camera.position.copy(this.cameraTarget(initialView === 'livre' ? 'perspectiva' : initialView));
+    this.viewFrom.copy(this.camera.position);
     this.controls.target.copy(this.lastSubPos);
   }
 
@@ -283,7 +331,7 @@ export class SubmarineScene {
     this.cutaway = on;
     this.hullMat.transparent = on;
     this.hullMat.opacity = on ? 0.22 : 1;
-    this.hullMat.color.set(on ? 0x8fb3d9 : 0x2a323c);
+    this.hullMat.color.set(on ? 0x8fb3d9 : 0x323c48);
     this.hullMat.depthWrite = !on;
     this.hullMat.needsUpdate = true;
     this.tankGroup.visible = on;
@@ -294,10 +342,26 @@ export class SubmarineScene {
     return { fwd: new THREE.Vector3(Math.sin(psi), 0, -Math.cos(psi)), stbd: new THREE.Vector3(Math.cos(psi), 0, Math.sin(psi)) };
   }
 
+  /** Deslocamento da vista lateral para a frente (mostra a água à proa) — nulo em telas estreitas. */
+  private pilotLead(): number {
+    return this.camera.aspect > 1.3 ? 13 : 0;
+  }
+
   private cameraTarget(v: ViewMode): THREE.Vector3 {
     const { fwd, stbd } = this.headingVectors();
     const c = this.lastSubPos.clone();
     switch (v) {
+      case 'piloto': {
+        // lateral (boreste), ligeiramente abaixo do eixo e à frente: o submarino avança da esquerda para a direita.
+        // Distância ajustada à proporção da tela para o casco inteiro caber (telas em retrato).
+        const asp = Math.max(0.3, this.camera.aspect);
+        const dist = Math.max(95, 100 / asp);
+        const cam = c.add(stbd.multiplyScalar(dist)).add(fwd.clone().multiplyScalar(this.pilotLead()));
+        cam.y = Math.min(this.lastSubPos.y - 1.0, -1.2);
+        return cam;
+      }
+      case 'perseguicao':
+        return c.add(fwd.multiplyScalar(-Math.max(95, 70 / Math.max(0.3, this.camera.aspect)))).add(stbd.multiplyScalar(18)).add(new THREE.Vector3(0, 16, 0));
       case 'perfil':
         return c.add(stbd.multiplyScalar(140)).add(new THREE.Vector3(0, 4, 0));
       case 'frente':
@@ -440,6 +504,43 @@ export class SubmarineScene {
     }
     bp.needsUpdate = true;
 
+    // neve marinha: posições fixas no mundo, reenquadradas numa caixa em torno do submarino
+    {
+      const B = SubmarineScene.SNOW_BOX;
+      const sp = this.snow.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const mod = (a: number, m: number) => ((a % m) + m) % m;
+      for (let i = 0; i < SubmarineScene.SNOW_N; i++) {
+        const rn = mod(this.snowBase[i * 3] - pn, B.h) - B.h / 2;
+        const re = mod(this.snowBase[i * 3 + 1] - pe, B.h) - B.h / 2;
+        const rd = mod(this.snowBase[i * 3 + 2] - pd, B.v) - B.v / 2;
+        const d = pd + rd;
+        if (d < 0.8) sp.setXYZ(i, 0, -1e6, 0);
+        else sp.setXYZ(i, re, -d, -rn);
+      }
+      sp.needsUpdate = true;
+    }
+    // esteira: espuma deixada na superfície pelo hélice quando ele está próximo da superfície
+    {
+      const step = this.runner.running ? dtR * this.runner.timeScale : 0;
+      const sternW = toWorld(-v.hull.length / 2, 0, 0);
+      const u = Math.abs(s.body.vel.x);
+      if (step > 0 && sternW.d < 7 && u > 0.4) {
+        const rate = Math.min(60, u * 8);
+        let k = Math.floor(rate * step) + (Math.random() < (rate * step) % 1 ? 1 : 0);
+        while (k-- > 0 && this.wake.length < 500) {
+          this.wake.push({ n: sternW.n + (Math.random() - 0.5) * 3, e: sternW.e + (Math.random() - 0.5) * 3, d: 0, vy: 0, life: 25 });
+        }
+      }
+      if (step > 0) this.wake = this.wake.filter((p) => (p.life -= step) > 0);
+      const wp = this.wakePts.geometry.getAttribute('position') as THREE.BufferAttribute;
+      for (let i = 0; i < 500; i++) {
+        const p = this.wake[i];
+        if (p) wp.setXYZ(i, p.e - pe, 0.08, -(p.n - pn));
+        else wp.setXYZ(i, 0, -1e6, 0);
+      }
+      wp.needsUpdate = true;
+    }
+
     // trajetória
     const tp = this.trail.geometry.getAttribute('position') as THREE.BufferAttribute;
     const tr = s.nav.trail;
@@ -475,6 +576,7 @@ export class SubmarineScene {
       const k = 1 - Math.pow(1 - this.viewBlend, 3);
       this.camera.position.lerpVectors(this.viewFrom, target, k);
       this.controls.target.copy(subPos);
+      if (this.view === 'piloto') this.controls.target.add(this.headingVectors().fwd.multiplyScalar(this.pilotLead()));
       if (this.viewBlend >= 1) this.viewFrom.copy(target);
     }
     this.camera.up.set(0, 1, 0);

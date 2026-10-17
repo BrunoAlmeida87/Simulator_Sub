@@ -46,7 +46,8 @@ Disponibilidade de energia e hidráulica: os consumidores usam o estado do barra
 
 - `store.ts`: instância única de `SimRunner` e hook `useSim(hz)`, que re-renderiza na taxa indicada e a cada comando.
 - `main.tsx`: laço `requestAnimationFrame` → `runner.frame(dt_real)` + demonstração automática.
-- `screens/`: as 7 telas principais e as telas complementares.
+- `screens/`: a tela de pilotagem, as 7 telas principais e as telas complementares.
+- `maneuvers.ts`: manobras rápidas (sequências de comandos condicionadas ao estado físico).
 - `components/`: instrumentos SVG (fita de profundidade, rosa, atitude, mostradores, barras de ângulo), gráfico em canvas com cursor sincronizado, diagramas esquemáticos, decomposição de forças.
 - `inspector/`: conteúdo do modo engenharia (função, variáveis, equações, previsões) para cada componente.
 - `render3d/SubmarineScene.ts`: cena Three.js que apenas **lê** o estado, com interpolação de pose entre passos e origem flutuante.

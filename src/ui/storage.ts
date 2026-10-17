@@ -9,7 +9,7 @@ import type { SimConfig } from '../sim/config/types';
 const K_SAVES = 'sx1.saves.v1';
 const K_AUTOSAVE = 'sx1.autosave.v1';
 const K_CONFIG = 'sx1.config.v1';
-const K_PREFS = 'sx1.prefs.v1';
+const K_PREFS = 'sx1.prefs.v2';
 
 function read<T>(key: string, fallback: T): T {
   try {

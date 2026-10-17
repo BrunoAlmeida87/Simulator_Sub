@@ -116,6 +116,7 @@ O build usa caminho base relativo (`base: './'`), então funciona em qualquer su
 
 ## Telas
 
+0. **Pilotagem (tela inicial):** o submarino em 3D numa vista lateral que acompanha o casco, com os comandos ao lado (telégrafo, lemes, lastro, piloto automático e as manobras rápidas "Imergir para X m", "Emergir" e "Manter profundidade"). Você vê o submarino avançar, alagar os tanques, mergulhar, nivelar e emergir conforme opera os comandos. As referências de movimento (partículas em suspensão, esteira na superfície, bolhas e fita de profundidade) também vêm do estado físico.
 1. **Central de comando:** fita de profundidade, rosa de rumo, indicador de atitude, velocidade e RPM, lemes (comandado × real), telégrafo, piloto automático, perfil vertical da situação e o painel *"Por que está subindo ou descendo?"*.
 2. **Lastro e compensação:** diagrama interativo (TLP, garrafas AP, coletor, circuito de compensação), tabela dos tanques, sequência automática de dosagem e cálculo de compensação.
 3. **Trim e banda:** distribuição longitudinal de massas, G e B, pitch estático × dinâmico, vista frontal, transferências com previsão do ângulo resultante e decomposição de momentos.
@@ -132,6 +133,7 @@ O **modo engenharia** (botão ⓘ ou tecla `I`) permite clicar em tanques, válv
 
 ## Operação rápida
 
+0. Mais simples: na tela **Pilotagem**, pressione **▶ Iniciar simulação** e use **⬇ Imergir para 50 m** ou **⬆ Emergir**, ou opere manualmente o telégrafo e os lemes.
 1. **Cenários → "Superfície — pronto para imergir" → Iniciar**, depois ▶ **Executar**.
 2. Telégrafo **AV MEIA** (75 rpm) e, quando passar de 4 nós, **Abrir suspiros**.
 3. Com os TLP alagados, lemes de vante **10↓** até ~20 m. Em seguida, **Fechar suspiros**.

@@ -10,6 +10,7 @@ import { toKnots } from '../sim/units';
 import { fmt, fmtTime } from './format';
 import { SimSpeedButtons } from './components/Controls';
 import { CommandCenter } from './screens/CommandCenter';
+import { PilotScreen } from './screens/PilotScreen';
 import { BallastScreen } from './screens/BallastScreen';
 import { TrimHeelScreen } from './screens/TrimHeelScreen';
 import { PropulsionScreen } from './screens/PropulsionScreen';
@@ -23,8 +24,10 @@ import { HelpScreen } from './screens/HelpScreen';
 import { Inspector } from './inspector/Inspector';
 import { ProcedurePanel } from './components/Procedure';
 import { demo } from './demo';
+import { maneuver } from './maneuvers';
 
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
+  { id: 'pilotagem', n: '0', label: 'Pilotagem' },
   { id: 'comando', n: '1', label: 'Central de comando' },
   { id: 'lastro', n: '2', label: 'Lastro e compensação' },
   { id: 'trim', n: '3', label: 'Trim e banda' },
@@ -66,6 +69,7 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           className="btn warn"
           onClick={() => {
             demo.stop(runner);
+            maneuver.cancel(runner);
             runner.running = false;
             runner.replaceEngine(buildScenario(s.scenarioId, baseConfig()));
           }}
@@ -152,7 +156,7 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
 }
 
 export function App() {
-  const prefs = storage.getPrefs({ screen: 'comando' as ScreenId, eng: false });
+  const prefs = storage.getPrefs({ screen: 'pilotagem' as ScreenId, eng: false });
   const [screen, setScreen] = useState<ScreenId>(prefs.screen);
   const [eng, setEngState] = useState<boolean>(prefs.eng);
   const [inspect, setInspect] = useState<string | null>(null);
@@ -211,13 +215,14 @@ export function App() {
       else if (k === '+' || k === '=') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd + 10 });
       else if (k === '-') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd - 10 });
       else if (k === 'i') setEng(!eng);
-      else if (/^[1-7]$/.test(k)) setScreen(TABS[Number(k) - 1].id);
+      else if (/^[0-7]$/.test(k)) setScreen(TABS[Number(k)].id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
 
   const screens: Record<ScreenId, ReactNode> = {
+    pilotagem: <PilotScreen />,
     comando: <CommandCenter />,
     lastro: <BallastScreen />,
     trim: <TrimHeelScreen />,

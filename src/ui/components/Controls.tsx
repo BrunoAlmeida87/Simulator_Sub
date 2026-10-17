@@ -123,7 +123,7 @@ export function Telegraph({ e }: { e: SimulationEngine }) {
   );
 }
 
-function NumSet({ value, onSet, step, unit, min, max }: { value: number; onSet: (v: number) => void; step: number; unit: string; min?: number; max?: number }) {
+export function NumSet({ value, onSet, step, unit, min, max }: { value: number; onSet: (v: number) => void; step: number; unit: string; min?: number; max?: number }) {
   const [v, setV] = useState(String(Math.round(value * 10) / 10));
   useEffect(() => setV(String(Math.round(value * 10) / 10)), [value]);
   const commit = (x: number) => {

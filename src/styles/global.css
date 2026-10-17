@@ -233,3 +233,24 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .mutedc { color: var(--muted); }
 .accentc { color: var(--accent); }
 .calcc { color: var(--calc); }
+
+/* ---------- tela de pilotagem ---------- */
+.pilot { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 10px; align-items: start; }
+.pilot-view { position: sticky; top: calc(var(--topbar-h, 52px) + 44px); }
+.pilot-view .view3d { height: calc(100vh - var(--topbar-h, 52px) - 64px); min-height: 360px; }
+.pilot-ctl { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pilot-tape { position: absolute; left: 8px; bottom: 10px; width: 92px; opacity: 0.9; pointer-events: none; }
+.pilot-hud { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 240px); display: flex; flex-direction: column; gap: 6px; pointer-events: none; background: rgba(5, 12, 20, 0.6); border-radius: 6px; padding: 6px 8px; }
+.pilot-nums { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--mono); text-shadow: 0 1px 2px #000; }
+.pilot-nums span { display: flex; gap: 5px; align-items: baseline; }
+.pilot-nums small { color: #9fb7cf; font-size: 10px; }
+.pilot-nums b { font-size: 15px; }
+.pilot-maneuver { font-size: 12px; color: var(--warn); text-shadow: 0 1px 2px #000; }
+.pilot-start { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 17px; padding: 12px 22px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); }
+@media (max-width: 1000px) {
+  .pilot { grid-template-columns: 1fr; }
+  .pilot-view { position: static; }
+  .pilot-view .view3d { height: 56vh; min-height: 300px; }
+  .pilot-hud { right: 8px; top: 46px; max-width: none; }
+  .pilot-tape { bottom: 8px; width: 70px; }
+}

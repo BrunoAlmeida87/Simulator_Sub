@@ -13,7 +13,10 @@ export function HelpScreen() {
       </Panel>
       <Panel title="Primeiros passos">
         <ol style={{ paddingLeft: 18, margin: 0 }}>
-          <li>Escolha um cenário em <b>Cenários</b> (começa pausado) e pressione <b>▶</b> na barra superior.</li>
+          <li>
+            Na aba <b>Pilotagem</b>, pressione <b>▶ Iniciar simulação</b> e opere o telégrafo, os lemes e o lastro (ou as manobras rápidas) vendo o submarino em 3D.
+          </li>
+          <li>Escolha outros cenários em <b>Cenários</b> (começam pausados) e pressione <b>▶</b> na barra superior.</li>
           <li>
             Na <b>Central de comando</b>: telégrafo (rpm), lemes de vante/ré e de direção, piloto automático e comandos rápidos de lastro.
           </li>
@@ -57,7 +60,7 @@ export function HelpScreen() {
             <tr><td><code>W</code> / <code>S</code></td><td>Lemes de ré DESCER / SUBIR 5°</td></tr>
             <tr><td><code>Q</code> / <code>E</code></td><td>Lemes de vante DESCER / SUBIR 5°</td></tr>
             <tr><td><code>+</code> / <code>−</code></td><td>Telégrafo ±10 rpm</td></tr>
-            <tr><td><code>1</code>…<code>7</code></td><td>Telas 1 a 7</td></tr>
+            <tr><td><code>0</code>…<code>7</code></td><td>Pilotagem e telas 1 a 7</td></tr>
             <tr><td><code>I</code></td><td>Modo engenharia</td></tr>
           </tbody>
         </table>
