@@ -4,7 +4,6 @@
   "version": "0.1.0",
   "description": "Simulador técnico de submarino convencional fictício (SX-1) — plataforma de simulação de engenharia e treinamento conceitual.",
   "type": "module",
-  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
@@ -12,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate": "vitest run --reporter=verbose && node --experimental-strip-types scripts/report.ts"
+    "validate": "vitest run && vite-node scripts/report.ts",
+    "report": "vite-node scripts/report.ts"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -27,6 +27,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.4",
+    "vite-node": "^3.2.4",
     "vitest": "^3.2.7"
   }
 }

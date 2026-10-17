@@ -15,7 +15,7 @@
  */
 import type { VesselConfig } from '../config/types';
 import type { SensorState, SimState } from '../core/state';
-import { rngNormal, wrap360, RAD, type Vec3 } from '../core/math';
+import { rngNormal, wrap360, RAD, qFromEuler, qToMat3, mulMat3Vec, type Vec3 } from '../core/math';
 
 export const RHO_CAL = 1025;
 
@@ -153,11 +153,13 @@ export interface NavReadings {
 
 /** Atualiza navegação estimada (DR) e taxa de profundidade calculada. */
 export function updateNavigation(s: SimState, dt: number, trueVelNED: Vec3, prevDepth: number): number {
-  const psi = (s.sensors.GIRO.value / RAD) as number;
-  const u = s.sensors.DVLU.value;
-  const v = s.sensors.DVLV.value;
-  s.nav.drNorth += (u * Math.cos(psi) - v * Math.sin(psi)) * dt;
-  s.nav.drEast += (u * Math.sin(psi) + v * Math.cos(psi)) * dt;
+  // navegação estimada: velocidade do Doppler (3 feixes; o vertical não é exibido)
+  // projetada no plano horizontal com a atitude medida (girobússola + inercial)
+  const R = qToMat3(qFromEuler(s.sensors.INSR.value / RAD, s.sensors.INSP.value / RAD, s.sensors.GIRO.value / RAD));
+  const vb = { x: s.sensors.DVLU.value, y: s.sensors.DVLV.value, z: s.body.vel.z };
+  const vn = mulMat3Vec(R, vb);
+  s.nav.drNorth += vn.x * dt;
+  s.nav.drEast += vn.y * dt;
   s.nav.distance += Math.sqrt(trueVelNED.x * trueVelNED.x + trueVelNED.y * trueVelNED.y) * dt;
   const depth = 0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value);
   return (depth - prevDepth) / dt;

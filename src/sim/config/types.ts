@@ -54,6 +54,8 @@ export interface HydroConfig {
   addedMass: { surge: number; sway: number; heave: number; rollInertia: number; pitchYaw: number };
   linearDamping: { surge: number; sway: number; heave: number; roll: number; pitch: number; yaw: number };
   rollQuadDamping: number;
+  /** amortecimento por radiação de ondas na superfície (linear, × fator de proximidade) */
+  surfaceDamping: { heave: number; pitch: number; roll: number };
   propTorqueRollFactor: number; // fração do torque do eixo transmitida como momento de banda
 }
 

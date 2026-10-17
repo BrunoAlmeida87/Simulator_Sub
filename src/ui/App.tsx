@@ -1,0 +1,302 @@
+/** Aplicação: barra superior, navegação entre telas e modo engenharia. */
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { UiContext, type ScreenId } from './uiContext';
+import { baseConfig, cmd, runner, useSim } from './store';
+import { buildScenario } from '../sim/scenarios';
+import { visibleAlarms, PRIORITY_LABEL } from '../sim/systems/alarms';
+import { serializeEngine, deserializeEngine } from '../sim/persistence';
+import { storage } from './storage';
+import { toKnots } from '../sim/units';
+import { fmt, fmtTime } from './format';
+import { SimSpeedButtons } from './components/Controls';
+import { CommandCenter } from './screens/CommandCenter';
+import { BallastScreen } from './screens/BallastScreen';
+import { TrimHeelScreen } from './screens/TrimHeelScreen';
+import { PropulsionScreen } from './screens/PropulsionScreen';
+import { SafetyScreen } from './screens/SafetyScreen';
+import { View3DScreen } from './screens/View3DScreen';
+import { HistoryScreen } from './screens/HistoryScreen';
+import { ScenarioScreen } from './screens/ScenarioScreen';
+import { AuxSystemsScreen } from './screens/AuxSystemsScreen';
+import { ValidationScreen } from './screens/ValidationScreen';
+import { HelpScreen } from './screens/HelpScreen';
+import { Inspector } from './inspector/Inspector';
+import { ProcedurePanel } from './components/Procedure';
+import { demo } from './demo';
+
+const TABS: { id: ScreenId; n?: string; label: string }[] = [
+  { id: 'comando', n: '1', label: 'Central de comando' },
+  { id: 'lastro', n: '2', label: 'Lastro e compensação' },
+  { id: 'trim', n: '3', label: 'Trim e banda' },
+  { id: 'propulsao', n: '4', label: 'Propulsão e energia' },
+  { id: 'seguranca', n: '5', label: 'Segurança' },
+  { id: 'v3d', n: '6', label: 'Visualização 3D' },
+  { id: 'historico', n: '7', label: 'Histórico' },
+  { id: 'cenarios', label: 'Cenários e configuração' },
+  { id: 'auxiliares', label: 'Sistemas auxiliares' },
+  { id: 'validacao', label: 'Validação' },
+  { id: 'ajuda', label: 'Guia' },
+];
+
+function TopBar() {
+  const e = useSim(8);
+  const s = e.state;
+  const o = e.outputs;
+  const vis = visibleAlarms(s);
+  const unack = vis.filter((a) => !a.acked);
+  const top = unack[0] ?? vis[0];
+  const ui = useUiLocal();
+  return (
+    <div className="topbar" ref={ui.topRef}>
+      <div className="brand">
+        <b>SX-1</b>
+        <span>Simulador técnico de submarino · embarcação fictícia</span>
+      </div>
+      <div className="simctl">
+        <button className={`btn ${runner.running ? 'on' : 'ok'}`} onClick={() => ((runner.running = !runner.running), runner.notify())} title="Executar/pausar (Espaço)">
+          {runner.running ? '❚❚ Pausar' : '▶ Executar'}
+        </button>
+        <button className="btn" disabled={runner.running} onClick={() => runner.stepOnce(1)} title="Avançar um passo fixo">
+          +1 passo
+        </button>
+        <button className="btn" disabled={runner.running} onClick={() => runner.stepOnce(50)} title="Avançar 1 s">
+          +1 s
+        </button>
+        <button
+          className="btn warn"
+          onClick={() => {
+            demo.stop(runner);
+            runner.running = false;
+            runner.replaceEngine(buildScenario(s.scenarioId, baseConfig()));
+          }}
+          title="Reiniciar o cenário atual"
+        >
+          ↺ Reiniciar
+        </button>
+        <SimSpeedButtons />
+        <span className="clock" title="Tempo de simulação">
+          {fmtTime(s.t)}
+        </span>
+        {runner.running && runner.lagging && <span className="badge warn">CPU: tempo reduzido</span>}
+      </div>
+      <div className="strip">
+        <div className="kv">
+          <small>PROF (m)</small>
+          <b>{fmt(0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value), 1)}</b>
+        </div>
+        <div className="kv">
+          <small>VEL (nós)</small>
+          <b>{fmt(toKnots(s.sensors.DVLU.value), 1)}</b>
+        </div>
+        <div className="kv">
+          <small>RUMO</small>
+          <b>{fmt(s.sensors.GIRO.value, 0)}°</b>
+        </div>
+        <div className="kv">
+          <small>PITCH</small>
+          <b>{fmt(s.sensors.INSP.value, 1)}°</b>
+        </div>
+        <div className="kv">
+          <small>BANDA</small>
+          <b>{fmt(s.sensors.INSR.value, 1)}°</b>
+        </div>
+        {o.surfaced ? (
+          <div className="kv" title="Reserva de flutuabilidade: peso adicional necessário para submergir por completo">
+            <small>RESERVA</small>
+            <b>{fmt(o.reserveKg / 1000, 1)} t</b>
+          </div>
+        ) : (
+          <div className="kv" title="Flutuabilidade líquida calculada (+ positiva)">
+            <small>FLUTUAB.</small>
+            <b style={{ color: Math.abs(o.netBuoyancyKg) > 2000 ? '#f5b041' : undefined }}>{fmt(o.netBuoyancyKg / 1000, 2)} t</b>
+          </div>
+        )}
+        <div className="kv">
+          <small>BATERIA</small>
+          <b>{fmt(s.electrical.soc * 100, 0)}%</b>
+        </div>
+      </div>
+      <div className="annunciator" onClick={() => ui.setScreen('seguranca')} style={{ cursor: 'pointer' }} title="Abrir tela de segurança">
+        {top ? (
+          <>
+            <span className={`badge ${top.def.priority <= 2 ? 'alarm' : 'warn'} ${!top.acked && top.active ? 'blink' : ''}`}>
+              {PRIORITY_LABEL[top.def.priority]} {unack.length > 1 ? `+${unack.length - 1}` : ''}
+            </span>
+            <span className={`msg prio${top.def.priority}`}>{top.def.text}</span>
+            {unack.length > 0 && (
+              <button
+                className="btn sm"
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  cmd({ type: 'ack', id: 'ALL' });
+                }}
+              >
+                Reconhecer
+              </button>
+            )}
+          </>
+        ) : (
+          <span className="badge ok">SEM ALARMES</span>
+        )}
+      </div>
+      <div className="row" style={{ gap: 6 }}>
+        <button className={`btn ${ui.eng ? 'on' : ''}`} onClick={() => ui.setEng(!ui.eng)} title="Modo engenharia (I)">
+          ⓘ Engenharia
+        </button>
+        <button className={`btn ${ui.showProcedure ? 'on' : ''}`} onClick={() => ui.setShowProcedure(!ui.showProcedure)}>
+          Procedimento
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// contexto local para a barra superior (ref de altura)
+let uiLocal: { topRef: React.RefObject<HTMLDivElement>; setScreen: (s: ScreenId) => void; eng: boolean; setEng: (v: boolean) => void; showProcedure: boolean; setShowProcedure: (v: boolean) => void };
+const useUiLocal = () => uiLocal;
+
+export function App() {
+  const prefs = storage.getPrefs({ screen: 'comando' as ScreenId, eng: false });
+  const [screen, setScreen] = useState<ScreenId>(prefs.screen);
+  const [eng, setEngState] = useState<boolean>(prefs.eng);
+  const [inspect, setInspect] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [showProcedure, setShowProcedure] = useState(false);
+  const [resume, setResume] = useState(() => storage.getAutosave());
+  const topRef = useRef<HTMLDivElement>(null);
+  const toastTimer = useRef<number>(0);
+
+  const toast = (m: string) => {
+    setToastMsg(m);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToastMsg(null), 3500);
+  };
+  const setEng = (v: boolean) => {
+    setEngState(v);
+    if (v) toast('Modo engenharia: clique em tanques, válvulas, bombas, lemes ou instrumentos.');
+    else setInspect(null);
+  };
+  uiLocal = { topRef, setScreen, eng, setEng, showProcedure, setShowProcedure };
+
+  useEffect(() => {
+    storage.setPrefs({ screen, eng });
+  }, [screen, eng]);
+
+  // altura da barra superior → posição das abas
+  useEffect(() => {
+    const el = topRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // salvamento automático
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (runner.running) storage.setAutosave(serializeEngine(runner.engine, 'Salvamento automático'));
+    }, 20000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // atalhos de teclado
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const t = ev.target as HTMLElement;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+      const s = runner.engine.state;
+      const k = ev.key.toLowerCase();
+      if (k === ' ') {
+        ev.preventDefault();
+        runner.running = !runner.running;
+        runner.notify();
+      } else if (k === 'a' || k === 'd') cmd({ type: 'surface', id: 'rudder', angle: s.surfaces.rudder.cmd + (k === 'd' ? 5 : -5) });
+      else if (k === 'w' || k === 's') cmd({ type: 'surface', id: 'stern', angle: s.surfaces.stern.cmd + (k === 's' ? 5 : -5) });
+      else if (k === 'q' || k === 'e') cmd({ type: 'surface', id: 'bow', angle: s.surfaces.bow.cmd + (k === 'e' ? 5 : -5) });
+      else if (k === '+' || k === '=') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd + 10 });
+      else if (k === '-') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd - 10 });
+      else if (k === 'i') setEng(!eng);
+      else if (/^[1-7]$/.test(k)) setScreen(TABS[Number(k) - 1].id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const screens: Record<ScreenId, ReactNode> = {
+    comando: <CommandCenter />,
+    lastro: <BallastScreen />,
+    trim: <TrimHeelScreen />,
+    propulsao: <PropulsionScreen />,
+    seguranca: <SafetyScreen />,
+    v3d: <View3DScreen />,
+    historico: <HistoryScreen />,
+    cenarios: <ScenarioScreen />,
+    auxiliares: <AuxSystemsScreen />,
+    validacao: <ValidationScreen />,
+    ajuda: <HelpScreen />,
+  };
+
+  return (
+    <UiContext.Provider value={{ screen, setScreen, eng, setEng, inspect, setInspect, toast, showProcedure, setShowProcedure }}>
+      <div className={`app ${eng ? 'eng' : ''}`}>
+        <TopBar />
+        <nav className="tabs">
+          {TABS.map((t) => (
+            <button key={t.id} className={screen === t.id ? 'active' : ''} onClick={() => setScreen(t.id)}>
+              {t.n && <span className="n">{t.n}</span>}
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        {resume && (
+          <div className="banner">
+            <span>
+              Sessão anterior encontrada (t = {fmtTime(resume.simTime)}, {new Date(resume.savedAt).toLocaleString('pt-BR')}).
+            </span>
+            <button
+              className="btn"
+              onClick={() => {
+                try {
+                  runner.replaceEngine(deserializeEngine(resume));
+                  toast('Sessão retomada (pausada).');
+                } catch (ex) {
+                  toast('Não foi possível retomar: ' + String(ex));
+                }
+                setResume(null);
+              }}
+            >
+              Retomar
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                storage.clearAutosave();
+                setResume(null);
+              }}
+            >
+              Descartar
+            </button>
+          </div>
+        )}
+        <main className="main">
+          <div className="screen">{screens[screen]}</div>
+          {eng && inspect && <Inspector />}
+        </main>
+        {showProcedure && (
+          <div className="panel" style={{ position: 'fixed', left: 10, bottom: 10, width: 360, maxWidth: 'calc(100% - 20px)', maxHeight: '55vh', overflow: 'auto', zIndex: 40, boxShadow: '0 6px 24px rgba(0,0,0,0.5)' }}>
+            <header>
+              <h3>Procedimento guiado</h3>
+              <button className="btn sm" onClick={() => setShowProcedure(false)}>
+                ✕
+              </button>
+            </header>
+            <div className="body">
+              <ProcedurePanel />
+            </div>
+          </div>
+        )}
+        {toastMsg && <div className="toast">{toastMsg}</div>}
+      </div>
+    </UiContext.Provider>
+  );
+}

@@ -51,6 +51,9 @@ export interface SimOutputs {
   speedOverGround: number;
   courseOverGround: number;
   netBuoyancyKg: number; // + = flutuabilidade positiva (empuxo > peso)
+  /** ρ·V_envelope(submerso) − m: flutuabilidade se totalmente submerso (reserva na superfície) */
+  reserveKg: number;
+  surfaced: boolean;
   displacementKg: number; // ρ·V_imerso
   depthRateCalc: number; // calculada a partir dos profundímetros
   rhoLocal: number;
@@ -407,6 +410,8 @@ export class SimulationEngine {
       speedOverGround: Math.sqrt(velNED.x * velNED.x + velNED.y * velNED.y),
       courseOverGround: wrap360(Math.atan2(velNED.y, velNED.x) * RAD),
       netBuoyancyKg: dispKg - mp.mass,
+      reserveKg: rho * (this.geom.volume - this.vessel.hull.compressibility * env.gaugePressureAt(Math.max(0, pos.z)) * this.compressibleVolume) - mp.mass,
+      surfaced: forces.hs.immersedFraction < 0.995,
       displacementKg: dispKg,
       depthRateCalc: s.nav.depthRate,
       rhoLocal: rho,

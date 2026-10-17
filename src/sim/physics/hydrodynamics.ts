@@ -22,7 +22,8 @@
  *      C_Lα = 2π·AR / (2 + √(AR² + 4))   (Helmbold), estol em α_e
  *    ⇒ efetividade ∝ U²: com velocidade nula, os lemes não geram força.
  *
- * 5) Amortecimento linear residual (efeitos viscosos a baixa velocidade).
+ * 5) Amortecimento linear residual (efeitos viscosos a baixa velocidade) e,
+ *    perto da superfície, amortecimento por radiação de ondas (linear).
  *
  * O momento de Munk (massa adicional) é tratado em dynamics.ts.
  */
@@ -109,6 +110,16 @@ export function hullForces(
   damping.M.x = -(ld.roll * p + h.rollQuadDamping * p * Math.abs(p)) * Math.max(0.3, immFraction);
   damping.M.y = -ld.pitch * q * immFraction;
   damping.M.z = -ld.yaw * r * immFraction;
+  // radiação de ondas (somente perto da superfície; simplificação linear)
+  const sd = h.surfaceDamping;
+  if (sd) {
+    const fs = surfaceProximity(axisDepth, R) * (immFraction > 0 ? 1 : 0);
+    if (fs > 1e-4) {
+      damping.F.z -= sd.heave * fs * w;
+      damping.M.y -= sd.pitch * fs * q;
+      damping.M.x -= sd.roll * fs * p;
+    }
+  }
   return { resistance, crossflow, lift, damping };
 }
 

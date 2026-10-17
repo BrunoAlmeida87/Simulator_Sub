@@ -66,6 +66,7 @@ export function defaultVessel(): VesselConfig {
       addedMass: { surge: 0.025, sway: 0.95, heave: 0.95, rollInertia: 2.0e6, pitchYaw: 0.85 },
       linearDamping: { surge: 2.0e3, sway: 3.0e4, heave: 3.0e4, roll: 3.0e6, pitch: 4.0e7, yaw: 4.0e7 },
       rollQuadDamping: 5.0e6,
+      surfaceDamping: { heave: 1.2e6, pitch: 4.0e8, roll: 2.0e6 },
       propTorqueRollFactor: 0.6,
     },
     fins: [
