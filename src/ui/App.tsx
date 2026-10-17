@@ -1,6 +1,6 @@
 /** Aplicação: barra superior, navegação entre telas e modo engenharia. */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { UiContext, type ScreenId } from './uiContext';
+import { UiContext, useUi, type ScreenId } from './uiContext';
 import { baseConfig, cmd, runner, useSim } from './store';
 import { buildScenario } from '../sim/scenarios';
 import { visibleAlarms, PRIORITY_LABEL } from '../sim/systems/alarms';
@@ -38,16 +38,16 @@ const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'ajuda', label: 'Guia' },
 ];
 
-function TopBar() {
+function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
   const e = useSim(8);
   const s = e.state;
   const o = e.outputs;
   const vis = visibleAlarms(s);
   const unack = vis.filter((a) => !a.acked);
   const top = unack[0] ?? vis[0];
-  const ui = useUiLocal();
+  const ui = useUi();
   return (
-    <div className="topbar" ref={ui.topRef}>
+    <div className="topbar" ref={topRef}>
       <div className="brand">
         <b>SX-1</b>
         <span>Simulador técnico de submarino · embarcação fictícia</span>
@@ -151,10 +151,6 @@ function TopBar() {
   );
 }
 
-// contexto local para a barra superior (ref de altura)
-let uiLocal: { topRef: React.RefObject<HTMLDivElement>; setScreen: (s: ScreenId) => void; eng: boolean; setEng: (v: boolean) => void; showProcedure: boolean; setShowProcedure: (v: boolean) => void };
-const useUiLocal = () => uiLocal;
-
 export function App() {
   const prefs = storage.getPrefs({ screen: 'comando' as ScreenId, eng: false });
   const [screen, setScreen] = useState<ScreenId>(prefs.screen);
@@ -176,7 +172,6 @@ export function App() {
     if (v) toast('Modo engenharia: clique em tanques, válvulas, bombas, lemes ou instrumentos.');
     else setInspect(null);
   };
-  uiLocal = { topRef, setScreen, eng, setEng, showProcedure, setShowProcedure };
 
   useEffect(() => {
     storage.setPrefs({ screen, eng });
@@ -239,7 +234,7 @@ export function App() {
   return (
     <UiContext.Provider value={{ screen, setScreen, eng, setEng, inspect, setInspect, toast, showProcedure, setShowProcedure }}>
       <div className={`app ${eng ? 'eng' : ''}`}>
-        <TopBar />
+        <TopBar topRef={topRef} />
         <nav className="tabs">
           {TABS.map((t) => (
             <button key={t.id} className={screen === t.id ? 'active' : ''} onClick={() => setScreen(t.id)}>
