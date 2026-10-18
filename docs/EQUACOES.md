@@ -250,7 +250,25 @@ K = min(4, (U₀/U)²)   (escalonamento pela efetividade ∝ U²);   autoridade 
 
 Os controladores usam as leituras dos sensores. A transferência é sem salto (bumpless) e o anti-windup usa integração condicional.
 
-## 14. Balanços de verificação
+## 14. Ondas (`environment/waves.ts`)
+
+Espectro de Pierson–Moskowitz (Hs, Tp do estado do mar), discretizado em N = 24 componentes de amplitude aᵢ = √(2 S(ωᵢ) Δω), direção θᵢ com espalhamento cos², fase aleatória (semente fixa). Águas profundas: kᵢ = ωᵢ²/g.
+
+```
+η(x,t)   = Σ aᵢ cos(kᵢ·x − ωᵢ t + φᵢ)
+u(x,z,t) = Σ aᵢ ωᵢ e^(−kᵢ z) [cos(·) k̂ᵢ , sin(·)]       (z positivo para baixo)
+a = ∂u/∂t ;  p_d = ρ g Σ aᵢ e^(−kᵢ z) cos(·)
+```
+
+Em cada fatia do casco: o empuxo usa a imersão relativa à superfície local (z − η); o arrasto transversal usa a velocidade relativa à orbital; e a força de inércia é
+
+```
+F = (Ca + f_FK) ρ A dx a_água ,  Ca = 1 ,  f_FK = imersão da fatia
+```
+
+O campo é avaliado uma vez por passo (no meio do passo). A pressão na quilha soma ρ p_d, e o snorkel compara a cabeça com a elevação local. O oceano 3D (shader WebGL) usa exatamente as mesmas componentes e fases. Verificado no teste V13 (decaimento e^(−kz)).
+
+## 15. Balanços de verificação
 
 ```
 Massa interna: m(t) − m(0) = admissão − descarga + alagamento + (água no tanque de comb. − comb. queimado)

@@ -25,7 +25,11 @@ export interface HydrostaticResult {
   waterplaneDepthAxis: number; // profundidade do eixo a meia-nau
 }
 
-export function computeHydrostatics(geom: HullGeometry, pos: Vec3, R: Mat3, out?: Float64Array): HydrostaticResult {
+/**
+ * eta (opcional): elevação da superfície (m, + para cima) sobre cada fatia —
+ * mar com ondas (aproximação de Froude–Krylov hidrostática por fatia).
+ */
+export function computeHydrostatics(geom: HullGeometry, pos: Vec3, R: Mat3, out?: Float64Array, eta?: Float64Array): HydrostaticResult {
   const slices = geom.slices;
   const imm = out && out.length === slices.length ? out : new Float64Array(slices.length);
   // componentes verticais (z mundo) dos eixos do corpo: linha 3 de R
@@ -46,7 +50,7 @@ export function computeHydrostatics(geom: HullGeometry, pos: Vec3, R: Mat3, out?
       imm[i] = 0;
       continue;
     }
-    const zc = pos.z + rzx * sl.x; // profundidade do centro da fatia
+    const zc = pos.z + rzx * sl.x + (eta ? eta[i] : 0); // profundidade do centro da fatia abaixo da superfície local
     let area: number;
     let cOff: number; // deslocamento do centróide ao longo de n̂
     if (nLen < 1e-6) {

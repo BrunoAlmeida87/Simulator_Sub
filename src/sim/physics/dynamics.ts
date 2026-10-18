@@ -68,7 +68,50 @@ export interface ForceInputs {
   propTorque: number;
   compressibleVolume: number; // m³ sujeito à compressão do casco
   sliceScratch: Float64Array;
+  /** tempo de simulação (s) — ondas */
+  t: number;
+  /** deslocamento temporal do estágio RK4 */
+  tStage?: number;
+  /** cinemática das ondas pré-calculada para o passo (undefined = calcular aqui) */
+  waveCache?: WaveCache | null;
 }
+
+export interface WaveCache {
+  eta: Float64Array;
+  vy: Float64Array;
+  vz: Float64Array;
+  ay: Float64Array;
+  az: Float64Array;
+  depth: Float64Array;
+}
+const SAMPLE = { eta: 0, vn: 0, ve: 0, vz: 0, an: 0, ae: 0, az: 0 };
+
+/**
+ * Elevação local e cinemática das ondas em cada fatia (referencial do corpo).
+ * Calculada uma vez por passo (no instante médio) e reutilizada nos estágios
+ * do RK4 — o casco se desloca poucos centímetros dentro de um passo.
+ */
+export function computeWaveCache(geom: HullGeometry, env: Environment, pos: Vec3, R: Mat3, t: number, diameter: number, reuse?: WaveCache | null): WaveCache | null {
+  const wf = env.waves;
+  if (!wf.active || pos.z > wf.cutoffDepth + diameter) return null;
+  const nS = geom.slices.length;
+  const wb: WaveCache = reuse && reuse.eta.length === nS ? reuse : { eta: new Float64Array(nS), vy: new Float64Array(nS), vz: new Float64Array(nS), ay: new Float64Array(nS), az: new Float64Array(nS), depth: new Float64Array(nS) };
+  for (let i = 0; i < nS; i++) {
+    const x = geom.slices[i].x;
+    const n = pos.x + R[0] * x;
+    const e = pos.y + R[3] * x;
+    const zc = pos.z + R[6] * x;
+    wf.sample(n, e, zc, t, SAMPLE);
+    wb.eta[i] = SAMPLE.eta;
+    wb.vy[i] = R[1] * SAMPLE.vn + R[4] * SAMPLE.ve + R[7] * SAMPLE.vz;
+    wb.vz[i] = R[2] * SAMPLE.vn + R[5] * SAMPLE.ve + R[8] * SAMPLE.vz;
+    wb.ay[i] = R[1] * SAMPLE.an + R[4] * SAMPLE.ae + R[7] * SAMPLE.az;
+    wb.az[i] = R[2] * SAMPLE.an + R[5] * SAMPLE.ae + R[8] * SAMPLE.az;
+    wb.depth[i] = zc + SAMPLE.eta;
+  }
+  return wb;
+}
+const WAVE_CA = 1.0; // massa adicional transversal de seção circular
 
 export interface ForceBreakdown {
   weight: Wrench;
@@ -82,6 +125,7 @@ export interface ForceBreakdown {
   contact: Wrench;
   coriolis: Wrench; // inclui Munk
   munk: Vec3; // momento de Munk isolado
+  waves: Wrench; // forças de inércia das ondas (Froude–Krylov + difração simplificada)
   total: Wrench;
   hs: HydrostaticResult;
   rho: number;
@@ -115,7 +159,12 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const g = env.cfg.gravity;
   const axisDepth = bs.pos.z;
   const rho = env.densityAt(Math.max(0, axisDepth));
-  const hs = computeHydrostatics(geom, bs.pos, R, fi.sliceScratch);
+  // ---- ondas: elevação local por fatia e cinemática orbital
+  const wf = env.waves;
+  const tt = fi.t + (fi.tStage ?? 0);
+  const nS = geom.slices.length;
+  const wb = fi.waveCache !== undefined ? fi.waveCache : computeWaveCache(geom, env, bs.pos, R, tt, cfg.hull.diameter);
+  const hs = computeHydrostatics(geom, bs.pos, R, fi.sliceScratch, wb ? wb.eta : undefined);
   const dp = env.gaugePressureAt(Math.max(0, axisDepth));
   const displaced = Math.max(0, hs.volume - cfg.hull.compressibility * dp * fi.compressibleVolume * hs.immersedFraction);
   const imm = hs.immersedFraction;
@@ -129,14 +178,35 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const buoyancy: Wrench = { F: Bb, M: vCross(hs.center, Bb) };
 
   // --- casco
-  const hf = hullForces(cfg, geom, bs.vel, bs.omega, rho, hs.sliceImmersion, imm, axisDepth);
+  const hf = hullForces(cfg, geom, bs.vel, bs.omega, rho, hs.sliceImmersion, imm, axisDepth, wb ? { vy: wb.vy, vz: wb.vz } : undefined);
+
+  // --- forças de inércia das ondas por fatia: (C_FK + C_a)·ρ·A·dx·a_água (transversais)
+  const waves = zeroWrench();
+  if (wb) {
+    const R0 = cfg.hull.diameter / 2;
+    for (let i = 0; i < nS; i++) {
+      const sl = geom.slices[i];
+      const im = hs.sliceImmersion[i];
+      if (im <= 0) continue;
+      // Froude–Krylov dinâmico só para fatias totalmente submersas (na superfície já entra pela η local)
+      const fk = Math.max(0, Math.min(1, (wb.depth[i] - sl.r) / R0));
+      const m = rho * Math.PI * sl.r * sl.r * im * sl.dx * (WAVE_CA + fk);
+      const fy = m * wb.ay[i];
+      const fz = m * wb.az[i];
+      waves.F.y += fy;
+      waves.F.z += fz;
+      waves.M.y += -sl.x * fz;
+      waves.M.z += sl.x * fy;
+    }
+  }
 
   // --- superfícies
   const fins: Record<string, FinResult> = {};
   const finsTotal = zeroWrench();
   for (const f of cfg.fins) {
     const depth = bs.pos.z + R[6] * f.position.x + R[7] * f.position.y + R[8] * f.position.z;
-    const fr = finForce(f, fi.finAngles[f.id] ?? 0, bs.vel, bs.omega, rho, finImmersion(depth));
+    const etaF = wf.active && depth < 25 ? wf.elevation(bs.pos.x + R[0] * f.position.x, bs.pos.y + R[3] * f.position.x, tt) : 0;
+    const fr = finForce(f, fi.finAngles[f.id] ?? 0, bs.vel, bs.omega, rho, finImmersion(depth + etaF));
     fins[f.id] = fr;
     addWrench(finsTotal, fr);
   }
@@ -200,7 +270,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   };
 
   const total = zeroWrench();
-  for (const c of [weight, buoyancy, hf.resistance, hf.crossflow, hf.lift, hf.damping, finsTotal, propeller, contact, coriolis]) addWrench(total, c);
+  for (const c of [weight, buoyancy, hf.resistance, hf.crossflow, hf.lift, hf.damping, finsTotal, propeller, contact, coriolis, waves]) addWrench(total, c);
 
   return {
     weight,
@@ -214,6 +284,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
     contact,
     coriolis,
     munk,
+    waves,
     total,
     hs,
     rho,
@@ -270,10 +341,14 @@ function addScaled(bs: BodyState, d: Deriv, h: number): BodyState {
 
 /** Um passo RK4 do corpo rígido. */
 export function rk4Step(bs: BodyState, fi: ForceInputs, dt: number): BodyState {
+  fi.tStage = 0;
   const k1 = derivative(bs, fi);
+  fi.tStage = dt / 2;
   const k2 = derivative(addScaled(bs, k1, dt / 2), fi);
   const k3 = derivative(addScaled(bs, k2, dt / 2), fi);
+  fi.tStage = dt;
   const k4 = derivative(addScaled(bs, k3, dt), fi);
+  fi.tStage = 0;
   const comb = <T extends Vec3>(a: T, b: T, c: T, d: T): Vec3 => ({
     x: (a.x + 2 * b.x + 2 * c.x + d.x) / 6,
     y: (a.y + 2 * b.y + 2 * c.y + d.y) / 6,

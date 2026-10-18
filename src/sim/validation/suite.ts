@@ -6,6 +6,7 @@
 import { defaultSimConfig } from '../config/defaultVessel';
 import type { SimConfig } from '../config/types';
 import { buildScenario } from '../scenarios';
+import { solveNeutralCompensation } from '../equilibrium';
 import { SimulationEngine } from '../core/engine';
 import { SimRunner } from '../core/runner';
 import { applyCommand } from '../commands';
@@ -59,6 +60,7 @@ export function uniformConfig(): SimConfig {
   c.environment.deepSalinity = 35;
   c.environment.bottom.baseDepth = 1500;
   c.environment.bottom.roughness = 0;
+  c.environment.waves = { seaState: 0, direction: 0, seed: 1 };
   return c;
 }
 
@@ -494,6 +496,69 @@ export const VALIDATION_CASES: ValidationCase[] = [
         ],
         series: [sk],
         notes: 'Massa interna exclui a água livre dos TLP (comunicante com o mar). Fronteiras: admissão/descarga de mar, ar ventilado/derramado, compressor, combustível compensado, alagamentos.',
+      };
+    },
+  },
+  {
+    id: 'V13',
+    title: 'Extra: ondas — resposta decai com a profundidade',
+    description: 'Mesmo espectro de ondas (estado do mar 4) na física e no oceano 3D: na superfície o submarino joga; a 100 m a resposta praticamente desaparece (e^−kz); com mar calmo não há movimento; na cota periscópica as cristas cobrem o snorkel.',
+    run: () => {
+      const vzRms = (scId: string, ss: number, depth?: number) => {
+        const c = uniformConfig();
+        c.environment.waves = { seaState: ss, direction: 30, seed: 99 };
+        const e = buildScenario(scId, c);
+        if (depth !== undefined) {
+          e.state.body.pos.z = depth;
+          solveNeutralCompensation(e, depth, true);
+          e.state.ledger.mass0 = 0;
+        }
+        e.advanceSim(40);
+        let s2 = 0;
+        let p2 = 0;
+        let n = 0;
+        for (let i = 0; i < 2500; i++) {
+          e.step();
+          s2 += e.outputs.verticalSpeed ** 2;
+          p2 += e.state.body.omega.y ** 2;
+          n++;
+        }
+        return { vz: Math.sqrt(s2 / n), q: Math.sqrt(p2 / n) * RAD, e };
+      };
+      const surf = vzRms('superficie', 4);
+      const deep = vzRms('pairando', 4, 96.9);
+      const calm = vzRms('superficie', 0);
+      // snorkel em mar grosso
+      const c5 = uniformConfig();
+      c5.environment.waves = { seaState: 5, direction: 60, seed: 4242 };
+      const sn = buildScenario('cota_periscopica', c5);
+      // em mar grosso a sucção média das ondas puxa o casco para baixo; o piloto
+      // automático de profundidade mantém a cota, como um operador faria
+      applyCommand(sn, { type: 'autopilot', channel: 'depth', mode: 'AUTO' });
+      applyCommand(sn, { type: 'setpoint', channel: 'depth', value: 15 });
+      applyCommand(sn, { type: 'snorkel', raise: true });
+      sn.advanceSim(40);
+      let closed = 0;
+      let opened = 0;
+      for (let i = 0; i < 120; i++) {
+        sn.advanceSim(0.5);
+        if (sn.state.snorkel.headValveOpen) opened++;
+        else closed++;
+      }
+      const ratio = deep.vz / Math.max(1e-9, surf.vz);
+      return {
+        metrics: [
+          m('Hs do estado do mar 4', surf.e.env.waves.hs, 'm', 'referência', true),
+          m('Velocidade vertical RMS na superfície', surf.vz, 'm/s', '> 0,05', surf.vz > 0.05),
+          m('Taxa de pitch RMS na superfície', surf.q, '°/s', '> 0,05', surf.q > 0.05),
+          m('Velocidade vertical RMS a 100 m', deep.vz, 'm/s', 'referência', true),
+          m('Razão 100 m / superfície', ratio, '—', '< 0,1 (decaimento exponencial)', ratio < 0.1),
+          m('Velocidade vertical RMS com mar calmo', calm.vz, 'm/s', '< 1e−3', calm.vz < 1e-3),
+          m('Snorkel em mar 5: amostras com válvula de cabeça fechada', closed, 'de 120', '> 0 (cristas cobrem a cabeça)', closed > 0),
+          m('Snorkel em mar 5: amostras com válvula aberta', opened, 'de 120', '> 0', opened > 0),
+        ],
+        series: [],
+        notes: 'Empuxo por fatia com a elevação local, forças de inércia da água (Froude–Krylov + massa adicional) e escoamento relativo; o oceano 3D usa as mesmas componentes. Perto da superfície surge uma força média para baixo e um momento de proa para baixo (sucção de ondas), compensados aqui pelo piloto automático de profundidade.',
       };
     },
   },

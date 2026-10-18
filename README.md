@@ -35,7 +35,8 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Propulsão | ✅ Motor elétrico, eixo, hélice de 4 quadrantes, rampa de rotação, limites de torque e potência |
 | Lemes de direção e de profundidade | ✅ Vante, ré e direção com atuadores limitados em velocidade; força proporcional a U² e estol |
 | Indicadores | ✅ Profundidade, rumo, velocidade, pitch, banda e muitos outros, classificados como MED, CALC ou CMD |
-| Modelo 3D animado | ✅ Three.js com corte esquemático dos tanques, hélice, lemes, bolhas, fundo e superfície |
+| Modelo 3D animado | ✅ Three.js com corte esquemático dos tanques, hélice, lemes, bolhas e fundo |
+| Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6 e qualidade gráfica ajustável |
 | Interface e controles | ✅ 7 telas, mais cenários, auxiliares, validação, guia e modo engenharia; executar, pausar, passo, reiniciar e acelerar |
 
 **Antecipados das Fases 2 e 3** (funcionais, mas simplificados): banda por tanques laterais, balanço de energia com bateria, diesel-geradores, combustível compensado e compressor; sensores com ruído, atraso e falhas; alarmes com prioridade e registro; gráficos históricos sincronizados; piloto automático PID; injeção de falhas (bombas, válvulas, sensores, energia, hidráulica, alagamento); termoclina; topografia do fundo.
@@ -185,7 +186,7 @@ Relatório completo: [docs/VALIDACAO.md](docs/VALIDACAO.md) (gerado por `npm run
 
 Resumo (lista completa em [docs/LIMITACOES.md](docs/LIMITACOES.md)):
 
-- Mar calmo: sem ondas nem correntes. A ondulação da superfície no 3D é apenas visual.
+- Ondas lineares (Airy, Pierson–Moskowitz, 24 componentes) sem quebra nem correntes; o "chop" visual do oceano 3D não entra na física.
 - Derivadas hidrodinâmicas por componentes (casco, escoamento cruzado, sustentação do casco, superfícies, Munk), sem dados de tanque de provas.
 - CG tratado na origem para os termos inerciais; produtos de inércia desprezados; massa adicional diagonal.
 - Ar dos tanques isotérmico; sem superfície livre nos tanques; água do mar homogênea ao longo do casco.

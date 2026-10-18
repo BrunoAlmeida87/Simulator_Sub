@@ -33,6 +33,8 @@ const ENV_PARAMS: Param[] = [
   { label: 'Declividade para o Leste', unit: 'm/km', get: (c) => c.environment.bottom.slopeEast, set: (c, v) => (c.environment.bottom.slopeEast = v), step: 1 },
   { label: 'Rugosidade do relevo', unit: 'm', get: (c) => c.environment.bottom.roughness, set: (c, v) => (c.environment.bottom.roughness = v), step: 1, min: 0, max: 300 },
   { label: 'Comprimento de onda do relevo', unit: 'm', get: (c) => c.environment.bottom.wavelength, set: (c, v) => (c.environment.bottom.wavelength = v), step: 50, min: 100, max: 20000 },
+  { label: 'Estado do mar (0–6)', unit: '', get: (c) => c.environment.waves?.seaState ?? 0, set: (c, v) => (c.environment.waves = { seed: 4242, direction: 60, ...c.environment.waves, seaState: Math.round(v) }), step: 1, min: 0, max: 6 },
+  { label: 'Direção das ondas (para onde vão)', unit: '°', get: (c) => c.environment.waves?.direction ?? 60, set: (c, v) => (c.environment.waves = { seed: 4242, seaState: 3, ...c.environment.waves, direction: v }), step: 10, min: 0, max: 359 },
   { label: 'Declinação magnética', unit: '°', get: (c) => c.environment.magneticDeclination, set: (c, v) => (c.environment.magneticDeclination = v), step: 0.5, min: -60, max: 60 },
 ];
 

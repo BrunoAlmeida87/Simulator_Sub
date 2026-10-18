@@ -94,6 +94,19 @@ export const SCENARIOS: ScenarioDef[] = [
     },
   },
   {
+    id: 'mar_grosso',
+    name: 'Mar grosso (estado 5) — cota periscópica',
+    description:
+      'Ondas com Hs ≈ 3,5 m e período de 8,5 s. Perto da superfície o submarino joga (heave, pitch, banda) e as cristas cobrem a cabeça do snorkel; descendo, o efeito das ondas desaparece exponencialmente (e^−kz).',
+    objectives: ['Observar o movimento induzido pelas ondas na cota periscópica', 'Içar o snorkel e ver a válvula de cabeça fechar nas cristas', 'Descer para 60 m e comparar a tranquilidade'],
+    env: (c) => {
+      c.environment.waves = { seaState: 5, direction: 60, seed: 4242 };
+    },
+    pose: { depth: 11.9, heading: 300, speed: 4 * KNOT },
+    submerged: true,
+    compensationDepth: 11.9,
+  },
+  {
     id: 'termoclina',
     name: 'Termoclina acentuada — 45 m',
     description:

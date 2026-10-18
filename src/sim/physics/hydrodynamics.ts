@@ -63,6 +63,7 @@ export function hullForces(
   sliceImm: Float64Array,
   immFraction: number,
   axisDepth: number,
+  waveVel?: { vy: Float64Array; vz: Float64Array },
 ): { resistance: Wrench; crossflow: Wrench; lift: Wrench; damping: Wrench } {
   const h = cfg.hydro;
   const { x: u, y: v, z: w } = vel;
@@ -80,8 +81,9 @@ export function hullForces(
     const sl = slices[i];
     const im = sliceImm[i];
     if (im <= 0 || sl.r <= 0) continue;
-    const vy = v + r * sl.x;
-    const vz = w - q * sl.x;
+    // velocidade do casco relativa à água (descontada a velocidade orbital das ondas)
+    const vy = v + r * sl.x - (waveVel ? waveVel.vy[i] : 0);
+    const vz = w - q * sl.x - (waveVel ? waveVel.vz[i] : 0);
     const vc = Math.sqrt(vy * vy + vz * vz);
     if (vc < 1e-9) continue;
     const k = -0.5 * rho * h.crossflowDrag * 2 * sl.r * sl.dx * im * vc;

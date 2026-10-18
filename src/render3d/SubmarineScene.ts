@@ -8,6 +8,8 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { Ocean, UnderwaterSky, addCaustics, type OceanQuality } from './Ocean';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { SimRunner } from '../sim/core/runner';
 import { qToMat3, DEG } from '../sim/core/math';
@@ -72,9 +74,13 @@ export class SubmarineScene {
   private mast!: THREE.Mesh;
   private tanks: TankVis[] = [];
   private tankGroup = new THREE.Group();
-  private ocean: THREE.Mesh;
-  private oceanMat: THREE.MeshPhongMaterial;
-  private oceanGrid: THREE.LineSegments;
+  private ocean: Ocean;
+  private sky: Sky;
+  private underSky: UnderwaterSky;
+  private sunDir = new THREE.Vector3(0.62, 0.22, -0.6).normalize();
+  private caustics = { uTime: { value: 0 }, uCaustic: { value: 0 } };
+  private wallTime = 0;
+  readonly quality: OceanQuality;
   private seabed: THREE.Mesh | null = null;
   private seabedCenter = { n: 1e12, e: 1e12 };
   private particles: Particle[] = [];
@@ -100,12 +106,15 @@ export class SubmarineScene {
   private dot = dotTexture();
   private env: () => SimulationEngine;
 
-  constructor(private container: HTMLElement, runner: SimRunner, initialView: ViewMode = 'perspectiva') {
+  constructor(private container: HTMLElement, runner: SimRunner, initialView: ViewMode = 'perspectiva', quality: OceanQuality = 'alta') {
+    this.quality = quality;
     this.runner = runner;
     this.env = () => this.runner.engine;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 0.62;
     container.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 30000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -118,31 +127,34 @@ export class SubmarineScene {
     });
 
     // luzes
-    this.scene.add(new THREE.HemisphereLight(0xbfdfff, 0x0b1a26, 1.1));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-    sun.position.set(300, 800, 200);
+    this.scene.add(new THREE.HemisphereLight(0xbfdfff, 0x0b1a26, 1.3));
+    const sun = new THREE.DirectionalLight(0xfff2dd, 2.2);
+    sun.position.copy(this.sunDir).multiplyScalar(1000);
     this.scene.add(sun);
+
+    // céu atmosférico (Preetham)
+    this.sky = new Sky();
+    this.sky.scale.setScalar(20000);
+    const su = this.sky.material.uniforms;
+    su.turbidity.value = 5;
+    su.rayleigh.value = 2.2;
+    su.mieCoefficient.value = 0.004;
+    su.mieDirectionalG.value = 0.85;
+    su.sunPosition.value.copy(this.sunDir);
+    this.scene.add(this.sky);
 
     // submarino
     this.hullMat = new THREE.MeshStandardMaterial({ color: 0x323c48, metalness: 0.3, roughness: 0.55, emissive: 0x0b141c });
+    addCaustics(this.hullMat, this.caustics, 14);
     this.sailMat = this.hullMat;
     this.buildSubmarine();
     this.scene.add(this.sub);
 
-    // oceano (superfície)
-    const og = new THREE.PlaneGeometry(6000, 6000, 1, 1);
-    og.rotateX(-Math.PI / 2);
-    this.oceanMat = new THREE.MeshPhongMaterial({ color: 0x1b5a86, specular: 0x9fd4ff, shininess: 60, transparent: true, opacity: 0.88, side: THREE.DoubleSide, depthWrite: false });
-    this.ocean = new THREE.Mesh(og, this.oceanMat);
-    this.scene.add(this.ocean);
-    const gridPts: number[] = [];
-    for (let i = -30; i <= 30; i++) {
-      gridPts.push(i * 100, 0.05, -3000, i * 100, 0.05, 3000, -3000, 0.05, i * 100, 3000, 0.05, i * 100);
-    }
-    const gg = new THREE.BufferGeometry();
-    gg.setAttribute('position', new THREE.Float32BufferAttribute(gridPts, 3));
-    this.oceanGrid = new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: 0x5fb6ff, transparent: true, opacity: 0.25 }));
-    this.scene.add(this.oceanGrid);
+    // oceano: mesmas componentes de onda da física, deslocadas em GPU
+    this.ocean = new Ocean(quality, this.sunDir);
+    this.scene.add(this.ocean.mesh);
+    this.underSky = new UnderwaterSky(this.sunDir);
+    this.scene.add(this.underSky.mesh);
 
     // bolhas
     const bg = new THREE.BufferGeometry();
@@ -357,7 +369,10 @@ export class SubmarineScene {
         const asp = Math.max(0.3, this.camera.aspect);
         const dist = Math.max(95, 100 / asp);
         const cam = c.add(stbd.multiplyScalar(dist)).add(fwd.clone().multiplyScalar(this.pilotLead()));
-        cam.y = Math.min(this.lastSubPos.y - 1.0, -1.2);
+        const axisDepth = -this.lastSubPos.y;
+        const k = Math.min(1, Math.max(0, (axisDepth - 5) / 9));
+        const kk = k * k * (3 - 2 * k);
+        cam.y = 7 * (1 - kk) + Math.min(this.lastSubPos.y - 1.0, -1.2) * kk;
         return cam;
       }
       case 'perseguicao':
@@ -409,7 +424,9 @@ export class SubmarineScene {
       this.seabed.geometry.dispose();
       (this.seabed.material as THREE.Material).dispose();
     }
-    this.seabed = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }));
+    const bedMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
+    addCaustics(bedMat, this.caustics, 45);
+    this.seabed = new THREE.Mesh(g, bedMat);
     this.scene.add(this.seabed);
     this.seabedCenter = { n: n0, e: e0 };
   }
@@ -420,6 +437,8 @@ export class SubmarineScene {
     const s = e.state;
     const dtR = Math.min(0.1, this.clock.getDelta());
     const a = this.runner.alpha;
+    // instante das ondas coerente com a pose interpolada
+    const tWave = s.t - e.config.settings.dt * (1 - a);
     // pose interpolada entre o passo anterior e o atual
     const pn = e.prevPos.x + (s.body.pos.x - e.prevPos.x) * a;
     const pe = e.prevPos.y + (s.body.pos.y - e.prevPos.y) * a;
@@ -466,8 +485,6 @@ export class SubmarineScene {
     // fundo (reconstruído ao afastar-se)
     if (Math.hypot(pn - this.seabedCenter.n, pe - this.seabedCenter.e) > 800) this.rebuildSeabed(Math.round(pn / 100) * 100, Math.round(pe / 100) * 100);
     if (this.seabed) this.seabed.position.set(this.seabedCenter.e - pe, 0, -(this.seabedCenter.n - pn));
-    this.ocean.position.set(0, 0, 0);
-    this.oceanGrid.position.set(-(pe % 100), 0, pn % 100);
 
     // bolhas dos suspiros/embornais (taxa proporcional à vazão de ar simulada)
     const Rm = qToMat3(s.body.quat);
@@ -493,7 +510,7 @@ export class SubmarineScene {
         p.life -= step;
         p.n += (Math.random() - 0.5) * 0.3;
         p.e += (Math.random() - 0.5) * 0.3;
-        return p.d > 0 && p.life > 0;
+        return p.d > -e.env.waves.elevation(p.n, p.e, tWave) && p.life > 0;
       });
     }
     const bp = this.bubbles.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -535,7 +552,7 @@ export class SubmarineScene {
       const wp = this.wakePts.geometry.getAttribute('position') as THREE.BufferAttribute;
       for (let i = 0; i < 500; i++) {
         const p = this.wake[i];
-        if (p) wp.setXYZ(i, p.e - pe, 0.08, -(p.n - pn));
+        if (p) wp.setXYZ(i, p.e - pe, (i % 3 === 0 ? e.env.waves.elevation(p.n, p.e, tWave) : wp.getY(i)) + 0.12, -(p.n - pn));
         else wp.setXYZ(i, 0, -1e6, 0);
       }
       wp.needsUpdate = true;
@@ -589,15 +606,23 @@ export class SubmarineScene {
     // ambiente subaquático
     const under = this.camera.position.y < 0;
     const camDepth = Math.max(0, -this.camera.position.y);
-    const deepColor = new THREE.Color(0x0a3550).lerp(new THREE.Color(0x020a12), Math.min(1, camDepth / 300));
-    // vista de cima: superfície quase opaca; de baixo: translúcida
-    this.oceanMat.opacity = under ? 0.45 : 0.9;
+    this.wallTime += dtR;
+    const uw = this.underSky.update(this.camera.position, camDepth, this.wallTime);
+    const deepColor = uw.horizon.clone();
+    this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
+    this.sky.position.copy(this.camera.position);
+    this.sky.visible = !under;
+    this.underSky.mesh.visible = under;
+    // fundo só quando dentro do alcance de visibilidade (senão aparece como faixa de névoa)
+    if (this.seabed) this.seabed.visible = under && (e.env.bottomDepthAt(pn, pe) - camDepth < (this.realisticFog ? 330 : 1200));
+    this.caustics.uTime.value = this.wallTime;
+    this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15);
     if (under) {
       this.scene.background = deepColor;
       this.scene.fog = this.realisticFog ? new THREE.FogExp2(deepColor.getHex(), 0.0032) : new THREE.FogExp2(deepColor.getHex(), 0.0008);
     } else {
-      this.scene.background = new THREE.Color(0x6f93b3);
-      this.scene.fog = new THREE.Fog(0x8fb0cc, 1500, 6000);
+      this.scene.background = new THREE.Color(0x9dbad4);
+      this.scene.fog = new THREE.Fog(0x9dbad4, 3000, 14000);
     }
     this.renderer.render(this.scene, this.camera);
 

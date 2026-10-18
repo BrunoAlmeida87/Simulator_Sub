@@ -5,7 +5,9 @@
  */
 import { useState } from 'react';
 import { cmd, runner, useSim } from '../store';
-import { Scene3D } from '../components/Scene3D';
+import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
+import { SeaControls } from '../components/SeaControls';
+import type { OceanQuality } from '../../render3d/Ocean';
 import { Panel } from '../components/Panel';
 import { DepthTape } from '../components/gauges';
 import { NumSet, QuickBallast, SurfaceControl, Telegraph } from '../components/Controls';
@@ -19,6 +21,11 @@ export function PilotScreen() {
   const e = useSim(10);
   const [view, setView] = useState<ViewMode>('piloto');
   const [cut, setCut] = useState(false);
+  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
+  const setQuality = (q: OceanQuality) => {
+    saveQuality(q);
+    setQualityS(q);
+  };
   const [target, setTarget] = useState(50);
   const s = e.state;
   const o = e.outputs;
@@ -31,7 +38,7 @@ export function PilotScreen() {
   return (
     <div className="pilot">
       <div className="pilot-view">
-        <Scene3D view={view} cutaway={cut} labels={false}>
+        <Scene3D quality={quality} view={view} cutaway={cut} labels={false}>
           <div className="pilot-tape">
             <DepthTape depth={o.depthKeel} ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null} bottom={o.bottomDepth} rate={o.verticalSpeed} opLimit={L.operatingDepth} testLimit={L.testDepth} height={260} />
           </div>
@@ -68,6 +75,7 @@ export function PilotScreen() {
             {maneuver.active && <div className="pilot-maneuver">⟳ {maneuver.phase}</div>}
           </div>
           <div className="overlay-ctl">
+            <SeaControls quality={quality} setQuality={setQuality} />
             <div className="seg">
               {(
                 [

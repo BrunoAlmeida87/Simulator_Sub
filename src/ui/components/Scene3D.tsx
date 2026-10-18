@@ -2,6 +2,26 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { runner } from '../store';
 import type { SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
+import type { OceanQuality } from '../../render3d/Ocean';
+
+const K_Q = 'sx1.quality.v1';
+export function defaultQuality(): OceanQuality {
+  try {
+    const q = localStorage.getItem(K_Q);
+    if (q === 'baixa' || q === 'media' || q === 'alta') return q;
+  } catch {
+    /* sem armazenamento */
+  }
+  const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  return coarse || window.innerWidth < 900 ? 'baixa' : 'alta';
+}
+export function saveQuality(q: OceanQuality): void {
+  try {
+    localStorage.setItem(K_Q, q);
+  } catch {
+    /* sem armazenamento */
+  }
+}
 
 export interface Scene3DProps {
   view: ViewMode;
@@ -12,6 +32,7 @@ export interface Scene3DProps {
   style?: React.CSSProperties;
   children?: ReactNode;
   labels?: boolean;
+  quality?: OceanQuality;
 }
 
 export function Scene3D(props: Scene3DProps) {
@@ -32,7 +53,7 @@ export function Scene3D(props: Scene3DProps) {
         if (disposed || !box.current) return;
         const create = () => {
           try {
-            const sc = new SubmarineScene(box.current!, runner, opts.current.view);
+            const sc = new SubmarineScene(box.current!, runner, opts.current.view, opts.current.quality ?? defaultQuality());
             sc.setCutaway(!!opts.current.cutaway);
             sc.showTrail = opts.current.trail ?? true;
             sc.realisticFog = opts.current.fog ?? true;
@@ -78,7 +99,7 @@ export function Scene3D(props: Scene3DProps) {
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };
-  }, []);
+  }, [props.quality]);
 
   useEffect(() => {
     sceneRef.current?.setView(props.view);

@@ -3,7 +3,8 @@
 O simulador prioriza a coerência física e lógica entre os sistemas, mas usa modelos simplificados. Esta lista documenta as simplificações adotadas na Fase 1.
 
 ## Ambiente
-- **Mar calmo:** sem ondas, sem marulho, sem correntes e sem vento. A ondulação da superfície no 3D é cosmética.
+- **Ondas lineares (Airy):** espectro de Pierson–Moskowitz com 24 componentes em águas profundas e espalhamento direcional cos². Não há quebra de onda, interação onda–onda, correntes ou vento. O “chop” de Gerstner no 3D é só visual; a física usa a elevação linear das mesmas componentes.
+- A força de onda é por fatias (empuxo com a elevação local + inércia de Froude–Krylov + massa adicional Ca = 1); não há difração nem radiação de ondas pelo casco. A sucção média perto da superfície aparece como efeito de segunda ordem desse modelo, não calibrada.
 - Perfis de temperatura e salinidade dependem só da profundidade (estratificação horizontal).
 - A densidade usada no empuxo é a do nível do eixo, uniforme ao longo do casco.
 - O fundo é uma função analítica (declividade + ondulações), sem tipos de sedimento.

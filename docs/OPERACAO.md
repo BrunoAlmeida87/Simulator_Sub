@@ -13,6 +13,7 @@ A aba **Pilotagem** mostra o submarino em 3D (vista lateral, de perseguição ou
 - **Telégrafo:** rotação do eixo; a velocidade cresce lentamente pela inércia.
 - **Lemes:** vante e ré (SUBIR/DESCER) e direção (BB/BE). Só funcionam com velocidade.
 - **Lastro principal:** suspiros, sopro e sopro de emergência.
+- **Mar e gráfico:** o seletor **Mar** (0 calmo a 6 muito grosso) muda as ondas na física e no 3D ao mesmo tempo; o seletor **Gráfico** (baixa/média/alta) ajusta a qualidade do oceano ao aparelho.
 - **Manobras rápidas:** "Imergir para X m" (velocidade, suspiros e piloto de profundidade; os suspiros fecham quando os TLP enchem), "Emergir" (sobe com lemes até a cota periscópica e sopra os TLP) e "Manter profundidade". Elas apenas emitem comandos registrados; o comportamento é o da física.
 
 ## Sequência completa (cenário "Superfície — pronto para imergir")
@@ -37,6 +38,7 @@ O roteiro automático equivalente fica em **Guia → Demonstração automática*
 | Águas rasas | Alarmes de altitude; contato com o fundo. |
 | Compensação desajustada | Após o mergulho o submarino tende a afundar; é preciso esgotar 4 t. |
 | Cota periscópica | Snorkel, diesel-geradores, recarga da bateria e aumento de peso pelo combustível compensado. |
+| Mar grosso | Estado do mar 5 na cota periscópica: o casco joga, as cristas fecham a válvula do snorkel e há sucção para baixo; use o piloto de profundidade. |
 | Alagamento a 120 m | A vazão do rombo diminui à medida que o submarino sobe (√Δp); sopro de emergência, lemes a subir e toda força. |
 
 ## Falhas para treinamento

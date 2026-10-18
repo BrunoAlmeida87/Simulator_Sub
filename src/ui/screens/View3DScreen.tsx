@@ -2,7 +2,9 @@
 import { useState } from 'react';
 import { useSim } from '../store';
 import type { ViewMode } from '../../render3d/SubmarineScene';
-import { Scene3D } from '../components/Scene3D';
+import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
+import { SeaControls } from '../components/SeaControls';
+import type { OceanQuality } from '../../render3d/Ocean';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 
@@ -20,12 +22,17 @@ export function View3DScreen() {
   const e = useSim(8);
   const [view, setView] = useState<ViewMode>('perspectiva');
   const [cut, setCut] = useState(false);
+  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
+  const setQuality = (q: OceanQuality) => {
+    saveQuality(q);
+    setQualityS(q);
+  };
   const [trail, setTrail] = useState(true);
   const [fog, setFog] = useState(true);
   const o = e.outputs;
   const s = e.state;
   return (
-    <Scene3D view={view} cutaway={cut} trail={trail} fog={fog}>
+    <Scene3D quality={quality} view={view} cutaway={cut} trail={trail} fog={fog}>
       <div className="hud tl">
         <div className="line">PROF {fmt(o.depthKeel, 1)} m · ALT {fmt(o.altitude, 0)} m</div>
         <div className="line">VEL {fmt(toKnots(s.body.vel.x), 1)} nós · RPM {fmt(o.rpm, 0)}</div>
@@ -36,6 +43,7 @@ export function View3DScreen() {
         <div className="line">TLP {((Object.values(s.ballast).reduce((a, b) => a + b.water, 0) / e.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0)) * 100).toFixed(0)} % cheios</div>
       </div>
       <div className="overlay-ctl">
+        <SeaControls quality={quality} setQuality={setQuality} />
         <div className="seg">
           {VIEWS.map((v) => (
             <button key={v.id} className={view === v.id ? 'on' : ''} onClick={() => setView(v.id)}>

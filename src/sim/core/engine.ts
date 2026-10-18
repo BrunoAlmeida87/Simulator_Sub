@@ -21,7 +21,7 @@ import type { SimConfig, VesselConfig } from '../config/types';
 import { Environment } from '../environment/environment';
 import { buildHullGeometry, type HullGeometry } from '../physics/hullGeometry';
 import { computeMassProps, resolveLightship, type MassProps, type ResolvedMass } from '../physics/massProperties';
-import { computeForces, fullAddedMass, rk4Step, type AddedMass, type BodyState, type ForceBreakdown, type ForceInputs } from '../physics/dynamics';
+import { computeForces, computeWaveCache, fullAddedMass, rk4Step, type AddedMass, type BodyState, type ForceBreakdown, type ForceInputs, type WaveCache } from '../physics/dynamics';
 import { makeDepthOf, type StepContext } from './context';
 import { mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLocal, mulMat3TVec as mulMat3TVecLocal, vCross as vCrossLocal, type Mat3, type Quat, type Vec3 } from './math';
 import { computeHydrostatics as computeHydrostaticsLocal } from '../physics/hydrostatics';
@@ -94,6 +94,7 @@ export class SimulationEngine {
   prevQuat: Quat;
   private scratch: Float64Array;
   private scratch2: Float64Array;
+  private waveCache: WaveCache | null = null;
   private readings: ApReadings;
 
   constructor(config: SimConfig, state: SimState) {
@@ -157,6 +158,7 @@ export class SimulationEngine {
       propTorque: s.propulsion.propTorque,
       compressibleVolume: this.compressibleVolume,
       sliceScratch: this.scratch,
+      t: s.t,
     };
   }
 
@@ -231,6 +233,9 @@ export class SimulationEngine {
     // 7–8. massa e corpo rígido
     const mp = computeMassProps(cfg, s, this.light, ctx.rhoLocal);
     const fi = this.forceInputs(mp);
+    // ondas: cinemática por fatia uma vez por passo (instante médio)
+    this.waveCache = computeWaveCache(this.geom, env, s.body.pos, R, s.t + dt / 2, cfg.hull.diameter, this.waveCache);
+    fi.waveCache = this.waveCache;
     const body: BodyState = { pos: s.body.pos, quat: s.body.quat, vel: s.body.vel, omega: s.body.omega };
     this.prevPos = { ...s.body.pos };
     this.prevQuat = { ...s.body.quat };
@@ -373,6 +378,7 @@ export class SimulationEngine {
     const rho = env.densityAt(Math.max(0, pos.z));
     const mp = mpIn ?? computeMassProps(cfg, s, this.light, rho);
     const fi = this.forceInputs(mp);
+    fi.waveCache = this.waveCache;
     const forces = computeForces({ pos: s.body.pos, quat: s.body.quat, vel: s.body.vel, omega: s.body.omega }, fi);
     // copia a imersão por fatia (o buffer é reutilizado)
     forces.hs = { ...forces.hs, sliceImmersion: Float64Array.from(forces.hs.sliceImmersion) };
@@ -401,7 +407,7 @@ export class SimulationEngine {
       euler: { roll: e.phi * RAD, pitch: e.theta * RAD, heading: wrap360(e.psi * RAD) },
       depthAxis: pos.z,
       depthKeel,
-      pressureKeel: env.pressureAt(depthKeel),
+      pressureKeel: this.keelPressure(depthKeel, R),
       bottomDepth: bottom,
       altitude: bottom - Math.max(depthKeel, pos.z + cfg.hull.diameter / 2),
       velNED,
@@ -432,6 +438,22 @@ export class SimulationEngine {
       energyAudit: this.outputs ? this.outputs.energyAudit : 0,
       rpm: (s.propulsion.omega * 60) / (2 * Math.PI),
     };
+  }
+
+  /** Pressão na tomada da quilha, incluindo a pressão dinâmica das ondas. */
+  private keelPressure(depthKeel: number, R: Mat3): number {
+    const env = this.env;
+    let p = env.pressureAt(depthKeel);
+    const w = env.waves;
+    if (w.active && depthKeel < w.cutoffDepth) {
+      const k = this.vessel.hull.keelRef;
+      const n = this.state.body.pos.x + R[0] * k.x;
+      const e = this.state.body.pos.y + R[3] * k.x;
+      const kin = { vn: 0, ve: 0, vz: 0, an: 0, ae: 0, az: 0, pd: 0 };
+      w.kinematics(n, e, Math.max(0, depthKeel), this.state.t, kin);
+      p += env.densityAt(Math.max(0, depthKeel)) * kin.pd;
+    }
+    return Math.max(env.cfg.atmosphericPressure, p);
   }
 
   /** Momento (corpo) de peso + empuxo para uma atitude dada, posição fixa. */

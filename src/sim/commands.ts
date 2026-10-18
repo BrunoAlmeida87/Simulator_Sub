@@ -31,6 +31,7 @@ export type Command =
   | { type: 'generator'; id: string; run: boolean }
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
+  | { type: 'seaState'; value: number; direction?: number }
   | { type: 'failure'; target: string; active: boolean; param?: number | string };
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
@@ -214,6 +215,12 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
     case 'ack':
       acknowledgeAlarm(s, c.id);
       break;
+    case 'seaState': {
+      e.env.setSeaState(c.value, c.direction);
+      const w = e.env.waves;
+      log(`Estado do mar: ${Math.round(c.value)} (Hs = ${w.hs.toFixed(1)} m, Tp = ${w.tp.toFixed(1)} s)`, 'Ambiente');
+      break;
+    }
     case 'failure':
       applyFailure(e, c.target, c.active, c.param);
       break;

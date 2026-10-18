@@ -9,6 +9,7 @@
  *    (tabela pré-calculada a cada 0,5 m, interpolação linear).
  */
 import { seawaterDensity } from './seawater';
+import { WaveField, type WaveConfig } from './waves';
 
 export interface BottomConfig {
   /** Profundidade de referência do fundo na origem (m). */
@@ -34,6 +35,8 @@ export interface EnvironmentConfig {
   gravity: number; // m/s²
   magneticDeclination: number; // graus (positivo = Leste)
   bottom: BottomConfig;
+  /** estado do mar (ondas) — opcional para compatibilidade com estados salvos antigos */
+  waves?: WaveConfig;
 }
 
 export const defaultEnvironment = (): EnvironmentConfig => ({
@@ -53,6 +56,7 @@ export const defaultEnvironment = (): EnvironmentConfig => ({
     roughness: 25,
     wavelength: 1800,
   },
+  waves: { seaState: 3, direction: 60, seed: 4242 },
 });
 
 const TABLE_STEP = 0.5; // m
@@ -62,9 +66,11 @@ export class Environment {
   readonly cfg: EnvironmentConfig;
   private pTable: Float64Array; // Pa absolutos
   private rhoTable: Float64Array;
+  readonly waves: WaveField;
 
   constructor(cfg: EnvironmentConfig) {
     this.cfg = cfg;
+    this.waves = new WaveField(cfg.waves ?? { seaState: 0, direction: 0, seed: 1 }, cfg.gravity);
     const n = Math.ceil(TABLE_MAX / TABLE_STEP) + 1;
     this.pTable = new Float64Array(n);
     this.rhoTable = new Float64Array(n);
@@ -82,6 +88,14 @@ export class Environment {
       this.pTable[i] = p;
       this.rhoTable[i] = this.densityFromProfile(i * TABLE_STEP, (p - cfg.atmosphericPressure) / 1e5);
     }
+  }
+
+  /** Altera o estado do mar (reconstrói o campo de ondas). */
+  setSeaState(seaState: number, direction?: number): void {
+    const w = (this.cfg.waves ??= { seaState: 0, direction: 60, seed: 4242 });
+    w.seaState = seaState;
+    if (direction !== undefined) w.direction = direction;
+    this.waves.build(w, this.cfg.gravity);
   }
 
   /** Temperatura (°C) na profundidade z (m). Perfil com termoclina em tanh. */

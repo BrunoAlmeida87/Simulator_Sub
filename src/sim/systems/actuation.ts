@@ -78,10 +78,13 @@ export function updateSnorkel(cfg: VesselConfig, s: SimState, ctx: StepContext):
   const before = s.snorkel.pos;
   s.snorkel.pos = rateLimit(s.snorkel.pos, s.snorkel.cmd ? 1 : 0, ctx.hydraulicFactor / cfg.hull.snorkelMast.raiseTime, ctx.dt);
   ctx.hydraulicDemand += (Math.abs(s.snorkel.pos - before) * cfg.hydraulics.consumptionPerStroke) / 2;
-  const head = snorkelHeadDepth(cfg, s, ctx);
+  // profundidade relativa à superfície LOCAL (com ondas): uma crista pode cobrir a cabeça do snorkel
+  const w = ctx.env.waves;
+  const etaAt = (x: number) => (w.active ? w.elevation(ctx.pos.x + ctx.R[0] * x, ctx.pos.y + ctx.R[3] * x, ctx.t) : 0);
+  const head = snorkelHeadDepth(cfg, s, ctx) + etaAt(cfg.hull.snorkelMast.x);
   // válvula de cabeça fecha automaticamente se a cabeça submergir
   s.snorkel.headValveOpen = s.snorkel.pos > 0.98 && head < -0.3;
-  const surfaced = sailTopDepth(cfg, ctx) < -2.0;
+  const surfaced = sailTopDepth(cfg, ctx) + etaAt(0.5 * (cfg.hull.sail.xFwd + cfg.hull.sail.xAft)) < -2.0;
   return s.snorkel.headValveOpen || surfaced;
 }
 
