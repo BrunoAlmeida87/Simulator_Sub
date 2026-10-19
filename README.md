@@ -35,7 +35,10 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Propulsão | ✅ Motor elétrico, eixo, hélice de 4 quadrantes, rampa de rotação, limites de torque e potência |
 | Lemes de direção e de profundidade | ✅ Vante, ré e direção com atuadores limitados em velocidade; força proporcional a U² e estol |
 | Indicadores | ✅ Profundidade, rumo, velocidade, pitch, banda e muitos outros, classificados como MED, CALC ou CMD |
-| Modelo 3D animado | ✅ Three.js com corte esquemático dos tanques, hélice, lemes, bolhas e fundo |
+| Modelo 3D animado | ✅ Three.js com corte dos tanques (TLP em seção "D" que acompanha o casco), tubulações, válvulas, bombas e escoamentos animados pelas vazões simuladas; hélice, lemes, bolhas e fundo |
+| Vetores de força | ✅ Peso (em G), empuxo (em B) e resultante E − P com ampliação declarada; empuxo do hélice, resistência da água e forças dos lemes — valores do último passo do motor |
+| Percepção de movimento | ✅ Esteira persistente fixa no mundo, onda de proa e braços de Kelvin (∝ U²), rastro do hélice (∝ empuxo), jato de ar dos suspiros, boias e marcadores de distância, câmera fixa |
+| Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |
 | Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6 e qualidade gráfica ajustável |
 | Interface e controles | ✅ 7 telas, mais cenários, auxiliares, validação, guia e modo engenharia; executar, pausar, passo, reiniciar e acelerar |
 
@@ -117,14 +120,16 @@ O build usa caminho base relativo (`base: './'`), então funciona em qualquer su
 
 ## Telas
 
+- **Apresentação:** tela para conduzir demonstrações. Reúne a cena 3D, os vetores de peso, empuxo e resultante, os tanques (clique para destacar um), os comandos de lastro, compensação, trim, banda e máquinas, e os indicadores físicos. Tem situações prontas, pausa, câmera lenta (×0,25), +0,1 s, retorno ao estado inicial, comparação "antes × agora", enquadramentos rápidos (superfície, submerso, tanques, forças, fixa) e camadas que podem ser ligadas separadamente (vetores, tanques, tubulações, escoamentos, identificações, esteira, boias, iluminação).
+
 0. **Pilotagem (tela inicial):** o submarino em 3D numa vista lateral que acompanha o casco, com os comandos ao lado (telégrafo, lemes, lastro, piloto automático e as manobras rápidas "Imergir para X m", "Emergir" e "Manter profundidade"). Você vê o submarino avançar, alagar os tanques, mergulhar, nivelar e emergir conforme opera os comandos. As referências de movimento (partículas em suspensão, esteira na superfície, bolhas e fita de profundidade) também vêm do estado físico.
 1. **Central de comando:** fita de profundidade, rosa de rumo, indicador de atitude, velocidade e RPM, lemes (comandado × real), telégrafo, piloto automático, perfil vertical da situação e o painel *"Por que está subindo ou descendo?"*.
 2. **Lastro e compensação:** diagrama interativo (TLP, garrafas AP, coletor, circuito de compensação), tabela dos tanques, sequência automática de dosagem e cálculo de compensação.
 3. **Trim e banda:** distribuição longitudinal de massas, G e B, pitch estático × dinâmico, vista frontal, transferências com previsão do ângulo resultante e decomposição de momentos.
 4. **Propulsão e energia:** motor, hélice (J, η₀, empuxo × resistência), bateria, cargas por consumidor, diesel-geradores e snorkel.
 5. **Segurança:** alarmes com prioridade e reconhecimento, registro cronológico, sensores redundantes e injeção de falhas.
-6. **Visualização 3D:** câmeras de perfil, frente, topo, perspectiva e livre; corte com níveis reais dos tanques; trajetória; bolhas proporcionais à vazão de ar.
-7. **Histórico:** gráficos sincronizados, marcas dos comandos, comparação antes × depois e exportação em CSV.
+6. **Visualização 3D:** câmeras lateral, perseguição, perspectiva, perfil, frente, topo, fixa, livre e os enquadramentos de apresentação; corte com níveis reais dos tanques, tubulações e escoamentos; vetores de força; boias; trajetória; bolhas proporcionais à vazão de ar.
+7. **Histórico:** gráficos sincronizados (grandezas de unidades diferentes em eixos separados, à esquerda e à direita), marcas dos comandos, comparação antes × depois e exportação em CSV.
 
 Também há as telas **Cenários e configuração** (9 cenários, condições de carga, ambiente, parâmetros, salvar/carregar/exportar), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
 

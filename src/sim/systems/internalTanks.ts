@@ -141,6 +141,7 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
   }
 
   let net = mIn - mOut;
+  for (const t of tanks) t.st.flow = 0;
   if (net > 0) {
     const wsum = fillable.reduce((a, t) => a + t.valve.pos, 0);
     let placed = 0;
@@ -149,6 +150,7 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
       const room = tankCapacityMass(t.cfg) - t.st.mass;
       const m = Math.min(share, room);
       t.st.mass += m;
+      t.st.flow = m / (RHO_NOMINAL * dt);
       placed += m;
     }
     if (placed < net) mIn -= net - placed;
@@ -160,6 +162,7 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
       const share = (-net * t.valve.pos) / wsum;
       const m = Math.min(share, t.st.mass);
       t.st.mass -= m;
+      t.st.flow = -m / (RHO_NOMINAL * dt);
       taken += m;
     }
     if (taken < -net) mOut -= -net - taken;

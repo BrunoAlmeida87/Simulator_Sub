@@ -50,7 +50,13 @@ Disponibilidade de energia e hidráulica: os consumidores usam o estado do barra
 - `maneuvers.ts`: manobras rápidas (sequências de comandos condicionadas ao estado físico).
 - `components/`: instrumentos SVG (fita de profundidade, rosa, atitude, mostradores, barras de ângulo), gráfico em canvas com cursor sincronizado, diagramas esquemáticos, decomposição de forças.
 - `inspector/`: conteúdo do modo engenharia (função, variáveis, equações, previsões) para cada componente.
-- `render3d/SubmarineScene.ts`: cena Three.js que apenas **lê** o estado, com interpolação de pose entre passos e origem flutuante.
+- `render3d/SubmarineScene.ts`: cena Three.js que apenas **lê** o estado, com interpolação de pose entre passos e origem flutuante. Câmeras, inclusive a fixa no mundo e os enquadramentos de apresentação.
+- `render3d/Systems.ts`: tanques no corte (nível = volume simulado), tubulações, válvulas, bombas e partículas de escoamento acionadas pelas vazões do estado.
+- `render3d/ForceArrows.ts`: vetores de peso, empuxo, resultante e forças hidrodinâmicas, a partir de `sim/forceVectors.ts` (função pura, testada).
+- `render3d/SurfaceFx.ts`: esteira persistente (fixa no mundo), onda de proa, braços de Kelvin, rastro do hélice e jato dos suspiros.
+- `render3d/Markers.ts`: boias com cabo de fundeio marcado a cada 10 m e marcadores de distância ao longo da derrota inicial.
+- `render3d/layers.ts`: camadas visuais e a linguagem de cores comum a tanques, circuitos e forças.
+- `ui/presentation.ts`, `ui/checklist.ts`, `ui/maneuvers.ts`, `ui/demo.ts`: situações prontas, estado inicial, antes × agora; checklist contínuo e persistente; etapas, comandos e resultado das manobras e da demonstração.
 
 ## Como adicionar um sistema (ex.: atmosfera interna, Fase 3)
 

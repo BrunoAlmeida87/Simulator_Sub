@@ -48,6 +48,8 @@ export interface HpBankState {
 
 export interface InternalTankState {
   mass: number; // kg de água
+  /** diagnóstico: vazão no último passo (m³/s, + entrando no tanque) */
+  flow?: number;
 }
 
 export interface DosingState {

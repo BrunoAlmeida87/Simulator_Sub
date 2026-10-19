@@ -203,7 +203,11 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .hud .line { white-space: nowrap; }
 .overlay-ctl { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; pointer-events: auto; }
 .overlay-ctl .seg, .overlay-ctl .btngroup { background: rgba(10, 16, 23, 0.8); border-radius: 4px; }
-.lbl3d { position: absolute; font-family: var(--mono); font-size: 11px; color: #cfe7ff; background: rgba(5, 12, 20, 0.7); padding: 1px 5px; border-radius: 3px; pointer-events: none; white-space: nowrap; transform: translate(-50%, -50%); }
+.lbl3d-host { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.lbl3d { position: absolute; font-family: var(--mono); font-size: 11.5px; color: #cfe7ff; background: rgba(5, 12, 20, 0.78); padding: 2px 6px; border-radius: 3px; pointer-events: none; white-space: nowrap; transform: translate(-50%, -50%); line-height: 1.25; }
+.lbl3d.col { border-left: 3px solid; font-weight: 600; }
+.lbl3d.small { font-size: 10.5px; padding: 1px 5px; }
+.lbl3d .s { font-size: 10px; color: #c3d4e6; font-weight: 400; }
 
 /* ---------- diversos ---------- */
 .svgbox { width: 100%; height: auto; display: block; }
@@ -253,4 +257,52 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
   .pilot-view .view3d { height: 56vh; min-height: 300px; }
   .pilot-hud { right: 8px; top: 46px; max-width: none; }
   .pilot-tape { bottom: 8px; width: 70px; }
+}
+
+/* ---------- apresentação ---------- */
+.pres { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 10px; align-items: start; }
+.pres-view { position: sticky; top: calc(var(--topbar-h, 52px) + 44px); }
+.pres-view .view3d { height: calc(100vh - var(--topbar-h, 52px) - 64px); min-height: 380px; }
+.pres-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pres-hud { position: absolute; left: 8px; top: 8px; max-width: min(360px, calc(100% - 200px)); background: rgba(5, 12, 20, 0.72); border-radius: 6px; padding: 6px 9px; font-family: var(--mono); font-size: 12px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+.pres-hud .fr { display: flex; justify-content: space-between; gap: 14px; font-size: 14px; }
+.pres-hud .fr b { font-size: 15px; }
+.pres-hud .subtle { font-size: 10.5px; margin-top: 2px; }
+.pres-bottom { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; justify-content: center; pointer-events: none; }
+.mstatus { background: rgba(5, 12, 20, 0.82); border: 1px solid #2c4260; border-radius: 6px; padding: 6px 10px; font-size: 12.5px; max-width: 100%; }
+.mstatus .subtle { font-size: 11px; }
+.msteps { display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 11.5px; margin: 3px 0; color: #8da3ba; }
+.msteps .done { color: var(--ok); }
+.msteps .cur { color: var(--warn); font-weight: 600; }
+.pilot-view .pres-bottom { left: 110px; }
+.tanklist { display: flex; flex-direction: column; gap: 8px; }
+.tgroup .thead { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.tgroup .thead i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.trow { display: grid; grid-template-columns: minmax(0, 1fr) 90px 44px; grid-template-areas: 'n b p' 'v v v'; gap: 1px 8px; align-items: center; width: 100%; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 3px 5px; color: inherit; cursor: pointer; font: inherit; }
+.trow:hover { background: rgba(255, 255, 255, 0.04); }
+.trow.sel { border-color: #d8e4f0; background: rgba(255, 255, 255, 0.07); }
+.trow .tname { grid-area: n; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trow .tbar { grid-area: b; height: 9px; background: #18263a; border-radius: 2px; overflow: hidden; border: 1px solid #2c4260; }
+.trow .tbar span { display: block; height: 100%; }
+.trow .tpct { grid-area: p; text-align: right; font-size: 12px; }
+.trow .tvol { grid-area: v; font-size: 10.5px; }
+.compare td, .compare th { font-size: 11.5px; }
+.compare tr.chg td { color: #ffe9a8; }
+.mb4 { margin-bottom: 4px; }
+.mt4 { margin-top: 4px; }
+.procedure li.pre { color: #8da3ba; }
+.procedure li.timeout { color: var(--warn); }
+.procedure li.fail { color: var(--alarm, #ff6b6b); }
+.only-narrow { display: none; }
+.pres-under { display: none; flex-direction: column; gap: 6px; margin-top: 6px; }
+.pres-under .pres-hud { position: static; max-width: none; }
+@media (max-width: 1000px) {
+  .only-wide { display: none !important; }
+  .only-narrow { display: block; }
+  .pres-under { display: flex; }
+  .pres { grid-template-columns: 1fr; }
+  .pres-view { position: static; }
+  .pres-view .view3d { height: 60vh; min-height: 320px; }
+  .pres-hud { font-size: 11px; }
+  .pres-hud .fr { font-size: 12.5px; }
 }

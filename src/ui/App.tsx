@@ -11,6 +11,7 @@ import { fmt, fmtTime } from './format';
 import { SimSpeedButtons } from './components/Controls';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
+import { PresentationScreen } from './screens/PresentationScreen';
 import { BallastScreen } from './screens/BallastScreen';
 import { TrimHeelScreen } from './screens/TrimHeelScreen';
 import { PropulsionScreen } from './screens/PropulsionScreen';
@@ -28,6 +29,7 @@ import { maneuver } from './maneuvers';
 
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'pilotagem', n: '0', label: 'Pilotagem' },
+  { id: 'apresentacao', label: 'Apresentação' },
   { id: 'comando', n: '1', label: 'Central de comando' },
   { id: 'lastro', n: '2', label: 'Lastro e compensação' },
   { id: 'trim', n: '3', label: 'Trim e banda' },
@@ -215,7 +217,7 @@ export function App() {
       else if (k === '+' || k === '=') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd + 10 });
       else if (k === '-') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd - 10 });
       else if (k === 'i') setEng(!eng);
-      else if (/^[0-7]$/.test(k)) setScreen(TABS[Number(k)].id);
+      else if (/^[0-7]$/.test(k)) setScreen(TABS.find((x) => x.n === k)!.id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -223,6 +225,7 @@ export function App() {
 
   const screens: Record<ScreenId, ReactNode> = {
     pilotagem: <PilotScreen />,
+    apresentacao: <PresentationScreen />,
     comando: <CommandCenter />,
     lastro: <BallastScreen />,
     trim: <TrimHeelScreen />,

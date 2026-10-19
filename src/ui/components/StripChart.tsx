@@ -17,6 +17,8 @@ export interface ChartSeries {
   id: string;
   color: string;
   dashed?: boolean;
+  /** eixo secundário (à direita) para grandezas com outra unidade */
+  axis?: 'right';
 }
 
 export function StripChart(props: {
@@ -30,6 +32,7 @@ export function StripChart(props: {
   yMin?: number;
   yMax?: number;
   minSpan?: number;
+  minSpanRight?: number;
   version: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -72,15 +75,14 @@ export function StripChart(props: {
     g.clearRect(0, 0, width, H);
     g.fillStyle = '#0a121b';
     g.fillRect(0, 0, width, H);
+    const hasRight = props.series.some((s) => s.axis === 'right');
     const L = 46;
-    const R = 8;
+    const R = hasRight ? 46 : 8;
     const T = 6;
     const B = 18;
     const pw = width - L - R;
     const ph = H - T - B;
     // faixa vertical
-    let lo = Infinity;
-    let hi = -Infinity;
     let k0 = 0;
     for (let k = 0; k < n; k++) {
       if (h.t[h.idx(k)] >= tStart) {
@@ -88,33 +90,40 @@ export function StripChart(props: {
         break;
       }
     }
-    for (const s of props.series) {
-      const d = h.data[s.id];
-      for (let k = k0; k < n; k++) {
-        const v = d[h.idx(k)];
-        if (Number.isFinite(v)) {
-          if (v < lo) lo = v;
-          if (v > hi) hi = v;
+    const range = (list: ChartSeries[], minSpan: number, yMin?: number, yMax?: number) => {
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (const s of list) {
+        const d = h.data[s.id];
+        for (let k = k0; k < n; k++) {
+          const v = d[h.idx(k)];
+          if (Number.isFinite(v)) {
+            if (v < lo) lo = v;
+            if (v > hi) hi = v;
+          }
         }
       }
-    }
-    if (props.yMin !== undefined) lo = Math.min(lo, props.yMin);
-    if (props.yMax !== undefined) hi = Math.max(hi, props.yMax);
-    if (!Number.isFinite(lo)) {
-      lo = 0;
-      hi = 1;
-    }
-    const minSpan = props.minSpan ?? 1e-3;
-    if (hi - lo < minSpan) {
-      const mid = 0.5 * (hi + lo);
-      hi = mid + minSpan / 2;
-      lo = mid - minSpan / 2;
-    }
-    const pad = (hi - lo) * 0.08;
-    lo -= pad;
-    hi += pad;
+      if (yMin !== undefined) lo = Math.min(lo, yMin);
+      if (yMax !== undefined) hi = Math.max(hi, yMax);
+      if (!Number.isFinite(lo)) {
+        lo = 0;
+        hi = 1;
+      }
+      if (hi - lo < minSpan) {
+        const mid = 0.5 * (hi + lo);
+        hi = mid + minSpan / 2;
+        lo = mid - minSpan / 2;
+      }
+      const pad = (hi - lo) * 0.08;
+      return { lo: lo - pad, hi: hi + pad };
+    };
+    const leftS = props.series.filter((s) => s.axis !== 'right');
+    const rightS = props.series.filter((s) => s.axis === 'right');
+    const { lo, hi } = range(leftS, props.minSpan ?? 1e-3, props.yMin, props.yMax);
+    const rr = range(rightS, props.minSpanRight ?? 1e-3);
     const X = (t: number) => L + ((t - tStart) / Math.max(1, tEnd - tStart || props.window)) * pw;
-    const Y = (v: number) => (props.invert ? T + ((v - lo) / (hi - lo)) * ph : T + ph - ((v - lo) / (hi - lo)) * ph);
+    const Yr = (v: number, a: number, b: number) => (props.invert ? T + ((v - a) / (b - a)) * ph : T + ph - ((v - a) / (b - a)) * ph);
+    const Y = (v: number) => Yr(v, lo, hi);
     // grade
     g.strokeStyle = '#1a2a3d';
     g.lineWidth = 1;
@@ -135,6 +144,26 @@ export function StripChart(props: {
       const dec = Math.max(0, Math.min(4, Math.ceil(-Math.log10(stepY) - 1e-9)));
       const txt = v.toFixed(dec);
       g.fillText(/^-0[.]?0*$/.test(txt) ? txt.slice(1) : txt, 2, yy + 3);
+    }
+    if (hasRight) {
+      const col = rightS[0].color;
+      g.fillStyle = col;
+      const stepR = nice((rr.hi - rr.lo) / 4);
+      for (let v = Math.ceil(rr.lo / stepR) * stepR; v <= rr.hi; v += stepR) {
+        const yy = Yr(v, rr.lo, rr.hi);
+        g.fillRect(L + pw, yy, 4, 1);
+        const dec = Math.max(0, Math.min(4, Math.ceil(-Math.log10(stepR) - 1e-9)));
+        const txt = v.toFixed(dec);
+        g.fillText(/^-0[.]?0*$/.test(txt) ? txt.slice(1) : txt, L + pw + 6, yy + 3);
+      }
+      // unidades dos eixos
+      const uL = CHANNELS.find((c) => c.id === leftS[0]?.id)?.unit ?? '';
+      const uR = CHANNELS.find((c) => c.id === rightS[0].id)?.unit ?? '';
+      g.fillStyle = leftS[0]?.color ?? '#7f93a8';
+      g.fillText(uL, 2, T + 9);
+      g.fillStyle = col;
+      g.fillText(uR, L + pw + 6, T + 9);
+      g.fillStyle = '#7f93a8';
     }
     const span = Math.max(1, tEnd - tStart);
     const stepT = nice(span / 6);
@@ -165,6 +194,7 @@ export function StripChart(props: {
     // séries
     for (const s of props.series) {
       const d = h.data[s.id];
+      const yOf = s.axis === 'right' ? (v: number) => Yr(v, rr.lo, rr.hi) : Y;
       g.strokeStyle = s.color;
       g.lineWidth = 1.6;
       g.setLineDash(s.dashed ? [5, 4] : []);
@@ -178,7 +208,7 @@ export function StripChart(props: {
           continue;
         }
         const xx = X(h.t[i]);
-        const yy = Y(v);
+        const yy = yOf(v);
         if (!pen) {
           g.moveTo(xx, yy);
           pen = true;
@@ -208,7 +238,7 @@ export function StripChart(props: {
     const cx = 'touches' in ev ? ev.touches[0].clientX : (ev as React.MouseEvent).clientX;
     const x = cx - rect.left;
     const L = 46;
-    const pw = rect.width - L - 8;
+    const pw = rect.width - L - (props.series.some((s) => s.axis === 'right') ? 46 : 8);
     const t = tStart + ((x - L) / pw) * Math.max(1, tEnd - tStart);
     setCursor(t >= tStart && t <= tEnd ? t : null);
   };
@@ -225,6 +255,7 @@ export function StripChart(props: {
             return (
               <span key={s.id}>
                 <i style={{ background: s.color }} />
+                {s.axis === 'right' ? '▸ ' : ''}
                 {c?.label}: <b className="mono" style={{ color: '#d8e4f0' }}>{Number.isFinite(v) ? v.toFixed(Math.abs(v) >= 100 ? 0 : 2) : '—'}</b> {c?.unit}
               </span>
             );

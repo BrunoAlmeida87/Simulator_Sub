@@ -15,6 +15,11 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'perfil', label: 'Perfil' },
   { id: 'frente', label: 'Frente' },
   { id: 'topo', label: 'Topo' },
+  { id: 'fixa', label: 'Fixa' },
+  { id: 'superficie', label: 'Superfície' },
+  { id: 'submerso', label: 'Submerso' },
+  { id: 'tanques', label: 'Tanques' },
+  { id: 'forcas', label: 'Forças' },
   { id: 'livre', label: 'Livre' },
 ];
 
@@ -29,10 +34,12 @@ export function View3DScreen() {
   };
   const [trail, setTrail] = useState(true);
   const [fog, setFog] = useState(true);
+  const [vec, setVec] = useState(false);
+  const [marks, setMarks] = useState(false);
   const o = e.outputs;
   const s = e.state;
   return (
-    <Scene3D quality={quality} view={view} cutaway={cut} trail={trail} fog={fog}>
+    <Scene3D quality={quality} view={view} cutaway={cut} trail={trail} fog={fog} layers={{ vectors: vec, hydroVectors: vec, markers: marks, pipes: true, flows: true, labels: true }}>
       <div className="hud tl">
         <div className="line">PROF {fmt(o.depthKeel, 1)} m · ALT {fmt(o.altitude, 0)} m</div>
         <div className="line">VEL {fmt(toKnots(s.body.vel.x), 1)} nós · RPM {fmt(o.rpm, 0)}</div>
@@ -61,10 +68,16 @@ export function View3DScreen() {
           <button className={`btn sm ${fog ? 'on' : ''}`} onClick={() => setFog(!fog)}>
             Turbidez
           </button>
+          <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)}>
+            Forças
+          </button>
+          <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
+            Boias
+          </button>
         </div>
       </div>
       <div className="hud" style={{ bottom: 8, left: 10, color: '#8399b1', fontSize: 11 }}>
-        Arraste para girar · roda/pinça para aproximar · botão direito/dois dedos para deslocar. Mar calmo (ondas não modeladas).
+        Arraste para girar · roda/pinça para aproximar · botão direito/dois dedos para deslocar. As ondas do 3D são as mesmas da física (estado do mar no seletor).
       </div>
     </Scene3D>
   );

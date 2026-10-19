@@ -485,6 +485,31 @@ export class SimulationEngine {
     s.nav.depthRate = 0;
     this.refreshReadings();
     this.outputs.depthRateCalc = 0;
+    this.primeElectrical();
+  }
+
+  /**
+   * Fecha o balanço elétrico com passo nulo (dt = 0): tensão, corrente e
+   * cargas ficam coerentes com o estado ANTES do primeiro avanço (sem
+   * alterar SoC, combustível ou balanços, que são integrados em dt).
+   */
+  primeElectrical(): void {
+    const s = this.state;
+    const cfg = this.vessel;
+    const ctx = { dt: 0, airIntakeAvailable: s.snorkel.headValveOpen } as unknown as StepContext;
+    let gen = 0;
+    for (const g of cfg.electrical.generators) if (s.electrical.generators[g.id].status === 'EM CARGA') gen += g.ratedPower;
+    const demands: Record<string, number> = {
+      MEP: s.propulsion.elecPower,
+      BC: s.compensation.pump.power,
+      BT: s.trim.pump.power,
+      BB: s.heel.pump.power,
+      HID: s.hydraulics.power,
+      COMP: 0,
+      HOTEL: cfg.electrical.hotelLoad,
+      NAV: cfg.electrical.navLoad,
+    };
+    updateElectrical(cfg.electrical, s, ctx, demands, gen, s.propulsion.elecPower);
   }
 
   /** Avança a simulação por um intervalo de tempo de simulação (s). Retorna nº de passos. */

@@ -13,16 +13,18 @@ import { Ocean, UnderwaterSky, addCaustics, type OceanQuality } from './Ocean';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { SimRunner } from '../sim/core/runner';
 import { qToMat3, DEG } from '../sim/core/math';
-import { tankVolume } from '../sim/systems/internalTanks';
+import { SystemsVis } from './Systems';
+import { ForceArrows } from './ForceArrows';
+import { SurfaceFx } from './SurfaceFx';
+import { Markers } from './Markers';
+import { defaultLayers, type SceneLayers } from './layers';
 
-export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre';
-
-interface TankVis {
-  water: THREE.Mesh;
-  air: THREE.Mesh;
-  h: number;
-  getFill: (e: SimulationEngine) => number;
-}
+/**
+ * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
+ * mundo: o submarino atravessa o quadro) e enquadramentos rápidos de
+ * apresentação ('superficie', 'submerso', 'tanques', 'forcas').
+ */
+export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas';
 
 interface Particle {
   n: number;
@@ -35,6 +37,12 @@ interface Particle {
 export interface Label3D {
   id: string;
   text: string;
+  /** segunda linha (menor) */
+  sub?: string;
+  color?: string;
+  small?: boolean;
+  /** prioridade de posicionamento (0 = mais importante; ≥ 3 pode ser omitido se não couber) */
+  prio?: number;
   x: number;
   y: number;
   visible: boolean;
@@ -72,8 +80,17 @@ export class SubmarineScene {
   private fins: Record<string, THREE.Object3D> = {};
   private prop = new THREE.Group();
   private mast!: THREE.Mesh;
-  private tanks: TankVis[] = [];
-  private tankGroup = new THREE.Group();
+  private hullMesh!: THREE.Mesh;
+  private profile!: THREE.LineSegments;
+  private systems!: SystemsVis;
+  private forces!: ForceArrows;
+  private fx: SurfaceFx;
+  private markers!: Markers;
+  private keyLight = new THREE.DirectionalLight(0xffffff, 0);
+  private fillLight = new THREE.AmbientLight(0xffffff, 0);
+  private fixedCam: { n: number; e: number; y: number; ln: number; le: number; ly: number } | null = null;
+  /** camadas visuais (alteradas pela interface a cada quadro) */
+  layers: SceneLayers = defaultLayers();
   private ocean: Ocean;
   private sky: Sky;
   private underSky: UnderwaterSky;
@@ -89,9 +106,6 @@ export class SubmarineScene {
   private snowBase: Float32Array;
   private static readonly SNOW_N = 1400;
   private static readonly SNOW_BOX = { h: 140, v: 60 };
-  /** esteira na superfície (gerada pela velocidade real quando o hélice está próximo da superfície) */
-  private wake: Particle[] = [];
-  private wakePts: THREE.Points;
   private bubbles: THREE.Points;
   private trail: THREE.Line;
   private depthLine: THREE.Line;
@@ -99,8 +113,6 @@ export class SubmarineScene {
   private view: ViewMode = 'perspectiva';
   private viewBlend = 1;
   private viewFrom = new THREE.Vector3();
-  cutaway = false;
-  showTrail = true;
   realisticFog = true;
   private clock = new THREE.Clock();
   private dot = dotTexture();
@@ -115,6 +127,7 @@ export class SubmarineScene {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.62;
+    this.renderer.localClippingEnabled = true;
     container.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 30000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -131,6 +144,10 @@ export class SubmarineScene {
     const sun = new THREE.DirectionalLight(0xfff2dd, 2.2);
     sun.position.copy(this.sunDir).multiplyScalar(1000);
     this.scene.add(sun);
+    // luzes de apresentação (presas à câmera)
+    this.keyLight.position.set(0.4, 0.6, 1);
+    this.camera.add(this.keyLight, this.fillLight);
+    this.scene.add(this.camera);
 
     // céu atmosférico (Preetham)
     this.sky = new Sky();
@@ -144,11 +161,17 @@ export class SubmarineScene {
     this.scene.add(this.sky);
 
     // submarino
-    this.hullMat = new THREE.MeshStandardMaterial({ color: 0x323c48, metalness: 0.3, roughness: 0.55, emissive: 0x0b141c });
+    this.hullMat = new THREE.MeshStandardMaterial({ color: 0x3a4654, metalness: 0.3, roughness: 0.5, emissive: 0x0e1923 });
     addCaustics(this.hullMat, this.caustics, 14);
     this.sailMat = this.hullMat;
     this.buildSubmarine();
     this.scene.add(this.sub);
+    this.forces = new ForceArrows(this.env());
+    this.scene.add(this.forces.group);
+    this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
+    this.scene.add(this.fx.group);
+    this.markers = new Markers(this.env(), this.dot);
+    this.scene.add(this.markers.group);
 
     // oceano: mesmas componentes de onda da física, deslocadas em GPU
     this.ocean = new Ocean(quality, this.sunDir);
@@ -176,11 +199,6 @@ export class SubmarineScene {
     this.snow = new THREE.Points(sgeo, new THREE.PointsMaterial({ color: 0xbfe3ff, size: 0.5, transparent: true, opacity: 0.6, depthWrite: false, map: this.dot }));
     this.snow.frustumCulled = false;
     this.scene.add(this.snow);
-    const wg = new THREE.BufferGeometry();
-    wg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(500 * 3), 3));
-    this.wakePts = new THREE.Points(wg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.8, transparent: true, opacity: 0.75, depthWrite: false, map: this.dot }));
-    this.wakePts.frustumCulled = false;
-    this.scene.add(this.wakePts);
 
     // trajetória e linha de profundidade
     const tg = new THREE.BufferGeometry();
@@ -217,7 +235,38 @@ export class SubmarineScene {
     const hg = new THREE.LatheGeometry(pts, 48);
     hg.rotateX(-Math.PI / 2);
     const hull = new THREE.Mesh(hg, this.hullMat);
+    this.hullMesh = hull;
     this.sub.add(hull);
+    // contorno do casco (perfil lateral e planta) para o corte
+    {
+      const segs: number[] = [];
+      const N = 120;
+      const pt = (x: number, y: number, z: number) => [y, -z, -x];
+      for (let i = 0; i < N; i++) {
+        const x0 = -L / 2 + (i / N) * L;
+        const x1 = -L / 2 + ((i + 1) / N) * L;
+        const r0 = e.geom.radiusAt(x0);
+        const r1 = e.geom.radiusAt(x1);
+        for (const sgn of [-1, 1]) {
+          segs.push(...pt(x0, 0, sgn * r0), ...pt(x1, 0, sgn * r1));
+          segs.push(...pt(x0, sgn * r0, 0), ...pt(x1, sgn * r1, 0));
+        }
+      }
+      const sv0 = v.hull.sail;
+      const top = -(R + sv0.height);
+      for (const [a, b] of [
+        [pt(sv0.xAft, 0, -R + 0.3), pt(sv0.xAft, 0, top)],
+        [pt(sv0.xAft, 0, top), pt(sv0.xFwd, 0, top)],
+        [pt(sv0.xFwd, 0, top), pt(sv0.xFwd, 0, -R + 0.3)],
+      ])
+        segs.push(...a, ...b);
+      const pg = new THREE.BufferGeometry();
+      pg.setAttribute('position', new THREE.Float32BufferAttribute(segs, 3));
+      this.profile = new THREE.LineSegments(pg, new THREE.LineBasicMaterial({ color: 0xcfe6ff, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false }));
+      this.profile.renderOrder = 7;
+      this.profile.visible = false;
+      this.sub.add(this.profile);
+    }
     // vela (perfil em estádio extrudado)
     const sv = v.hull.sail;
     const len = sv.xFwd - sv.xAft;
@@ -294,35 +343,13 @@ export class SubmarineScene {
     this.prop.position.set(0, 0, L / 2 + 0.6);
     this.sub.add(this.prop);
 
-    // tanques (corte esquemático)
-    const tMat = (c: number, o: number) => new THREE.MeshStandardMaterial({ color: c, transparent: true, opacity: o, depthWrite: false });
-    const addTank = (cx: number, cy: number, cz: number, H: number, W: number, Lt: number, color: number, getFill: (e: SimulationEngine) => number) => {
-      const water = new THREE.Mesh(new THREE.BoxGeometry(W, 1, Lt), tMat(color, 0.85));
-      const air = new THREE.Mesh(new THREE.BoxGeometry(W, 1, Lt), tMat(0xe6f2ff, 0.18));
-      const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W, H, Lt)), new THREE.LineBasicMaterial({ color: 0xcfe0f2 }));
-      const g = new THREE.Group();
-      g.position.set(cy, -cz, -cx);
-      g.add(water, air, box);
-      this.tankGroup.add(g);
-      this.tanks.push({ water, air, h: H, getFill });
-    };
-    for (const t of v.ballast.tanks) {
-      const W = 2.4;
-      addTank(t.center.x, t.center.y, t.center.z, t.height, W, t.volume / (t.height * W), 0x2a7fd4, (en) => en.state.ballast[t.id].water / t.volume);
-    }
-    for (const t of v.compensation.tanks) addTank(t.center.x, t.center.y, t.center.z, t.height, 2.6, t.capacity / (t.height * 2.6), 0x3ddc84, (en) => tankVolume(en.state.compensation.tanks[t.id]) / t.capacity);
-    for (const [t, getter] of [
-      [v.trim.tankA, (en: SimulationEngine) => tankVolume(en.state.trim.tankA)],
-      [v.trim.tankB, (en: SimulationEngine) => tankVolume(en.state.trim.tankB)],
-    ] as const)
-      addTank(t.center.x, t.center.y, t.center.z, t.height, 2.4, t.capacity / (t.height * 2.4), 0xffb347, (en) => getter(en) / t.capacity);
-    for (const [t, getter] of [
-      [v.heel.tankA, (en: SimulationEngine) => tankVolume(en.state.heel.tankA)],
-      [v.heel.tankB, (en: SimulationEngine) => tankVolume(en.state.heel.tankB)],
-    ] as const)
-      addTank(t.center.x, t.center.y, t.center.z, t.height, 1.0, t.capacity / (t.height * 1.0), 0xb48cff, (en) => getter(en) / t.capacity);
-    this.tankGroup.visible = false;
-    this.sub.add(this.tankGroup);
+    // tanques, tubulações e escoamentos (corte)
+    this.systems = new SystemsVis(e, this.dot);
+    this.sub.add(this.systems.group);
+    this.systems.group.traverse((o) => {
+      // desenhados depois do oceano (que não grava profundidade): visíveis também abaixo da linha d'água
+      if (o.renderOrder < 6) o.renderOrder = 6;
+    });
   }
 
   resize(): void {
@@ -337,16 +364,75 @@ export class SubmarineScene {
     this.viewFrom.copy(this.camera.position);
     this.view = v;
     this.viewBlend = v === 'livre' ? 1 : 0;
+    if (v === 'fixa') this.fixedCam = null;
+  }
+
+  get viewMode(): ViewMode {
+    return this.view;
+  }
+
+  /**
+   * Câmera FIXA no mundo: posicionada à frente e ao lado da derrota; o
+   * submarino entra, atravessa o quadro e sai. Reposiciona-se quando o casco
+   * passa bem além do ponto de mira.
+   */
+  private updateFixedCamera(pn: number, pe: number, pd: number): void {
+    const psi = (this.env().outputs.euler.heading * Math.PI) / 180;
+    const fn = Math.cos(psi);
+    const fe = Math.sin(psi);
+    const asp = Math.max(0.3, this.camera.aspect);
+    let fc = this.fixedCam;
+    const surfaced = pd < 8;
+    if (fc) {
+      const along = (pn - fc.ln) * fn + (pe - fc.le) * fe;
+      if (along > 95 || along < -260 || Math.hypot(pn - fc.n, pe - fc.e) > 700) fc = null;
+    }
+    if (!fc) {
+      // mira 45 m à frente: o casco começa no quadro e o atravessa
+      const ahead = 45;
+      const side = Math.max(100, 110 / asp);
+      const ln = pn + fn * ahead;
+      const le = pe + fe * ahead;
+      const ly = -pd;
+      fc = { n: ln - fe * side, e: le + fn * side, y: surfaced ? 9 : Math.min(-3, ly + 2), ln, le, ly };
+      this.fixedCam = fc;
+    }
+    this.camera.position.set(fc.e - pe, fc.y, -(fc.n - pn));
+    this.controls.target.set(fc.le - pe, surfaced ? -1 : fc.ly, -(fc.ln - pn));
   }
 
   setCutaway(on: boolean): void {
-    this.cutaway = on;
-    this.hullMat.transparent = on;
-    this.hullMat.opacity = on ? 0.22 : 1;
-    this.hullMat.color.set(on ? 0x8fb3d9 : 0x323c48);
-    this.hullMat.depthWrite = !on;
-    this.hullMat.needsUpdate = true;
-    this.tankGroup.visible = on;
+    this.layers = { ...this.layers, tanks: on };
+  }
+
+  /** Tanque sob o ponto da tela (px relativos ao contêiner), ou null. */
+  pickTank(x: number, y: number): string | null {
+    if (!this.layers.tanks) return null;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    return this.systems.pick(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
+  }
+
+  private hullState = { cut: false, op: 1, pres: false };
+  private applyHull(): void {
+    const cut = this.layers.tanks;
+    const op = cut ? Math.max(0.04, Math.min(1, this.layers.hullOpacity)) : 1;
+    const pres = this.layers.presLight;
+    const hs = this.hullState;
+    if (hs.cut === cut && hs.op === op && hs.pres === pres) return;
+    const m = this.hullMat;
+    m.transparent = op < 0.999;
+    m.opacity = op;
+    m.color.set(cut ? 0x9cc0e4 : pres ? 0x4d5c6c : 0x3a4654);
+    m.emissive.set(pres ? 0x1d2c3a : 0x0e1923);
+    m.depthWrite = op >= 0.999;
+    m.needsUpdate = true;
+    // no corte o casco é desenhado depois do oceano (fica visível abaixo da linha d'água)
+    this.hullMesh.renderOrder = cut ? 5 : 0;
+    this.profile.visible = cut;
+    this.keyLight.intensity = pres ? 1.6 : 0;
+    this.fillLight.intensity = pres ? 0.45 : 0;
+    this.hullState = { cut, op, pres };
   }
 
   private headingVectors(): { fwd: THREE.Vector3; stbd: THREE.Vector3 } {
@@ -359,20 +445,44 @@ export class SubmarineScene {
     return this.camera.aspect > 1.3 ? 13 : 0;
   }
 
+  /** altura da câmera lateral: acima d'água com o casco na superfície, no nível do eixo quando submerso */
+  private sideCamY(below = 1.0, above = 7): number {
+    const axisDepth = -this.lastSubPos.y;
+    const k = Math.min(1, Math.max(0, (axisDepth - 5) / 9));
+    const kk = k * k * (3 - 2 * k);
+    return above * (1 - kk) + Math.min(this.lastSubPos.y - below, -1.2) * kk;
+  }
+
   private cameraTarget(v: ViewMode): THREE.Vector3 {
     const { fwd, stbd } = this.headingVectors();
     const c = this.lastSubPos.clone();
+    const asp = Math.max(0.3, this.camera.aspect);
     switch (v) {
+      case 'superficie': {
+        const k = Math.max(1, 1.3 / asp);
+        return c.add(fwd.multiplyScalar(-60 * k)).add(stbd.multiplyScalar(62 * k)).setY(Math.max(26 * k, c.y + 26 * k));
+      }
+      case 'submerso': {
+        const cam = c.add(stbd.multiplyScalar(Math.max(80, 90 / asp))).add(fwd.multiplyScalar(6));
+        cam.y = Math.min(this.lastSubPos.y + 3, -3);
+        return cam;
+      }
+      case 'tanques': {
+        const cam = c.add(stbd.multiplyScalar(Math.max(58, 66 / asp)));
+        cam.y = this.lastSubPos.y + 10;
+        return cam;
+      }
+      case 'forcas': {
+        const cam = c.add(stbd.multiplyScalar(Math.max(90, 100 / asp)));
+        cam.y = this.sideCamY(0.5, 6);
+        return cam;
+      }
       case 'piloto': {
         // lateral (boreste), ligeiramente abaixo do eixo e à frente: o submarino avança da esquerda para a direita.
         // Distância ajustada à proporção da tela para o casco inteiro caber (telas em retrato).
-        const asp = Math.max(0.3, this.camera.aspect);
         const dist = Math.max(95, 100 / asp);
         const cam = c.add(stbd.multiplyScalar(dist)).add(fwd.clone().multiplyScalar(this.pilotLead()));
-        const axisDepth = -this.lastSubPos.y;
-        const k = Math.min(1, Math.max(0, (axisDepth - 5) / 9));
-        const kk = k * k * (3 - 2 * k);
-        cam.y = 7 * (1 - kk) + Math.min(this.lastSubPos.y - 1.0, -1.2) * kk;
+        cam.y = this.sideCamY();
         return cam;
       }
       case 'perseguicao':
@@ -471,17 +581,6 @@ export class SubmarineScene {
     const R0 = v.hull.diameter / 2;
     this.mast.position.y = R0 + v.hull.sail.height - v.hull.snorkelMast.extension / 2 - 0.5 + s.snorkel.pos * v.hull.snorkelMast.extension;
 
-    // tanques
-    if (this.tankGroup.visible) {
-      for (const t of this.tanks) {
-        const f = Math.max(0.001, Math.min(1, t.getFill(e)));
-        t.water.scale.y = t.h * f;
-        t.water.position.y = -t.h / 2 + (t.h * f) / 2;
-        t.air.scale.y = Math.max(0.001, t.h * (1 - f));
-        t.air.position.y = t.h / 2 - (t.h * (1 - f)) / 2;
-      }
-    }
-
     // fundo (reconstruído ao afastar-se)
     if (Math.hypot(pn - this.seabedCenter.n, pe - this.seabedCenter.e) > 800) this.rebuildSeabed(Math.round(pn / 100) * 100, Math.round(pe / 100) * 100);
     if (this.seabed) this.seabed.position.set(this.seabedCenter.e - pe, 0, -(this.seabedCenter.n - pn));
@@ -493,24 +592,35 @@ export class SubmarineScene {
       e: s.body.pos.y + Rm[3] * bx + Rm[4] * by + Rm[5] * bz,
       d: s.body.pos.z + Rm[6] * bx + Rm[7] * by + Rm[8] * bz,
     });
-    if (this.runner.running) {
+    const step = this.runner.running ? dtR * this.runner.timeScale : 0;
+    const wv = e.env.waves;
+    if (step > 0) {
       for (const t of v.ballast.tanks) {
         const st = s.ballast[t.id];
-        const rate = Math.min(120, st.mdotVent * 25 + st.mdotSpill * 25);
-        const nEmit = rate * dtR * this.runner.timeScale;
-        let k = Math.floor(nEmit) + (Math.random() < nEmit % 1 ? 1 : 0);
-        const src = st.mdotVent >= st.mdotSpill ? toWorld(t.center.x, t.center.y, t.center.z - t.height / 2 - 0.5) : toWorld(t.center.x, t.center.y, t.center.z + t.height / 2);
-        while (k-- > 0 && this.particles.length < 600) {
-          this.particles.push({ n: src.n + (Math.random() - 0.5) * 2, e: src.e + (Math.random() - 0.5) * 2, d: src.d, vy: 0.8 + Math.random() * 0.8, life: 60 });
+        const r = e.geom.radiusAt(t.center.x);
+        const side = t.center.y < 0 ? -1 : 1;
+        // suspiro (convés) e embornais (fundo): só emitem bolhas quando submersos
+        const srcs: [number, { n: number; e: number; d: number }][] = [
+          [st.mdotVent, toWorld(t.center.x + (t.center.x > 0 ? 0.8 : -0.8), side * r * 0.27, -r - 0.2)],
+          [st.mdotSpill, toWorld(t.center.x, side * r * 0.5, r + 0.4)],
+        ];
+        for (const [mdot, src] of srcs) {
+          if (mdot < 0.01 || src.d + wv.elevation(src.n, src.e, tWave) < 0) continue;
+          const nEmit = Math.min(120, mdot * 25) * step;
+          let k = Math.floor(nEmit) + (Math.random() < nEmit % 1 ? 1 : 0);
+          while (k-- > 0 && this.particles.length < 600) {
+            this.particles.push({ n: src.n + (Math.random() - 0.5) * 2, e: src.e + (Math.random() - 0.5) * 2, d: src.d, vy: 0.8 + Math.random() * 0.8, life: 60 });
+          }
         }
       }
-      const step = dtR * this.runner.timeScale;
       this.particles = this.particles.filter((p) => {
         p.d -= p.vy * step;
         p.life -= step;
         p.n += (Math.random() - 0.5) * 0.3;
         p.e += (Math.random() - 0.5) * 0.3;
-        return p.d > -e.env.waves.elevation(p.n, p.e, tWave) && p.life > 0;
+        const alive = p.d > -wv.elevation(p.n, p.e, tWave) && p.life > 0;
+        if (!alive && p.life > 0) this.fx.bubbleSurfaced(p.n, p.e);
+        return alive;
       });
     }
     const bp = this.bubbles.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -536,27 +646,10 @@ export class SubmarineScene {
       }
       sp.needsUpdate = true;
     }
-    // esteira: espuma deixada na superfície pelo hélice quando ele está próximo da superfície
-    {
-      const step = this.runner.running ? dtR * this.runner.timeScale : 0;
-      const sternW = toWorld(-v.hull.length / 2, 0, 0);
-      const u = Math.abs(s.body.vel.x);
-      if (step > 0 && sternW.d < 7 && u > 0.4) {
-        const rate = Math.min(60, u * 8);
-        let k = Math.floor(rate * step) + (Math.random() < (rate * step) % 1 ? 1 : 0);
-        while (k-- > 0 && this.wake.length < 500) {
-          this.wake.push({ n: sternW.n + (Math.random() - 0.5) * 3, e: sternW.e + (Math.random() - 0.5) * 3, d: 0, vy: 0, life: 25 });
-        }
-      }
-      if (step > 0) this.wake = this.wake.filter((p) => (p.life -= step) > 0);
-      const wp = this.wakePts.geometry.getAttribute('position') as THREE.BufferAttribute;
-      for (let i = 0; i < 500; i++) {
-        const p = this.wake[i];
-        if (p) wp.setXYZ(i, p.e - pe, (i % 3 === 0 ? e.env.waves.elevation(p.n, p.e, tWave) : wp.getY(i)) + 0.12, -(p.n - pn));
-        else wp.setXYZ(i, 0, -1e6, 0);
-      }
-      wp.needsUpdate = true;
-    }
+    // esteira, onda de proa, rastro do hélice, jato dos suspiros
+    const pixelScale = this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    this.fx.update(e, step, pn, pe, tWave, pixelScale, this.layers.wake);
+    this.markers.update(e, pn, pe, tWave, this.layers.markers);
 
     // trajetória
     const tp = this.trail.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -569,7 +662,7 @@ export class SubmarineScene {
     tp.setXYZ(nT, 0, -pd, 0);
     tp.needsUpdate = true;
     this.trail.geometry.setDrawRange(0, nT + 1);
-    this.trail.visible = this.showTrail;
+    this.trail.visible = this.layers.trail;
 
     // linha de profundidade (superfície ↔ submarino ↔ fundo)
     const bottom = e.env.bottomDepthAt(pn, pe);
@@ -586,6 +679,8 @@ export class SubmarineScene {
     if (this.view === 'livre') {
       this.camera.position.add(delta);
       this.controls.target.add(delta);
+    } else if (this.view === 'fixa') {
+      this.updateFixedCamera(pn, pe, pd);
     } else {
       this.viewBlend = Math.min(1, this.viewBlend + dtR * 1.8);
       const target = this.cameraTarget(this.view);
@@ -624,9 +719,9 @@ export class SubmarineScene {
       this.scene.background = new THREE.Color(0x9dbad4);
       this.scene.fog = new THREE.Fog(0x9dbad4, 3000, 14000);
     }
-    this.renderer.render(this.scene, this.camera);
-
-    // rótulos
+    // camadas: casco, tanques/circuitos, vetores
+    this.applyHull();
+    this.camera.updateMatrixWorld();
     const proj = (vtx: THREE.Vector3) => {
       const p = vtx.clone().project(this.camera);
       const w = this.container.clientWidth;
@@ -634,6 +729,11 @@ export class SubmarineScene {
       return { x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h, visible: p.z < 1 && p.z > -1 };
     };
     const lbl: Label3D[] = [];
+    this.sub.updateMatrixWorld();
+    this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
+    this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
+    this.renderer.render(this.scene, this.camera);
+
     const ps = proj(new THREE.Vector3(0, 0, 0));
     lbl.push({ id: 'surf', text: 'superfície', ...ps });
     const psub = proj(subPos.clone().add(new THREE.Vector3(0, 12, 0)));

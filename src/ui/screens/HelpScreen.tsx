@@ -16,6 +16,9 @@ export function HelpScreen() {
           <li>
             Na aba <b>Pilotagem</b>, pressione <b>▶ Iniciar simulação</b> e opere o telégrafo, os lemes e o lastro (ou as manobras rápidas) vendo o submarino em 3D.
           </li>
+          <li>
+            Para conduzir uma apresentação, use a aba <b>Apresentação</b>: escolha uma situação pronta, pressione <b>Preparar</b> e mostre ao mesmo tempo os tanques, os vetores de peso, empuxo e resultante e o movimento do submarino.
+          </li>
           <li>Escolha outros cenários em <b>Cenários</b> (começam pausados) e pressione <b>▶</b> na barra superior.</li>
           <li>
             Na <b>Central de comando</b>: telégrafo (rpm), lemes de vante/ré e de direção, piloto automático e comandos rápidos de lastro.

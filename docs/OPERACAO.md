@@ -13,8 +13,29 @@ A aba **Pilotagem** mostra o submarino em 3D (vista lateral, de perseguição ou
 - **Telégrafo:** rotação do eixo; a velocidade cresce lentamente pela inércia.
 - **Lemes:** vante e ré (SUBIR/DESCER) e direção (BB/BE). Só funcionam com velocidade.
 - **Lastro principal:** suspiros, sopro e sopro de emergência.
+- **Câmeras:** *Lateral*, *Perseguição*, *Fixa* (o submarino atravessa o quadro) e *Livre*. Os botões *Forças* e *Boias* ligam os vetores e as referências fixas.
 - **Mar e gráfico:** o seletor **Mar** (0 calmo a 6 muito grosso) muda as ondas na física e no 3D ao mesmo tempo; o seletor **Gráfico** (baixa/média/alta) ajusta a qualidade do oceano ao aparelho.
 - **Manobras rápidas:** "Imergir para X m" (velocidade, suspiros e piloto de profundidade; os suspiros fecham quando os TLP enchem), "Emergir" (sobe com lemes até a cota periscópica e sopra os TLP) e "Manter profundidade". Elas apenas emitem comandos registrados; o comportamento é o da física.
+
+## Modo apresentação
+
+A aba **Apresentação** foi feita para quem conduz uma demonstração para um público. A cena, os tanques, os vetores de força e os indicadores ficam juntos, de modo que, ao operar uma válvula, se veja ao mesmo tempo o tanque enchendo, a massa e o peso aumentando, a resultante mudando e a resposta do submarino.
+
+**Condução**
+- *Situação pronta* + **Preparar**: carrega o cenário, o estado do mar, o enquadramento e as camadas sugeridas, já pausado. O texto abaixo da lista sugere o que mostrar.
+- **Executar/Pausar**, **+0,1 s**, **+1 s** e velocidades de **×0,25** a **×10** (câmera lenta abaixo de ×1; a física usa sempre o mesmo passo fixo).
+- **↺ Estado inicial** volta exatamente à condição preparada.
+- **📌 Marcar "antes"** guarda o estado atual; a tabela **Antes × agora** mostra profundidade, velocidade vertical, atitude, massa, P, E, E − P, volume deslocado, fração imersa e os volumes de cada tanque, com as diferenças. **↩ Voltar ao "antes"** repete a demonstração a partir do ponto marcado.
+
+**Enquadramentos**: *Superfície* (3/4 elevado, mostra esteira e proa), *Submerso*, *Tanques* (corte de perto), *Forças* (vista lateral para os vetores), *Seguir*, *Perseguição*, *Fixa* (câmera parada no cenário, o submarino atravessa o quadro) e *Livre*.
+
+**Camadas** (independentes): peso/empuxo, hélice/lemes/resistência, tanques, tubulações, escoamentos, identificações, esteira, boias/marcos, trajetória e iluminação de apresentação. A transparência do casco é ajustável.
+
+**Vetores**: peso e empuxo usam a mesma escala (14 m = peso na condição inicial). Como os dois quase se equilibram, a resultante pode ser ampliada (automática: 1, 2 ou 5 × 10ⁿ, ou ×1, ×10, ×100, ×1000); o fator aparece sempre no rótulo. Com o casco todo submerso, encher um tanque só aumenta o peso (o empuxo fica praticamente constante); na superfície, o casco afunda e o empuxo cresce junto com a fração imersa.
+
+**Tanques e escoamentos**: lastro principal (azul), compensação (verde), trim (laranja) e banda (roxo). Clique num tanque (na lista ou no corte) para destacá-lo; os demais ficam discretos. As partículas mostram o sentido e a intensidade das vazões calculadas: ar saindo pelos suspiros (jato acima da água, bolhas debaixo dela), água entrando ou saindo pelos embornais, ar comprimido das garrafas ao coletor e aos TLP durante o sopro, admissão e descarga de compensação e transferências de trim e banda. Válvulas: verde aberta, vermelha fechada, âmbar em curso. Bombas em funcionamento ficam verdes e o rotor gira.
+
+**Manobras automáticas**: a barra sobre a cena mostra a etapa atual, as etapas seguintes e os comandos enviados. Ao terminar, informa **SUCESSO**, **TEMPO ESGOTADO**, **CANCELADA** ou **FALHA** (por exemplo, falta de ar comprimido ou profundidade de teste excedida).
 
 ## Sequência completa (cenário "Superfície — pronto para imergir")
 

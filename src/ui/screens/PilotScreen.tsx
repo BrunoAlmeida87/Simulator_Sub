@@ -14,6 +14,7 @@ import { NumSet, QuickBallast, SurfaceControl, Telegraph } from '../components/C
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { navStatus } from '../navStatus';
 import { maneuver } from '../maneuvers';
+import { ManeuverStatus } from '../components/ManeuverStatus';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 
@@ -21,6 +22,8 @@ export function PilotScreen() {
   const e = useSim(10);
   const [view, setView] = useState<ViewMode>('piloto');
   const [cut, setCut] = useState(false);
+  const [vec, setVec] = useState(false);
+  const [marks, setMarks] = useState(true);
   const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
   const setQuality = (q: OceanQuality) => {
     saveQuality(q);
@@ -38,7 +41,7 @@ export function PilotScreen() {
   return (
     <div className="pilot">
       <div className="pilot-view">
-        <Scene3D quality={quality} view={view} cutaway={cut} labels={false}>
+        <Scene3D quality={quality} view={view} cutaway={cut} labels={false} layers={{ vectors: vec, markers: marks, pipes: true, flows: true, labels: true }}>
           <div className="pilot-tape">
             <DepthTape depth={o.depthKeel} ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null} bottom={o.bottomDepth} rate={o.verticalSpeed} opLimit={L.operatingDepth} testLimit={L.testDepth} height={260} />
           </div>
@@ -72,7 +75,6 @@ export function PilotScreen() {
                 <b>{fmt(fill * 100, 0)} %</b>
               </span>
             </div>
-            {maneuver.active && <div className="pilot-maneuver">⟳ {maneuver.phase}</div>}
           </div>
           <div className="overlay-ctl">
             <SeaControls quality={quality} setQuality={setQuality} />
@@ -81,6 +83,7 @@ export function PilotScreen() {
                 [
                   ['piloto', 'Lateral'],
                   ['perseguicao', 'Perseguição'],
+                  ['fixa', 'Fixa'],
                   ['livre', 'Livre'],
                 ] as [ViewMode, string][]
               ).map(([v, l]) => (
@@ -89,11 +92,22 @@ export function PilotScreen() {
                 </button>
               ))}
             </div>
-            <button className={`btn sm ${cut ? 'on' : ''}`} onClick={() => setCut(!cut)}>
-              Ver tanques
-            </button>
+            <div className="btngroup">
+              <button className={`btn sm ${cut ? 'on' : ''}`} onClick={() => setCut(!cut)}>
+                Ver tanques
+              </button>
+              <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)}>
+                Forças
+              </button>
+              <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
+                Boias
+              </button>
+            </div>
           </div>
-          {!runner.running && (
+          <div className="pres-bottom">
+            <ManeuverStatus compact />
+          </div>
+          {!runner.running && e.state.t === 0 && (
             <button className="btn ok lg pilot-start" onClick={() => ((runner.running = true), runner.notify())}>
               ▶ Iniciar simulação
             </button>
