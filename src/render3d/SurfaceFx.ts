@@ -95,6 +95,7 @@ class PointPool {
         const k = Math.exp(-p.drag * dt);
         p.vn *= k;
         p.ve *= k;
+        if (p.drag > 0 && !p.surface) p.vd *= Math.exp(-0.5 * p.drag * dt);
         p.n += p.vn * dt;
         p.e += p.ve * dt;
         if (!p.surface) {
@@ -185,6 +186,7 @@ export class SurfaceFx {
   private wash: PointPool; // rastro do hélice na superfície
   private jet: PointPool; // rastro do hélice submerso
   private spray: PointPool; // jato dos suspiros
+  private smoke: PointPool; // descarga dos diesel-geradores (mastro de snorkel/descarga)
   private wake: WakeSample[] = [];
   private wakeMesh: THREE.Mesh;
   private wPos: THREE.BufferAttribute;
@@ -199,6 +201,8 @@ export class SurfaceFx {
     this.wash = new PointPool(n(900), 0xe6fff6, dot);
     this.jet = new PointPool(n(700), 0xbfe6ff, dot);
     this.spray = new PointPool(n(900), 0xffffff, dot);
+    this.smoke = new PointPool(n(700), 0x5e6168, dot);
+    this.group.add(this.smoke.points);
     this.group.add(this.foam.points, this.wash.points, this.jet.points, this.spray.points);
     const g = new THREE.BufferGeometry();
     // 3 vértices por amostra (borda, centro, borda): bordas transparentes, centro denso
@@ -229,6 +233,7 @@ export class SurfaceFx {
     this.wash.clear();
     this.jet.clear();
     this.spray.clear();
+    this.smoke.clear();
   }
 
   /** espuma onde uma bolha chega à superfície */
@@ -238,7 +243,7 @@ export class SurfaceFx {
 
   update(e: SimulationEngine, step: number, pn: number, pe: number, t: number, pixelScale: number, enabled: boolean): void {
     this.group.visible = enabled;
-    for (const p of [this.foam, this.wash, this.jet, this.spray]) p.mat.uniforms.uScale.value = pixelScale;
+    for (const p of [this.foam, this.wash, this.jet, this.spray, this.smoke]) p.mat.uniforms.uScale.value = pixelScale;
     const s = e.state;
     const v = e.vessel;
     const w = e.env.waves;
@@ -327,6 +332,28 @@ export class SurfaceFx {
           }
         }
       }
+      // ---- descarga dos diesel-geradores: fumaça no topo do mastro (∝ potência; mais escura na partida)
+      {
+        const el = s.electrical;
+        let pw = 0;
+        let starting = false;
+        for (const g of v.electrical.generators) {
+          const st = el.generators[g.id];
+          if (st.status === 'EM CARGA') pw += st.power / g.ratedPower;
+          if (st.status === 'PARTINDO') starting = true;
+        }
+        if ((pw > 0.01 || starting) && s.snorkel.pos > 0.5) {
+          const m = v.hull.snorkelMast;
+          const top = R0 + v.hull.sail.height - 0.5 + s.snorkel.pos * m.extension;
+          const head = toW(m.x - 0.7, 0, -top - 0.3);
+          if (rel(head) < -0.2) {
+            const k0 = Math.min(40, 6 + pw * 18 + (starting ? 20 : 0)) * step;
+            for (let k = Math.floor(k0) + (Math.random() < k0 % 1 ? 1 : 0); k > 0; k--) {
+              this.smoke.add({ n: head.n + rnd() * 0.4, e: head.e + rnd() * 0.4, d: head.d, vn: rnd() * 0.5 + fn * u * 0.15, ve: rnd() * 0.5 + fe * u * 0.15, vd: -(0.8 + Math.random() * 0.8), max: 14 + Math.random() * 8, size: 1.2, grow: 0.55 + Math.random() * 0.3, alpha: starting ? 0.75 : 0.42 + 0.2 * pw, drag: 0.12, surface: false });
+            }
+          }
+        }
+      }
       // ---- suspiros acima da água: jato de ar/borrifo
       for (const t0 of v.ballast.tanks) {
         const st = s.ballast[t0.id];
@@ -346,6 +373,7 @@ export class SurfaceFx {
     this.wash.update(step, pn, pe, w, t);
     this.jet.update(step, pn, pe, w, t);
     this.spray.update(step, pn, pe, w, t);
+    this.smoke.update(step, pn, pe, w, t);
     this.updateWakeMesh(e, pn, pe, t);
   }
 

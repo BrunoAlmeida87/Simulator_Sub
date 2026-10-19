@@ -34,6 +34,30 @@ A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre vis�
 
 As outras abas continuam servindo para diagramas maiores, histórico e detalhes técnicos. Todas usam os mesmos comandos e o mesmo estado.
 
+## Mapa tático
+
+A aba **Mapa tático** mostra a posição geográfica do submarino. O ponto de partida padrão fica na Baía de Sepetiba, junto ao **Estaleiro e Base Naval da Ilha da Madeira (Itaguaí-RJ)**. O mapa mostra:
+- o símbolo do submarino, com vetor de velocidade (6 min de avanço sobre o fundo), rumo ordenado e derrota percorrida;
+- a posição de **navegação estimada** e o erro em relação à posição real;
+- os círculos de 1, 2 e 5 milhas, a base EBN e uma área de exercícios fictícia;
+- **contatos de superfície fictícios** (mercantes, pesqueiro, rebocador, patrulha), com vetor e, no painel, marcação, distância, rumo/velocidade e **CPA/TCPA** (em vermelho se menor que 1 milha nos próximos 30 min);
+- a grade de 5′.
+
+Ferramentas:
+- **Planejar rota**: clique nos pontos e use *Seguir rota*. O piloto de rumo recebe o rumo para cada ponto, e o ponto é dado como alcançado a 150 m.
+- **Medir**: distância em milhas e km, e marcação entre dois pontos.
+- **Definir posição**: reposiciona a referência geográfica. A física não muda.
+
+Fundos de mapa: tático escuro, mapa e satélite, mais sinais náuticos do OpenSeaMap. Eles vêm da internet; sem conexão, fica só a grade. A batimetria real não é modelada: a profundidade do fundo é a do cenário.
+
+## Fluxo de energia
+
+A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de fluxo, em que a largura de cada faixa é proporcional à potência e o tracejado anda no sentido do fluxo. O caminho completo é: combustível e ar do snorkel → diesel-geradores (com o consumo de óleo) → barramento → bateria e consumidores (motor principal, habitabilidade, navegação, hidráulica, compressor, bombas).
+- **Geradores em carga:** a bateria aparece **carregando**, com a corrente e o tempo estimado até a carga completa.
+- **Geradores parados:** a bateria aparece **descarregando** para os sistemas, com a autonomia estimada.
+
+*Preparar demonstração* carrega a cota periscópica com mar calmo, piloto de profundidade em 14 m e snorkel içando. Depois é só partir os geradores. Com os diesel em carga, a cena 3D mostra **fumaça** saindo do topo do mastro, mais escura na partida.
+
 ## Duas janelas (dois monitores)
 
 **⧉ 2ª janela** abre a cena numa nova janela, que pode ir para o outro monitor (use *Tela cheia*). A física roda só na janela principal. A segunda espelha o estado pelo canal de comunicação entre janelas do navegador (BroadcastChannel; é preciso o mesmo navegador e o mesmo endereço). O que ela mostra:

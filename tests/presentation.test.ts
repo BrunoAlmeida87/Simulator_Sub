@@ -233,3 +233,24 @@ describe('Cenário guiado: submergir e descer para 50 m', () => {
     expect(TOURS[0].steps.every((s) => !/NaN|undefined/.test(s.text(r.engine, { send: () => undefined, mem: {} })))).toBe(true);
   });
 });
+
+import { nedToLatLon, latLonToNed, bearingRange, cpa, contactsAt, DEFAULT_ORIGIN, EBN_ITAGUAI } from '../src/sim/geo';
+
+describe('Mapa tático: geografia', () => {
+  it('conversão NED ↔ lat/lon é inversa e 1′ de latitude ≈ 1 milha náutica', () => {
+    const p = nedToLatLon(DEFAULT_ORIGIN, 1852, -3000);
+    const q = latLonToNed(DEFAULT_ORIGIN, p);
+    expect(q.n).toBeCloseTo(1852, 3);
+    expect(q.e).toBeCloseTo(-3000, 3);
+    expect((p.lat - DEFAULT_ORIGIN.lat) * 60).toBeCloseTo(1, 1);
+    const b = bearingRange({ n: 0, e: 0 }, latLonToNed(DEFAULT_ORIGIN, EBN_ITAGUAI));
+    expect(b.rng).toBeLessThan(3000); // a base fica perto do ponto de partida
+  });
+  it('CPA de rumos de colisão é ~0 e o tempo é coerente', () => {
+    const c = { id: 'X', name: 'x', kind: 'mercante' as const, n: 10000, e: 0, course: 180, speed: 5 };
+    const r = cpa({ n: 0, e: 0, vn: 5, ve: 0 }, c);
+    expect(r.dcpa).toBeLessThan(1);
+    expect(r.tcpa).toBeCloseTo(1000, 0);
+    expect(contactsAt(0).length).toBeGreaterThan(3);
+  });
+});

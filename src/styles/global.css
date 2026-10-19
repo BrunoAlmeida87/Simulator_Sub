@@ -405,3 +405,48 @@ tr.focus, div.focus, .row.focus { outline: 2px solid #36c5f0; outline-offset: 1p
 .visual-status { position: absolute; top: 8px; left: 10px; z-index: 5; display: flex; gap: 8px; align-items: center; }
 .visual-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; color: #b9cde2; font-size: 16px; text-align: center; padding: 20px; z-index: 6; background: rgba(2, 6, 11, 0.7); }
 .visual-layers { max-width: 620px; justify-content: flex-end; background: rgba(10, 16, 23, 0.8); border-radius: 4px; padding: 3px; }
+
+/* ---------- mapa tático ---------- */
+.tmap { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 10px; height: calc(100vh - var(--topbar-h, 52px) - 64px); min-height: 520px; }
+.tmap-view { position: relative; min-height: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.tmap-map { position: absolute; inset: 0; background: #07121d; }
+.tmap-side { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tmap-modes { position: absolute; top: 8px; left: 54px; z-index: 500; display: flex; flex-wrap: wrap; gap: 4px; }
+.tmap-hint { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 500; background: rgba(5, 12, 20, 0.85); border: 1px solid #36c5f0; border-radius: 6px; padding: 5px 10px; font-size: 12.5px; }
+.tm-icon { background: transparent; border: 0; }
+.tm-ring { color: #7fb6ea; font: 10px var(--mono); text-shadow: 0 1px 2px #000; }
+.leaflet-tooltip.tm-tip { background: rgba(5, 12, 20, 0.82); color: #d8e4f0; border: 1px solid #2c4260; font: 11px var(--mono); padding: 1px 5px; box-shadow: none; }
+.leaflet-tooltip.tm-tip.own { color: #8fd0ff; border-color: #49a7ff; }
+.leaflet-tooltip.tm-tip::before { display: none; }
+.tm-danger { color: #ff6b6b; font-weight: 700; }
+.tmap .leaflet-container { font-family: inherit; background: #07121d; }
+@media (max-width: 1100px) {
+  .tmap { grid-template-columns: 1fr; height: auto; }
+  .tmap-view { height: 62vh; }
+  .tmap-side { overflow: visible; }
+}
+/* ---------- fluxo de energia ---------- */
+.eflow-svg { background: #08111a; border-radius: 6px; max-height: calc(100vh - var(--topbar-h, 52px) - 190px); min-height: 360px; }
+.enode { fill: #0e1a26; stroke: #2c4260; stroke-width: 1.5; }
+.enode.on { stroke: #3ddc84; }
+.enode.warn { stroke: #ffc040; }
+.enode.bad { stroke: #ff4d4d; }
+.enode-t { fill: #b9cde2; font-size: 14px; font-weight: 600; }
+.enode-v { fill: #e3edf7; font: 13px var(--mono); }
+.enode-s { fill: #8da3ba; font-size: 11px; }
+.enode-l { fill: #c9d6e3; font-size: 13px; }
+.enode-big { fill: #ffffff; font: 700 18px var(--mono); }
+.ebus { fill: #1a2a3d; stroke: #36c5f0; stroke-width: 2; }
+.ebus.bad { stroke: #ff4d4d; }
+.egen { fill: #16222e; stroke: #6f86a0; stroke-width: 2; }
+.espin { animation: espin 0.6s linear infinite; }
+.espin.slow { animation-duration: 2s; }
+@keyframes espin { to { transform: rotate(360deg); } }
+.eflow { stroke-dasharray: 10 12; animation: eflow 1s linear infinite; }
+.eflow.rev { animation-direction: reverse; }
+@keyframes eflow { to { stroke-dashoffset: -22; } }
+.echarge { animation: epulse 1.4s ease-in-out infinite; }
+@keyframes epulse { 50% { opacity: 0.6; } }
+.eflow-lbl { fill: #e3edf7; font: 12px var(--mono); paint-order: stroke; stroke: #08111a; stroke-width: 4px; }
+.estory { font-size: 14.5px; margin-bottom: 8px; color: #e3edf7; }
+.enode-big.eflow-lbl { font: 700 18px var(--mono); }

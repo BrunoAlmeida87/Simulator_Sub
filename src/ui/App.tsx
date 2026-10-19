@@ -12,6 +12,8 @@ import { SimSpeedButtons } from './components/Controls';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
 import { PresentationScreen } from './screens/PresentationScreen';
+import { TacticalMapScreen } from './screens/TacticalMapScreen';
+import { EnergyFlowScreen } from './screens/EnergyFlowScreen';
 import { BallastScreen } from './screens/BallastScreen';
 import { TrimHeelScreen } from './screens/TrimHeelScreen';
 import { PropulsionScreen } from './screens/PropulsionScreen';
@@ -35,6 +37,8 @@ import { openVisualWindow } from './sync';
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'pilotagem', n: '0', label: 'Pilotagem' },
   { id: 'apresentacao', label: 'Apresentação' },
+  { id: 'mapa', label: 'Mapa tático' },
+  { id: 'energia', label: 'Fluxo de energia' },
   { id: 'comando', n: '1', label: 'Central de comando' },
   { id: 'lastro', n: '2', label: 'Lastro e compensação' },
   { id: 'trim', n: '3', label: 'Trim e banda' },
@@ -272,6 +276,8 @@ export function App() {
   const screens: Record<ScreenId, ReactNode> = {
     pilotagem: <PilotScreen />,
     apresentacao: <PresentationScreen />,
+    mapa: <TacticalMapScreen />,
+    energia: <EnergyFlowScreen />,
     comando: <CommandCenter />,
     lastro: <BallastScreen />,
     trim: <TrimHeelScreen />,

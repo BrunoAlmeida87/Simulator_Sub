@@ -10,6 +10,7 @@ import { checklist } from './ui/checklist';
 import { tours } from './ui/tours';
 import { isVisualWindow, SyncMaster, SyncViewer } from './ui/sync';
 import { link } from './ui/link';
+import { route, mapOrigin } from './ui/routeNav';
 
 if (isVisualWindow) {
   // janela de visualização: não roda física, espelha a janela de controle
@@ -31,6 +32,7 @@ if (isVisualWindow) {
     maneuver.tick(runner);
     checklist.tick(runner);
     tours.tick(runner, dt);
+    route.tick(runner, mapOrigin.get());
     link.master!.tick();
     requestAnimationFrame(loop);
   };
