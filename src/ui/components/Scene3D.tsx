@@ -5,6 +5,8 @@ import type { Label3D, SubmarineScene, ViewMode } from '../../render3d/Submarine
 import type { OceanQuality } from '../../render3d/Ocean';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 import { loadPersisted, savePersisted } from '../persist';
+import { visualOut, isVisualWindow } from '../sync';
+import type { PickTarget } from '../ops/opsBus';
 
 const K_Q = 'sx1.quality.v1';
 export function defaultQuality(): OceanQuality {
@@ -42,6 +44,8 @@ export interface Scene3DProps {
   onPickTank?: (id: string | null) => void;
   /** chave para guardar a posição da câmera livre ao trocar de aba */
   persistKey?: string;
+  /** clique sobre qualquer objeto selecionável da cena (ou null) */
+  onPick?: (p: PickTarget | null) => void;
 }
 
 type CamPose = { pos: [number, number, number]; target: [number, number, number] };
@@ -106,6 +110,10 @@ export function Scene3D(props: Scene3DProps) {
           }
           if (sc) {
             sc.layers = mergedLayers(opts.current);
+            if (!isVisualWindow) {
+              visualOut.layers = sc.layers;
+              visualOut.view = opts.current.view;
+            }
             sc.realisticFog = opts.current.fog ?? true;
             drawLabels(sc.render());
           }
@@ -223,11 +231,13 @@ export function Scene3D(props: Scene3DProps) {
   const onUp = (ev: React.PointerEvent) => {
     const d = down.current;
     down.current = null;
-    if (!d || !opts.current.onPickTank || !sceneRef.current || !box.current) return;
+    if (!d || (!opts.current.onPickTank && !opts.current.onPick) || !sceneRef.current || !box.current) return;
     if ((ev.target as HTMLElement).tagName !== 'CANVAS') return;
     if (Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 6) return;
     const r = box.current.getBoundingClientRect();
-    opts.current.onPickTank(sceneRef.current.pickTank(ev.clientX - r.left, ev.clientY - r.top));
+    const p = sceneRef.current.pick(ev.clientX - r.left, ev.clientY - r.top);
+    opts.current.onPick?.(p);
+    opts.current.onPickTank?.(p && p.kind === 'tank' ? p.id : null);
   };
 
   return (

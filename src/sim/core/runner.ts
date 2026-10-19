@@ -73,7 +73,11 @@ export class SimRunner {
   }
 
   /** Fração do passo atual (para interpolação visual). */
+  /** interpolação imposta de fora (janela de visualização que espelha outra janela) */
+  alphaOverride: number | null = null;
+
   get alpha(): number {
+    if (this.alphaOverride !== null) return this.alphaOverride;
     return Math.max(0, Math.min(1, this.acc / this.engine.config.settings.dt));
   }
 

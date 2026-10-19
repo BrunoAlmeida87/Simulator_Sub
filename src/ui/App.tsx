@@ -26,6 +26,11 @@ import { Inspector } from './inspector/Inspector';
 import { ProcedurePanel } from './components/Procedure';
 import { demo } from './demo';
 import { maneuver } from './maneuvers';
+import { opsBus, ALARM_GROUP } from './ops/opsBus';
+import { loadScenario } from './ops/OpsGroups';
+import { SCENARIOS } from '../sim/scenarios';
+import { link } from './link';
+import { openVisualWindow } from './sync';
 
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'pilotagem', n: '0', label: 'Pilotagem' },
@@ -42,6 +47,25 @@ const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'validacao', label: 'Validação' },
   { id: 'ajuda', label: 'Guia' },
 ];
+
+function ScenarioPicker({ current }: { current: string }) {
+  const [sel, setSel] = useState(current);
+  useEffect(() => setSel(current), [current]);
+  return (
+    <span className="row" style={{ gap: 4 }}>
+      <select value={sel} onChange={(ev) => setSel(ev.target.value)} style={{ maxWidth: 170 }} aria-label="Cenário">
+        {SCENARIOS.map((x) => (
+          <option key={x.id} value={x.id}>
+            {x.name}
+          </option>
+        ))}
+      </select>
+      <button className="btn" onClick={() => loadScenario(sel)} title="Carrega o cenário (pausado)">
+        Carregar
+      </button>
+    </span>
+  );
+}
 
 function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
   const e = useSim(8);
@@ -84,6 +108,10 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           {fmtTime(s.t)}
         </span>
         {runner.running && runner.lagging && <span className="badge warn">CPU: tempo reduzido</span>}
+        <ScenarioPicker current={s.scenarioId} />
+        <button className={`btn ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
+          ⧉ 2ª janela{link.master?.connected ? ' ✓' : ''}
+        </button>
       </div>
       <div className="strip">
         <div className="kv">
@@ -122,7 +150,16 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           <b>{fmt(s.electrical.soc * 100, 0)}%</b>
         </div>
       </div>
-      <div className="annunciator" onClick={() => ui.setScreen('seguranca')} style={{ cursor: 'pointer' }} title="Abrir tela de segurança">
+      <div
+        className="annunciator"
+        onClick={() => {
+          // alarme → sistema afetado na central de operação
+          ui.setScreen('pilotagem');
+          opsBus.focus(top ? (ALARM_GROUP[top.def.system] ?? 'falhas') : 'falhas');
+        }}
+        style={{ cursor: 'pointer' }}
+        title="Abrir o sistema afetado na Pilotagem"
+      >
         {top ? (
           <>
             <span className={`badge ${top.def.priority <= 2 ? 'alarm' : 'warn'} ${!top.acked && top.active ? 'blink' : ''}`}>
@@ -190,6 +227,15 @@ export function App() {
     const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${el.offsetHeight}px`));
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // cliques na janela de visualização abrem os controles aqui
+  useEffect(() => {
+    if (!link.master) return;
+    link.master.onPick = (p) => {
+      setScreen('pilotagem');
+      opsBus.select(p);
+    };
   }, []);
 
   // salvamento automático

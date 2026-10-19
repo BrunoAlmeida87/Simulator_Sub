@@ -14,7 +14,7 @@ import type { TransferState } from '../../sim/core/state';
 import { RAD } from '../../sim/core/math';
 import { fmt, fmtMass, fmtMoment } from '../format';
 
-function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' | 'heel' }) {
+export function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' | 'heel' }) {
   const c: TransferSystemConfig = e.vessel[sys];
   const st: TransferState = e.state[sys];
   const [kg, setKg] = useState(sys === 'trim' ? 500 : 300);

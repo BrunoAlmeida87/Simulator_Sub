@@ -106,7 +106,14 @@ export class SystemsVis {
   constructor(private e0: SimulationEngine, dot: THREE.Texture | null) {
     this.group.add(this.tankGroup, this.pipeGroup);
     this.buildTanks();
+    for (const t of this.tanks) {
+      t.pick.userData.pick = { kind: 'tank', id: t.id };
+      this.pickables.push(t.pick);
+    }
     this.buildCircuits();
+    this.buildPower();
+    for (const v of this.valves) this.pickables.push(v.mesh);
+    for (const p of this.pumps) this.pickables.push(p.body);
     const g = new THREE.BufferGeometry();
     this.posAttr = new THREE.Float32BufferAttribute(new Float32Array(MAX_PTS * 3), 3);
     this.colAttr = new THREE.Float32BufferAttribute(new Float32Array(MAX_PTS * 3), 3);
@@ -235,6 +242,58 @@ export class SystemsVis {
     box(v.heel.tankB.id, v.heel.tankB.name, 'TB-BE', 'banda', v.heel.tankB.center, v.heel.tankB.height, 1.0, v.heel.tankB.capacity, (en) => tankVolume(en.state.heel.tankB), (en) => en.state.heel.flow);
   }
 
+  // ------------------------------------------------------- energia (corte)
+  private batt: THREE.Mesh[] = [];
+  private battBar: THREE.Mesh[] = [];
+  private gens: { mesh: THREE.Mesh; id: string }[] = [];
+  private buildPower(): void {
+    const e = this.e0;
+    for (const y of [-1.25, 1.25]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.8, 7), new THREE.MeshStandardMaterial({ color: 0x55606c, emissive: 0x1a2430, roughness: 0.6, transparent: true, opacity: 0.92, depthWrite: false }));
+      m.position.copy(b2l(14, y, 2.4));
+      m.userData.pick = { kind: 'battery', id: 'battery' };
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.12, 1), new THREE.MeshBasicMaterial({ color: 0x3ddc84, toneMapped: false, transparent: true, depthWrite: false }));
+      bar.position.copy(b2l(14, y, 1.95));
+      this.group.add(m, bar);
+      this.batt.push(m);
+      this.battBar.push(bar);
+      this.pickables.push(m);
+    }
+    e.vessel.electrical.generators.forEach((g, i) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.1, 3.4), new THREE.MeshStandardMaterial({ color: 0x8a6a3a, emissive: 0x2a1c08, roughness: 0.6, transparent: true, opacity: 0.92, depthWrite: false }));
+      m.position.copy(b2l(-17.5, i === 0 ? -0.95 : 0.95, 1.3));
+      m.userData.pick = { kind: 'generator', id: g.id };
+      this.group.add(m);
+      this.gens.push({ mesh: m, id: g.id });
+      this.pickables.push(m);
+    });
+  }
+
+  private updatePower(e: SimulationEngine, layers: SceneLayers, labels: Label3D[], sub: THREE.Object3D, proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
+    const el = e.state.electrical;
+    const soc = el.soc;
+    const hide = !!layers.tankFilter && layers.tankFilter.length > 0;
+    for (const m of this.batt) m.visible = !hide;
+    this.battBar.forEach((b) => {
+      b.visible = !hide;
+      b.scale.z = Math.max(0.02, soc) * 7;
+      (b.material as THREE.MeshBasicMaterial).color.set(soc > 0.5 ? 0x3ddc84 : soc > 0.25 ? 0xffc040 : 0xff4d4d);
+    });
+    for (const g of this.gens) {
+      g.mesh.visible = !hide;
+      const st = el.generators[g.id];
+      (g.mesh.material as THREE.MeshStandardMaterial).emissive.set(st.status === 'EM CARGA' ? 0x2a7a2a : st.status === 'PARTINDO' ? 0x7a6a10 : st.failed ? 0x7a1010 : 0x2a1c08);
+    }
+    if (!hide && layers.labels) {
+      labels.push({ id: 'pwB', text: `Bateria ${(soc * 100).toFixed(0)} %${el.current < -1 ? ' ▲ carregando' : ''}`, color: '#9fe3b0', small: true, prio: 3, ...proj(sub.localToWorld(b2l(14, 0, 1.6))) });
+      const run = e.vessel.electrical.generators.filter((g) => el.generators[g.id].status === 'EM CARGA').length;
+      if (run) labels.push({ id: 'pwG', text: `Geradores: ${run} em carga`, color: '#ffd18a', small: true, prio: 3, ...proj(sub.localToWorld(b2l(-17.5, 0, 0.4))) });
+    }
+  }
+
+  /** objetos clicáveis (com userData.pick) */
+  readonly pickables: THREE.Object3D[] = [];
+
   // ------------------------------------------------------------- circuitos
   private pipe(pts: THREE.Vector3[], color: number, owners: string[], r = 0.11): void {
     const path = new THREE.CurvePath<THREE.Vector3>();
@@ -252,9 +311,12 @@ export class SystemsVis {
   }
 
   private valve(p: THREE.Vector3, name: string, get: (e: SimulationEngine) => ValveState, owners: string[]): void {
+    const sys = owners.find((o) => o === 'HP' || o === 'compensacao' || o === 'trim' || o === 'heel') ?? 'lastro';
+    const tank = owners.find((o) => this.tanks.some((t) => t.id === o));
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff4d4d, depthTest: false, transparent: true, toneMapped: false, fog: false }));
     m.position.copy(p);
     m.renderOrder = 13;
+    m.userData.pick = { kind: 'valve', id: tank ?? name, sys };
     this.pipeGroup.add(m);
     this.valves.push({ mesh: m, get, name, owners });
   }
@@ -263,6 +325,7 @@ export class SystemsVis {
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 18), new THREE.MeshBasicMaterial({ color: 0x6f7c8a, transparent: true, depthTest: false, toneMapped: false, fog: false }));
     body.position.copy(p);
     body.renderOrder = 13;
+    body.userData.pick = { kind: 'pump', id: name, sys: owners.find((o) => o === 'compensacao' || o === 'trim' || o === 'heel') ?? 'compensacao' };
     const rotor = new THREE.Group();
     const bm = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true });
     for (let k = 0; k < 2; k++) {
@@ -298,6 +361,8 @@ export class SystemsVis {
         const c = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 3.2, 12), new THREE.MeshStandardMaterial({ color: 0xd9cf8f, emissive: 0x3a3418, transparent: true, opacity: 0.9 }));
         c.rotation.x = Math.PI / 2;
         c.position.copy(b2l(-8, y + (k - 1) * 0.3, 1.5 + (k % 2) * 0.25));
+        c.userData.pick = { kind: 'hp', id: b.id };
+        this.pickables.push(c);
         grp.add(c);
       }
       this.pipeGroup.add(grp);
@@ -493,6 +558,7 @@ export class SystemsVis {
         });
       }
     }
+    this.updatePower(e, layers, labels, sub, proj);
     // tubulações
     for (const p of this.pipeMats) {
       p.mesh.visible = shown(p.owners);

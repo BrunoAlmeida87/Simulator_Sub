@@ -7,15 +7,42 @@
 - **Trim e banda** redistribuem pesos e mudam a atitude de equilíbrio estático.
 - **Lemes** produzem forças dinâmicas ∝ U². Sem velocidade não há efeito; com velocidade, mantêm a profundidade mesmo com pequenos desequilíbrios.
 
-## Tela de pilotagem
+## Pilotagem — central de operação
 
-A aba **Pilotagem** mostra o submarino em 3D (vista lateral, de perseguição ou livre) com os comandos ao lado:
-- **Telégrafo:** rotação do eixo; a velocidade cresce lentamente pela inércia.
-- **Lemes:** vante e ré (SUBIR/DESCER) e direção (BB/BE). Só funcionam com velocidade.
-- **Lastro principal:** suspiros, sopro e sopro de emergência.
-- **Câmeras:** *Lateral*, *Perseguição*, *Fixa* (o submarino atravessa o quadro) e *Livre*. Os botões *Forças* e *Boias* ligam os vetores e as referências fixas.
-- **Mar e gráfico:** o seletor **Mar** (0 calmo a 6 muito grosso) muda as ondas na física e no 3D ao mesmo tempo; o seletor **Gráfico** (baixa/média/alta) ajusta a qualidade do oceano ao aparelho.
-- **Manobras rápidas:** "Imergir para X m" (velocidade, suspiros e piloto de profundidade; os suspiros fecham quando os TLP enchem), "Emergir" (sobe com lemes até a cota periscópica e sopra os TLP) e "Manter profundidade". Elas apenas emitem comandos registrados; o comportamento é o da física.
+A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre visível, com a faixa de indicadores embaixo: profundidade, velocidade vertical, velocidade, rumo, pitch, banda, bateria e flutuabilidade (ou reserva, na superfície). O painel lateral tem rolagem própria.
+
+- **Barra superior (fixa):** executar/pausar, passo, reiniciar, velocidade do tempo, seletor de **cenário** + Carregar, **⧉ 2ª janela** e alarmes. Clicar no alarme abre o sistema afetado na Pilotagem.
+- **Comandos essenciais (sempre visíveis no topo do painel):** executar/pausar, telégrafo, lemes de vante, ré e direção, profundidade (MAN/AUTO + ordem) e manobras rápidas (Imergir para X m, Emergir, Manter).
+- **Grupos expansíveis**, com resumo no cabeçalho mesmo recolhidos:
+  - *Navegação*: telégrafo com régua, lemes e pilotos de rumo, profundidade e inclinação.
+  - *Lastro principal*: suspiro e sopro de cada TLP, sopro de emergência.
+  - *Compensação*: válvulas, bomba, dosagem e ajuste calculado.
+  - *Trim e banda*: transferências com efeito previsto e peso deslocável.
+  - *Ar comprimido*: garrafas, isolamento, pressão e compressor.
+  - *Energia e snorkel*: bateria, disjuntor, demanda, geradores e mastro.
+  - *Falhas e segurança*: alarmes, reconhecimento, injeção e remoção de falhas.
+  - *Ambiente e configuração*: mar, condições da água, cenário e acesso aos parâmetros avançados.
+  - *Cenários guiados*.
+- **📌 Fixar**: até dois grupos ficam sempre abertos no topo, por exemplo Lastro + Ar comprimido. *Recolher todos* fecha os demais.
+- **Controles ligados à cena:**
+  - clicar num **tanque** abre o grupo do tanque, destaca a linha dele e realça as suas conexões;
+  - clicar num **leme** ou no **hélice** abre a Navegação;
+  - clicar no **mastro**, na **bateria** ou nos **geradores** (visíveis no corte) abre Energia e snorkel;
+  - clicar nas **garrafas AP** abre Ar comprimido;
+  - clicar em **válvulas e bombas** abre o sistema delas;
+  - o botão *Sistema →* de um alarme leva ao sistema afetado.
+
+As outras abas continuam servindo para diagramas maiores, histórico e detalhes técnicos. Todas usam os mesmos comandos e o mesmo estado.
+
+## Duas janelas (dois monitores)
+
+**⧉ 2ª janela** abre a cena numa nova janela, que pode ir para o outro monitor (use *Tela cheia*). A física roda só na janela principal. A segunda espelha o estado pelo canal de comunicação entre janelas do navegador (BroadcastChannel; é preciso o mesmo navegador e o mesmo endereço). O que ela mostra:
+- a câmera "Igual ao controle", ou uma câmera própria;
+- as mesmas camadas (tanques, vetores, escoamentos);
+- os indicadores principais;
+- a narração dos cenários guiados e as manobras.
+
+Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. Mantenha a janela principal visível (não minimizada): navegadores pausam a animação de janelas minimizadas, e com isso a simulação também pausa.
 
 ## Modo apresentação
 

@@ -19,6 +19,7 @@ import { SurfaceFx } from './SurfaceFx';
 import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
 import { defaultLayers, type SceneLayers } from './layers';
+import type { PickTarget } from '../ui/ops/opsBus';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
@@ -82,6 +83,7 @@ export class SubmarineScene {
   private prop = new THREE.Group();
   private mast!: THREE.Mesh;
   private hullMesh!: THREE.Mesh;
+  private pickables: THREE.Object3D[] = [];
   private profile!: THREE.LineSegments;
   private systems!: SystemsVis;
   private forces!: ForceArrows;
@@ -305,6 +307,10 @@ export class SubmarineScene {
         piv.position.set(side * (r0 + span / 2), -z, -x);
         const m = new THREE.Mesh(new THREE.BoxGeometry(span, 0.22, chord), mat);
         m.position.z = chord * 0.2;
+        if (id) {
+          m.userData.pick = { kind: 'fin', id };
+          this.pickables.push(m);
+        }
         piv.add(m);
         g.add(piv);
         if (id) (this.fins[id + (side < 0 ? 'L' : 'R')] = piv);
@@ -318,6 +324,10 @@ export class SubmarineScene {
         piv.position.set(0, side * (r0 + span / 2), -x);
         const m = new THREE.Mesh(new THREE.BoxGeometry(0.22, span, chord), mat);
         m.position.z = chord * 0.2;
+        if (id) {
+          m.userData.pick = { kind: 'fin', id };
+          this.pickables.push(m);
+        }
         piv.add(m);
         this.sub.add(piv);
         if (id) this.fins[id + (side < 0 ? 'D' : 'U')] = piv;
@@ -346,6 +356,10 @@ export class SubmarineScene {
       this.prop.add(arm);
     }
     this.prop.position.set(0, 0, L / 2 + 0.6);
+    this.prop.userData.pick = { kind: 'prop', id: 'prop' };
+    this.pickables.push(this.prop);
+    this.mast.userData.pick = { kind: 'mast', id: 'snorkel' };
+    this.pickables.push(this.mast);
     this.sub.add(this.prop);
 
     // tanques, tubulações e escoamentos (corte)
@@ -422,6 +436,32 @@ export class SubmarineScene {
 
   setCutaway(on: boolean): void {
     this.layers = { ...this.layers, tanks: on };
+  }
+
+  /** Objeto selecionável sob o ponto da tela (px relativos ao contêiner): lemes, hélice, mastro, tanques, válvulas, bombas, bateria… */
+  pick(x: number, y: number): PickTarget | null {
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    const rc = new THREE.Raycaster();
+    rc.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
+    const list = [...this.pickables, ...this.systems.pickables, this.trimVis.block];
+    const hits = rc.intersectObjects(list, true);
+    const visible = (o: THREE.Object3D | null): boolean => {
+      for (let n = o; n; n = n.parent) if (!n.visible) return false;
+      return true;
+    };
+    // objetos pequenos (válvulas, bombas, lemes) têm preferência sobre volumes grandes (tanques)
+    let best: { t: PickTarget; d: number; pr: number } | null = null;
+    for (const hit of hits) {
+      if (!visible(hit.object)) continue;
+      let n: THREE.Object3D | null = hit.object;
+      while (n && !n.userData.pick) n = n.parent;
+      if (!n) continue;
+      const t = n.userData.pick as PickTarget;
+      const pr = t.kind === 'tank' || t.kind === 'battery' ? 1 : 0;
+      if (!best || pr < best.pr || (pr === best.pr && hit.distance < best.d)) best = { t, d: hit.distance, pr };
+    }
+    return best ? best.t : null;
   }
 
   /** Tanque sob o ponto da tela (px relativos ao contêiner), ou null. */

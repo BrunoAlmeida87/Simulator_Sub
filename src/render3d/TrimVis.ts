@@ -53,7 +53,7 @@ export class TrimVis {
   readonly local = new THREE.Group();
   /** setas no mundo (verticais) */
   readonly world = new THREE.Group();
-  private block: THREE.Mesh;
+  readonly block: THREE.Mesh;
   private rail: THREE.Line;
   private plus = new Arrow3D(C_DEMO, 0.26);
   private minus = new Arrow3D(C_DEMO, 0.26);
@@ -70,6 +70,7 @@ export class TrimVis {
     const blockMat = new THREE.MeshStandardMaterial({ color: C_DEMO, emissive: C_DEMO, emissiveIntensity: 0.5, roughness: 0.4, transparent: true, depthTest: false, depthWrite: false });
     this.block = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 2.2), blockMat);
     this.block.renderOrder = 9;
+    this.block.userData.pick = { kind: 'demoWeight', id: 'demoWeight' };
     this.ghost = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 2.2), new THREE.MeshBasicMaterial({ color: C_DEMO, wireframe: true, transparent: true, opacity: 0.5, depthTest: false, toneMapped: false }));
     this.ghost.renderOrder = 9;
     const z = dw ? dw.z : 1.7;
