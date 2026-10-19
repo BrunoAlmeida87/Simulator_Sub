@@ -33,7 +33,7 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Lastro principal | ✅ 4 TLP com suspiro, sopro, embornais, ar AP, transitórios e limites de vazão |
 | Compensação e trim | ✅ Circuitos fictícios com bombas, válvulas, sequência automática de dosagem e cálculo de compensação |
 | Propulsão | ✅ Motor elétrico, eixo, hélice de 4 quadrantes, rampa de rotação, limites de torque e potência |
-| Lemes de direção e de profundidade | ✅ Vante, ré e direção com atuadores limitados em velocidade; força proporcional a U² e estol |
+| Lemes de direção e de profundidade | ✅ Lemes de vante na vela, lemes de ré e direção totalmente móveis (sem estabilizadores fixos), atuadores limitados em velocidade; força proporcional a U² e estol |
 | Indicadores | ✅ Profundidade, rumo, velocidade, pitch, banda e muitos outros, classificados como MED, CALC ou CMD |
 | Modelo 3D animado | ✅ Three.js com corte dos tanques (TLP em seção "D" que acompanha o casco), tubulações, válvulas, bombas e escoamentos animados pelas vazões simuladas; hélice, lemes, bolhas e fundo |
 | Vetores de força | ✅ Peso (em G), empuxo (em B) e resultante E − P com ampliação declarada; empuxo do hélice, resistência da água e forças dos lemes — valores do último passo do motor |
@@ -42,7 +42,7 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Trimagem demonstrável | ✅ Peso deslocável de 5 t sobre trilho, compensação calculada pelos tanques de trim e camada própria de vetores de trim (binários e momento líquido) |
 | Central de operação | ✅ Pilotagem com a cena sempre visível, comandos essenciais fixos, 9 grupos de sistemas expansíveis com resumo, até 2 grupos fixados e controles abertos ao clicar em tanques, lemes, hélice, mastro, bateria, válvulas ou alarmes |
 | Duas janelas | ✅ "⧉ 2ª janela": a cena numa segunda janela/monitor, espelhando a mesma simulação (BroadcastChannel); cliques nela abrem os controles na janela principal |
-| Mapa tático | ✅ Posição geográfica (Baía de Sepetiba, EBN da Ilha da Madeira, Itaguaí), derrota, vetor de velocidade, navegação estimada, contatos fictícios com CPA, rota por pontos de passagem com seguimento automático e medição |
+| Mapa tático | ✅ Posição geográfica (Baía de Sepetiba, EBN da Ilha da Madeira, Itaguaí), derrota, vetor de velocidade, navegação estimada, contatos fictícios com CPA, rota por pontos de passagem com seguimento automático e medição; fundos gratuitos sem chave de API (OpenStreetMap, OpenTopoMap, Sentinel-2/EOX, OpenSeaMap) |
 | Fluxo de energia | ✅ Diagrama animado (largura ∝ potência): geradores → barramento → bateria/consumidores; carga e descarga com tempo estimado |
 | Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |
 | Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6 e qualidade gráfica ajustável |

@@ -450,3 +450,4 @@ tr.focus, div.focus, .row.focus { outline: 2px solid #36c5f0; outline-offset: 1p
 .eflow-lbl { fill: #e3edf7; font: 12px var(--mono); paint-order: stroke; stroke: #08111a; stroke-width: 4px; }
 .estory { font-size: 14.5px; margin-bottom: 8px; color: #e3edf7; }
 .enode-big.eflow-lbl { font: 700 18px var(--mono); }
+.tm-dark { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.95) saturate(0.55); }

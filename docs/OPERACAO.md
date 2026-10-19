@@ -48,7 +48,7 @@ Ferramentas:
 - **Medir**: distância em milhas e km, e marcação entre dois pontos.
 - **Definir posição**: reposiciona a referência geográfica. A física não muda.
 
-Fundos de mapa: tático escuro, mapa e satélite, mais sinais náuticos do OpenSeaMap. Eles vêm da internet; sem conexão, fica só a grade. A batimetria real não é modelada: a profundidade do fundo é a do cenário.
+Fundos de mapa, todos gratuitos e sem chave de API: tático escuro e mapa (OpenStreetMap), relevo (OpenTopoMap) e satélite (Sentinel-2 sem nuvens, EOX), mais sinais náuticos do OpenSeaMap. Eles vêm da internet; sem conexão, fica só a grade (opção *Nenhum*). A batimetria real não é modelada: a profundidade do fundo é a do cenário.
 
 ## Fluxo de energia
 
@@ -82,7 +82,9 @@ A aba **Apresentação** foi feita para quem conduz uma demonstração para um p
 
 **Enquadramentos**: *Superfície* (3/4 elevado, mostra esteira e proa), *Submerso*, *Tanques* (corte de perto), *Forças* (vista lateral para os vetores), *Seguir*, *Perseguição*, *Fixa* (câmera parada no cenário, o submarino atravessa o quadro) e *Livre*.
 
-**Camadas** (independentes): peso/empuxo, hélice/lemes/resistência, tanques, tubulações, escoamentos, identificações, esteira, boias/marcos, trajetória e iluminação de apresentação. A transparência do casco é ajustável.
+**Camadas** (independentes): peso/empuxo, hélice/lemes/resistência, tanques, tubulações, escoamentos, identificações, esteira, boias/marcos, trajetória e iluminação de apresentação. A transparência do casco é ajustável. **Sem água** esconde o mar, a superfície, o fundo e as partículas para ver o submarino isolado sobre fundo neutro; um clique devolve tudo.
+
+**Escolha dos vetores**: nas telas Pilotagem e Visualização 3D, o botão **Vetores** liga os vetores e abre um painel recolhível para marcar quais aparecem (peso, empuxo, resultante, hélice, resistência, lemes de vante, ré e direção, trim), com *Todos* e *Nenhum*. O botão **💧 Tirar água / Pôr água** faz o mesmo que a camada *Sem água*.
 
 **Vetores**: peso e empuxo usam a mesma escala (14 m = peso na condição inicial). Como os dois quase se equilibram, a resultante pode ser ampliada (automática: 1, 2 ou 5 × 10ⁿ, ou ×1, ×10, ×100, ×1000); o fator aparece sempre no rótulo. Com o casco todo submerso, encher um tanque só aumenta o peso (o empuxo fica praticamente constante); na superfície, o casco afunda e o empuxo cresce junto com a fração imersa.
 

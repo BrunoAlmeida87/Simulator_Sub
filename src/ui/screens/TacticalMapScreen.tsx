@@ -18,12 +18,15 @@ import { toKnots } from '../../sim/units';
 import { fmt, fmtTime } from '../format';
 
 type Mode = 'nav' | 'rota' | 'medir' | 'origem';
-type Base = 'tatico' | 'mapa' | 'satelite' | 'nenhum';
+type Base = 'tatico' | 'mapa' | 'relevo' | 'satelite' | 'nenhum';
 
-const BASES: Record<Exclude<Base, 'nenhum'>, { url: string; att: string; label: string; sub?: string[] }> = {
-  tatico: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', att: '© OpenStreetMap · © CARTO', label: 'Tático (escuro)', sub: ['a', 'b', 'c', 'd'] },
-  mapa: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© OpenStreetMap', label: 'Mapa' },
-  satelite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', att: 'Imagem © Esri', label: 'Satélite' },
+/** Fundos de mapa GRATUITOS, sem chave de API (uso leve, com atribuição). */
+const BASES: Record<Exclude<Base, 'nenhum'>, { url: string; att: string; label: string; sub?: string[]; dark?: boolean; maxZoom: number }> = {
+  // OpenStreetMap com filtro escuro (aparência de quadro tático)
+  tatico: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© colaboradores do OpenStreetMap', label: 'Tático (escuro)', dark: true, maxZoom: 19 },
+  mapa: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© colaboradores do OpenStreetMap', label: 'Mapa', maxZoom: 19 },
+  relevo: { url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', att: '© OpenStreetMap · SRTM · estilo © OpenTopoMap (CC-BY-SA)', label: 'Relevo', sub: ['a', 'b', 'c'], maxZoom: 17 },
+  satelite: { url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg', att: 'Sentinel-2 cloudless — s2maps.eu, EOX IT Services GmbH (dados Copernicus 2020)', label: 'Satélite', maxZoom: 16 },
 };
 
 const KIND_STYLE: Record<string, { color: string; shape: 'square' | 'circle'; label: string }> = {
@@ -123,7 +126,7 @@ export function TacticalMapScreen() {
     }
     if (base !== 'nenhum') {
       const b = BASES[base];
-      L_.current.base = L.tileLayer(b.url, { attribution: b.att, maxZoom: 18, subdomains: b.sub ?? 'abc', crossOrigin: true }).addTo(m);
+      L_.current.base = L.tileLayer(b.url, { attribution: b.att, maxZoom: 19, maxNativeZoom: b.maxZoom, subdomains: b.sub ?? 'abc', className: b.dark ? 'tm-dark' : '' }).addTo(m);
     }
     if (seamarks) L_.current.sea = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { attribution: 'Sinais náuticos © OpenSeaMap', maxZoom: 18, opacity: 0.9 }).addTo(m);
   }, [base, seamarks]);
@@ -388,7 +391,7 @@ export function TacticalMapScreen() {
           <div className="row">
             <span className="subtle">Fundo</span>
             <div className="seg">
-              {(['tatico', 'mapa', 'satelite', 'nenhum'] as Base[]).map((b) => (
+              {(['tatico', 'mapa', 'relevo', 'satelite', 'nenhum'] as Base[]).map((b) => (
                 <button key={b} className={base === b ? 'on' : ''} onClick={() => setBase(b)}>
                   {b === 'nenhum' ? 'Só grade' : BASES[b].label}
                 </button>
@@ -416,7 +419,7 @@ export function TacticalMapScreen() {
             </button>
           </div>
           <div className="note">
-            Coordenadas aproximadas. O fundo do mar da física é o do cenário (a batimetria real da baía não é modelada). Os mapas de fundo vêm da internet (OpenStreetMap, CARTO, Esri, OpenSeaMap); sem conexão, fica a grade de 5′.
+            Coordenadas aproximadas. O fundo do mar da física é o do cenário (a batimetria real da baía não é modelada). Fundos gratuitos, sem chave de API: OpenStreetMap, OpenTopoMap, Sentinel-2 (EOX) e sinais náuticos do OpenSeaMap — vêm da internet; sem conexão, fica a grade de 5′.
           </div>
         </Panel>
       </div>

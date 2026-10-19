@@ -30,6 +30,10 @@ export interface SceneLayers {
   highlight: string | null;
   /** tanques visíveis no corte (null = todos) */
   tankFilter: string[] | null;
+  /** vetores ocultos individualmente: 'P', 'E', 'R', 'prop', 'drag', 'bow', 'stern', 'rudder' */
+  hiddenVectors: string[];
+  /** sem água: oculta o mar, a névoa e os efeitos de água para ver melhor o submarino */
+  noWater: boolean;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -48,6 +52,8 @@ export const defaultLayers = (): SceneLayers => ({
   hullOpacity: 0.16,
   highlight: null,
   tankFilter: null,
+  hiddenVectors: [],
+  noWater: false,
 });
 
 /** Linguagem visual única para as categorias de tanques e circuitos. */

@@ -84,6 +84,7 @@ export class SubmarineScene {
   private mast!: THREE.Mesh;
   private hullMesh!: THREE.Mesh;
   private pickables: THREE.Object3D[] = [];
+  private dryBg = new THREE.Color(0x5a6b7e);
   private profile!: THREE.LineSegments;
   private systems!: SystemsVis;
   private forces!: ForceArrows;
@@ -299,8 +300,8 @@ export class SubmarineScene {
     // superfícies
     const finMat = new THREE.MeshStandardMaterial({ color: 0x3a4652, metalness: 0.3, roughness: 0.6 });
     const ctrlMat = new THREE.MeshStandardMaterial({ color: 0xc2763a, metalness: 0.2, roughness: 0.6 });
-    const makeH = (x: number, z: number, span: number, chord: number, mat: THREE.Material, id: string | null) => {
-      const r0 = Math.max(0.3, e.geom.radiusAt(x) - 0.1);
+    const makeH = (x: number, z: number, span: number, chord: number, mat: THREE.Material, id: string | null, root?: number) => {
+      const r0 = root ?? Math.max(0.3, e.geom.radiusAt(x) - 0.1);
       const g = new THREE.Group();
       for (const side of [-1, 1]) {
         const piv = new THREE.Group();
@@ -333,11 +334,13 @@ export class SubmarineScene {
         if (id) this.fins[id + (side < 0 ? 'D' : 'U')] = piv;
       }
     };
-    makeH(24, 0.6, 2.4, 2.2, ctrlMat, 'bow');
-    makeH(-29.8, 0, 2.9, 2.6, finMat, null);
-    makeH(-32.4, 0, 2.6, 1.6, ctrlMat, 'stern');
-    makeV(-29.8, 2.9, 2.6, finMat, null);
-    makeV(-32.4, 2.6, 1.6, ctrlMat, 'rudder');
+    // lemes de vante na vela (posição da física) e superfícies de ré totalmente móveis (sem estabilizadores fixos)
+    const fb = v.fins.find((f) => f.id === 'bow')!;
+    makeH(fb.position.x, fb.position.z, 2.6, 2.0, ctrlMat, 'bow', v.hull.sail.width / 2);
+    const fs = v.fins.find((f) => f.id === 'stern')!;
+    makeH(fs.position.x, 0, 3.3, 3.0, ctrlMat, 'stern');
+    const fr = v.fins.find((f) => f.id === 'rudder')!;
+    makeV(fr.position.x, 3.3, 3.0, ctrlMat, 'rudder');
     // hélice
     const hub = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.6, 16), finMat);
     hub.rotation.x = -Math.PI / 2;
@@ -769,9 +772,24 @@ export class SubmarineScene {
     this.underSky.mesh.visible = under;
     // fundo só quando dentro do alcance de visibilidade (senão aparece como faixa de névoa)
     if (this.seabed) this.seabed.visible = under && (e.env.bottomDepthAt(pn, pe) - camDepth < (this.realisticFog ? 330 : 1200));
+    // sem água: só o submarino (e o que está dentro dele) sobre um fundo neutro
+    const dry = this.layers.noWater;
+    this.ocean.mesh.visible = !dry;
+    this.fx.group.visible = this.fx.group.visible && !dry;
+    this.bubbles.visible = !dry;
+    this.snow.visible = !dry;
+    if (dry) {
+      this.underSky.mesh.visible = false;
+      this.sky.visible = false;
+      if (this.seabed) this.seabed.visible = false;
+    }
     this.caustics.uTime.value = this.wallTime;
     this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15);
-    if (under) {
+    if (dry) {
+      this.scene.background = this.dryBg;
+      this.scene.fog = null;
+      this.caustics.uCaustic.value = 0;
+    } else if (under) {
       this.scene.background = deepColor;
       this.scene.fog = this.realisticFog ? new THREE.FogExp2(deepColor.getHex(), 0.0032) : new THREE.FogExp2(deepColor.getHex(), 0.0008);
     } else {

@@ -9,6 +9,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { usePersisted } from '../persist';
 import { TankSelector } from '../components/TankSelector';
+import { VectorSelector } from '../components/VectorSelector';
 import { cmd, runner, useSim } from '../store';
 import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
 import { SeaControls } from '../components/SeaControls';
@@ -87,7 +88,12 @@ function FinMini({ e, id }: { e: SimulationEngine; id: 'bow' | 'stern' | 'rudder
       </span>
       <div className="seg">
         {steps.map((a) => (
-          <button key={a} className={Math.round(st.cmd) === a ? 'on' : ''} onClick={() => cmd({ type: 'surface', id, angle: a })} title={r ? (a > 0 ? 'boreste' : a < 0 ? 'bombordo' : 'a meio') : a > 0 ? 'subir' : a < 0 ? 'descer' : 'zero'}>
+          <button
+            key={a}
+            className={Math.round(st.cmd) === a ? 'on' : ''}
+            onClick={() => cmd({ type: 'surface', id, angle: a })}
+            title={r ? (a > 0 ? 'boreste' : a < 0 ? 'bombordo' : 'a meio') : a > 0 ? 'subir' : a < 0 ? 'descer' : 'zero'}
+          >
             {a === 0 ? '0' : r ? `${Math.abs(a)}${a > 0 ? 'E' : 'B'}` : `${Math.abs(a)}${a > 0 ? '↑' : '↓'}`}
           </button>
         ))}
@@ -109,7 +115,12 @@ function Essentials({ e }: { e: SimulationEngine }) {
         </button>
         <div className="seg ess-tel" title="Telégrafo">
           {TELEGRAPH.map((t) => (
-            <button key={t.label} className={`${Math.round(p.rpmCmd) === t.rpm ? 'on' : ''} ${t.rpm < 0 ? 'neg' : ''}`} onClick={() => cmd({ type: 'telegraph', rpm: t.rpm })} title={`Telégrafo: ${t.label} (${t.rpm} rpm)`}>
+            <button
+              key={t.label}
+              className={`${Math.round(p.rpmCmd) === t.rpm ? 'on' : ''} ${t.rpm < 0 ? 'neg' : ''}`}
+              onClick={() => cmd({ type: 'telegraph', rpm: t.rpm })}
+              title={`Telégrafo: ${t.label} (${t.rpm} rpm)`}
+            >
               {t.label.replace('AV ', '').replace('RÉ ', 'R ')}
             </button>
           ))}
@@ -171,6 +182,17 @@ export function PilotScreen() {
   const [selOpen, setSelOpen] = usePersisted('pilot.tankSelOpen', false);
   const [vec, setVec] = usePersisted('pilot.vec', false);
   const [trimV, setTrimV] = usePersisted('pilot.trim', false);
+  const [hydro, setHydro] = usePersisted('pilot.hydro', false);
+  const [hiddenV, setHiddenV] = usePersisted<string[]>('pilot.hiddenVec', []);
+  const [vecOpen, setVecOpen] = usePersisted('pilot.vecOpen', true);
+  const [dry, setDry] = usePersisted('pilot.dry', false);
+  const anyVec = vec || hydro || trimV;
+  const setVecLayers = (v: { vectors?: boolean; hydroVectors?: boolean; trimVectors?: boolean; hiddenVectors?: string[] }) => {
+    if (v.vectors !== undefined) setVec(v.vectors);
+    if (v.hydroVectors !== undefined) setHydro(v.hydroVectors);
+    if (v.trimVectors !== undefined) setTrimV(v.trimVectors);
+    if (v.hiddenVectors !== undefined) setHiddenV(v.hiddenVectors);
+  };
   const [marks, setMarks] = usePersisted('pilot.marks', true);
   const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
   const setQuality = (q: OceanQuality) => {
@@ -193,7 +215,19 @@ export function PilotScreen() {
             cutaway={cut}
             labels={false}
             persistKey="pilot"
-            layers={{ tankFilter: tankF, vectors: vec, trimVectors: trimV, markers: marks, pipes: true, flows: true, labels: true, highlight: ops.highlight }}
+            layers={{
+              tankFilter: tankF,
+              vectors: vec,
+              hydroVectors: hydro,
+              trimVectors: trimV,
+              hiddenVectors: hiddenV,
+              noWater: dry,
+              markers: marks,
+              pipes: true,
+              flows: true,
+              labels: true,
+              highlight: ops.highlight,
+            }}
             onPick={(p) => {
               if (p && !cut && ['tank', 'valve', 'pump', 'battery', 'generator', 'hp', 'demoWeight'].includes(p.kind)) setCut(true);
               ops.select(p);
@@ -240,16 +274,53 @@ export function PilotScreen() {
                 <button className={`btn sm ${cut ? 'on' : ''}`} onClick={() => setCut(!cut)}>
                   Ver tanques
                 </button>
-                <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)} title="Vetores de peso, empuxo e resultante">
-                  Vetores
+                <button
+                  className={`btn sm ${anyVec ? 'on' : ''}`}
+                  onClick={() => {
+                    // liga os vetores e abre a escolha; um novo clique desliga todos
+                    if (anyVec)
+                      setVecLayers({
+                        vectors: false,
+                        hydroVectors: false,
+                        trimVectors: false,
+                      });
+                    else {
+                      setVecLayers({
+                        vectors: true,
+                        hydroVectors: false,
+                      });
+                      setVecOpen(true);
+                    }
+                  }}
+                  title="Liga/desliga os vetores e abre a escolha de quais mostrar"
+                >
+                  Vetores {anyVec ? '▾' : ''}
                 </button>
-                <button className={`btn sm ${trimV ? 'on' : ''}`} onClick={() => setTrimV(!trimV)}>
-                  Trim
+                <button className={`btn sm ${dry ? 'on' : ''}`} onClick={() => setDry(!dry)} title="Tira (ou recoloca) o mar para ver melhor o submarino">
+                  {dry ? '💧 Pôr água' : '💧 Tirar água'}
                 </button>
                 <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
                   Boias
                 </button>
               </div>
+              {anyVec && (
+                <div className="tanksel-pop">
+                  <button className="btn sm" onClick={() => setVecOpen(!vecOpen)}>
+                    {vecOpen ? '▴ Vetores visíveis' : '▾ Escolher vetores'}
+                  </button>
+                  {vecOpen && (
+                    <VectorSelector
+                      value={{
+                        vectors: vec,
+                        hydroVectors: hydro,
+                        trimVectors: trimV,
+                        hiddenVectors: hiddenV,
+                      }}
+                      onChange={setVecLayers}
+                    />
+                  )}
+                </div>
+              )}
               {cut && (
                 <div className="tanksel-pop">
                   <button className="btn sm" onClick={() => setSelOpen(!selOpen)}>

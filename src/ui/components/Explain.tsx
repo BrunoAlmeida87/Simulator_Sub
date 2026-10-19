@@ -70,7 +70,6 @@ export function pitchBreakdown(e: SimulationEngine): { items: Item[]; total: num
     { name: 'Momento de Munk', value: f.munk.y },
     { name: 'Lemes de vante', value: fins.bow.M.y },
     { name: 'Lemes de ré', value: fins.stern.M.y },
-    { name: 'Estabilizadores horizontais', value: fins.stabH.M.y },
     { name: 'Contato com o fundo', value: f.contact.M.y },
   ];
   return { items, total: items.reduce((a, i) => a + i.value, 0) };
@@ -81,7 +80,6 @@ export function yawBreakdown(e: SimulationEngine): { items: Item[]; total: numbe
   const fins = f.fins;
   const items: Item[] = [
     { name: 'Leme de direção', value: fins.rudder.M.z },
-    { name: 'Estabilizadores verticais', value: fins.stabV.M.z },
     { name: 'Vela (torre)', value: fins.sail.M.z },
     { name: 'Casco (sustentação/amortec.)', value: f.crossflow.M.z + f.bodyLift.M.z + f.damping.M.z },
     { name: 'Momento de Munk', value: f.munk.z },
@@ -97,7 +95,7 @@ export function rollBreakdown(e: SimulationEngine): { items: Item[]; total: numb
     { name: 'Reação do torque do hélice', value: f.propeller.M.x },
     { name: 'Vela (torre)', value: fins.sail.M.x },
     { name: 'Amortecimento', value: f.damping.M.x },
-    { name: 'Outros lemes', value: fins.rudder.M.x + fins.stabV.M.x + fins.bow.M.x + fins.stern.M.x },
+    { name: 'Outros lemes', value: fins.rudder.M.x + fins.bow.M.x + fins.stern.M.x },
   ];
   return { items, total: items.reduce((a, i) => a + i.value, 0) };
 }

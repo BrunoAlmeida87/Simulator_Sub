@@ -56,10 +56,9 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 
 | Superfície | Posição x | Área | Alongamento efetivo | Batente | Velocidade |
 |---|---|---|---|---|---|
-| Lemes horizontais de vante | +24 m | 11 m² | 3,0 | ±25° | 5°/s |
-| Lemes horizontais de ré | −31,5 m | 12 m² | 3,0 | ±25° | 4°/s |
-| Leme de direção | −31,5 m | 12 m² | 3,0 | ±30° | 4°/s |
-| Estabilizadores fixos (H e V) | −30,5 m | 9 m² cada | 3,0 | — | — |
+| Lemes horizontais de vante (na vela) | +10,5 m, z = −5,8 m | 11 m² | 3,0 | ±25° | 5°/s |
+| Lemes horizontais de ré (totalmente móveis) | −31,5 m | 21 m² | 3,0 | ±25° | 4°/s |
+| Leme de direção (totalmente móvel) | −31,5 m | 21 m² | 3,0 | ±30° | 4°/s |
 | Vela (efeito hidrodinâmico) | +9 m, z = −5,7 m | 40 m² | 1,0 | — | — |
 
 ## Hidrodinâmica

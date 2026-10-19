@@ -25,6 +25,7 @@ const LAYER_BTNS: [keyof SceneLayers, string][] = [
   ['labels', 'Identificações'],
   ['markers', 'Boias'],
   ['wake', 'Esteira'],
+  ['noWater', 'Sem água'],
 ];
 
 const VIEWS: [ViewMode | 'seguir', string][] = [

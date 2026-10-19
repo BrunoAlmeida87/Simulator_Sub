@@ -13,6 +13,7 @@ import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { TankSelector } from '../components/TankSelector';
+import { VectorSelector } from '../components/VectorSelector';
 import { TourCard, TourList } from '../components/TourCard';
 import { tours } from '../tours';
 import type { OceanQuality } from '../../render3d/Ocean';
@@ -49,6 +50,7 @@ const LAYER_LIST: [keyof SceneLayers, string][] = [
   ['markers', 'Boias/marcos'],
   ['trail', 'Trajetória'],
   ['presLight', 'Iluminação'],
+  ['noWater', 'Sem água'],
 ];
 
 function usePres() {
@@ -295,6 +297,12 @@ export function PresentationScreen() {
               </button>
             ))}
           </div>
+          {(L.vectors || L.hydroVectors || L.trimVectors) && (
+            <div className="mt8">
+              <div className="subtle mb4">Vetores visíveis</div>
+              <VectorSelector value={L} onChange={(v) => pres.setLayers(v)} />
+            </div>
+          )}
           {L.tanks && (
             <div className="mt8">
               <div className="subtle mb4">Tanques visíveis no corte</div>

@@ -121,20 +121,23 @@ export class ForceArrows {
       const B = b2w(vb.cb);
       this.gMark.position.copy(G);
       this.bMark.position.copy(B);
-      this.weight.set(G, down, vb.weightN * this.metersPerN);
-      this.buoy.set(B, up, vb.buoyancyN * this.metersPerN);
+      const hid = new Set(layers.hiddenVectors ?? []);
+      this.weight.set(G, down, hid.has('P') ? 0 : vb.weightN * this.metersPerN);
+      this.buoy.set(B, up, hid.has('E') ? 0 : vb.buoyancyN * this.metersPerN);
+      this.gMark.visible = !hid.has('P');
+      this.bMark.visible = !hid.has('E');
       const gain = layers.resultantGain === 'auto' ? autoGain(vb.netN, this.metersPerN, 8) : layers.resultantGain;
       this.info.gain = gain;
       // resultante desenhada ao lado (deslocada no plano da tela), paralela a P e E
       const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0).setY(0).normalize();
       const mid = G.clone().lerp(B, 0.5).add(right.multiplyScalar(8));
       const netLen = Math.abs(vb.netN) * this.metersPerN * gain;
-      this.net.set(mid, vb.netN >= 0 ? up : down, Math.min(40, netLen));
+      this.net.set(mid, vb.netN >= 0 ? up : down, hid.has('R') ? 0 : Math.min(40, netLen));
       if (layers.labels) {
         const lw = proj(this.weight.tip());
-        labels.push({ id: 'fP', text: `Peso P = ${fmtTf(vb.weightN, g)}`, sub: `m = ${(vb.massKg / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t · em G`, color: FORCE_STYLE.weight.css, prio: 0, ...lw });
+        if (!hid.has('P')) labels.push({ id: 'fP', text: `Peso P = ${fmtTf(vb.weightN, g)}`, sub: `m = ${(vb.massKg / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t · em G`, color: FORCE_STYLE.weight.css, prio: 0, ...lw });
         const lb = proj(this.buoy.tip());
-        labels.push({
+        if (!hid.has('E')) labels.push({
           id: 'fE',
           text: `Empuxo E = ${fmtTf(vb.buoyancyN, g)}`,
           sub: `V = ${vb.displacedM3.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} m³ · ${(vb.immersedFraction * 100).toFixed(1)} % imerso · em B`,
@@ -144,7 +147,7 @@ export class ForceArrows {
         });
         const eq = Math.abs(toTf(vb.netN, g)) < 0.05;
         const ln = proj(this.net.visible ? this.net.tip().add(new THREE.Vector3(0, vb.netN >= 0 ? 2 : -2, 0)) : mid);
-        labels.push({
+        if (!hid.has('R')) labels.push({
           id: 'fR',
           text: eq ? 'Resultante E − P ≈ 0 (equilíbrio)' : `Resultante E − P = ${fmtTf(vb.netN, g)} ${vb.netN > 0 ? '↑' : '↓'}`,
           sub: eq ? 'P e E se anulam' : gain > 1 ? `vetor ampliado ×${gain.toLocaleString('pt-BR')}` : 'escala 1:1 com P e E',
@@ -152,11 +155,12 @@ export class ForceArrows {
           color: FORCE_STYLE.net.css,
           ...ln,
         });
-        labels.push({ id: 'fG', text: 'G', color: FORCE_STYLE.weight.css, small: true, prio: 1, ...proj(G) });
-        labels.push({ id: 'fB', text: 'B', color: FORCE_STYLE.buoyancy.css, small: true, prio: 1, ...proj(B) });
+        if (!hid.has('P')) labels.push({ id: 'fG', text: 'G', color: FORCE_STYLE.weight.css, small: true, prio: 1, ...proj(G) });
+        if (!hid.has('E')) labels.push({ id: 'fB', text: 'B', color: FORCE_STYLE.buoyancy.css, small: true, prio: 1, ...proj(B) });
       }
     }
-    const ha = showH ? hydroArrows(e) : [];
+    const hidH = new Set(layers.hiddenVectors ?? []);
+    const ha = showH ? hydroArrows(e).filter((h) => !hidH.has(h.id)) : [];
     const seen = new Set<string>();
     for (const h of ha) {
       const a = this.hydro[h.id];
