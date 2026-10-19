@@ -160,9 +160,9 @@ export function StripChart(props: {
       const uL = CHANNELS.find((c) => c.id === leftS[0]?.id)?.unit ?? '';
       const uR = CHANNELS.find((c) => c.id === rightS[0].id)?.unit ?? '';
       g.fillStyle = leftS[0]?.color ?? '#7f93a8';
-      g.fillText(uL, 2, T + 9);
+      g.fillText(`[${uL}]`, 2, H - 5);
       g.fillStyle = col;
-      g.fillText(uR, L + pw + 6, T + 9);
+      g.fillText(`[${uR}]`, L + pw + 6, H - 5);
       g.fillStyle = '#7f93a8';
     }
     const span = Math.max(1, tEnd - tStart);
