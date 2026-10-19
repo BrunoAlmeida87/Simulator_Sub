@@ -1,6 +1,6 @@
 # SX-1 · Simulador Técnico de Submarino
 
-Plataforma de **simulação de engenharia e treinamento conceitual** de um submarino convencional diesel-elétrico **fictício** ("SX-1 Marlim"), executada diretamente no navegador.
+Plataforma de **simulação de engenharia e treinamento conceitual** de um submarino convencional diesel-elétrico **fictício** ("SX-1 Marlim"), executada no navegador ou como aplicativo desktop com Electron.
 
 Não é um jogo: todas as respostas visuais vêm de um **motor físico independente** com estado central compartilhado. Abrir um suspiro libera ar por um orifício compressível, a água entra pelos embornais, a massa aumenta, o empuxo líquido muda e o casco 6-GL responde. Nenhuma animação simula um efeito por conta própria.
 
@@ -14,6 +14,7 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 
 - [O que a Fase 1 entrega](#o-que-a-fase-1-entrega)
 - [Instalação e execução](#instalação-e-execução)
+- [Executável para Windows (Electron)](#executável-para-windows-electron)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Arquitetura](#arquitetura)
 - [Telas](#telas)
@@ -56,7 +57,7 @@ Tudo o que ainda não foi implementado aparece na interface com a marca **FUTURO
 
 ## Instalação e execução
 
-Requisitos: **Node.js 20 ou superior** e npm.
+Requisitos: **Node.js 22.12 ou superior** e npm. Recomendado: Node.js **24 LTS**.
 
 ```bash
 git clone https://github.com/BrunoAlmeida87/Simulator_Sub.git
@@ -75,6 +76,19 @@ npm run dev        # servidor de desenvolvimento → http://localhost:5173
 | `npm run typecheck` | Somente verificação de tipos |
 
 O build usa caminho base relativo (`base: './'`), então funciona em qualquer subcaminho, como o GitHub Pages. A publicação é automática pelo workflow `.github/workflows/deploy.yml`.
+
+## Executável para Windows (Electron)
+
+Instale o Node.js LTS, baixe e extraia o projeto e dê dois cliques em **GERAR-EXECUTAVEL.cmd**. Os arquivos serão criados em **release/**: um instalador e uma versão portátil para Windows 10/11 de 64 bits. O computador que recebe o executável não precisa de Node.js.
+
+**[Passo a passo para iniciantes, com alternativa pelo GitHub →](docs/EXECUTAVEL-WINDOWS.md)**
+
+| Comando | Função |
+|---|---|
+| `npm run desktop` | Compila o simulador e abre a janela do Electron |
+| `npm run dist:win` | Compila e gera instalador `.exe` e versão portátil `.exe` em `release/` |
+
+A simulação e a cena 3D funcionam offline; os fundos do mapa tático dependem de internet. O aplicativo mantém a visualização em segunda janela e a exportação/importação de estados. Os executáveis são gerados sem assinatura digital.
 
 ---
 

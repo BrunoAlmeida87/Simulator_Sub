@@ -166,3 +166,7 @@ Na tela **Segurança**, injete:
 ## Modo engenharia
 
 Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O painel mostra função, variáveis ao vivo (MED/CALC/CMD/VERD), equações, consequências previstas, gráfico antes × depois e a decomposição de forças e momentos (por que sobe, por que muda o pitch, por que guina, por que aderna).
+
+## Aplicativo Windows
+
+Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVEL-WINDOWS.md). O aplicativo inclui a simulação local e mantém os comandos descritos neste guia. O botão **2ª janela** abre uma visualização para outro monitor; ao fechar a janela principal, a visualização também é fechada. Os fundos do mapa precisam de internet.

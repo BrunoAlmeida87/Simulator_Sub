@@ -45,8 +45,9 @@ function chan(): BroadcastChannel | null {
 }
 
 export function openVisualWindow(): void {
-  const url = location.pathname + location.search.replace(/visual/g, '') + '#visual';
-  window.open(url, 'sx1-visual', 'popup=yes,width=1280,height=760');
+  const url = new URL(location.href);
+  url.hash = 'visual';
+  window.open(url.href, 'sx1-visual', 'popup=yes,width=1280,height=760');
 }
 
 // ------------------------------------------------------------------ controle

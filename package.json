@@ -4,10 +4,16 @@
   "version": "0.1.0",
   "description": "Simulador técnico de submarino convencional fictício (SX-1) — plataforma de simulação de engenharia e treinamento conceitual.",
   "type": "module",
+  "main": "electron/main.cjs",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
+    "desktop": "npm run build && electron .",
+    "dist:win": "npm run build && electron-builder --win --x64 --publish never",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -27,6 +33,8 @@
     "@types/react-dom": "^18.3.7",
     "@types/three": "^0.170.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3",
     "typescript": "^5.9.3",
     "vite": "^6.4.4",
     "vite-node": "^3.2.4",
