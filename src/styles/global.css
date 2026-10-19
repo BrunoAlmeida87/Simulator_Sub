@@ -404,3 +404,4 @@ tr.focus, div.focus, .row.focus { outline: 2px solid #36c5f0; outline-offset: 1p
 .visual-ctl { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; z-index: 5; }
 .visual-status { position: absolute; top: 8px; left: 10px; z-index: 5; display: flex; gap: 8px; align-items: center; }
 .visual-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; color: #b9cde2; font-size: 16px; text-align: center; padding: 20px; z-index: 6; background: rgba(2, 6, 11, 0.7); }
+.visual-layers { max-width: 620px; justify-content: flex-end; background: rgba(10, 16, 23, 0.8); border-radius: 4px; padding: 3px; }

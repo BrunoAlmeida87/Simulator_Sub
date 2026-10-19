@@ -8,11 +8,24 @@ import { runner, useSim } from './store';
 import { Scene3D, defaultQuality } from './components/Scene3D';
 import { OpsStrip } from './ops/OpsStrip';
 import { link } from './link';
-import { defaultLayers } from '../render3d/layers';
+import { defaultLayers, type SceneLayers } from '../render3d/layers';
 import type { ViewMode } from '../render3d/SubmarineScene';
 import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
 import { fmt } from './format';
+
+/** camadas que podem ser ligadas/desligadas nesta janela (independentes da janela de controle) */
+const LAYER_BTNS: [keyof SceneLayers, string][] = [
+  ['tanks', 'Tanques'],
+  ['vectors', 'Peso/empuxo'],
+  ['hydroVectors', 'Hélice/lemes'],
+  ['trimVectors', 'Vetores de trim'],
+  ['flows', 'Escoamentos'],
+  ['pipes', 'Tubulações'],
+  ['labels', 'Identificações'],
+  ['markers', 'Boias'],
+  ['wake', 'Esteira'],
+];
 
 const VIEWS: [ViewMode | 'seguir', string][] = [
   ['seguir', 'Igual ao controle'],
@@ -20,8 +33,8 @@ const VIEWS: [ViewMode | 'seguir', string][] = [
   ['perseguicao', 'Perseguição'],
   ['superficie', 'Superfície'],
   ['submerso', 'Submerso'],
-  ['tanques', 'Tanques'],
-  ['forcas', 'Forças'],
+  ['tanques', 'Vista tanques'],
+  ['forcas', 'Vista forças'],
   ['fixa', 'Fixa'],
   ['livre', 'Livre'],
 ];
@@ -34,7 +47,16 @@ export function VisualApp() {
   const [mode, setMode] = usePersisted<ViewMode | 'seguir'>('visual.view', 'seguir');
   const [hideUi, setHideUi] = useState(false);
   const view: ViewMode = mode === 'seguir' ? (v?.view ?? 'piloto') : mode;
-  const layers = v?.layers ?? { ...defaultLayers(), tanks: false };
+  // camadas: as da janela de controle, com as alterações feitas aqui por cima
+  const [over, setOver] = usePersisted<Partial<SceneLayers>>('visual.layers', {});
+  const base = v?.layers ?? { ...defaultLayers(), tanks: false };
+  const layers: SceneLayers = { ...base, ...over };
+  const toggle = (k: keyof SceneLayers) => setOver({ ...over, [k]: !layers[k] });
+  const pickView = (k: ViewMode | 'seguir') => {
+    setMode(k);
+    if (k === 'tanques') setOver({ ...over, tanks: true });
+    if (k === 'forcas') setOver({ ...over, vectors: true });
+  };
   const ov = v?.overlay;
   const vb = verticalBalance(e);
   const connected = !!v?.connected;
@@ -59,10 +81,23 @@ export function VisualApp() {
           {!hideUi && (
             <div className="seg">
               {VIEWS.map(([k, l]) => (
-                <button key={k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>
+                <button key={k} className={mode === k ? 'on' : ''} onClick={() => pickView(k)}>
                   {l}
                 </button>
               ))}
+            </div>
+          )}
+          {!hideUi && (
+            <div className="btngroup visual-layers">
+              {LAYER_BTNS.map(([k, l]) => (
+                <button key={k} className={`btn sm ${layers[k] ? 'on' : ''}`} onClick={() => toggle(k)} title={k in over ? 'Alterado nesta janela' : 'Igual à janela de controle'}>
+                  {layers[k] ? '☑' : '☐'} {l}
+                  {k in over ? ' •' : ''}
+                </button>
+              ))}
+              <button className="btn sm" disabled={Object.keys(over).length === 0} onClick={() => setOver({})} title="Volta a usar as camadas da janela de controle">
+                ↺ Igual ao controle
+              </button>
             </div>
           )}
           <div className="btngroup">

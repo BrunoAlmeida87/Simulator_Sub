@@ -42,7 +42,9 @@ As outras abas continuam servindo para diagramas maiores, histórico e detalhes 
 - os indicadores principais;
 - a narração dos cenários guiados e as manobras.
 
-Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. Mantenha a janela principal visível (não minimizada): navegadores pausam a animação de janelas minimizadas, e com isso a simulação também pausa.
+Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. A segunda janela tem também os seus próprios botões de camadas: tanques, peso/empuxo, hélice/lemes, vetores de trim, escoamentos, tubulações, identificações, boias e esteira. Eles valem só para ela; um • indica o que foi alterado ali, e "↺ Igual ao controle" volta a seguir a janela principal.
+
+Os botões de câmera *Vista tanques* e *Vista forças* (em todas as telas) mudam o enquadramento e já ligam, respectivamente, os tanques e os vetores. Os botões de camada (*Ver tanques*, *Vetores*, *Trim*) ligam e desligam o que é desenhado. Mantenha a janela principal visível (não minimizada): navegadores pausam a animação de janelas minimizadas, e com isso a simulação também pausa.
 
 ## Modo apresentação
 

@@ -280,7 +280,7 @@ export function PresentationScreen() {
         <Panel title="Enquadramento">
           <div className="btngroup">
             {FRAMES.map(([v, l, tip]) => (
-              <button key={v} className={`btn sm ${p.view === v ? 'on' : ''}`} onClick={() => pres.setView(v)} title={tip}>
+              <button key={v} className={`btn sm ${p.view === v ? 'on' : ''}`} onClick={() => pres.setView(v, true)} title={tip}>
                 {l}
               </button>
             ))}

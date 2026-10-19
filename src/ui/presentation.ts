@@ -190,8 +190,11 @@ class PresentationStore {
     }
     this.emit();
   }
-  setView(v: ViewMode): void {
+  setView(v: ViewMode, autoLayers = false): void {
     this.view = v;
+    // enquadramentos que já ligam o que mostram (clique do operador)
+    if (autoLayers && v === 'tanques' && !this.layers.tanks) this.layers = { ...this.layers, tanks: true };
+    if (autoLayers && v === 'forcas' && !this.layers.vectors) this.layers = { ...this.layers, vectors: true };
     try {
       localStorage.setItem(K_VIEW, v);
     } catch {

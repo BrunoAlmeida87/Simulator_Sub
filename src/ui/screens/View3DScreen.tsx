@@ -20,8 +20,8 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'fixa', label: 'Fixa' },
   { id: 'superficie', label: 'Superfície' },
   { id: 'submerso', label: 'Submerso' },
-  { id: 'tanques', label: 'Tanques' },
-  { id: 'forcas', label: 'Forças' },
+  { id: 'tanques', label: 'Vista tanques' },
+  { id: 'forcas', label: 'Vista forças' },
   { id: 'livre', label: 'Livre' },
 ];
 
@@ -59,7 +59,15 @@ export function View3DScreen() {
         <SeaControls quality={quality} setQuality={setQuality} />
         <div className="seg">
           {VIEWS.map((v) => (
-            <button key={v.id} className={view === v.id ? 'on' : ''} onClick={() => setView(v.id)}>
+            <button
+              key={v.id}
+              className={view === v.id ? 'on' : ''}
+              onClick={() => {
+                setView(v.id);
+                if (v.id === 'tanques') setCut(true);
+                if (v.id === 'forcas') setVec(true);
+              }}
+            >
               {v.label}
             </button>
           ))}
@@ -74,8 +82,8 @@ export function View3DScreen() {
           <button className={`btn sm ${fog ? 'on' : ''}`} onClick={() => setFog(!fog)}>
             Turbidez
           </button>
-          <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)}>
-            Forças
+          <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)} title="Vetores de peso, empuxo, resultante, hélice e lemes">
+            Vetores
           </button>
           <button className={`btn sm ${trimV ? 'on' : ''}`} onClick={() => setTrimV(!trimV)}>
             Trim

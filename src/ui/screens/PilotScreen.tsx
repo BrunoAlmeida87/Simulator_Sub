@@ -215,13 +215,23 @@ export function PilotScreen() {
                   [
                     ['piloto', 'Lateral'],
                     ['perseguicao', 'Perseguição'],
-                    ['tanques', 'Tanques'],
-                    ['forcas', 'Forças'],
+                    ['tanques', 'Vista tanques'],
+                    ['forcas', 'Vista forças'],
                     ['fixa', 'Fixa'],
                     ['livre', 'Livre'],
                   ] as [ViewMode, string][]
                 ).map(([v, l]) => (
-                  <button key={v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
+                  <button
+                    key={v}
+                    className={view === v ? 'on' : ''}
+                    onClick={() => {
+                      setView(v);
+                      // os enquadramentos de apresentação já ligam o que mostram
+                      if (v === 'tanques') setCut(true);
+                      if (v === 'forcas') setVec(true);
+                    }}
+                    title={v === 'tanques' ? 'Câmera de perto no corte (liga os tanques)' : v === 'forcas' ? 'Câmera lateral para os vetores (liga peso/empuxo)' : undefined}
+                  >
                     {l}
                   </button>
                 ))}
@@ -230,8 +240,8 @@ export function PilotScreen() {
                 <button className={`btn sm ${cut ? 'on' : ''}`} onClick={() => setCut(!cut)}>
                   Ver tanques
                 </button>
-                <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)}>
-                  Forças
+                <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)} title="Vetores de peso, empuxo e resultante">
+                  Vetores
                 </button>
                 <button className={`btn sm ${trimV ? 'on' : ''}`} onClick={() => setTrimV(!trimV)}>
                   Trim
