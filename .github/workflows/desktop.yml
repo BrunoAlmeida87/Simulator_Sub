@@ -1,6 +1,8 @@
 name: Gerar executavel Windows (Electron)
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

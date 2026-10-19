@@ -44,6 +44,8 @@ Esse comando compila uma cópia do simulador e abre o Electron. Depois de editar
 
 Esta opção fica disponível depois que os arquivos desta alteração estiverem salvos no repositório do GitHub.
 
+A geração começa automaticamente a cada atualização da branch `main`. Para baixar essa versão, abra a execução mais recente desse workflow e siga os passos 5 a 7. Para gerar novamente a qualquer momento, use **Run workflow**, como descrito abaixo.
+
 1. Abra o repositório no GitHub e clique em **Actions**.
 2. Se o GitHub pedir para habilitar os workflows do seu próprio repositório, habilite-os.
 3. Selecione **Gerar executavel Windows (Electron)**.
