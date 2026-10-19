@@ -1,16 +1,19 @@
 # Integração contínua: testes de validação física + build + publicação no GitHub Pages.
 name: Testes e publicação (GitHub Pages)
 
+# Push na main: testes + build + publicação. Pull request para a main: só testes + build.
 on:
   push:
-    branches: [main, master, ccr-9b9ce051-of6ev1]
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,6 +31,7 @@ jobs:
       - name: Build de produção
         run: npm run build
       - name: Publicar no branch gh-pages
+        if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
