@@ -28,6 +28,8 @@ export interface SceneLayers {
   hullOpacity: number;
   /** tanque destacado (id) */
   highlight: string | null;
+  /** tanques visíveis no corte (null = todos) */
+  tankFilter: string[] | null;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -45,6 +47,7 @@ export const defaultLayers = (): SceneLayers => ({
   resultantGain: 'auto',
   hullOpacity: 0.16,
   highlight: null,
+  tankFilter: null,
 });
 
 /** Linguagem visual única para as categorias de tanques e circuitos. */

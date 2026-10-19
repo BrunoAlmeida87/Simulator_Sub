@@ -37,6 +37,43 @@ A aba **Apresentação** foi feita para quem conduz uma demonstração para um p
 
 **Manobras automáticas**: a barra sobre a cena mostra a etapa atual, as etapas seguintes e os comandos enviados. Ao terminar, informa **SUCESSO**, **TEMPO ESGOTADO**, **CANCELADA** ou **FALHA** (por exemplo, falta de ar comprimido ou profundidade de teste excedida).
 
+## Cenários guiados (automáticos)
+
+Em **Apresentação** (ou **Pilotagem**, que leva até ela), *Cenários guiados → ▶ Iniciar*. O simulador conduz a operação sozinho, devagar. Em cada etapa ele:
+- explica o que está acontecendo, com os valores ao vivo;
+- explica o porquê;
+- troca a câmera e as camadas (mostrando, por exemplo, só os TLP enquanto alagam);
+- só avança quando a condição física é atingida **e** passou o tempo mínimo de leitura.
+
+Os comandos enviados aparecem no cartão e ficam no registro. **Pausar**, **Próxima etapa** e **Encerrar** ficam sempre disponíveis. Ao final, o cartão informa as etapas concluídas, as que tiveram tempo esgotado e as puladas, e oferece **Repetir**.
+
+Primeiro roteiro, **Submergir e descer para 50 m** (cerca de 3 min):
+1. Situação inicial.
+2. Ganhar seguimento.
+3. Abrir os suspiros.
+4. TLP cheios.
+5. Fechar os suspiros.
+6. Descer com os lemes.
+7. Nivelar na cota.
+8. Equilibrar pela compensação.
+9. Resumo.
+
+Os cenários existentes não são alterados: o roteiro parte do cenário *Superfície*.
+
+## Peso deslocável e trimagem
+
+Uma carga de demonstração de 5 t corre num trilho longitudinal (−25 a +25 m, a 1 m/s). Na posição neutra ela faz parte da condição de projeto (trim nulo).
+- **Deslocar:** levá-la para vante ou ré cria um binário: +P na nova posição e −P na original. Pairando a 80 m, o submarino inclina cerca de 10°. Na superfície o efeito é pequeno, porque o plano de flutuação é muito mais rígido.
+- **Compensar com o trim:** transfere a água entre TT-AV e TT-AR que anula o binário, e o submarino volta a nivelar.
+- **Massa da carga:** 0, 2, 5 ou 10 t (entra no balanço de massa). Com 10 t a 25 m, os tanques de trim não bastam, e o painel avisa.
+- **Vetores de trim:** camada própria, que liga e desliga sem afetar as outras. Mostra o binário do peso, a variação de peso em TT-AV e TT-AR e um arco com o momento líquido ("Trim compensado" quando os momentos se anulam).
+- **Onde está o painel:** Apresentação (situação pronta "Trim: deslocar peso e compensar"), Pilotagem e Trim e banda.
+
+## Tanques visíveis e visualização salva
+
+- **Tanques visíveis:** ao ligar *Ver tanques*, abre a lista de tanques. Você pode mostrar todos, só um grupo (lastro principal, compensação, trim, banda) ou tanques individuais. As tubulações e os escoamentos acompanham a seleção.
+- **Visualização salva:** Pilotagem, Visualização 3D e Apresentação guardam a câmera, a posição da câmera livre, os botões e a seleção de tanques ao trocar de aba. Também ficam guardados ao recarregar a página.
+
 ## Sequência completa (cenário "Superfície — pronto para imergir")
 
 1. **Preparar:** telégrafo **AV MEIA** (75 rpm). Aguarde > 4 nós. A compensação já está pré-calculada para ~40 m.

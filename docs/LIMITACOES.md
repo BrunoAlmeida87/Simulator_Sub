@@ -48,6 +48,10 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Limites, alarmes e respostas são **exclusivamente educacionais** e não correspondem a procedimentos ou valores de embarcação real.
 - O alagamento não pode ser esgotado (sistema de esgoto previsto para a Fase 3); o rombo pode ser "reparado" pela tela de falhas.
 
+## Peso deslocável
+- A carga de 5 t sobre trilho é um recurso didático da embarcação fictícia (massa pontual; o carro não tem dinâmica própria além da velocidade limitada).
+- A compensação sugerida anula o binário das cargas deslocadas (peso + tanques de trim). Outros desequilíbrios de trim, como os de compensação e alagamento, aparecem no pitch de equilíbrio estático.
+
 ## Representações visuais
 - A esteira, a onda de proa, os braços de Kelvin, o rastro do hélice e o jato dos suspiros são **representações** acionadas pelo estado físico (velocidade, empuxo, vazão de ar, proximidade da superfície). Não são soluções de escoamento: o ângulo de Kelvin (≈ 19,5°) e o jato ∝ √(T/ρA) dão a forma e a intensidade.
 - O traçado das tubulações e a posição de bombas, válvulas e garrafas no corte são esquemáticos (arquitetura fictícia). As vazões e os estados exibidos são os simulados.

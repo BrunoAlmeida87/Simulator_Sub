@@ -6,6 +6,7 @@ import { runner } from './ui/store';
 import { demo } from './ui/demo';
 import { maneuver } from './ui/maneuvers';
 import { checklist } from './ui/checklist';
+import { tours } from './ui/tours';
 
 // laço principal: a física avança em passos fixos a partir do tempo real decorrido
 let last = performance.now();
@@ -16,6 +17,7 @@ function loop(now: number) {
   demo.tick(runner);
   maneuver.tick(runner);
   checklist.tick(runner);
+  tours.tick(runner, dt);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

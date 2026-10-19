@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import { usePersisted } from '../persist';
+import { TankSelector } from '../components/TankSelector';
 import { cmd, runner, useSim } from '../store';
 import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
 import { SeaControls } from '../components/SeaControls';
@@ -17,6 +18,7 @@ import { navStatus } from '../navStatus';
 import { maneuver } from '../maneuvers';
 import { ManeuverStatus } from '../components/ManeuverStatus';
 import { TrimDemoPanel } from '../components/TrimDemo';
+import { TourList } from '../components/TourCard';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 
@@ -25,6 +27,8 @@ export function PilotScreen() {
   // visualização guardada ao trocar de aba (e ao recarregar a página)
   const [view, setView] = usePersisted<ViewMode>('pilot.view', 'piloto');
   const [cut, setCut] = usePersisted('pilot.cut', false);
+  const [tankF, setTankF] = usePersisted<string[] | null>('pilot.tankFilter', null);
+  const [selOpen, setSelOpen] = usePersisted('pilot.tankSelOpen', true);
   const [vec, setVec] = usePersisted('pilot.vec', false);
   const [trimV, setTrimV] = usePersisted('pilot.trim', false);
   const [marks, setMarks] = usePersisted('pilot.marks', true);
@@ -45,7 +49,7 @@ export function PilotScreen() {
   return (
     <div className="pilot">
       <div className="pilot-view">
-        <Scene3D quality={quality} view={view} cutaway={cut} labels={false} persistKey="pilot" layers={{ vectors: vec, trimVectors: trimV, markers: marks, pipes: true, flows: true, labels: true }}>
+        <Scene3D quality={quality} view={view} cutaway={cut} labels={false} persistKey="pilot" layers={{ tankFilter: tankF, vectors: vec, trimVectors: trimV, markers: marks, pipes: true, flows: true, labels: true }}>
           <div className="pilot-tape">
             <DepthTape depth={o.depthKeel} ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null} bottom={o.bottomDepth} rate={o.verticalSpeed} opLimit={L.operatingDepth} testLimit={L.testDepth} height={260} />
           </div>
@@ -110,6 +114,14 @@ export function PilotScreen() {
                 Boias
               </button>
             </div>
+            {cut && (
+              <div className="tanksel-pop">
+                <button className="btn sm" onClick={() => setSelOpen(!selOpen)}>
+                  {selOpen ? '▴ Tanques visíveis' : `▾ Escolher tanques${tankF ? ` (${tankF.length})` : ''}`}
+                </button>
+                {selOpen && <TankSelector e={e} value={tankF} onChange={setTankF} />}
+              </div>
+            )}
           </div>
           <div className="pres-bottom">
             <ManeuverStatus compact />
@@ -122,6 +134,9 @@ export function PilotScreen() {
         </Scene3D>
       </div>
       <div className="pilot-ctl">
+        <Panel title="Cenários guiados (automáticos)">
+          <TourList goTo />
+        </Panel>
         <Panel title="Manobras rápidas">
           <div className="row">
             <button className={`btn lg ${maneuver.active === 'imergir' ? 'on' : ''}`} onClick={() => maneuver.start(runner, 'imergir', target)}>

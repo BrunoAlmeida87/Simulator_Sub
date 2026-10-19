@@ -118,7 +118,7 @@ export class TrimVis {
     const lw = (x: number, z: number) => sub.localToWorld(b2l(x, 0, z));
     if (!on) {
       for (const a of [this.plus, this.minus, this.tA, this.tB]) a.set(new THREE.Vector3(), up, 0);
-      if (showBlock && layers.tanks && layers.labels) labels.push({ id: 'dwB', text: `Peso deslocável ${fmtT(tb.demo!.mass)}`, color: C_DEMO_CSS, small: true, prio: 2, ...proj(sub.localToWorld(this.block.position.clone().add(new THREE.Vector3(0, 1.2, 0)))) });
+      if (showBlock && layers.tanks && layers.labels && Math.abs(tb.demo!.x - tb.demo!.xNeutral) > 0.3) labels.push({ id: 'dwB', text: `Peso deslocável ${fmtT(tb.demo!.mass)}`, color: C_DEMO_CSS, small: true, prio: 2, ...proj(sub.localToWorld(this.block.position.clone().add(new THREE.Vector3(0, 1.2, 0)))) });
       return;
     }
     // binário do peso deslocado

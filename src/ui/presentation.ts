@@ -217,7 +217,7 @@ class PresentationStore {
     r.replaceEngine(e);
     this.initial = serializeEngine(e, `Início: ${p.name}`);
     this.before = null;
-    this.presetId = p.id;
+    if (PRESETS.some((x) => x.id === p.id)) this.presetId = p.id;
     this.layers = { ...this.layers, ...p.layers };
     this.view = p.view;
     this.setLayers({});

@@ -89,7 +89,11 @@ export class SystemsVis {
   readonly tanks: TankVis[] = [];
   private tankGroup = new THREE.Group();
   private pipeGroup = new THREE.Group();
-  private pipeMats: { mat: THREE.MeshBasicMaterial; owners: string[]; base: number }[] = [];
+  private pipeMats: { mat: THREE.MeshBasicMaterial; owners: string[]; base: number; mesh: THREE.Object3D }[] = [];
+  private _ids: Set<string> | null = null;
+  private get tankIds(): Set<string> {
+    return (this._ids ??= new Set(this.tanks.map((t) => t.id)));
+  }
   private streams: Stream[] = [];
   private valves: ValveVis[] = [];
   private pumps: PumpVis[] = [];
@@ -238,7 +242,7 @@ export class SystemsVis {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false, fog: false });
     const m = new THREE.Mesh(new THREE.TubeGeometry(path, Math.max(4, pts.length * 6), r, 6, false), mat);
     this.pipeGroup.add(m);
-    this.pipeMats.push({ mat, owners, base: 0.85 });
+    this.pipeMats.push({ mat, owners, base: 0.85, mesh: m });
   }
 
   private stream(pts: THREE.Vector3[], color: THREE.Color, owners: string[], rate: (e: SimulationEngine) => number, spacing = 0.9): void {
@@ -436,13 +440,30 @@ export class SystemsVis {
     this.group.visible = showT;
     this.pipeGroup.visible = showP;
     const hl = layers.highlight;
-    const owned = (owners: string[]) => !hl || owners.includes(hl) || (hl.startsWith('TLP') && owners.includes('HP') && false);
+    // filtro de tanques visíveis: circuitos aparecem se pertencem a um tanque visível
+    // (ou, sem tanque próprio, ao sistema de um tanque visível)
+    const filt = layers.tankFilter && layers.tankFilter.length ? new Set(layers.tankFilter) : null;
+    const SYS: Record<TankCategory, string> = { lastro: 'HP', compensacao: 'compensacao', trim: 'trim', banda: 'heel' };
+    const sysOn = new Set<string>();
+    if (filt) for (const t of this.tanks) if (filt.has(t.id)) sysOn.add(SYS[t.cat]);
+    const ids = this.tankIds;
+    const shown = (owners: string[]) => {
+      if (!filt) return true;
+      const own = owners.filter((o) => ids.has(o));
+      return own.length ? own.some((o) => filt.has(o)) : owners.some((o) => sysOn.has(o));
+    };
+    const owned = (owners: string[]) => shown(owners) && (!hl || owners.includes(hl));
+    const ownedDim = (owners: string[]) => !hl || owners.includes(hl);
     sub.updateMatrixWorld();
     const upW = new THREE.Vector3(0, 1, 0).transformDirection(sub.matrixWorld);
     // tanques
     for (const t of this.tanks) {
       const fill = t.getVol(e) / t.cap;
       t.setLevel(fill);
+      const vis = !filt || filt.has(t.id);
+      for (const m of t.meshes) if (!vis) m.visible = false;
+      if (vis) for (const m of t.meshes) if (m !== t.surf) m.visible = true;
+      if (!vis) continue;
       const sel = hl === t.id;
       const dim = !!hl && !sel;
       t.waterMat.opacity = dim ? 0.16 : sel ? 0.96 : 0.88;
@@ -473,13 +494,17 @@ export class SystemsVis {
       }
     }
     // tubulações
-    for (const p of this.pipeMats) p.mat.opacity = owned(p.owners) ? p.base : 0.12;
+    for (const p of this.pipeMats) {
+      p.mesh.visible = shown(p.owners);
+      p.mat.opacity = ownedDim(p.owners) ? p.base : 0.12;
+    }
     for (const v of this.valves) {
       const st = v.get(e);
       const m = v.mesh.material as THREE.MeshBasicMaterial;
       const moving = Math.abs(st.cmd - st.pos) > 0.02;
       m.color.set(st.stuck ? 0xff00ff : moving ? 0xffc040 : st.pos > 0.5 ? 0x3ddc84 : 0xff4d4d);
-      m.opacity = owned(v.owners) ? 1 : 0.15;
+      v.mesh.visible = shown(v.owners);
+      m.opacity = ownedDim(v.owners) ? 1 : 0.15;
       v.mesh.scale.setScalar(st.pos > 0.5 || moving ? 1.25 : 1);
       // rótulo só durante o curso da válvula (ou aberta, para o tanque destacado)
       if (showP && layers.labels && (moving || (hl && st.pos > 0.5 && v.owners.includes(hl)))) {
@@ -490,7 +515,8 @@ export class SystemsVis {
       const st = p.get(e);
       const m = p.body.material as THREE.MeshBasicMaterial;
       m.color.set(st.failed ? 0xff4d4d : st.speed > 0.05 ? 0x3ddc84 : 0x6f7c8a);
-      m.opacity = owned(p.owners) ? 1 : 0.15;
+      p.body.visible = shown(p.owners);
+      m.opacity = ownedDim(p.owners) ? 1 : 0.15;
       p.rotor.rotation.y += step * st.speed * 25;
       p.rotor.visible = owned(p.owners);
       if (showP && layers.labels && (st.speed > 0.05 || st.failed) && owned(p.owners)) {

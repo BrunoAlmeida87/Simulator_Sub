@@ -209,3 +209,27 @@ describe('Peso deslocável e trimagem', () => {
     expect(e.outputs.netBuoyancyKg).toBeLessThan(-2500);
   });
 });
+
+import { TourController, TOURS } from '../src/ui/tours';
+
+describe('Cenário guiado: submergir e descer para 50 m', () => {
+  it('percorre todas as etapas pela física e termina equilibrado a 50 m', () => {
+    const r = new SimRunner(buildScenario('superficie'));
+    const t = new TourController();
+    t.start(r, TOURS.find((x) => x.id === 'submergir50')!);
+    const dt = r.engine.config.settings.dt;
+    let n = 0;
+    while (t.active && n < 200000) {
+      r.engine.step();
+      t.tick(r, dt / r.timeScale);
+      n++;
+    }
+    expect(t.active).toBe(false);
+    expect(t.outcome.every((o) => o === 'concluída')).toBe(true);
+    expect(Math.abs(r.engine.outputs.depthKeel - 50)).toBeLessThan(2);
+    expect(Math.abs(r.engine.outputs.netBuoyancyKg)).toBeLessThan(300);
+    expect(t.sent.some((c) => /suspiro/i.test(c.text))).toBe(true);
+    // narração sem valores inválidos em todas as etapas
+    expect(TOURS[0].steps.every((s) => !/NaN|undefined/.test(s.text(r.engine, { send: () => undefined, mem: {} })))).toBe(true);
+  });
+});

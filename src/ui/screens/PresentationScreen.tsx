@@ -12,6 +12,9 @@ import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
 import { TrimDemoPanel } from '../components/TrimDemo';
+import { TankSelector } from '../components/TankSelector';
+import { TourCard, TourList } from '../components/TourCard';
+import { tours } from '../tours';
 import type { OceanQuality } from '../../render3d/Ocean';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { FORCE_STYLE, TANK_STYLE, type SceneLayers, type TankCategory } from '../../render3d/layers';
@@ -187,7 +190,7 @@ export function PresentationScreen() {
   const e = useSim(8);
   const p = usePres();
   const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
-  const [presetSel, setPresetSel] = useState(p.presetId ?? PRESETS[0].id);
+  const [presetSel, setPresetSel] = useState(PRESETS.some((x) => x.id === p.presetId) ? p.presetId! : PRESETS[0].id);
   const setQuality = (q: OceanQuality) => {
     saveQuality(q);
     setQualityS(q);
@@ -196,7 +199,7 @@ export function PresentationScreen() {
   const L = p.layers;
   const setL = (k: keyof SceneLayers, v: unknown) => pres.setLayers({ [k]: v } as Partial<SceneLayers>);
   const pick = (id: string | null) => pres.setLayers({ highlight: id, ...(id ? { tanks: true } : {}) });
-  const preset = PRESETS.find((x) => x.id === presetSel)!;
+  const preset = PRESETS.find((x) => x.id === presetSel) ?? PRESETS[0];
   const vb = verticalBalance(e);
   const gainTxt = L.resultantGain === 'auto' ? 'ampliação automática (fator no rótulo)' : `×${L.resultantGain}`;
   const scales = [0.25, 0.5, 1, 2, 5, 10];
@@ -212,16 +215,18 @@ export function PresentationScreen() {
           <div className="overlay-ctl">
             <SeaControls quality={quality} setQuality={setQuality} />
           </div>
-          <div className="pres-bottom only-wide">
-            <ManeuverStatus />
-          </div>
+          <div className="pres-bottom only-wide">{tours.active || tours.finished ? <TourCard /> : <ManeuverStatus />}</div>
         </Scene3D>
         <div className="only-narrow pres-under">
-          <ManeuverStatus compact />
+          {tours.active || tours.finished ? <TourCard compact /> : <ManeuverStatus compact />}
           {(L.vectors || L.hydroVectors) && <ForceHud e={e} gain={gainTxt} />}
         </div>
       </div>
       <div className="pres-side">
+        <Panel title="Cenários guiados (automáticos)">
+          <TourList />
+        </Panel>
+
         <Panel title="Condução da apresentação">
           <div className="row">
             <select value={presetSel} onChange={(ev) => setPresetSel(ev.target.value)} style={{ flex: 1, minWidth: 0 }} aria-label="Situação pronta">
@@ -290,6 +295,12 @@ export function PresentationScreen() {
               </button>
             ))}
           </div>
+          {L.tanks && (
+            <div className="mt8">
+              <div className="subtle mb4">Tanques visíveis no corte</div>
+              <TankSelector e={e} value={L.tankFilter} onChange={(v) => setL('tankFilter', v)} />
+            </div>
+          )}
           <div className="row mt8">
             <label className="subtle">Ampliação da resultante</label>
             <select value={String(L.resultantGain)} onChange={(ev) => setL('resultantGain', ev.target.value === 'auto' ? 'auto' : Number(ev.target.value))}>

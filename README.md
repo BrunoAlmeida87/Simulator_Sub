@@ -38,6 +38,8 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Modelo 3D animado | ✅ Three.js com corte dos tanques (TLP em seção "D" que acompanha o casco), tubulações, válvulas, bombas e escoamentos animados pelas vazões simuladas; hélice, lemes, bolhas e fundo |
 | Vetores de força | ✅ Peso (em G), empuxo (em B) e resultante E − P com ampliação declarada; empuxo do hélice, resistência da água e forças dos lemes — valores do último passo do motor |
 | Percepção de movimento | ✅ Esteira persistente fixa no mundo, onda de proa e braços de Kelvin (∝ U²), rastro do hélice (∝ empuxo), jato de ar dos suspiros, boias e marcadores de distância, câmera fixa |
+| Cenários guiados | ✅ Roteiros automáticos e narrados, etapa por etapa (primeiro: "Submergir e descer para 50 m"), com valores ao vivo, câmera e camadas por etapa e tempo de leitura |
+| Trimagem demonstrável | ✅ Peso deslocável de 5 t sobre trilho, compensação calculada pelos tanques de trim e camada própria de vetores de trim (binários e momento líquido) |
 | Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |
 | Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6 e qualidade gráfica ajustável |
 | Interface e controles | ✅ 7 telas, mais cenários, auxiliares, validação, guia e modo engenharia; executar, pausar, passo, reiniciar e acelerar |
