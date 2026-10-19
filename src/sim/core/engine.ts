@@ -230,6 +230,16 @@ export class SimulationEngine {
     updatePropulsion(cfg.propulsion, s.propulsion, dt, s.body.vel.x, ctx.rhoLocal, ctx.busPowered, s.electrical.propulsionLimit, propImm);
     s.ledger.propellerWork += s.propulsion.propTorque * s.propulsion.omega * dt;
 
+    // peso deslocável de demonstração: carro no trilho com velocidade limitada
+    const dwc = cfg.mass.demoWeight;
+    if (dwc && s.demoWeight) {
+      const d = s.demoWeight;
+      d.xCmd = Math.max(dwc.xMin, Math.min(dwc.xMax, d.xCmd));
+      const dx = d.xCmd - d.x;
+      const stepMax = dwc.speed * dt;
+      d.x += Math.abs(dx) <= stepMax ? dx : Math.sign(dx) * stepMax;
+    }
+
     // 7–8. massa e corpo rígido
     const mp = computeMassProps(cfg, s, this.light, ctx.rhoLocal);
     const fi = this.forceInputs(mp);
@@ -285,7 +295,7 @@ export class SimulationEngine {
     this.evaluateAlarms();
     // balanço de massa
     const L = s.ledger;
-    const expected = L.mass0 + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
+    const expected = L.mass0 + (L.cargoIn ?? 0) + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
     o.massAudit = o.mp.internalMass - expected;
     o.energyAudit = L.batteryChemical - L.batteryOut - L.batteryLoss;
   }

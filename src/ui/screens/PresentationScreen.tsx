@@ -11,6 +11,7 @@ import { SeaControls } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
+import { TrimDemoPanel } from '../components/TrimDemo';
 import type { OceanQuality } from '../../render3d/Ocean';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { FORCE_STYLE, TANK_STYLE, type SceneLayers, type TankCategory } from '../../render3d/layers';
@@ -36,6 +37,7 @@ const FRAMES: [ViewMode, string, string][] = [
 const LAYER_LIST: [keyof SceneLayers, string][] = [
   ['vectors', 'Peso/empuxo'],
   ['hydroVectors', 'Hélice/lemes/resist.'],
+  ['trimVectors', 'Vetores de trim'],
   ['tanks', 'Tanques'],
   ['pipes', 'Tubulações'],
   ['flows', 'Escoamentos'],
@@ -201,7 +203,7 @@ export function PresentationScreen() {
   return (
     <div className="pres">
       <div className="pres-view">
-        <Scene3D quality={quality} view={p.view} layers={L} labels={false} onPickTank={(id) => id && pick(id)}>
+        <Scene3D quality={quality} view={p.view} layers={L} labels={false} persistKey="pres" onPickTank={(id) => id && pick(id)}>
           {(L.vectors || L.hydroVectors) && (
             <div className="only-wide">
               <ForceHud e={e} gain={gainTxt} />
@@ -348,6 +350,10 @@ export function PresentationScreen() {
               </tr>
             </tbody>
           </table>
+        </Panel>
+
+        <Panel title="Trim — peso deslocável">
+          <TrimDemoPanel e={e} compact />
         </Panel>
 
         <Panel title="Tanques" right={L.highlight ? <button className="btn sm" onClick={() => pick(null)}>Limpar destaque</button> : undefined}>

@@ -41,6 +41,22 @@ export interface MassConfig {
   /** Ajuste de carga (kg) aplicado sobre a condição de projeto (cenários de carga). */
   loadOffset: number;
   loadOffsetPosition: Vec3;
+  /**
+   * Peso deslocável de demonstração (carga sobre trilho longitudinal). Na
+   * posição neutra faz parte da condição de projeto (trim nulo); deslocá-lo
+   * cria um momento de trim que pode ser compensado pelos tanques de trim.
+   */
+  demoWeight?: DemoWeightConfig;
+}
+
+export interface DemoWeightConfig {
+  mass: number; // kg
+  xNeutral: number; // m (corpo) — posição da condição de projeto
+  xMin: number;
+  xMax: number;
+  y: number;
+  z: number;
+  speed: number; // m/s do carro no trilho
 }
 
 export interface HydroConfig {

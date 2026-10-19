@@ -1,5 +1,6 @@
 /** Tela 6 — Visualização 3D. */
 import { useState } from 'react';
+import { usePersisted } from '../persist';
 import { useSim } from '../store';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
@@ -25,21 +26,23 @@ const VIEWS: { id: ViewMode; label: string }[] = [
 
 export function View3DScreen() {
   const e = useSim(8);
-  const [view, setView] = useState<ViewMode>('perspectiva');
-  const [cut, setCut] = useState(false);
+  // visualização guardada ao trocar de aba (e ao recarregar a página)
+  const [view, setView] = usePersisted<ViewMode>('v3d.view', 'perspectiva');
+  const [cut, setCut] = usePersisted('v3d.cut', false);
   const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
   const setQuality = (q: OceanQuality) => {
     saveQuality(q);
     setQualityS(q);
   };
-  const [trail, setTrail] = useState(true);
-  const [fog, setFog] = useState(true);
-  const [vec, setVec] = useState(false);
-  const [marks, setMarks] = useState(false);
+  const [trail, setTrail] = usePersisted('v3d.trail', true);
+  const [fog, setFog] = usePersisted('v3d.fog', true);
+  const [vec, setVec] = usePersisted('v3d.vec', false);
+  const [trimV, setTrimV] = usePersisted('v3d.trim', false);
+  const [marks, setMarks] = usePersisted('v3d.marks', false);
   const o = e.outputs;
   const s = e.state;
   return (
-    <Scene3D quality={quality} view={view} cutaway={cut} trail={trail} fog={fog} layers={{ vectors: vec, hydroVectors: vec, markers: marks, pipes: true, flows: true, labels: true }}>
+    <Scene3D quality={quality} view={view} cutaway={cut} trail={trail} fog={fog} persistKey="v3d" layers={{ vectors: vec, hydroVectors: vec, trimVectors: trimV, markers: marks, pipes: true, flows: true, labels: true }}>
       <div className="hud tl">
         <div className="line">PROF {fmt(o.depthKeel, 1)} m · ALT {fmt(o.altitude, 0)} m</div>
         <div className="line">VEL {fmt(toKnots(s.body.vel.x), 1)} nós · RPM {fmt(o.rpm, 0)}</div>
@@ -70,6 +73,9 @@ export function View3DScreen() {
           </button>
           <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)}>
             Forças
+          </button>
+          <button className={`btn sm ${trimV ? 'on' : ''}`} onClick={() => setTrimV(!trimV)}>
+            Trim
           </button>
           <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
             Boias

@@ -5,6 +5,7 @@ import { Panel } from '../components/Panel';
 import { Readout } from '../components/Readout';
 import { Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../components/Schematic';
 import { MomentExplain } from '../components/Explain';
+import { TrimDemoPanel } from '../components/TrimDemo';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
 import { tankVolume } from '../../sim/systems/internalTanks';
 import type { SimulationEngine } from '../../sim/core/engine';
@@ -220,6 +221,9 @@ export function TrimHeelScreen() {
       </Panel>
       <Panel title="Trim: comandos" inspect="trim">
         <TransferControls e={e} sys="trim" />
+      </Panel>
+      <Panel title="Peso deslocável (demonstração de trim)" inspect="trim">
+        <TrimDemoPanel e={e} />
       </Panel>
       <Panel title="Banda — vista frontal" inspect="heel">
         <div className="row" style={{ alignItems: 'flex-start' }}>

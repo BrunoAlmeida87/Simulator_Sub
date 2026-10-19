@@ -4,6 +4,7 @@
  * imersão, emersão, atitude, lemes, hélice, bolhas e esteira.
  */
 import { useState } from 'react';
+import { usePersisted } from '../persist';
 import { cmd, runner, useSim } from '../store';
 import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
 import { SeaControls } from '../components/SeaControls';
@@ -15,15 +16,18 @@ import type { ViewMode } from '../../render3d/SubmarineScene';
 import { navStatus } from '../navStatus';
 import { maneuver } from '../maneuvers';
 import { ManeuverStatus } from '../components/ManeuverStatus';
+import { TrimDemoPanel } from '../components/TrimDemo';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 
 export function PilotScreen() {
   const e = useSim(10);
-  const [view, setView] = useState<ViewMode>('piloto');
-  const [cut, setCut] = useState(false);
-  const [vec, setVec] = useState(false);
-  const [marks, setMarks] = useState(true);
+  // visualização guardada ao trocar de aba (e ao recarregar a página)
+  const [view, setView] = usePersisted<ViewMode>('pilot.view', 'piloto');
+  const [cut, setCut] = usePersisted('pilot.cut', false);
+  const [vec, setVec] = usePersisted('pilot.vec', false);
+  const [trimV, setTrimV] = usePersisted('pilot.trim', false);
+  const [marks, setMarks] = usePersisted('pilot.marks', true);
   const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
   const setQuality = (q: OceanQuality) => {
     saveQuality(q);
@@ -41,7 +45,7 @@ export function PilotScreen() {
   return (
     <div className="pilot">
       <div className="pilot-view">
-        <Scene3D quality={quality} view={view} cutaway={cut} labels={false} layers={{ vectors: vec, markers: marks, pipes: true, flows: true, labels: true }}>
+        <Scene3D quality={quality} view={view} cutaway={cut} labels={false} persistKey="pilot" layers={{ vectors: vec, trimVectors: trimV, markers: marks, pipes: true, flows: true, labels: true }}>
           <div className="pilot-tape">
             <DepthTape depth={o.depthKeel} ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null} bottom={o.bottomDepth} rate={o.verticalSpeed} opLimit={L.operatingDepth} testLimit={L.testDepth} height={260} />
           </div>
@@ -98,6 +102,9 @@ export function PilotScreen() {
               </button>
               <button className={`btn sm ${vec ? 'on' : ''}`} onClick={() => setVec(!vec)}>
                 Forças
+              </button>
+              <button className={`btn sm ${trimV ? 'on' : ''}`} onClick={() => setTrimV(!trimV)}>
+                Trim
               </button>
               <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
                 Boias
@@ -158,6 +165,9 @@ export function PilotScreen() {
         </Panel>
         <Panel title="Lastro principal">
           <QuickBallast e={e} />
+        </Panel>
+        <Panel title="Trim — peso deslocável">
+          <TrimDemoPanel e={e} compact />
         </Panel>
         <Panel title="Piloto automático">
           <table className="t">

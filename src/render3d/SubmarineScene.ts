@@ -17,6 +17,7 @@ import { SystemsVis } from './Systems';
 import { ForceArrows } from './ForceArrows';
 import { SurfaceFx } from './SurfaceFx';
 import { Markers } from './Markers';
+import { TrimVis } from './TrimVis';
 import { defaultLayers, type SceneLayers } from './layers';
 
 /**
@@ -86,6 +87,7 @@ export class SubmarineScene {
   private forces!: ForceArrows;
   private fx: SurfaceFx;
   private markers!: Markers;
+  private trimVis!: TrimVis;
   private keyLight = new THREE.DirectionalLight(0xffffff, 0);
   private fillLight = new THREE.AmbientLight(0xffffff, 0);
   private fixedCam: { n: number; e: number; y: number; ln: number; le: number; ly: number } | null = null;
@@ -168,6 +170,9 @@ export class SubmarineScene {
     this.scene.add(this.sub);
     this.forces = new ForceArrows(this.env());
     this.scene.add(this.forces.group);
+    this.trimVis = new TrimVis(this.env());
+    this.sub.add(this.trimVis.local);
+    this.scene.add(this.trimVis.world);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
     this.markers = new Markers(this.env(), this.dot);
@@ -369,6 +374,20 @@ export class SubmarineScene {
 
   get viewMode(): ViewMode {
     return this.view;
+  }
+
+  /** Posição da câmera e do alvo relativas ao submarino (para restaurar a vista livre). */
+  getCameraPose(): { pos: [number, number, number]; target: [number, number, number] } {
+    const p = this.camera.position.clone().sub(this.lastSubPos);
+    const t = this.controls.target.clone().sub(this.lastSubPos);
+    return { pos: [p.x, p.y, p.z], target: [t.x, t.y, t.z] };
+  }
+
+  setCameraPose(c: { pos: [number, number, number]; target: [number, number, number] }): void {
+    this.camera.position.set(...c.pos).add(this.lastSubPos);
+    this.controls.target.set(...c.target).add(this.lastSubPos);
+    this.viewFrom.copy(this.camera.position);
+    this.controls.update();
   }
 
   /**
@@ -732,6 +751,7 @@ export class SubmarineScene {
     this.sub.updateMatrixWorld();
     this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
+    this.trimVis.update(e, this.sub, this.layers, lbl, proj);
     this.renderer.render(this.scene, this.camera);
 
     const ps = proj(new THREE.Vector3(0, 0, 0));

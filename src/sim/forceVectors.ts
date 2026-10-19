@@ -110,3 +110,65 @@ export function autoGain(netN: number, metersPerN: number, target = 6): number {
 
 /** Toneladas-força (tf) a partir de newtons. */
 export const toTf = (N: number, g = 9.80665) => N / g / 1000;
+
+// ------------------------------------------------------------------ trim
+export interface TrimBalance {
+  g: number;
+  /** peso deslocável: binário (+P na posição atual, −P na neutra); momento em t·m (+ proa para cima) */
+  demo: { mass: number; x: number; xCmd: number; xNeutral: number; z: number; momentTm: number } | null;
+  /** tanques de trim: variação de massa (kg) em relação à condição inicial e momento do binário (t·m) */
+  tanks: { xA: number; xB: number; zA: number; zB: number; dA: number; dB: number; momentTm: number };
+  /** desequilíbrio das cargas deslocadas = peso + tanques (t·m) */
+  netTm: number;
+  pitch: number; // graus
+  pitchEq: number; // graus (equilíbrio estático previsto)
+  stiffness: number; // N·m/rad
+  /** transferência de trim que anula o pitch de equilíbrio estático */
+  compensate: { kg: number; dir: 'AtoB' | 'BtoA' | null; feasible: boolean; limitKg: number };
+}
+
+/**
+ * Momentos de trim (binários): deslocar um peso P de x₀ para x equivale a
+ * somar +P em x e −P em x₀, um binário de momento −P·(x − x₀) (independente
+ * do ponto de referência). Transferir Δm de TT-AR para TT-AV é o binário
+ * −g·Δm·(x_A − x_B). O casco responde girando até o momento restaurador
+ * (E·BG·sen θ submerso; plano de flutuação na superfície) equilibrar.
+ */
+export function trimBalance(e: SimulationEngine): TrimBalance {
+  const s = e.state;
+  const v = e.vessel;
+  const o = e.outputs;
+  const g = e.env.cfg.gravity;
+  const dwc = v.mass.demoWeight;
+  const d = s.demoWeight;
+  const demo =
+    dwc && d
+      ? { mass: d.mass, x: d.x, xCmd: d.xCmd, xNeutral: dwc.xNeutral, z: dwc.z, momentTm: (-d.mass * (d.x - dwc.xNeutral)) / 1000 }
+      : null;
+  const ref = s.trimRef ?? { a: s.trim.tankA.mass, b: s.trim.tankB.mass };
+  const tA = v.trim.tankA;
+  const tB = v.trim.tankB;
+  const dA = s.trim.tankA.mass - ref.a;
+  const dB = s.trim.tankB.mass - ref.b;
+  const tanksM = -(dA * tA.center.x + dB * tB.center.x) / 1000;
+  // compensação: transferência cujo binário anula o desequilíbrio das cargas deslocadas
+  // (binário de Δm entre A e B = −g·Δm·(x_A − x_B); netTm < 0 = proa para baixo ⇒ levar água para ré)
+  const arm = tA.center.x - tB.center.x;
+  const netTm = (demo?.momentTm ?? 0) + tanksM;
+  const kgRaw = (Math.abs(netTm) * 1000) / arm;
+  const dir: 'AtoB' | 'BtoA' | null = Math.abs(netTm) < 0.5 ? null : netTm < 0 ? 'AtoB' : 'BtoA';
+  const RHO = 1025;
+  const capA = tA.capacity * RHO;
+  const capB = tB.capacity * RHO;
+  const limitKg = dir === 'BtoA' ? Math.min(s.trim.tankB.mass, capA - s.trim.tankA.mass) : dir === 'AtoB' ? Math.min(s.trim.tankA.mass, capB - s.trim.tankB.mass) : 0;
+  return {
+    g,
+    demo,
+    tanks: { xA: tA.center.x, xB: tB.center.x, zA: tA.center.z, zB: tB.center.z, dA, dB, momentTm: tanksM },
+    netTm,
+    pitch: o.euler.pitch,
+    pitchEq: o.staticPitchEq,
+    stiffness: o.pitchStiffness,
+    compensate: { kg: dir ? kgRaw : 0, dir, feasible: !!dir && kgRaw <= limitKg + 1, limitKg: Math.max(0, limitKg) },
+  };
+}

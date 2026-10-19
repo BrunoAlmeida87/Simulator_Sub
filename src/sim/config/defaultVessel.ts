@@ -54,6 +54,7 @@ export function defaultVessel(): VesselConfig {
       ],
       loadOffset: 0,
       loadOffsetPosition: { x: 3, y: 0, z: 1.0 },
+      demoWeight: { mass: 5000, xNeutral: 2, xMin: -25, xMax: 25, y: 0, z: 1.7, speed: 1.0 },
     },
     hydro: {
       totalResistanceCoeff: 0.0022,

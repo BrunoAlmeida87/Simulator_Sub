@@ -32,6 +32,7 @@ export type Command =
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
   | { type: 'seaState'; value: number; direction?: number }
+  | { type: 'demoWeight'; x?: number; mass?: number }
   | { type: 'failure'; target: string; active: boolean; param?: number | string };
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
@@ -219,6 +220,22 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       e.env.setSeaState(c.value, c.direction);
       const w = e.env.waves;
       log(`Estado do mar: ${Math.round(c.value)} (Hs = ${w.hs.toFixed(1)} m, Tp = ${w.tp.toFixed(1)} s)`, 'Ambiente');
+      break;
+    }
+    case 'demoWeight': {
+      const dwc = v.mass.demoWeight;
+      const d = s.demoWeight;
+      if (!dwc || !d) break;
+      if (c.x !== undefined) {
+        d.xCmd = Math.max(dwc.xMin, Math.min(dwc.xMax, c.x));
+        log(`Peso deslocável: mover para x = ${d.xCmd.toFixed(1)} m (${d.xCmd > dwc.xNeutral ? 'para vante' : d.xCmd < dwc.xNeutral ? 'para ré' : 'posição neutra'})`, 'Trim');
+      }
+      if (c.mass !== undefined) {
+        const m = Math.max(0, Math.min(20000, c.mass));
+        s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) + (m - d.mass);
+        log(`Peso deslocável: massa ${(d.mass / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (${m > d.mass ? 'embarcada' : 'desembarcada'} ${(Math.abs(m - d.mass) / 1000).toFixed(1)} t)`, 'Trim');
+        d.mass = m;
+      }
       break;
     }
     case 'failure':

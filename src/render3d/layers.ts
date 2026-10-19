@@ -4,6 +4,8 @@ export interface SceneLayers {
   vectors: boolean;
   /** hélice, resistência e lemes */
   hydroVectors: boolean;
+  /** vetores de trim: peso deslocável, tanques de trim e momento líquido */
+  trimVectors: boolean;
   /** corte do casco com os tanques */
   tanks: boolean;
   /** tubulações, válvulas e bombas */
@@ -31,6 +33,7 @@ export interface SceneLayers {
 export const defaultLayers = (): SceneLayers => ({
   vectors: false,
   hydroVectors: false,
+  trimVectors: false,
   tanks: false,
   pipes: false,
   flows: true,

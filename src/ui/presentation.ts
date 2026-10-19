@@ -31,12 +31,21 @@ export interface Preset {
 
 export const PRESETS: Preset[] = [
   {
+    id: 'trim_demo',
+    name: 'Trim: deslocar peso e compensar',
+    sea: 1,
+    scenario: 'pairando',
+    view: 'forcas',
+    layers: { trimVectors: true, vectors: false, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, markers: false, highlight: null },
+    note: 'Pairando a 80 m (sem velocidade). Leve o peso de 5 t para vante: o binário faz a proa descer cerca de 10°. Depois use “Compensar com o trim”: a água vai de TT-AV para TT-AR e o submarino volta a nivelar. Com 10 t o trim não é suficiente.',
+  },
+  {
     id: 'sup_parado',
     sea: 1,
     name: 'Superfície, parado — peso e empuxo',
     scenario: 'superficie',
     view: 'forcas',
-    layers: { vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, wake: true, markers: false, highlight: null },
+    layers: { trimVectors: false, vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, wake: true, markers: false, highlight: null },
     note: 'TLP vazios e suspiros fechados. Abra os suspiros: o peso cresce com a água que entra e o casco afunda até o empuxo (volume imerso) acompanhar.',
   },
   {
@@ -45,7 +54,7 @@ export const PRESETS: Preset[] = [
     name: 'Navegação na superfície a 8 nós',
     scenario: 'superficie_avante',
     view: 'superficie',
-    layers: { vectors: false, hydroVectors: true, tanks: false, wake: true, markers: true, labels: true, highlight: null },
+    layers: { trimVectors: false, vectors: false, hydroVectors: true, tanks: false, wake: true, markers: true, labels: true, highlight: null },
     note: 'Esteira, onda de proa e rastro do hélice ligados à velocidade real. Pare o hélice: o rastro do hélice some, mas o casco continua avançando por inércia.',
   },
   {
@@ -54,7 +63,7 @@ export const PRESETS: Preset[] = [
     name: 'Mergulho em movimento — tanques e escoamentos',
     scenario: 'superficie_avante',
     view: 'tanques',
-    layers: { vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, wake: true, markers: true, highlight: null },
+    layers: { trimVectors: false, vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, wake: true, markers: true, highlight: null },
     note: 'Use “Imergir” ou abra os suspiros: o ar sai pelos suspiros, a água entra pelos embornais, o peso aumenta e a resultante aponta para baixo.',
   },
   {
@@ -63,7 +72,7 @@ export const PRESETS: Preset[] = [
     name: 'Submerso equilibrado a 50 m',
     scenario: 'submerso_50',
     view: 'forcas',
-    layers: { vectors: true, hydroVectors: true, tanks: true, pipes: true, flows: true, labels: true, markers: false, highlight: null },
+    layers: { trimVectors: false, vectors: true, hydroVectors: true, tanks: true, pipes: true, flows: true, labels: true, markers: false, highlight: null },
     note: 'Casco todo imerso: o empuxo fica praticamente constante. Admita 1 t de compensação e veja apenas o peso e a resultante mudarem.',
   },
   {
@@ -72,7 +81,7 @@ export const PRESETS: Preset[] = [
     name: 'Pairando a 80 m — controle só pelo peso',
     scenario: 'pairando',
     view: 'forcas',
-    layers: { vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, markers: false, highlight: 'TC1' },
+    layers: { trimVectors: false, vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, markers: false, highlight: 'TC1' },
     note: 'Sem velocidade os lemes não atuam. Só a compensação (admitir/esgotar) altera a resultante e o movimento vertical.',
   },
   {
@@ -81,7 +90,7 @@ export const PRESETS: Preset[] = [
     name: 'Compensação desajustada (+4 t)',
     scenario: 'desajuste',
     view: 'forcas',
-    layers: { vectors: true, tanks: true, pipes: true, flows: true, labels: true, highlight: null },
+    layers: { trimVectors: false, vectors: true, tanks: true, pipes: true, flows: true, labels: true, highlight: null },
     note: 'Na superfície o excesso de 4 t só aprofunda um pouco o casco; após o mergulho aparece como resultante para baixo.',
   },
   {
@@ -90,7 +99,7 @@ export const PRESETS: Preset[] = [
     name: 'Cota periscópica (snorkel)',
     scenario: 'cota_periscopica',
     view: 'submerso',
-    layers: { vectors: false, tanks: false, markers: true, wake: true, labels: true, highlight: null },
+    layers: { trimVectors: false, vectors: false, tanks: false, markers: true, wake: true, labels: true, highlight: null },
     note: 'Perto da superfície o hélice e a vela perturbam a água; as boias marcam o avanço.',
   },
   {
@@ -98,7 +107,7 @@ export const PRESETS: Preset[] = [
     name: 'Mar grosso (estado 5)',
     scenario: 'mar_grosso',
     view: 'submerso',
-    layers: { vectors: true, tanks: false, markers: true, wake: true, labels: true, highlight: null },
+    layers: { trimVectors: false, vectors: true, tanks: false, markers: true, wake: true, labels: true, highlight: null },
     note: 'As ondas fazem o empuxo e a resultante oscilarem perto da superfície.',
   },
 ];

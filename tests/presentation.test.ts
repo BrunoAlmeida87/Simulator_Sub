@@ -174,3 +174,38 @@ describe('Checklist do procedimento', () => {
     expect(c.tDone[1]).toBeGreaterThan(0);
   });
 });
+
+import { trimBalance } from '../src/sim/forceVectors';
+
+describe('Peso deslocável e trimagem', () => {
+  it('na posição neutra não há trim; deslocado para vante, o submarino embica bem visivelmente; o trim compensa', () => {
+    const e = buildScenario('pairando');
+    e.advanceSim(5);
+    expect(Math.abs(e.outputs.euler.pitch)).toBeLessThan(0.5);
+    const m0 = e.outputs.mp.internalMass;
+    applyCommand(e, { type: 'demoWeight', x: 25 });
+    e.advanceSim(120);
+    const tb = trimBalance(e);
+    expect(tb.demo!.x).toBeCloseTo(25, 5);
+    expect(tb.demo!.momentTm).toBeLessThan(-100); // 5 t × 23 m, proa para baixo
+    expect(e.outputs.euler.pitch).toBeLessThan(-6); // bem inclinado (proa para baixo)
+    expect(e.outputs.mp.internalMass).toBeCloseTo(m0, 3); // só deslocou: massa igual
+    // compensação calculada pelos tanques de trim
+    expect(tb.compensate.dir).toBe('AtoB');
+    expect(tb.compensate.feasible).toBe(true);
+    applyCommand(e, { type: 'dosing', system: 'trim', mode: 'transferir', kg: tb.compensate.kg, dir: tb.compensate.dir! });
+    e.advanceSim(900);
+    const tb2 = trimBalance(e);
+    expect(Math.abs(tb2.netTm)).toBeLessThan(0.15 * Math.abs(tb.demo!.momentTm));
+    expect(Math.abs(e.outputs.euler.pitch)).toBeLessThan(1.5);
+    expect(Math.abs(e.outputs.massAudit)).toBeLessThan(1);
+  });
+
+  it('embarcar/desembarcar a carga entra no balanço de massa', () => {
+    const e = buildScenario('submerso_50');
+    applyCommand(e, { type: 'demoWeight', mass: 8000 });
+    e.advanceSim(2);
+    expect(Math.abs(e.outputs.massAudit)).toBeLessThan(1);
+    expect(e.outputs.netBuoyancyKg).toBeLessThan(-2500);
+  });
+});

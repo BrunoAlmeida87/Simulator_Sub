@@ -210,6 +210,8 @@ export interface Ledger {
   generatorEnergy: number;
   propellerWork: number; // energia mecânica entregue ao hélice
   mass0: number; // massa interna inicial (referência)
+  /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (peso deslocável) */
+  cargoIn?: number;
 }
 
 export interface SimState {
@@ -255,6 +257,10 @@ export interface SimState {
   commands: CommandRecord[];
   ledger: Ledger;
   contact: boolean;
+  /** peso deslocável de demonstração: posição (m, corpo), posição ordenada e massa (kg) */
+  demoWeight?: { x: number; xCmd: number; mass: number };
+  /** massas de referência dos tanques de trim (condição inicial do cenário) para os vetores de trim */
+  trimRef?: { a: number; b: number };
 }
 
 export const newValve = (open = false): ValveState => ({ cmd: open ? 1 : 0, pos: open ? 1 : 0, stuck: false });

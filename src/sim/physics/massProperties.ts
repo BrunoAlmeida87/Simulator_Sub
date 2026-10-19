@@ -70,6 +70,8 @@ export function resolveLightship(cfg: VesselConfig, geom?: HullGeometry): Resolv
     others.push({ m: t.initialVolume * RHO_NOMINAL, p: tankWaterCentroid(t, { mass: t.initialVolume * RHO_NOMINAL }) });
   }
   for (const l of cfg.mass.variableLoads) others.push({ m: l.mass, p: l.position });
+  const dw = cfg.mass.demoWeight;
+  if (dw) others.push({ m: dw.mass, p: { x: dw.xNeutral, y: dw.y, z: dw.z } });
   const fuel = fuelTankMass(cfg, cfg.electrical.fuel.initialFuel);
   others.push({ m: fuel.mass, p: cfg.electrical.fuel.position });
   const Tb = cfg.hpAir.temperature + 273.15;
@@ -100,6 +102,11 @@ export function computeMassProps(cfg: VesselConfig, s: SimState, light: Resolved
   for (const b of cfg.hpAir.banks) air += s.hpAir.banks[b.id].mass;
   items.push({ id: 'arAP', name: 'Ar comprimido (garrafas)', group: 'ar', mass: air, pos: HP_AIR_POS });
   let internalMass = light.lightshipMass + fuel.mass + air + cfg.mass.loadOffset + cfg.mass.variableLoads.reduce((a, l) => a + l.mass, 0);
+  const dw = cfg.mass.demoWeight;
+  if (dw && s.demoWeight && s.demoWeight.mass > 0) {
+    items.push({ id: 'pesoMovel', name: 'Peso deslocável (demonstração)', group: 'cargas', mass: s.demoWeight.mass, pos: { x: s.demoWeight.x, y: dw.y, z: dw.z } });
+    internalMass += s.demoWeight.mass;
+  }
   for (const t of cfg.ballast.tanks) {
     const st = s.ballast[t.id];
     const h = st.water / (t.volume / t.height);

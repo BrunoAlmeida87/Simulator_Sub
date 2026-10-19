@@ -4,6 +4,7 @@ import { runner } from '../store';
 import type { Label3D, SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
 import type { OceanQuality } from '../../render3d/Ocean';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
+import { loadPersisted, savePersisted } from '../persist';
 
 const K_Q = 'sx1.quality.v1';
 export function defaultQuality(): OceanQuality {
@@ -39,7 +40,11 @@ export interface Scene3DProps {
   layers?: Partial<SceneLayers>;
   /** clique sobre um tanque no corte (id) ou fora de um tanque (null) */
   onPickTank?: (id: string | null) => void;
+  /** chave para guardar a posição da câmera livre ao trocar de aba */
+  persistKey?: string;
 }
+
+type CamPose = { pos: [number, number, number]; target: [number, number, number] };
 
 const BASIC = new Set(['surf', 'sub', 'bot']);
 
@@ -72,6 +77,11 @@ export function Scene3D(props: Scene3DProps) {
             const sc = new SubmarineScene(box.current!, runner, opts.current.view, opts.current.quality ?? defaultQuality());
             sc.layers = mergedLayers(opts.current);
             sc.realisticFog = opts.current.fog ?? true;
+            const k = opts.current.persistKey;
+            if (k && opts.current.view === 'livre') {
+              const pose = loadPersisted<CamPose | null>(`cam.${k}`, null);
+              if (pose) sc.setCameraPose(pose);
+            }
             return sc;
           } catch (ex) {
             setErr('Não foi possível iniciar o WebGL neste navegador: ' + String(ex));
@@ -87,8 +97,13 @@ export function Scene3D(props: Scene3DProps) {
           sceneRef.current?.dispose();
           sceneRef.current = create();
         });
+        let lastSave = 0;
         const loop = () => {
           const sc = sceneRef.current;
+          if (sc && opts.current.persistKey && sc.viewMode === 'livre' && performance.now() - lastSave > 1000) {
+            lastSave = performance.now();
+            savePersisted(`cam.${opts.current.persistKey}`, sc.getCameraPose());
+          }
           if (sc) {
             sc.layers = mergedLayers(opts.current);
             sc.realisticFog = opts.current.fog ?? true;
@@ -104,6 +119,8 @@ export function Scene3D(props: Scene3DProps) {
       cancelAnimationFrame(raf);
       ro?.disconnect();
       unsub?.();
+      const sc = sceneRef.current;
+      if (sc && opts.current.persistKey && sc.viewMode === 'livre') savePersisted(`cam.${opts.current.persistKey}`, sc.getCameraPose());
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };

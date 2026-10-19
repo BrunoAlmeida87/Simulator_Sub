@@ -202,5 +202,6 @@ export function buildScenario(id: string, baseConfig?: SimConfig, opts: Scenario
   engine.state.ledger.mass0 = engine.outputs.mp.internalMass;
   engine.state.autopilot.depthSet = Math.max(0, Math.round(engine.outputs.depthKeel));
   engine.state.autopilot.headingSet = Math.round(engine.outputs.euler.heading);
+  engine.state.trimRef = { a: engine.state.trim.tankA.mass, b: engine.state.trim.tankB.mass };
   return engine;
 }
