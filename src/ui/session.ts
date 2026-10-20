@@ -27,8 +27,11 @@ export interface SessionAutomation {
   checklist?: unknown;
 }
 
-/** Captura a sessão completa atual. */
-export function captureSession(name: string): SaveFile {
+/**
+ * Captura a sessão completa atual. forFile = arquivo para baixar/compartilhar
+ * (inclui a imagem do emblema personalizado; no navegador ela já está guardada).
+ */
+export function captureSession(name: string, forFile = false): SaveFile {
   const automation: SessionAutomation = {
     maneuver: maneuver.snapshot(),
     demo: demo.snapshot(),
@@ -39,7 +42,7 @@ export function captureSession(name: string): SaveFile {
   return serializeEngine(runner.engine, name, {
     timeScale: runner.timeScale,
     automation: automation as Record<string, unknown>,
-    identity: identity.get(),
+    identity: forFile ? identity.get() : { ...identity.get(), emblemImage: undefined },
     ui: { mapOrigin: mapOrigin.get() },
   });
 }

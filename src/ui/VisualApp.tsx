@@ -13,6 +13,7 @@ import type { ViewMode } from '../render3d/SubmarineScene';
 import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
 import { fmt } from './format';
+import { identity } from './identity';
 
 /** camadas que podem ser ligadas/desligadas nesta janela (independentes da janela de controle) */
 const LAYER_BTNS: [keyof SceneLayers, string][] = [
@@ -62,7 +63,7 @@ export function VisualApp() {
   const vb = verticalBalance(e);
   const connected = !!v?.connected;
   useEffect(() => {
-    document.title = 'SX-1 — visualização';
+    document.title = `${identity.get().name} — visualização`;
   }, []);
   return (
     <div className="visual-app">

@@ -4,7 +4,8 @@
  * Guardada no navegador, enviada à segunda janela e incluída nos arquivos
  * de sessão (para que o arquivo compartilhado mostre a mesma identificação).
  */
-export type EmblemKind = 'vasco' | 'nenhum' | 'personalizado';
+import type { EmblemKind } from '../render3d/sailArt';
+export type { EmblemKind };
 
 export interface Identity {
   /** nome exibido nos painéis, no mapa e na barra superior */

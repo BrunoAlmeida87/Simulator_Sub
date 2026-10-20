@@ -82,7 +82,8 @@ export type CommandSink = (text: string, group: string) => void;
 
 export class SimulationEngine {
   readonly config: SimConfig;
-  readonly env: Environment;
+  /** ambiente (reconstruído pelo comando 'environment' quando o operador altera T/S/fundo) */
+  env: Environment;
   readonly geom: HullGeometry;
   readonly light: ResolvedMass;
   readonly added: AddedMass;
@@ -122,6 +123,15 @@ export class SimulationEngine {
   log(text: string, group: string): void {
     this.state.commands.push({ t: this.state.t, text, group });
     if (this.state.commands.length > 500) this.state.commands.splice(0, this.state.commands.length - 500);
+  }
+
+  /**
+   * Reconstrói o ambiente a partir de config.environment (após alteração de
+   * temperatura, salinidade, termoclina ou fundo). O estado físico é mantido.
+   */
+  rebuildEnvironment(): void {
+    this.env = new Environment(this.config.environment);
+    this.computeOutputs();
   }
 
   /** Leituras dos sensores usadas pelo controle automático (não o estado real). */

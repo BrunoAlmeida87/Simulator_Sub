@@ -21,6 +21,8 @@ import { SafetyScreen } from './screens/SafetyScreen';
 import { View3DScreen } from './screens/View3DScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { ScenarioScreen } from './screens/ScenarioScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { useIdentity } from './appearance';
 import { AuxSystemsScreen } from './screens/AuxSystemsScreen';
 import { ValidationScreen } from './screens/ValidationScreen';
 import { HelpScreen } from './screens/HelpScreen';
@@ -46,7 +48,8 @@ const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'seguranca', n: '5', label: 'Segurança' },
   { id: 'v3d', n: '6', label: 'Visualização 3D' },
   { id: 'historico', n: '7', label: 'Histórico' },
-  { id: 'cenarios', label: 'Cenários e configuração' },
+  { id: 'cenarios', label: 'Cenários' },
+  { id: 'config', label: '⚙ Configurações' },
   { id: 'auxiliares', label: 'Sistemas auxiliares' },
   { id: 'validacao', label: 'Validação' },
   { id: 'ajuda', label: 'Guia' },
@@ -79,10 +82,11 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
   const unack = vis.filter((a) => !a.acked);
   const top = unack[0] ?? vis[0];
   const ui = useUi();
+  const id = useIdentity();
   return (
     <div className="topbar" ref={topRef}>
       <div className="brand">
-        <b>SX-1</b>
+        <b>{id.name}</b>
         <span>Simulador técnico de submarino · embarcação fictícia</span>
       </div>
       <div className="simctl">
@@ -286,6 +290,7 @@ export function App() {
     v3d: <View3DScreen />,
     historico: <HistoryScreen />,
     cenarios: <ScenarioScreen />,
+    config: <SettingsScreen />,
     auxiliares: <AuxSystemsScreen />,
     validacao: <ValidationScreen />,
     ajuda: <HelpScreen />,

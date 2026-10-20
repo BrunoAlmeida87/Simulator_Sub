@@ -16,6 +16,7 @@ import { route, mapOrigin } from '../routeNav';
 import { bearingRange, contactsAt, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
 import { fmt, fmtTime } from '../format';
+import { useIdentity } from '../appearance';
 
 type Mode = 'nav' | 'rota' | 'medir' | 'origem';
 type Base = 'tatico' | 'mapa' | 'relevo' | 'satelite' | 'nenhum';
@@ -65,6 +66,7 @@ function baseIcon(): L.DivIcon {
 
 export function TacticalMapScreen() {
   const e = useSim(4);
+  const id = useIdentity();
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => route.subscribe(force), []);
   const box = useRef<HTMLDivElement>(null);
@@ -183,7 +185,7 @@ export function TacticalMapScreen() {
       }
     // próprio navio
     L.marker(ll(pos), { icon: ownIcon(), zIndexOffset: 1000 })
-      .bindTooltip(`SX-1 · ${o.depthKeel.toFixed(0)} m · ${toKnots(st.body.vel.x).toFixed(1)} nós · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
+      .bindTooltip(`${id.name} · ${o.depthKeel.toFixed(0)} m · ${toKnots(st.body.vel.x).toFixed(1)} nós · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
       .addTo(g);
     // contatos
     for (const c of contactsAt(st.t)) {
@@ -271,7 +273,7 @@ export function TacticalMapScreen() {
         )}
       </div>
       <div className="tmap-side">
-        <Panel title="Próprio navio — SX-1">
+        <Panel title={`Próprio navio — ${id.name}`}>
           <table className="t">
             <tbody>
               <tr>

@@ -14,6 +14,8 @@ import type { PickTarget } from './ops/opsBus';
 import { tours } from './tours';
 import { maneuver, MANEUVER_STEPS } from './maneuvers';
 import { visibleAlarms } from '../sim/systems/alarms';
+import { identity, type Identity } from './identity';
+import { graphics, type GraphicsSettings } from './graphics';
 
 const CH = 'sx1-sync-v1';
 
@@ -26,7 +28,21 @@ export interface OverlayData {
 type Msg =
   | { type: 'hello'; id: number }
   | { type: 'engine'; id: number; file: SaveFile }
-  | { type: 'state'; id: number; state: SimState; waves: unknown; running: boolean; timeScale: number; layers: SceneLayers | null; view: ViewMode | null; overlay: OverlayData; sent: number }
+  | {
+      type: 'state';
+      id: number;
+      state: SimState;
+      waves: unknown;
+      running: boolean;
+      timeScale: number;
+      layers: SceneLayers | null;
+      view: ViewMode | null;
+      overlay: OverlayData;
+      sent: number;
+      /** identificação (sem a imagem do emblema) e preferências gráficas da janela de controle */
+      vis?: { identity: Partial<Identity>; graphics: GraphicsSettings };
+    }
+  | { type: 'visImg'; img: string | null }
   | { type: 'pick'; target: PickTarget | null }
   | { type: 'toggleRun' }
   | { type: 'bye' };
@@ -59,6 +75,7 @@ export class SyncMaster {
   private lastSend = 0;
   private lastTrail = 0;
   viewers = 0;
+  private lastImg: string | null | undefined = undefined;
   onPick: ((t: PickTarget | null) => void) | null = null;
 
   constructor(private runner: SimRunner) {
@@ -70,6 +87,7 @@ export class SyncMaster {
         this.viewers = 1;
         // só reenvia o motor completo se a visualização não tem o atual
         if (this.lastEngine !== this.runner.engine || m.id !== this.engineId) this.sendEngine();
+        if (m.id !== this.engineId) this.lastImg = undefined;
       } else if (m.type === 'pick') this.onPick?.(m.target);
       else if (m.type === 'toggleRun') {
         this.runner.running = !this.runner.running;
@@ -130,7 +148,13 @@ export class SyncMaster {
       view: visualOut.view,
       overlay: this.overlay(),
       sent: now,
+      vis: { identity: { ...identity.get(), emblemImage: undefined }, graphics: graphics.get() },
     } satisfies Msg);
+    const img = identity.get().emblemImage;
+    if (img !== this.lastImg) {
+      this.lastImg = img;
+      this.ch.postMessage({ type: 'visImg', img } satisfies Msg);
+    }
   }
 }
 
@@ -211,6 +235,12 @@ export class SyncViewer {
       this.layers = m.layers;
       this.view = m.view;
       this.overlay = m.overlay;
+      if (m.vis) {
+        identity.set(m.vis.identity, false);
+        graphics.set(m.vis.graphics, false);
+      }
+    } else if (m.type === 'visImg') {
+      identity.set({ emblemImage: m.img }, false);
     }
   }
 

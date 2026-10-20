@@ -6,7 +6,8 @@
  */
 import { useEffect, useReducer, useState } from 'react';
 import { cmd, runner, useSim } from '../store';
-import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
+import { Scene3D } from '../components/Scene3D';
+import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
@@ -16,7 +17,6 @@ import { TankSelector } from '../components/TankSelector';
 import { VectorSelector } from '../components/VectorSelector';
 import { TourCard, TourList } from '../components/TourCard';
 import { tours } from '../tours';
-import type { OceanQuality } from '../../render3d/Ocean';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { FORCE_STYLE, TANK_STYLE, type SceneLayers, type TankCategory } from '../../render3d/layers';
 import { pres, PRESETS, METRICS, takeMetrics, mbtGroup } from '../presentation';
@@ -191,12 +191,8 @@ function Compare({ e }: { e: SimulationEngine }) {
 export function PresentationScreen() {
   const e = useSim(8);
   const p = usePres();
-  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
+  const [quality, setQuality] = useQuality();
   const [presetSel, setPresetSel] = useState(PRESETS.some((x) => x.id === p.presetId) ? p.presetId! : PRESETS[0].id);
-  const setQuality = (q: OceanQuality) => {
-    saveQuality(q);
-    setQualityS(q);
-  };
   useEffect(() => pres.ensureInitial(runner), []);
   const L = p.layers;
   const setL = (k: keyof SceneLayers, v: unknown) => pres.setLayers({ [k]: v } as Partial<SceneLayers>);

@@ -11,9 +11,9 @@ import { usePersisted } from '../persist';
 import { TankSelector } from '../components/TankSelector';
 import { VectorSelector } from '../components/VectorSelector';
 import { cmd, runner, useSim } from '../store';
-import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
+import { Scene3D } from '../components/Scene3D';
+import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
-import type { OceanQuality } from '../../render3d/Ocean';
 import { DepthTape } from '../components/gauges';
 import { NumSet, TELEGRAPH } from '../components/Controls';
 import type { ViewMode } from '../../render3d/SubmarineScene';
@@ -194,11 +194,7 @@ export function PilotScreen() {
     if (v.hiddenVectors !== undefined) setHiddenV(v.hiddenVectors);
   };
   const [marks, setMarks] = usePersisted('pilot.marks', true);
-  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
-  const setQuality = (q: OceanQuality) => {
-    saveQuality(q);
-    setQualityS(q);
-  };
+  const [quality, setQuality] = useQuality();
   const o = e.outputs;
   const ap = e.state.autopilot;
   const st = navStatus(e);

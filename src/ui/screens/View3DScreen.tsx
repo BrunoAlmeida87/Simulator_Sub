@@ -1,13 +1,12 @@
 /** Tela 6 — Visualização 3D. */
-import { useState } from 'react';
 import { usePersisted } from '../persist';
 import { TankSelector } from '../components/TankSelector';
 import { VectorSelector } from '../components/VectorSelector';
 import { useSim } from '../store';
 import type { ViewMode } from '../../render3d/SubmarineScene';
-import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
+import { Scene3D } from '../components/Scene3D';
+import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
-import type { OceanQuality } from '../../render3d/Ocean';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 
@@ -33,11 +32,7 @@ export function View3DScreen() {
   const [cut, setCut] = usePersisted('v3d.cut', false);
   const [tankF, setTankF] = usePersisted<string[] | null>('v3d.tankFilter', null);
   const [selOpen, setSelOpen] = usePersisted('v3d.tankSelOpen', true);
-  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
-  const setQuality = (q: OceanQuality) => {
-    saveQuality(q);
-    setQualityS(q);
-  };
+  const [quality, setQuality] = useQuality();
   const [trail, setTrail] = usePersisted('v3d.trail', true);
   const [fog, setFog] = usePersisted('v3d.fog', true);
   const [vec, setVec] = usePersisted('v3d.vec', false);

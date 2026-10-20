@@ -69,4 +69,18 @@ describe('Fundo do mar configurável', () => {
     expect(e.outputs.depthKeel).toBeGreaterThan(118);
     expect(e.outputs.depthKeel).toBeLessThan(121);
   });
+
+  it('comando "environment" altera fundo e água sem reiniciar, mantendo o estado e registrando no histórico', () => {
+    const e = buildScenario('submerso_50');
+    e.advanceSim(10);
+    const z = e.state.body.pos.z;
+    const t = e.state.t;
+    applyCommand(e, { type: 'environment', patch: { bottom: { mode: 'relevo', baseDepth: 500 }, surfaceTemperature: 26 } });
+    expect(e.state.t).toBe(t);
+    expect(e.state.body.pos.z).toBe(z);
+    expect(e.config.environment.bottom.mode).toBe('relevo');
+    expect(e.outputs.bottomDepth).toBeGreaterThan(400);
+    expect(e.env.temperatureAt(0)).toBeCloseTo(26, 1);
+    expect(e.state.commands.at(-1)?.text).toMatch(/Ambiente alterado/);
+  });
 });

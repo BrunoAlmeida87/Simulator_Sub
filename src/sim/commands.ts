@@ -9,6 +9,28 @@ import { newDosing } from './systems/internalTanks';
 import { acknowledgeAlarm } from './systems/alarms';
 import { bumplessInit } from './systems/autopilot';
 import { sensorDef } from './systems/sensors';
+import type { BottomConfig, EnvironmentConfig } from './environment/environment';
+
+/** Alterações de ambiente aplicáveis durante a simulação (o estado é mantido). */
+export type EnvironmentPatch = Partial<Pick<EnvironmentConfig, 'salinity' | 'deepSalinity' | 'surfaceTemperature' | 'deepTemperature' | 'thermoclineDepth' | 'thermoclineThickness' | 'magneticDeclination'>> & {
+  bottom?: Partial<BottomConfig>;
+};
+
+const ENV_LABEL: Record<string, [string, string]> = {
+  salinity: ['salinidade superficial', 'PSU'],
+  deepSalinity: ['salinidade profunda', 'PSU'],
+  surfaceTemperature: ['temperatura superficial', '°C'],
+  deepTemperature: ['temperatura profunda', '°C'],
+  thermoclineDepth: ['termoclina', 'm'],
+  thermoclineThickness: ['espessura da termoclina', 'm'],
+  magneticDeclination: ['declinação magnética', '°'],
+  'bottom.mode': ['modo do fundo', ''],
+  'bottom.baseDepth': ['fundo na origem', 'm'],
+  'bottom.slopeNorth': ['declive N', 'm/km'],
+  'bottom.slopeEast': ['declive L', 'm/km'],
+  'bottom.roughness': ['rugosidade', 'm'],
+  'bottom.wavelength': ['comprimento do relevo', 'm'],
+};
 
 export type FluidSystem = 'compensation' | 'trim' | 'heel';
 
@@ -32,6 +54,7 @@ export type Command =
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
   | { type: 'seaState'; value: number; direction?: number }
+  | { type: 'environment'; patch: EnvironmentPatch }
   | { type: 'demoWeight'; x?: number; mass?: number }
   | { type: 'failure'; target: string; active: boolean; param?: number | string };
 
@@ -220,6 +243,30 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       e.env.setSeaState(c.value, c.direction);
       const w = e.env.waves;
       log(`Estado do mar: ${Math.round(c.value)} (Hs = ${w.hs.toFixed(1)} m, Tp = ${w.tp.toFixed(1)} s)`, 'Ambiente');
+      break;
+    }
+    case 'environment': {
+      const env = e.config.environment;
+      const changes: string[] = [];
+      const note = (key: string, v: unknown) => {
+        const [lbl, unit] = ENV_LABEL[key] ?? [key, ''];
+        changes.push(`${lbl} ${typeof v === 'number' ? Number(v.toFixed(2)) : String(v)}${unit ? ' ' + unit : ''}`);
+      };
+      const { bottom, ...rest } = c.patch;
+      for (const [k, val] of Object.entries(rest)) {
+        if (typeof val !== 'number' || !Number.isFinite(val)) continue;
+        (env as unknown as Record<string, number>)[k] = val;
+        note(k, val);
+      }
+      if (bottom) {
+        for (const [k, val] of Object.entries(bottom)) {
+          if (k === 'mode' ? val !== 'uniforme' && val !== 'relevo' : typeof val !== 'number' || !Number.isFinite(val)) continue;
+          (env.bottom as unknown as Record<string, unknown>)[k] = k === 'baseDepth' ? Math.max(8, val as number) : val;
+          note('bottom.' + k, val);
+        }
+      }
+      e.rebuildEnvironment();
+      log(`Ambiente alterado (estado mantido): ${changes.join(', ') || 'sem mudanças'}`, 'Ambiente');
       break;
     }
     case 'demoWeight': {

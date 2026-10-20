@@ -7,24 +7,14 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 import { loadPersisted, savePersisted } from '../persist';
 import { visualOut, isVisualWindow } from '../sync';
 import type { PickTarget } from '../ops/opsBus';
+import { graphics } from '../graphics';
 
-const K_Q = 'sx1.quality.v1';
+/** qualidade gráfica preferida (guardada nas preferências gráficas) */
 export function defaultQuality(): OceanQuality {
-  try {
-    const q = localStorage.getItem(K_Q);
-    if (q === 'baixa' || q === 'media' || q === 'alta') return q;
-  } catch {
-    /* sem armazenamento */
-  }
-  const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
-  return coarse || window.innerWidth < 900 ? 'baixa' : 'alta';
+  return graphics.get().quality;
 }
 export function saveQuality(q: OceanQuality): void {
-  try {
-    localStorage.setItem(K_Q, q);
-  } catch {
-    /* sem armazenamento */
-  }
+  graphics.set({ quality: q });
 }
 
 export interface Scene3DProps {

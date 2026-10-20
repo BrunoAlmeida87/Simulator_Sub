@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-export type ScreenId = 'pilotagem' | 'apresentacao' | 'mapa' | 'energia' | 'comando' | 'lastro' | 'trim' | 'propulsao' | 'seguranca' | 'v3d' | 'historico' | 'cenarios' | 'auxiliares' | 'validacao' | 'ajuda';
+export type ScreenId = 'pilotagem' | 'apresentacao' | 'mapa' | 'energia' | 'comando' | 'lastro' | 'trim' | 'propulsao' | 'seguranca' | 'v3d' | 'historico' | 'cenarios' | 'config' | 'auxiliares' | 'validacao' | 'ajuda';
 
 export interface UiState {
   screen: ScreenId;
