@@ -537,3 +537,58 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .pd-wash { stroke: #9fdcff; stroke-width: 10; stroke-dasharray: 4 6; fill: none; }
 @keyframes pspin { to { transform: rotate(360deg); } }
 @keyframes pshaft { to { stroke-dashoffset: -14; } }
+
+/* ---------- CELULAR ----------
+ * Valem só em tela de TOQUE pequena (celular em pé ou deitado). No PC (mouse)
+ * nenhuma regra deste bloco se aplica, em qualquer tamanho de janela; fora
+ * dele, os elementos exclusivos do celular ficam ocultos e os contêineres
+ * novos não existem para o layout (display: contents). */
+.phone-only { display: none !important; }
+.ph-wrap, .wide-diagram { display: contents; }
+@media (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (max-height: 520px) {
+  .phone-only { display: inline-flex !important; }
+  /* cabeçalho compacto: nome, executar/pausar, relógio e ☰ (o resto abre no ☰); rola com a página */
+  .topbar { position: static; gap: 6px 8px; padding: 6px 8px; }
+  .topbar.ph-collapsed .ph-more { display: none !important; }
+  .brand { flex: 1 1 0; min-width: 0; }
+  .brand b { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .simctl { gap: 6px; }
+  .clock { min-width: 0; font-size: 13px; }
+  .ph-toggle { min-width: 40px; justify-content: center; }
+  /* primeira linha: executar/pausar, relógio e ☰; o que o ☰ abre vem depois */
+  .simctl > * { order: 3; }
+  .simctl > .btn:first-child { order: 0; }
+  .simctl > .clock { order: 1; }
+  .simctl > .ph-toggle { order: 2; }
+  .strip { order: 10; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 4px 14px; padding-top: 3px; border-top: 1px solid #172536; scrollbar-width: none; }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip .kv { flex: none; flex-direction: row; gap: 5px; align-items: baseline; min-width: 0; }
+  .annunciator { order: 11; flex-basis: 100%; }
+  .annunciator .msg { max-width: none; flex: 1; min-width: 0; }
+  .topbar.ph-collapsed .annunciator:has(> .badge.ok) { display: none; }
+  .tabs { top: 0; padding: 0 4px; }
+  .tabs button { padding: 9px 10px; }
+  /* cena 3D: controles recolhidos no botão "⚙ Vista" para não cobrir a cena */
+  .overlay-ctl { max-width: calc(100% - 16px); }
+  .overlay-ctl:not(.ph-open) > :not(.ovl-toggle) { display: none !important; }
+  .overlay-ctl .ovl-toggle { background: rgba(10, 16, 23, 0.85); align-self: flex-end; }
+  .overlay-ctl.ph-open { left: 8px; right: 8px; max-width: none; max-height: calc(100% - 16px); overflow-y: auto; background: rgba(8, 13, 19, 0.94); border: 1px solid var(--line); border-radius: 6px; padding: 6px; align-items: stretch; z-index: 5; }
+  .overlay-ctl.ph-open .seg, .overlay-ctl.ph-open .btngroup, .overlay-ctl.ph-open .row { flex-wrap: wrap; justify-content: flex-start; }
+  .overlay-ctl.ph-open select { max-width: 100%; }
+  .overlay-ctl .seg button { padding: 6px 9px; }
+  /* diagramas largos: largura mínima e rolagem lateral, texto legível */
+  .wide-diagram { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .wide-diagram > svg { min-width: var(--dmin); }
+  .wide-diagram::after { content: '↔ arraste para o lado para ver o diagrama inteiro'; display: block; position: sticky; left: 0; padding: 2px 4px; font-size: 11px; color: var(--muted); }
+  .eflow-svg { min-height: 0; max-height: none; height: auto; }
+  /* quadro de estado da pilotagem: com os controles recolhidos, usa quase toda a largura */
+  .pilot-hud, .ops .pilot-hud { top: 8px; right: auto; max-width: calc(100% - 96px); }
+  /* botões de texto longo quebram a linha em vez de alargar a página */
+  .panel .btn { white-space: normal; max-width: 100%; }
+}
+/* celular deitado: a cena 3D ocupa a altura útil (sobra uma faixa para rolar a página) */
+@media (pointer: coarse) and (max-height: 520px) {
+  .view3d, .pilot-view .view3d, .ops-view .view3d, .pres-view .view3d { height: calc(100vh - 96px); height: calc(100svh - 96px); min-height: 220px; }
+  .pres-view { position: static; }
+  .helm-view { height: calc(100vh - 140px); height: calc(100svh - 140px); }
+}

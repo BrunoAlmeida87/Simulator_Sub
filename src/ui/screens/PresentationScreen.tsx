@@ -27,6 +27,7 @@ import { tankVolume } from '../../sim/systems/internalTanks';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtTime } from '../format';
 import { toKnots } from '../../sim/units';
+import { OverlayCtl } from '../components/OverlayCtl';
 
 const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
@@ -215,9 +216,9 @@ export function PresentationScreen() {
               <ForceHud e={e} gain={gainTxt} />
             </div>
           )}
-          <div className="overlay-ctl">
+          <OverlayCtl>
             <SeaControls quality={quality} setQuality={setQuality} />
-          </div>
+          </OverlayCtl>
           <div className="pres-bottom only-wide">{tours.active || tours.finished ? <TourCard /> : <ManeuverStatus />}</div>
         </Scene3D>
         <div className="only-narrow pres-under">

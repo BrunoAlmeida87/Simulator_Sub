@@ -4,6 +4,7 @@ import { Panel } from '../components/Panel';
 import { bankPressure } from '../../sim/systems/hpAir';
 import { fmt, fmtPower, fmtMass } from '../format';
 import type { SimulationEngine } from '../../sim/core/engine';
+import { WideDiagram } from '../components/WideDiagram';
 
 type Status = 'IMPLEMENTADO' | 'PARCIAL' | 'FUTURO';
 
@@ -115,22 +116,24 @@ export function AuxSystemsScreen() {
   return (
     <div className="grid g2">
       <Panel title="Arquitetura de sistemas e interligações" className="span-all">
-        <svg viewBox="0 0 720 320" className="svgbox">
-          {EDGES.map(([a, b], i) => (
-            <line key={i} x1={pos[a].x} y1={pos[a].y} x2={pos[b].x} y2={pos[b].y} stroke="#2c4260" strokeWidth="2" strokeDasharray={pos[a].st === 'FUTURO' || pos[b].st === 'FUTURO' ? '5 4' : undefined} />
-          ))}
-          {NODES.map((n) => (
-            <g key={n.id}>
-              <rect x={n.x - 62} y={n.y - 17} width="124" height="34" rx="6" fill="#111b26" stroke={COLOR[n.st]} strokeWidth="1.6" strokeDasharray={n.st === 'FUTURO' ? '5 4' : undefined} />
-              <text x={n.x} y={n.y - 1} textAnchor="middle" fontSize="11.5" fill="#d8e4f0">
-                {n.label}
-              </text>
-              <text x={n.x} y={n.y + 11} textAnchor="middle" fontSize="8.5" fill={COLOR[n.st]}>
-                {n.st}
-              </text>
-            </g>
-          ))}
-        </svg>
+        <WideDiagram minWidth={600}>
+          <svg viewBox="0 0 720 320" className="svgbox">
+            {EDGES.map(([a, b], i) => (
+              <line key={i} x1={pos[a].x} y1={pos[a].y} x2={pos[b].x} y2={pos[b].y} stroke="#2c4260" strokeWidth="2" strokeDasharray={pos[a].st === 'FUTURO' || pos[b].st === 'FUTURO' ? '5 4' : undefined} />
+            ))}
+            {NODES.map((n) => (
+              <g key={n.id}>
+                <rect x={n.x - 62} y={n.y - 17} width="124" height="34" rx="6" fill="#111b26" stroke={COLOR[n.st]} strokeWidth="1.6" strokeDasharray={n.st === 'FUTURO' ? '5 4' : undefined} />
+                <text x={n.x} y={n.y - 1} textAnchor="middle" fontSize="11.5" fill="#d8e4f0">
+                  {n.label}
+                </text>
+                <text x={n.x} y={n.y + 11} textAnchor="middle" fontSize="8.5" fill={COLOR[n.st]}>
+                  {n.st}
+                </text>
+              </g>
+            ))}
+          </svg>
+        </WideDiagram>
         <div className="note">Todos os módulos compartilham o mesmo estado físico central. Novos sistemas são adicionados como módulos que leem/escrevem nesse estado e registram suas cargas elétricas, consumos e massas.</div>
       </Panel>
       {MODULES.map((m) => (

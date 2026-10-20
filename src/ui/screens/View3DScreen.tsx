@@ -10,6 +10,7 @@ import { SeaControls } from '../components/SeaControls';
 import { TrimGainSelect } from '../components/TrimGain';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
+import { OverlayCtl } from '../components/OverlayCtl';
 
 const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'piloto', label: 'Lateral' },
@@ -94,7 +95,7 @@ export function View3DScreen() {
         </div>
         <div className="line">TLP {((Object.values(s.ballast).reduce((a, b) => a + b.water, 0) / e.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0)) * 100).toFixed(0)} % cheios</div>
       </div>
-      <div className="overlay-ctl">
+      <OverlayCtl>
         <SeaControls quality={quality} setQuality={setQuality} />
         <div className="seg">
           {VIEWS.map((v) => (
@@ -182,7 +183,7 @@ export function View3DScreen() {
             {selOpen && <TankSelector e={e} value={tankF} onChange={setTankF} />}
           </div>
         )}
-      </div>
+      </OverlayCtl>
       <div className="hud" style={{ bottom: 8, left: 10, color: '#8399b1', fontSize: 11 }}>
         Arraste para girar · roda/pinça para aproximar · botão direito/dois dedos para deslocar. As ondas do 3D são as mesmas da física (estado do mar no seletor).
       </div>

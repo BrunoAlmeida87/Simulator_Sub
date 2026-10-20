@@ -242,6 +242,14 @@ Na tela **Segurança**, injete:
 
 Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O painel mostra função, variáveis ao vivo (MED/CALC/CMD/VERD), equações, consequências previstas, gráfico antes × depois e a decomposição de forças e momentos (por que sobe, por que muda o pitch, por que guina, por que aderna).
 
+## Celular
+
+A página se adapta à tela do celular, em pé ou deitado (telas de toque pequenas). No PC nada muda, em nenhum tamanho de janela.
+- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a barra de abas fica presa no topo.
+- **Cenas 3D**: os controles de vista, camadas, mar, gráfico e luz ficam no botão **⚙ Vista**, para não cobrir a cena. Com o celular deitado, a cena ocupa a altura da tela (sobra uma faixa para rolar a página).
+- **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
+- Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.
+
 ## Aplicativo Windows
 
 Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVEL-WINDOWS.md). O aplicativo inclui a simulação local e mantém os comandos descritos neste guia. O botão **2ª janela** abre uma visualização para outro monitor; ao fechar a janela principal, a visualização também é fechada. Os fundos do mapa precisam de internet.

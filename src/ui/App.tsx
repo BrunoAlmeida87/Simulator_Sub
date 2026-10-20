@@ -87,8 +87,10 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
   const top = unack[0] ?? vis[0];
   const ui = useUi();
   const id = useIdentity();
+  // celular: controles secundários recolhidos atrás de "☰" (no PC tudo fica visível, como sempre)
+  const [phMore, setPhMore] = useState(false);
   return (
-    <div className="topbar" ref={topRef}>
+    <div className={`topbar${phMore ? '' : ' ph-collapsed'}`} ref={topRef}>
       <div className="brand">
         <b>{id.name}</b>
         <span>Simulador técnico de submarino · embarcação fictícia</span>
@@ -97,14 +99,14 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
         <button className={`btn ${runner.running ? 'on' : 'ok'}`} onClick={() => ((runner.running = !runner.running), runner.notify())} title="Executar/pausar (Espaço)">
           {runner.running ? '❚❚ Pausar' : '▶ Executar'}
         </button>
-        <button className="btn" disabled={runner.running} onClick={() => runner.stepOnce(1)} title="Avançar um passo fixo">
+        <button className="btn ph-more" disabled={runner.running} onClick={() => runner.stepOnce(1)} title="Avançar um passo fixo">
           +1 passo
         </button>
-        <button className="btn" disabled={runner.running} onClick={() => runner.stepOnce(50)} title="Avançar 1 s">
+        <button className="btn ph-more" disabled={runner.running} onClick={() => runner.stepOnce(50)} title="Avançar 1 s">
           +1 s
         </button>
         <button
-          className="btn warn"
+          className="btn warn ph-more"
           onClick={() => {
             demo.stop(runner);
             maneuver.cancel(runner);
@@ -115,15 +117,22 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
         >
           ↺ Reiniciar
         </button>
-        <SimSpeedButtons />
+        <span className="ph-wrap ph-more">
+          <SimSpeedButtons />
+        </span>
         <span className="clock" title="Tempo de simulação">
           {fmtTime(s.t)}
         </span>
         {runner.running && runner.lagging && <span className="badge warn">CPU: tempo reduzido</span>}
-        <ScenarioPicker current={s.scenarioId} />
+        <span className="ph-wrap ph-more">
+          <ScenarioPicker current={s.scenarioId} />
+        </span>
         <RecIndicator />
-        <button className={`btn ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
+        <button className={`btn ph-more ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
           ⧉ 2ª janela{link.master?.connected ? ' ✓' : ''}
+        </button>
+        <button className={`btn phone-only ph-toggle ${phMore ? 'on' : ''}`} onClick={() => setPhMore(!phMore)} aria-expanded={phMore} title="Mais controles (cenário, passos, aceleração, 2ª janela, engenharia)">
+          {phMore ? '✕' : '☰'}
         </button>
       </div>
       <div className="strip">
@@ -195,7 +204,7 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           <span className="badge ok">SEM ALARMES</span>
         )}
       </div>
-      <div className="row" style={{ gap: 6 }}>
+      <div className="row ph-more" style={{ gap: 6 }}>
         <button className={`btn ${ui.eng ? 'on' : ''}`} onClick={() => ui.setEng(!ui.eng)} title="Modo engenharia (I)">
           ⓘ Engenharia
         </button>
