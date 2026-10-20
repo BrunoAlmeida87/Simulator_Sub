@@ -84,7 +84,8 @@ export class RouteNav {
     this.emit();
   }
 
-  tick(r: SimRunner, origin: LatLon): void {
+  /** origem: a mesma do mapa, do 3D e da física (padrão: a da simulação em curso) */
+  tick(r: SimRunner, origin: LatLon = geoOriginOf(r.engine)): void {
     if (!this.active || replayLock.active) return;
     const e = r.engine;
     const t = e.state.t;
