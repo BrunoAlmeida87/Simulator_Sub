@@ -13,6 +13,35 @@ import type { TransferSystemConfig } from '../../sim/config/types';
 import type { TransferState } from '../../sim/core/state';
 import { RAD } from '../../sim/core/math';
 import { fmt, fmtMass, fmtMoment } from '../format';
+import { draftInfo } from '../../sim/drafts';
+
+/** Calados nas marcas e por que o trim quase não aparece na superfície. */
+function DraftPanel({ e }: { e: SimulationEngine }) {
+  const d = draftInfo(e);
+  const cm = (m: number) => `${fmt(m * 100, 1)} cm`;
+  return (
+    <Panel title="Calados e trim (marcas pintadas no casco)" inspect="trim">
+      <div className="readouts">
+        <Readout label="Calado a vante (x = +25 m)" value={d.fwd} unit="m" digits={2} kind="CALC" />
+        <Readout label="Calado a ré (x = −13,4 m)" value={d.aft} unit="m" digits={2} kind="CALC" />
+        <Readout label={`Trim (AR − AV) ${d.trim > 0.005 ? 'pela popa' : d.trim < -0.005 ? 'pela proa' : ''}`} value={cm(d.trim)} kind="CALC" />
+        <Readout label="Rigidez de trim atual" value={d.stiffness / 1e6} unit="MN·m/rad" digits={1} kind="CALC" />
+        <Readout label="Rigidez submersa (W·BG)" value={d.submergedStiffness / 1e6} unit="MN·m/rad" digits={1} kind="CALC" />
+        <Readout label="Momento para 1 cm de trim" value={d.mtc} unit="t·m" digits={1} kind="CALC" />
+      </div>
+      <div className="note">
+        {d.surfaced ? (
+          <>
+            <b>Na superfície</b> o plano de flutuação resiste à inclinação: a rigidez de trim é <b>{fmt(d.ratio, 0)}×</b> a submersa. O mesmo deslocamento de peso que embica o submarino vários graus submerso muda o calado
+            apenas alguns centímetros aqui (5 t levadas 23 m a vante: ~0,09° e ~6 cm entre as marcas). Para ver: vista <b>Calado</b>, camada <b>Calado/trim</b> e, se quiser, a ampliação visual do trim (identificada na tela).
+          </>
+        ) : (
+          <>Submerso não há plano de flutuação: só W·BG resiste ao trim, por isso pequenas massas deslocadas produzem ângulos grandes.</>
+        )}
+      </div>
+    </Panel>
+  );
+}
 
 export function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' | 'heel' }) {
   const c: TransferSystemConfig = e.vessel[sys];
@@ -222,6 +251,7 @@ export function TrimHeelScreen() {
       <Panel title="Trim: comandos" inspect="trim">
         <TransferControls e={e} sys="trim" />
       </Panel>
+      <DraftPanel e={e} />
       <Panel title="Peso deslocável (demonstração de trim)" inspect="trim">
         <TrimDemoPanel e={e} />
       </Panel>

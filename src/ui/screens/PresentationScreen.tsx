@@ -6,8 +6,10 @@
  */
 import { useEffect, useReducer, useState } from 'react';
 import { cmd, runner, useSim } from '../store';
-import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
+import { Scene3D } from '../components/Scene3D';
+import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
+import { TrimGainSelect } from '../components/TrimGain';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
@@ -16,7 +18,6 @@ import { TankSelector } from '../components/TankSelector';
 import { VectorSelector } from '../components/VectorSelector';
 import { TourCard, TourList } from '../components/TourCard';
 import { tours } from '../tours';
-import type { OceanQuality } from '../../render3d/Ocean';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { FORCE_STYLE, TANK_STYLE, type SceneLayers, type TankCategory } from '../../render3d/layers';
 import { pres, PRESETS, METRICS, takeMetrics, mbtGroup } from '../presentation';
@@ -32,6 +33,8 @@ const FRAMES: [ViewMode, string, string][] = [
   ['submerso', 'Submerso', 'Operação submersa, ao nível do casco'],
   ['tanques', 'Tanques', 'Inspeção dos tanques e circuitos no corte'],
   ['forcas', 'Forças', 'Vista lateral para os vetores de peso, empuxo e resultante'],
+  ['calado', 'Calado', 'Lateral rente à água: calados a vante e a ré e linha d’água (trim na superfície)'],
+  ['navio', 'Navio', 'Mira o navio (contato da mesa tática) mais próximo'],
   ['piloto', 'Seguir', 'Câmera lateral que acompanha o submarino'],
   ['perseguicao', 'Perseguição', 'Câmera atrás do submarino'],
   ['fixa', 'Fixa', 'Câmera parada no cenário: o submarino atravessa o quadro'],
@@ -51,6 +54,8 @@ const LAYER_LIST: [keyof SceneLayers, string][] = [
   ['trail', 'Trajetória'],
   ['presLight', 'Iluminação'],
   ['noWater', 'Sem água'],
+  ['trimRef', 'Calado/trim'],
+  ['ships', 'Navios'],
 ];
 
 function usePres() {
@@ -191,12 +196,8 @@ function Compare({ e }: { e: SimulationEngine }) {
 export function PresentationScreen() {
   const e = useSim(8);
   const p = usePres();
-  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
+  const [quality, setQuality] = useQuality();
   const [presetSel, setPresetSel] = useState(PRESETS.some((x) => x.id === p.presetId) ? p.presetId! : PRESETS[0].id);
-  const setQuality = (q: OceanQuality) => {
-    saveQuality(q);
-    setQualityS(q);
-  };
   useEffect(() => pres.ensureInitial(runner), []);
   const L = p.layers;
   const setL = (k: keyof SceneLayers, v: unknown) => pres.setLayers({ [k]: v } as Partial<SceneLayers>);
@@ -297,6 +298,11 @@ export function PresentationScreen() {
               </button>
             ))}
           </div>
+          {L.trimRef && (
+            <div className="mt8">
+              <TrimGainSelect />
+            </div>
+          )}
           {(L.vectors || L.hydroVectors || L.trimVectors) && (
             <div className="mt8">
               <div className="subtle mb4">Vetores visíveis</div>

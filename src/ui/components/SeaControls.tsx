@@ -1,10 +1,13 @@
-/** Seletores de estado do mar (física + visual) e de qualidade gráfica. */
+/** Seletores de estado do mar (física + visual), de qualidade gráfica e de iluminação (visuais). */
 import { cmd, useSim } from '../store';
 import { SEA_STATES } from '../../sim/environment/waves';
 import type { OceanQuality } from '../../render3d/Ocean';
+import type { SceneLighting } from '../../render3d/lighting';
+import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS } from '../graphics';
 
 export function SeaControls({ quality, setQuality }: { quality: OceanQuality; setQuality: (q: OceanQuality) => void }) {
   const e = useSim(4);
+  const g = useGraphics();
   const ss = Math.round(e.env.cfg.waves?.seaState ?? 0);
   return (
     <div className="seg" style={{ alignItems: 'center' }}>
@@ -22,6 +25,19 @@ export function SeaControls({ quality, setQuality }: { quality: OceanQuality; se
         <option value="baixa">Gráfico: baixo</option>
         <option value="media">Gráfico: médio</option>
         <option value="alta">Gráfico: alto</option>
+      </select>
+      <select
+        value={g.lighting}
+        onChange={(ev) => graphics.set({ lighting: ev.target.value as SceneLighting })}
+        style={{ border: 'none', fontSize: 11 }}
+        aria-label="Iluminação da cena"
+        title="Iluminação da cena (só visual): Natural escurece com a profundidade; Clara destaca o submarino; Estúdio para projetor"
+      >
+        {LIGHTINGS.map((k) => (
+          <option key={k} value={k}>
+            Luz: {LIGHTING_LABELS[k].toLowerCase()}
+          </option>
+        ))}
       </select>
     </div>
   );

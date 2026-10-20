@@ -82,7 +82,8 @@ export type CommandSink = (text: string, group: string) => void;
 
 export class SimulationEngine {
   readonly config: SimConfig;
-  readonly env: Environment;
+  /** ambiente (reconstruído pelo comando 'environment' quando o operador altera T/S/fundo) */
+  env: Environment;
   readonly geom: HullGeometry;
   readonly light: ResolvedMass;
   readonly added: AddedMass;
@@ -119,9 +120,33 @@ export class SimulationEngine {
     return this.config.vessel;
   }
 
+  /**
+   * GANCHOS DE GRAVAÇÃO/REPRODUÇÃO (não alteram a física):
+   *  - commandGate: se definido e retornar false, o comando é recusado
+   *    (a reprodução bloqueia comandos que não sejam os gravados);
+   *  - commandTap: recebe cada comando aceito, com a origem;
+   *  - noteTap: recebe as mensagens de histórico emitidas FORA dos passos e
+   *    dos comandos (narração das automações), para serem regravadas.
+   */
+  commandGate: ((c: unknown, source: string) => boolean) | null = null;
+  commandTap: ((c: unknown, source: string) => void) | null = null;
+  noteTap: ((text: string, group: string) => void) | null = null;
+  /** > 0 enquanto um passo ou um comando está sendo aplicado */
+  busy = 0;
+
   log(text: string, group: string): void {
+    if (this.noteTap && this.busy === 0) this.noteTap(text, group);
     this.state.commands.push({ t: this.state.t, text, group });
     if (this.state.commands.length > 500) this.state.commands.splice(0, this.state.commands.length - 500);
+  }
+
+  /**
+   * Reconstrói o ambiente a partir de config.environment (após alteração de
+   * temperatura, salinidade, termoclina ou fundo). O estado físico é mantido.
+   */
+  rebuildEnvironment(): void {
+    this.env = new Environment(this.config.environment);
+    this.computeOutputs();
   }
 
   /** Leituras dos sensores usadas pelo controle automático (não o estado real). */
@@ -164,6 +189,15 @@ export class SimulationEngine {
 
   /** Executa um passo fixo de simulação. */
   step(): void {
+    this.busy++;
+    try {
+      this.stepInner();
+    } finally {
+      this.busy--;
+    }
+  }
+
+  private stepInner(): void {
     const s = this.state;
     const cfg = this.vessel;
     const env = this.env;
@@ -480,6 +514,12 @@ export class SimulationEngine {
     const mw = vCrossLocal(mp.cg, Wb);
     const mb = vCrossLocal(hs.center, Bb);
     return { x: mw.x + mb.x, y: mw.y + mb.y, z: mw.z + mb.z };
+  }
+
+  /** Pose "anterior" da interpolação visual = pose atual (após ajustes feitos fora de step()). */
+  resetInterpolation(): void {
+    this.prevPos = { ...this.state.body.pos };
+    this.prevQuat = { ...this.state.body.quat };
   }
 
   /** Inicializa as leituras dos sensores com os valores verdadeiros atuais. */

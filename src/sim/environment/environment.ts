@@ -10,8 +10,32 @@
  */
 import { seawaterDensity } from './seawater';
 import { WaveField, type WaveConfig } from './waves';
+import { coastLandHeight, coastSignedDistance } from './coast';
+import { DEFAULT_ORIGIN, nedToLatLon, type LatLon } from '../geo';
+
+/**
+ * Referência geográfica e costa. A posição (Norte, Leste) da física é medida
+ * a partir de `origin`; com `coast` ligado, a terra e a orla da região de
+ * Sepetiba entram na física: perto da orla o fundo sobe suavemente até zero
+ * numa faixa de largura `shelfWidth` e em terra o "fundo" fica acima d'água
+ * (contato = encalhe). Ausente (arquivos antigos) = sem costa.
+ */
+export interface GeoConfig {
+  origin: LatLon;
+  coast: boolean;
+  /** largura da transição do fundo até a orla (m) */
+  shelfWidth: number;
+}
+
+export type BottomMode = 'uniforme' | 'relevo';
 
 export interface BottomConfig {
+  /**
+   * 'uniforme': profundidade constante (baseDepth) em toda a área;
+   * 'relevo': declividades e ondulações em torno de baseDepth.
+   * Ausente = 'relevo' (comportamento dos arquivos salvos antigos).
+   */
+  mode?: BottomMode;
   /** Profundidade de referência do fundo na origem (m). */
   baseDepth: number;
   /** Declividade para o Norte (m de profundidade a mais por km). */
@@ -37,7 +61,12 @@ export interface EnvironmentConfig {
   bottom: BottomConfig;
   /** estado do mar (ondas) — opcional para compatibilidade com estados salvos antigos */
   waves?: WaveConfig;
+  /** referência geográfica e costa — opcional (arquivos antigos: sem costa) */
+  geo?: GeoConfig;
 }
+
+/** padrão das sessões novas: costa desligada (os cenários existentes foram feitos para mar aberto) */
+export const defaultGeo = (): GeoConfig => ({ origin: { ...DEFAULT_ORIGIN }, coast: false, shelfWidth: 1000 });
 
 export const defaultEnvironment = (): EnvironmentConfig => ({
   salinity: 35.0,
@@ -50,13 +79,15 @@ export const defaultEnvironment = (): EnvironmentConfig => ({
   gravity: 9.80665,
   magneticDeclination: -21.5,
   bottom: {
-    baseDepth: 420,
+    mode: 'uniforme',
+    baseDepth: 300,
     slopeNorth: 6,
     slopeEast: -3,
     roughness: 25,
     wavelength: 1800,
   },
   waves: { seaState: 3, direction: 60, seed: 4242 },
+  geo: defaultGeo(),
 });
 
 const TABLE_STEP = 0.5; // m
@@ -148,9 +179,10 @@ export class Environment {
     return seawaterDensity(this.salinityAt(z), this.temperatureAt(z), 0);
   }
 
-  /** Profundidade do fundo (m) na posição horizontal (Norte, Leste) em metros. */
-  bottomDepthAt(north: number, east: number): number {
+  /** Profundidade do fundo em mar aberto (sem a costa), m. */
+  openBottomDepthAt(north: number, east: number): number {
     const b = this.cfg.bottom;
+    if (b.mode === 'uniforme') return Math.max(8, b.baseDepth);
     const k = (2 * Math.PI) / Math.max(50, b.wavelength);
     const relief =
       0.6 * Math.sin(k * north + 0.7) * Math.cos(0.8 * k * east - 0.3) +
@@ -158,5 +190,33 @@ export class Environment {
       0.1 * Math.cos(3.7 * k * (north + east));
     const d = b.baseDepth + (b.slopeNorth * north) / 1000 + (b.slopeEast * east) / 1000 + b.roughness * relief;
     return Math.max(8, d);
+  }
+
+  /**
+   * Profundidade do fundo (m) na posição horizontal (Norte, Leste) em metros.
+   * Com a costa ligada: negativa em terra (altura do terreno), zero na orla e
+   * subindo suavemente até a profundidade de mar aberto na faixa costeira.
+   * É a MESMA função usada pelo contato com o casco, pelo ecobatímetro, pelos
+   * alarmes de altitude e pelo desenho 3D do fundo e da terra.
+   */
+  bottomDepthAt(north: number, east: number): number {
+    const open = this.openBottomDepthAt(north, east);
+    const geo = this.cfg.geo;
+    if (!geo || !geo.coast) return open;
+    const ll = nedToLatLon(geo.origin, north, east);
+    const sd = coastSignedDistance(ll.lat, ll.lon);
+    if (sd <= 0) return -coastLandHeight(ll.lat, ll.lon, sd);
+    const W = Math.max(50, geo.shelfWidth);
+    if (sd >= W) return open;
+    const x = sd / W;
+    return open * x * x * (3 - 2 * x);
+  }
+
+  /** Distância com sinal até a orla (m; + mar, − terra) ou null sem costa. */
+  coastDistanceAt(north: number, east: number): number | null {
+    const geo = this.cfg.geo;
+    if (!geo || !geo.coast) return null;
+    const ll = nedToLatLon(geo.origin, north, east);
+    return coastSignedDistance(ll.lat, ll.lon);
   }
 }

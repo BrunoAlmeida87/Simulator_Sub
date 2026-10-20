@@ -14,6 +14,9 @@ import type { PickTarget } from './ops/opsBus';
 import { tours } from './tours';
 import { maneuver, MANEUVER_STEPS } from './maneuvers';
 import { visibleAlarms } from '../sim/systems/alarms';
+import { identity, type Identity } from './identity';
+import { recorder } from './recorder';
+import { graphics, type GraphicsSettings } from './graphics';
 
 const CH = 'sx1-sync-v1';
 
@@ -21,12 +24,30 @@ export interface OverlayData {
   tour: { name: string; k: number; n: number; title: string; text: string; why?: string; waitFor: string; met: boolean; remaining: number } | null;
   maneuver: string | null;
   alarm: { text: string; priority: number } | null;
+  /** gravação/reprodução de comandos em andamento */
+  rec?: string | null;
 }
 
 type Msg =
   | { type: 'hello'; id: number }
   | { type: 'engine'; id: number; file: SaveFile }
-  | { type: 'state'; id: number; state: SimState; waves: unknown; running: boolean; timeScale: number; layers: SceneLayers | null; view: ViewMode | null; overlay: OverlayData; sent: number }
+  | {
+      type: 'state';
+      id: number;
+      state: SimState;
+      waves: unknown;
+      running: boolean;
+      timeScale: number;
+      layers: SceneLayers | null;
+      view: ViewMode | null;
+      overlay: OverlayData;
+      sent: number;
+      /** identificação (sem a imagem do emblema) e preferências gráficas da janela de controle */
+      vis?: { identity: Partial<Identity>; graphics: GraphicsSettings };
+      /** ambiente (fundo, água, costa, posição geográfica) quando mudou desde o envio do motor */
+      env?: string;
+    }
+  | { type: 'visImg'; img: string | null }
   | { type: 'pick'; target: PickTarget | null }
   | { type: 'toggleRun' }
   | { type: 'bye' };
@@ -59,6 +80,9 @@ export class SyncMaster {
   private lastSend = 0;
   private lastTrail = 0;
   viewers = 0;
+  private lastImg: string | null | undefined = undefined;
+  private lastEnv = '';
+  private lastEnvCheck = 0;
   onPick: ((t: PickTarget | null) => void) | null = null;
 
   constructor(private runner: SimRunner) {
@@ -70,6 +94,8 @@ export class SyncMaster {
         this.viewers = 1;
         // só reenvia o motor completo se a visualização não tem o atual
         if (this.lastEngine !== this.runner.engine || m.id !== this.engineId) this.sendEngine();
+        if (m.id !== this.engineId) this.lastImg = undefined;
+        this.lastEnv = '';
       } else if (m.type === 'pick') this.onPick?.(m.target);
       else if (m.type === 'toggleRun') {
         this.runner.running = !this.runner.running;
@@ -103,6 +129,7 @@ export class SyncMaster {
           : null,
       maneuver: maneuver.active ? `${maneuver.active === 'imergir' ? `IMERGIR para ${maneuver.target} m` : 'EMERGIR'} · etapa ${maneuver.step + 1}/${MANEUVER_STEPS[maneuver.active].length}: ${maneuver.phase}` : null,
       alarm: top ? { text: top.def.text, priority: top.def.priority } : null,
+      rec: recorder.mode === 'gravando' ? '● GRAVANDO COMANDOS' : recorder.mode === 'reproduzindo' ? `▶ REPRODUÇÃO DE GRAVAÇÃO${recorder.finished ? ' (concluída)' : ''}` : null,
     };
   }
 
@@ -119,8 +146,19 @@ export class SyncMaster {
     if (sendTrail) this.lastTrail = now;
     const trail = sendTrail ? s.nav.trail : [];
     const lite = { ...s, nav: { ...s.nav, trail }, commands: s.commands.slice(-12), alarms: { runtime: s.alarms.runtime, log: [] } } as SimState;
+    // ambiente: reenviado quando muda (comandos de ambiente/costa/posição)
+    let env: string | undefined;
+    if (now - this.lastEnvCheck > 400) {
+      this.lastEnvCheck = now;
+      const j = JSON.stringify(e.config.environment);
+      if (j !== this.lastEnv) {
+        this.lastEnv = j;
+        env = j;
+      }
+    }
     this.ch.postMessage({
       type: 'state',
+      env,
       id: this.engineId,
       state: lite,
       waves: e.config.environment.waves,
@@ -130,7 +168,13 @@ export class SyncMaster {
       view: visualOut.view,
       overlay: this.overlay(),
       sent: now,
+      vis: { identity: { ...identity.get(), emblemImage: undefined }, graphics: graphics.get() },
     } satisfies Msg);
+    const img = identity.get().emblemImage;
+    if (img !== this.lastImg) {
+      this.lastImg = img;
+      this.ch.postMessage({ type: 'visImg', img } satisfies Msg);
+    }
   }
 }
 
@@ -211,6 +255,20 @@ export class SyncViewer {
       this.layers = m.layers;
       this.view = m.view;
       this.overlay = m.overlay;
+      if (m.vis) {
+        identity.set(m.vis.identity, false);
+        graphics.set(m.vis.graphics, false);
+      }
+      if (m.env) {
+        const env = JSON.parse(m.env) as typeof e.config.environment;
+        if (JSON.stringify(e.config.environment) !== m.env) {
+          Object.assign(e.config.environment, env);
+          if (!env.geo) delete e.config.environment.geo;
+          e.rebuildEnvironment();
+        }
+      }
+    } else if (m.type === 'visImg') {
+      identity.set({ emblemImage: m.img }, false);
     }
   }
 

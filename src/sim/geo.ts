@@ -17,6 +17,13 @@ export const NM = 1852;
 export const EBN_ITAGUAI: LatLon = { lat: -22.9318, lon: -43.8368 };
 /** Ponto de partida padrão: a sul da base, na baía (aprox.). */
 export const DEFAULT_ORIGIN: LatLon = { lat: -22.9455, lon: -43.8395 };
+/**
+ * CAIS MODELADO (3D) da base — Ilha da Madeira, Itaguaí: raiz na orla da
+ * costa do simulador mais próxima da EBN, avançando para o mar no rumo dado.
+ * Apenas visual (não colide).
+ */
+export const QUAY = { root: { lat: -22.93093, lon: -43.83673 } as LatLon, bearing: 182, length: 220, width: 22 };
+
 /** Ponto de partida alternativo em mar aberto, a sul da Restinga da Marambaia. */
 export const OFFSHORE_ORIGIN: LatLon = { lat: -23.3, lon: -43.85 };
 
@@ -121,4 +128,18 @@ export function cpa(own: { n: number; e: number; vn: number; ve: number }, c: Co
   const tc = v2 < 1e-6 ? 0 : -(rn * vn + re * ve) / v2;
   const t = Math.max(0, tc);
   return { tcpa: t, dcpa: Math.hypot(rn + vn * t, re + ve * t) };
+}
+
+/**
+ * Contatos no referencial LOCAL (NED, m) de uma origem geográfica qualquer:
+ * a mesma posição geográfica do quadro tático. Usado pelo mapa (tabela) e
+ * pela cena 3D (navios), para os dois mostrarem o mesmo contato no mesmo
+ * lugar, com o mesmo rumo e a mesma velocidade.
+ */
+export function contactsLocal(t: number, origin: LatLon): (Contact & { lat: number; lon: number })[] {
+  return contactsAt(t).map((c) => {
+    const ll = nedToLatLon(DEFAULT_ORIGIN, c.n, c.e);
+    const p = latLonToNed(origin, ll);
+    return { ...c, n: p.n, e: p.e, lat: ll.lat, lon: ll.lon };
+  });
 }

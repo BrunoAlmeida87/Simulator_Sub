@@ -7,7 +7,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - A força de onda é por fatias (empuxo com a elevação local + inércia de Froude–Krylov + massa adicional Ca = 1); não há difração nem radiação de ondas pelo casco. A sucção média perto da superfície aparece como efeito de segunda ordem desse modelo, não calibrada.
 - Perfis de temperatura e salinidade dependem só da profundidade (estratificação horizontal).
 - A densidade usada no empuxo é a do nível do eixo, uniforme ao longo do casco.
-- O fundo é uma função analítica (declividade + ondulações), sem tipos de sedimento.
+- O fundo é uniforme (padrão, 300 m) ou uma função analítica (declividade + ondulações), sem tipos de sedimento.
 
 ## Geometria e hidrostática
 - Casco como corpo de revolução; a vela não desloca água (alagamento livre) e não há casco externo separado.
@@ -58,7 +58,15 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - O traçado das tubulações e a posição de bombas, válvulas e garrafas no corte são esquemáticos (arquitetura fictícia). As vazões e os estados exibidos são os simulados.
 - O nível dos TLP em seção "D" é obtido invertendo a curva área × altura da seção desenhada. O volume mostrado é o simulado, mas a forma do tanque é simplificada.
 - A vazão por tanque da compensação é a parcela atribuída a cada tanque pelo modelo (proporcional à abertura da válvula do tanque).
+- A iluminação subaquática não é medida: no perfil **Clara** (padrão) e **Estúdio** a água é mais clara do que no mar real a essa profundidade e há uma luz presa à câmera, para o submarino ficar visível. O perfil **Natural** aproxima o escurecimento com a profundidade.
 
 ## Interface
 - A simulação avança pelo `requestAnimationFrame`. Com a aba do navegador oculta, o tempo simulado fica suspenso.
 - O motor roda na thread principal. A separação total (sem DOM) permite migrá-lo para um Web Worker se necessário.
+
+## Costa, navios e cais
+
+- A costa cobre só a região de Sepetiba (−23,20° a −22,80°; −44,20° a −43,50°). Fora dela, a borda da grade é estendida (ao sul, mar aberto).
+- Linha de costa com resolução de ~50 m (polígonos simplificados do OpenStreetMap) e relevo de 200 m; a batimetria real (rasa) da baía não é usada — o fundo de mar aberto é o configurado e a transição até a orla é uma curva suave.
+- O cais e os navios são apenas visuais (sem colisão). Os navios são os contatos fictícios do quadro tático, não posições AIS reais.
+- A costa vem desligada nos cenários originais (feitos para mar aberto); ligue em Configurações.

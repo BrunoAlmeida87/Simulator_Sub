@@ -1,7 +1,7 @@
 {
   "name": "simulador-submarino",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Simulador técnico de submarino convencional fictício (SX-1) — plataforma de simulação de engenharia e treinamento conceitual.",
   "type": "module",
   "main": "electron/main.cjs",

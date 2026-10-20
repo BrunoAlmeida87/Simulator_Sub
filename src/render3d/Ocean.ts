@@ -7,6 +7,7 @@
  * janela de Snell vista de baixo e cáusticas.
  */
 import * as THREE from 'three';
+import { LIGHTING, waterColor, type WaterPalette } from './lighting';
 import type { WaveField } from '../sim/environment/waves';
 import { MAX_WAVE_COMPONENTS } from '../sim/environment/waves';
 
@@ -158,7 +159,10 @@ void main() {
     alpha = 0.96;
   }
   gl_FragColor = vec4(col, alpha);
-  #include <tonemapping_fragment>
+  // vista de baixo sem ajuste de tom: ao longe a superfície tem a mesma cor da névoa e do fundo subaquático
+  #if defined( TONE_MAPPING )
+  if (!under) gl_FragColor.rgb = toneMapping(gl_FragColor.rgb);
+  #endif
   #include <colorspace_fragment>
 }
 `;
@@ -318,6 +322,9 @@ export class UnderwaterSky {
       side: THREE.BackSide,
       depthWrite: false,
       fog: false,
+      // sem ajuste de tom: a cor sai igual à da névoa (senão o fundo fica mais escuro que a água em volta
+      // e o limite do terreno aparece como uma faixa)
+      toneMapped: false,
       uniforms: {
         uUp: { value: new THREE.Color(0x3d8ab3) },
         uHorizon: { value: new THREE.Color(0x0a3550) },
@@ -357,13 +364,12 @@ export class UnderwaterSky {
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -1;
   }
-  /** Cores conforme a profundidade da câmera (m). */
-  update(camPos: THREE.Vector3, camDepth: number, time: number): { horizon: THREE.Color; up: THREE.Color } {
+  /** Cores conforme a profundidade da câmera (m) e o perfil de iluminação. */
+  update(camPos: THREE.Vector3, camDepth: number, time: number, water: WaterPalette = LIGHTING.natural.water): { horizon: THREE.Color; up: THREE.Color } {
     const u = this.material.uniforms;
-    const k = Math.min(1, camDepth / 250);
-    u.uUp.value.set(0x4a9bc4).lerp(new THREE.Color(0x06243a), k);
-    u.uHorizon.value.set(0x0e4566).lerp(new THREE.Color(0x020a12), Math.min(1, camDepth / 200));
-    u.uDown.value.set(0x041a2a).lerp(new THREE.Color(0x000306), Math.min(1, camDepth / 120));
+    waterColor(water.up, camDepth, u.uUp.value);
+    waterColor(water.horizon, camDepth, u.uHorizon.value);
+    waterColor(water.down, camDepth, u.uDown.value);
     u.uRays.value = Math.exp(-camDepth / 45);
     u.uTime.value = time;
     this.mesh.position.copy(camPos);

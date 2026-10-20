@@ -13,6 +13,7 @@ import type { ViewMode } from '../render3d/SubmarineScene';
 import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
 import { fmt } from './format';
+import { identity } from './identity';
 
 /** camadas que podem ser ligadas/desligadas nesta janela (independentes da janela de controle) */
 const LAYER_BTNS: [keyof SceneLayers, string][] = [
@@ -26,6 +27,8 @@ const LAYER_BTNS: [keyof SceneLayers, string][] = [
   ['markers', 'Boias'],
   ['wake', 'Esteira'],
   ['noWater', 'Sem água'],
+  ['trimRef', 'Calado/trim'],
+  ['ships', 'Navios'],
 ];
 
 const VIEWS: [ViewMode | 'seguir', string][] = [
@@ -36,6 +39,8 @@ const VIEWS: [ViewMode | 'seguir', string][] = [
   ['submerso', 'Submerso'],
   ['tanques', 'Vista tanques'],
   ['forcas', 'Vista forças'],
+  ['calado', 'Calado'],
+  ['navio', 'Navio próximo'],
   ['fixa', 'Fixa'],
   ['livre', 'Livre'],
 ];
@@ -57,12 +62,13 @@ export function VisualApp() {
     setMode(k);
     if (k === 'tanques') setOver({ ...over, tanks: true });
     if (k === 'forcas') setOver({ ...over, vectors: true });
+    if (k === 'calado') setOver({ ...over, trimRef: true });
   };
   const ov = v?.overlay;
   const vb = verticalBalance(e);
   const connected = !!v?.connected;
   useEffect(() => {
-    document.title = 'SX-1 — visualização';
+    document.title = `${identity.get().name} — visualização`;
   }, []);
   return (
     <div className="visual-app">
@@ -71,6 +77,7 @@ export function VisualApp() {
           <div className="visual-status">
             <span className={`badge ${connected ? 'ok' : 'warn'}`}>{connected ? 'Espelhando a janela de controle' : 'Sem conexão'}</span>
             {ov?.alarm && <span className={`badge ${ov.alarm.priority <= 2 ? 'alarm blink' : 'warn'}`}>{ov.alarm.text}</span>}
+            {ov?.rec && <span className="badge info">{ov.rec}</span>}
             {(layers.vectors || layers.hydroVectors) && (
               <span className="badge info">
                 E {fmt(toTf(vb.buoyancyN, vb.g), 1)} tf · P {fmt(toTf(vb.weightN, vb.g), 1)} tf · E − P {fmt(toTf(vb.netN, vb.g), 2)} tf

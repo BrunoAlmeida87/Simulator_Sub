@@ -12,10 +12,15 @@ import 'leaflet/dist/leaflet.css';
 import { runner, useSim } from '../store';
 import { Panel } from '../components/Panel';
 import { usePersisted } from '../persist';
-import { route, mapOrigin } from '../routeNav';
-import { bearingRange, contactsAt, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
+import { route, mapOrigin, geoOriginOf } from '../routeNav';
+import { cmd } from '../store';
+import { useUi } from '../uiContext';
+import { Environment } from '../../sim/environment/environment';
+import { coastMask } from '../../sim/environment/coast';
+import { bearingRange, contactsAt, contactsLocal, cpa, QUAY, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
 import { fmt, fmtTime } from '../format';
+import { useIdentity } from '../appearance';
 
 type Mode = 'nav' | 'rota' | 'medir' | 'origem';
 type Base = 'tatico' | 'mapa' | 'relevo' | 'satelite' | 'nenhum';
@@ -65,6 +70,7 @@ function baseIcon(): L.DivIcon {
 
 export function TacticalMapScreen() {
   const e = useSim(4);
+  const id = useIdentity();
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => route.subscribe(force), []);
   const box = useRef<HTMLDivElement>(null);
@@ -76,12 +82,32 @@ export function TacticalMapScreen() {
   const [rings, setRings] = usePersisted('map.rings', true);
   const [mode, setMode] = useState<Mode>('nav');
   const [measure, setMeasure] = useState<LatLon[]>([]);
-  const [origin, setOriginS] = useState<LatLon>(mapOrigin.get());
+  const ui = useUi();
+  const [coastOv, setCoastOv] = usePersisted('map.coastOverlay', true);
+  // origem do referencial local: a da simulação (mesma do 3D e da física)
+  const origin = geoOriginOf(e);
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  /** muda a posição geográfica do submarino (comando registrado quando a simulação guarda a origem) */
   const setOrigin = (o: LatLon) => {
+    const eng = runner.engine;
+    const geo = eng.config.environment.geo;
+    if (geo) {
+      if (geo.coast) {
+        // com a costa ligada, a posição muda a física: recusa colocar o casco em terra ou sobre o fundo
+        const env = new Environment({ ...structuredClone(eng.config.environment), geo: { ...geo, origin: o } });
+        const p = eng.state.body.pos;
+        const b = env.bottomDepthAt(p.x, p.y);
+        const hull = Math.max(eng.outputs.depthKeel, p.z + eng.vessel.hull.diameter / 2);
+        if (b < hull + 2) {
+          ui.toast(`Posição recusada: ali o fundo fica a ${b.toFixed(0)} m (terra ou águas rasas) e o casco está a ${hull.toFixed(0)} m. Escolha um ponto mais afastado da costa.`);
+          return;
+        }
+      }
+      cmd({ type: 'environment', patch: { geo: { origin: o } } });
+    }
     mapOrigin.set(o);
-    setOriginS(o);
+    force();
   };
 
   const s = e.state;
@@ -130,6 +156,42 @@ export function TacticalMapScreen() {
     }
     if (seamarks) L_.current.sea = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { attribution: 'Sinais náuticos © OpenSeaMap', maxZoom: 18, opacity: 0.9 }).addTo(m);
   }, [base, seamarks]);
+
+  // ---- costa usada pela simulação (máscara embutida) e cais modelado
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !coastOv) return;
+    const { land, nx, ny, bounds } = coastMask();
+    const c = document.createElement('canvas');
+    c.width = nx;
+    c.height = ny;
+    const g = c.getContext('2d')!;
+    const img = g.createImageData(nx, ny);
+    for (let y = 0; y < ny; y++)
+      for (let x = 0; x < nx; x++) {
+        const i = y * nx + x;
+        if (!land[i]) continue;
+        const edge = (x > 0 && !land[i - 1]) || (x < nx - 1 && !land[i + 1]) || (y > 0 && !land[i - nx]) || (y < ny - 1 && !land[i + nx]);
+        const k = i * 4;
+        img.data[k] = 255;
+        img.data[k + 1] = edge ? 140 : 205;
+        img.data[k + 2] = edge ? 40 : 90;
+        img.data[k + 3] = edge ? 255 : 60;
+      }
+    g.putImageData(img, 0, 0);
+    const ov = L.imageOverlay(c.toDataURL(), [
+      [bounds.lat0, bounds.lon0],
+      [bounds.lat1, bounds.lon1],
+    ], { opacity: 0.9, interactive: false }).addTo(m);
+    const q1 = QUAY.root;
+    const b = (QUAY.bearing * Math.PI) / 180;
+    const q2 = nedToLatLon(q1, Math.cos(b) * QUAY.length, Math.sin(b) * QUAY.length);
+    const pier = L.polyline([ll(q1), ll(q2)], { color: '#e8e8e8', weight: 5, opacity: 0.95 }).bindTooltip('Cais modelado no 3D (Ilha da Madeira, Itaguaí)').addTo(m);
+    return () => {
+      m.removeLayer(ov);
+      m.removeLayer(pier);
+    };
+  }, [coastOv]);
 
   // ---- elementos fixos (base, área, grade)
   useEffect(() => {
@@ -183,7 +245,7 @@ export function TacticalMapScreen() {
       }
     // próprio navio
     L.marker(ll(pos), { icon: ownIcon(), zIndexOffset: 1000 })
-      .bindTooltip(`SX-1 · ${o.depthKeel.toFixed(0)} m · ${toKnots(st.body.vel.x).toFixed(1)} nós · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
+      .bindTooltip(`${id.name} · ${o.depthKeel.toFixed(0)} m · ${toKnots(st.body.vel.x).toFixed(1)} nós · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
       .addTo(g);
     // contatos
     for (const c of contactsAt(st.t)) {
@@ -223,9 +285,9 @@ export function TacticalMapScreen() {
 
   // ---- painel
   const o = e.outputs;
-  const contacts = contactsAt(s.t).map((c) => {
-    const cn = latLonToNed(origin, nedToLatLon(DEFAULT_ORIGIN, c.n, c.e));
-    const cc = { ...c, n: cn.n, e: cn.e };
+  // mesma conversão usada pela cena 3D (navios): mesma posição, rumo e velocidade
+  const contacts = contactsLocal(s.t, origin).map((cc) => {
+    const c = cc;
     const br = bearingRange(own, cc);
     const cp = cpa({ ...own, vn: o.velNED.x, ve: o.velNED.y }, cc);
     return { c, br, cp };
@@ -271,7 +333,7 @@ export function TacticalMapScreen() {
         )}
       </div>
       <div className="tmap-side">
-        <Panel title="Próprio navio — SX-1">
+        <Panel title={`Próprio navio — ${id.name}`}>
           <table className="t">
             <tbody>
               <tr>
@@ -357,7 +419,7 @@ export function TacticalMapScreen() {
                 })}
             </tbody>
           </table>
-          <div className="note">CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios; não há sonar simulado.</div>
+          <div className="note">CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios (não são posições AIS reais) e aparecem como navios na cena 3D, na mesma posição; não há sonar simulado.</div>
         </Panel>
         <Panel title="Rota (pontos de passagem)">
           <div className="row">
@@ -405,6 +467,9 @@ export function TacticalMapScreen() {
             <button className={`btn sm ${rings ? 'on' : ''}`} onClick={() => setRings(!rings)}>
               Círculos 1/2/5 mn
             </button>
+            <button className={`btn sm ${coastOv ? 'on' : ''}`} onClick={() => setCoastOv(!coastOv)} title="Contorno da costa usada pela simulação e pela cena 3D (dados embutidos, funciona sem internet)">
+              Costa do simulador
+            </button>
           </div>
           <div className="row mt4">
             <span className="subtle">Posição inicial</span>
@@ -419,7 +484,7 @@ export function TacticalMapScreen() {
             </button>
           </div>
           <div className="note">
-            Coordenadas aproximadas. O fundo do mar da física é o do cenário (a batimetria real da baía não é modelada). Fundos gratuitos, sem chave de API: OpenStreetMap, OpenTopoMap, Sentinel-2 (EOX) e sinais náuticos do OpenSeaMap — vêm da internet; sem conexão, fica a grade de 5′.
+            Coordenadas aproximadas. Costa do simulador (laranja): dados embutidos do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL) e relevo Terrarium — a mesma da cena 3D e, com a costa ligada, da física. O fundo de mar aberto é o configurado (a batimetria real da baía não é modelada). Fundos gratuitos, sem chave de API: OpenStreetMap, OpenTopoMap, Sentinel-2 (EOX) e sinais náuticos do OpenSeaMap — vêm da internet; sem conexão, fica a grade de 5′.
           </div>
         </Panel>
       </div>

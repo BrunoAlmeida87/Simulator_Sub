@@ -4,13 +4,14 @@ import { UiContext, useUi, type ScreenId } from './uiContext';
 import { baseConfig, cmd, runner, useSim } from './store';
 import { buildScenario } from '../sim/scenarios';
 import { visibleAlarms, PRIORITY_LABEL } from '../sim/systems/alarms';
-import { serializeEngine, deserializeEngine } from '../sim/persistence';
+import { captureSession, restoreSession } from './session';
 import { storage } from './storage';
 import { toKnots } from '../sim/units';
 import { fmt, fmtTime } from './format';
 import { SimSpeedButtons } from './components/Controls';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
+import { HelmScreen } from './screens/HelmScreen';
 import { PresentationScreen } from './screens/PresentationScreen';
 import { TacticalMapScreen } from './screens/TacticalMapScreen';
 import { EnergyFlowScreen } from './screens/EnergyFlowScreen';
@@ -21,6 +22,10 @@ import { SafetyScreen } from './screens/SafetyScreen';
 import { View3DScreen } from './screens/View3DScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { ScenarioScreen } from './screens/ScenarioScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { useIdentity } from './appearance';
+import { RecIndicator } from './components/RecordingPanel';
+import { recorder } from './recorder';
 import { AuxSystemsScreen } from './screens/AuxSystemsScreen';
 import { ValidationScreen } from './screens/ValidationScreen';
 import { HelpScreen } from './screens/HelpScreen';
@@ -36,6 +41,7 @@ import { openVisualWindow } from './sync';
 
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'pilotagem', n: '0', label: 'Pilotagem' },
+  { id: 'governo', label: 'Governo' },
   { id: 'apresentacao', label: 'Apresentação' },
   { id: 'mapa', label: 'Mapa tático' },
   { id: 'energia', label: 'Fluxo de energia' },
@@ -46,7 +52,8 @@ const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'seguranca', n: '5', label: 'Segurança' },
   { id: 'v3d', n: '6', label: 'Visualização 3D' },
   { id: 'historico', n: '7', label: 'Histórico' },
-  { id: 'cenarios', label: 'Cenários e configuração' },
+  { id: 'cenarios', label: 'Cenários' },
+  { id: 'config', label: '⚙ Configurações' },
   { id: 'auxiliares', label: 'Sistemas auxiliares' },
   { id: 'validacao', label: 'Validação' },
   { id: 'ajuda', label: 'Guia' },
@@ -79,10 +86,11 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
   const unack = vis.filter((a) => !a.acked);
   const top = unack[0] ?? vis[0];
   const ui = useUi();
+  const id = useIdentity();
   return (
     <div className="topbar" ref={topRef}>
       <div className="brand">
-        <b>SX-1</b>
+        <b>{id.name}</b>
         <span>Simulador técnico de submarino · embarcação fictícia</span>
       </div>
       <div className="simctl">
@@ -113,6 +121,7 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
         </span>
         {runner.running && runner.lagging && <span className="badge warn">CPU: tempo reduzido</span>}
         <ScenarioPicker current={s.scenarioId} />
+        <RecIndicator />
         <button className={`btn ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
           ⧉ 2ª janela{link.master?.connected ? ' ✓' : ''}
         </button>
@@ -224,6 +233,18 @@ export function App() {
     storage.setPrefs({ screen, eng });
   }, [screen, eng]);
 
+  // comandos recusados durante a reprodução de uma gravação
+  useEffect(() => {
+    let last = 0;
+    recorder.onBlocked = (m) => {
+      if (performance.now() - last > 4000) toast(m);
+      last = performance.now();
+    };
+    return () => {
+      recorder.onBlocked = null;
+    };
+  }, []);
+
   // altura da barra superior → posição das abas
   useEffect(() => {
     const el = topRef.current;
@@ -245,7 +266,7 @@ export function App() {
   // salvamento automático
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (runner.running) storage.setAutosave(serializeEngine(runner.engine, 'Salvamento automático'));
+      if (runner.running) storage.setAutosave(captureSession('Salvamento automático'));
     }, 20000);
     return () => window.clearInterval(id);
   }, []);
@@ -275,6 +296,7 @@ export function App() {
 
   const screens: Record<ScreenId, ReactNode> = {
     pilotagem: <PilotScreen />,
+    governo: <HelmScreen />,
     apresentacao: <PresentationScreen />,
     mapa: <TacticalMapScreen />,
     energia: <EnergyFlowScreen />,
@@ -286,6 +308,7 @@ export function App() {
     v3d: <View3DScreen />,
     historico: <HistoryScreen />,
     cenarios: <ScenarioScreen />,
+    config: <SettingsScreen />,
     auxiliares: <AuxSystemsScreen />,
     validacao: <ValidationScreen />,
     ajuda: <HelpScreen />,
@@ -312,10 +335,10 @@ export function App() {
               className="btn"
               onClick={() => {
                 try {
-                  runner.replaceEngine(deserializeEngine(resume));
-                  toast('Sessão retomada (pausada).');
+                  const r = restoreSession(resume);
+                  toast(`Sessão carregada (pausada${r.resumed.length ? `; em andamento: ${r.resumed.join(', ')}` : ''}). Pressione ▶ para continuar.`);
                 } catch (ex) {
-                  toast('Não foi possível retomar: ' + String(ex));
+                  toast('Não foi possível retomar: ' + (ex instanceof Error ? ex.message : String(ex)));
                 }
                 setResume(null);
               }}

@@ -451,3 +451,89 @@ tr.focus, div.focus, .row.focus { outline: 2px solid #36c5f0; outline-offset: 1p
 .estory { font-size: 14.5px; margin-bottom: 8px; color: #e3edf7; }
 .enode-big.eflow-lbl { font: 700 18px var(--mono); }
 .tm-dark { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.95) saturate(0.55); }
+
+/* ---------------------------------------------------------- configurações */
+.settings { padding: 0; }
+.settings-legend { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 11.5px; color: var(--muted); margin: 0 0 10px; }
+.kind { display: inline-block; font-size: 9.5px; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+.kind-visual { background: rgba(54, 197, 240, 0.12); color: #7fdcff; border-color: rgba(54, 197, 240, 0.4); }
+.kind-now { background: rgba(245, 176, 65, 0.14); color: #ffc46b; border-color: rgba(245, 176, 65, 0.45); }
+.kind-restart { background: rgba(255, 82, 87, 0.14); color: #ff9a9d; border-color: rgba(255, 82, 87, 0.45); }
+.panel > header .kind { margin-left: 6px; }
+.sess-now { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; }
+.swatches { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.swatch { width: 22px; height: 22px; border-radius: 4px; border: 2px solid #1d2c3e; cursor: pointer; padding: 0; }
+.swatch.on { border-color: #fff; box-shadow: 0 0 0 1px var(--accent); }
+.sail-preview { display: block; width: 100%; max-width: 520px; height: auto; margin: 8px 0; border-radius: 6px; background: linear-gradient(#a9c4dc, #d8e6f2 60%, #1b3550 61%); }
+input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px solid var(--line2); background: #142133; border-radius: 4px; cursor: pointer; }
+.trimgain-banner { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 6; background: rgba(120, 60, 0, 0.88); border: 1px solid #ffb347; color: #fff3df; padding: 4px 10px; border-radius: 5px; font-size: 12px; display: flex; gap: 8px; align-items: center; max-width: calc(100% - 20px); flex-wrap: wrap; justify-content: center; }
+.trimgain-banner b { color: #ffd18a; letter-spacing: 0.04em; }
+.rec-status { font-size: 12px; }
+.recbar { height: 6px; background: #142133; border-radius: 3px; overflow: hidden; margin: 4px 0; }
+.recbar > span { display: block; height: 100%; background: var(--accent); }
+
+/* ---------------------------------------------------------- painel de governo */
+.helm { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.helm-view { height: 34vh; min-height: 200px; position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.helm-view .view3d { height: 100%; }
+.helm-hud { position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: #d8e4f0; background: rgba(8, 16, 26, 0.6); padding: 3px 8px; border-radius: 4px; }
+.helm-console { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 0.9fr); gap: 10px; align-items: start; }
+.helm-sec { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; min-width: 0; }
+.helm-sec > header { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; letter-spacing: 0.08em; font-size: 12px; }
+.helm-sec.gov { border-top: 3px solid #36c5f0; }
+.helm-sec.gov > header b { color: #36c5f0; }
+.helm-sec.pwr { border-top: 3px solid #ffb347; }
+.helm-sec.pwr > header b { color: #ffb347; }
+.helm-sec.inst > header b { color: #b9cde2; }
+.helm-row { display: flex; gap: 10px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.helm-col { display: flex; flex-direction: column; gap: 6px; align-items: center; min-width: 0; }
+.helm-yoke { width: min(300px, 100%); aspect-ratio: 1; touch-action: none; cursor: grab; user-select: none; }
+.helm-lever { height: auto; width: auto; touch-action: none; cursor: grab; user-select: none; }
+.helm-knob { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.helm-knob svg { width: 110px; height: 110px; touch-action: none; cursor: grab; user-select: none; }
+.helm-pad { fill: #0d1824; stroke: #2c4260; stroke-width: 2; }
+.helm-track { fill: #0d1824; stroke: #2c4260; stroke-width: 2; }
+.helm-grid { stroke: #1f3247; stroke-width: 1; }
+.helm-axis { stroke: #3c5878; stroke-width: 1.5; }
+.helm-lbl { fill: #8fa6bf; font-size: 11px; }
+.helm-det { fill: #7f93a8; font-size: 10.5px; }
+.helm-det.on { fill: #ffd18a; font-weight: 700; }
+.helm-knobtxt { fill: #0a121b; font-size: 11px; font-weight: 700; }
+.helm-knobval { fill: #e9f8ff; font-size: 15px; font-weight: 700; font-family: ui-monospace, monospace; }
+.helm-read { display: flex; flex-direction: column; gap: 2px; font-size: 12px; text-align: center; }
+.helm-ap { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.helm-apbox { border: 1px solid var(--line2); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.helm-inst { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; }
+@media (max-width: 1250px) { .helm-console { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .helm-sec.inst { grid-column: 1 / -1; order: 3; } }
+@media (max-width: 760px) { .helm-console { grid-template-columns: 1fr; } .helm-view { height: 28vh; } }
+/* fluxo de energia interativo */
+.eflow-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 10px; align-items: start; }
+.eclick { cursor: pointer; }
+.eclick:hover > rect:first-of-type, .eclick:focus > rect:first-of-type { stroke: #8fd9ff; stroke-width: 2.5; }
+.eclick.sel > rect:first-of-type { stroke: #ffe14d; stroke-width: 3; }
+.eclick:focus { outline: none; }
+.enode-panel { border: 1px solid var(--line2); border-radius: 6px; padding: 8px 10px; background: #0d1824; font-size: 12.5px; }
+.enode-panel.hint { color: var(--muted); }
+@media (max-width: 1100px) { .eflow-wrap { grid-template-columns: 1fr; } }
+/* linha de eixo (propulsão) */
+.pdiag { width: 100%; height: auto; }
+.pd-hull { fill: rgba(30, 50, 72, 0.25); stroke: #2c4260; stroke-width: 2; }
+.pd-t { fill: #b9cde2; font-size: 13px; }
+.pd-v { fill: #e9f8ff; font-size: 15px; font-family: ui-monospace, monospace; font-weight: 700; }
+.pd-s { fill: #8fa6bf; font-size: 12px; }
+.pd-elec { stroke: #5b6f86; stroke-width: 4; stroke-dasharray: 8 6; fill: none; }
+.pd-elec.on { stroke: #ffd18a; animation: eflow 0.6s linear infinite; }
+.pd-stator { fill: #0d1824; stroke: #7f93a8; stroke-width: 3; }
+.pd-rotor { fill: #d8e4f0; }
+.pd-rot { transform-box: fill-box; transform-origin: center; }
+.pd-shaft { fill: #5f6b78; stroke: #2c3440; stroke-width: 1.5; }
+.pd-shaftstripe { stroke: #c9d3dd; stroke-width: 14; stroke-dasharray: 3 11; }
+.pd-dir { fill: none; stroke: #4b6584; stroke-width: 3; }
+.pd-dir.on { stroke: #36c5f0; }
+.pd-thrust { stroke: #a8ff7a; stroke-width: 5; fill: none; }
+.pd-hub { fill: #b08d57; stroke: #6d5532; stroke-width: 1.5; }
+.pd-blade { fill: #c9a46a; stroke: #6d5532; stroke-width: 1; }
+.pd-disk { fill: rgba(54, 197, 240, 0.06); stroke: #2c4260; stroke-dasharray: 4 4; }
+.pd-wash { stroke: #9fdcff; stroke-width: 10; stroke-dasharray: 4 6; fill: none; }
+@keyframes pspin { to { transform: rotate(360deg); } }
+@keyframes pshaft { to { stroke-dashoffset: -14; } }

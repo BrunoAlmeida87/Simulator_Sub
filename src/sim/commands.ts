@@ -9,6 +9,33 @@ import { newDosing } from './systems/internalTanks';
 import { acknowledgeAlarm } from './systems/alarms';
 import { bumplessInit } from './systems/autopilot';
 import { sensorDef } from './systems/sensors';
+import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
+
+/** Alterações de ambiente aplicáveis durante a simulação (o estado é mantido). */
+export type EnvironmentPatch = Partial<Pick<EnvironmentConfig, 'salinity' | 'deepSalinity' | 'surfaceTemperature' | 'deepTemperature' | 'thermoclineDepth' | 'thermoclineThickness' | 'magneticDeclination'>> & {
+  bottom?: Partial<BottomConfig>;
+  /** costa e referência geográfica (origem do referencial local) */
+  geo?: Partial<GeoConfig>;
+};
+
+const ENV_LABEL: Record<string, [string, string]> = {
+  salinity: ['salinidade superficial', 'PSU'],
+  deepSalinity: ['salinidade profunda', 'PSU'],
+  surfaceTemperature: ['temperatura superficial', '°C'],
+  deepTemperature: ['temperatura profunda', '°C'],
+  thermoclineDepth: ['termoclina', 'm'],
+  thermoclineThickness: ['espessura da termoclina', 'm'],
+  magneticDeclination: ['declinação magnética', '°'],
+  'bottom.mode': ['modo do fundo', ''],
+  'bottom.baseDepth': ['fundo na origem', 'm'],
+  'bottom.slopeNorth': ['declive N', 'm/km'],
+  'bottom.slopeEast': ['declive L', 'm/km'],
+  'bottom.roughness': ['rugosidade', 'm'],
+  'bottom.wavelength': ['comprimento do relevo', 'm'],
+  'geo.coast': ['costa', ''],
+  'geo.shelfWidth': ['faixa costeira', 'm'],
+  'geo.origin': ['posição geográfica', ''],
+};
 
 export type FluidSystem = 'compensation' | 'trim' | 'heel';
 
@@ -32,6 +59,7 @@ export type Command =
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
   | { type: 'seaState'; value: number; direction?: number }
+  | { type: 'environment'; patch: EnvironmentPatch }
   | { type: 'demoWeight'; x?: number; mass?: number }
   | { type: 'failure'; target: string; active: boolean; param?: number | string };
 
@@ -41,7 +69,38 @@ function tankName(e: SimulationEngine, id: string): string {
   return e.vessel.ballast.tanks.find((t) => t.id === id)?.name ?? id;
 }
 
+/** Origem dos comandos em curso: 'operador' ou o nome da automação que os emite. */
+let cmdSource = 'operador';
+
+/** Executa fn marcando os comandos emitidos com a origem dada (ex.: 'manobra'). */
+export function withCommandSource<T>(source: string, fn: () => T): T {
+  const prev = cmdSource;
+  cmdSource = source;
+  try {
+    return fn();
+  } finally {
+    cmdSource = prev;
+  }
+}
+
+export const currentCommandSource = (): string => cmdSource;
+
+/**
+ * Aplica um comando (única via de alteração do estado pela interface e pelas
+ * automações). Passa antes pelos ganchos de gravação/reprodução do motor.
+ */
 export function applyCommand(e: SimulationEngine, c: Command): void {
+  if (e.commandGate && !e.commandGate(c, cmdSource)) return;
+  e.commandTap?.(c, cmdSource);
+  e.busy++;
+  try {
+    applyCommandInner(e, c);
+  } finally {
+    e.busy--;
+  }
+}
+
+function applyCommandInner(e: SimulationEngine, c: Command): void {
   const s = e.state;
   const v = e.vessel;
   const log = (text: string, group: string) => e.log(text, group);
@@ -220,6 +279,45 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       e.env.setSeaState(c.value, c.direction);
       const w = e.env.waves;
       log(`Estado do mar: ${Math.round(c.value)} (Hs = ${w.hs.toFixed(1)} m, Tp = ${w.tp.toFixed(1)} s)`, 'Ambiente');
+      break;
+    }
+    case 'environment': {
+      const env = e.config.environment;
+      const changes: string[] = [];
+      const note = (key: string, v: unknown) => {
+        const [lbl, unit] = ENV_LABEL[key] ?? [key, ''];
+        changes.push(`${lbl} ${typeof v === 'number' ? Number(v.toFixed(2)) : String(v)}${unit ? ' ' + unit : ''}`);
+      };
+      const { bottom, geo, ...rest } = c.patch;
+      if (geo) {
+        const cur = (env.geo ??= defaultGeo());
+        if (typeof geo.coast === 'boolean') {
+          cur.coast = geo.coast;
+          changes.push(`costa ${geo.coast ? 'LIGADA (terra e fundo costeiro na física)' : 'desligada'}`);
+        }
+        if (typeof geo.shelfWidth === 'number' && Number.isFinite(geo.shelfWidth)) {
+          cur.shelfWidth = Math.max(50, Math.min(20000, geo.shelfWidth));
+          note('geo.shelfWidth', cur.shelfWidth);
+        }
+        if (geo.origin && Number.isFinite(geo.origin.lat) && Number.isFinite(geo.origin.lon)) {
+          cur.origin = { lat: geo.origin.lat, lon: geo.origin.lon };
+          changes.push(`posição geográfica do referencial ${geo.origin.lat.toFixed(4)}°, ${geo.origin.lon.toFixed(4)}°`);
+        }
+      }
+      for (const [k, val] of Object.entries(rest)) {
+        if (typeof val !== 'number' || !Number.isFinite(val)) continue;
+        (env as unknown as Record<string, number>)[k] = val;
+        note(k, val);
+      }
+      if (bottom) {
+        for (const [k, val] of Object.entries(bottom)) {
+          if (k === 'mode' ? val !== 'uniforme' && val !== 'relevo' : typeof val !== 'number' || !Number.isFinite(val)) continue;
+          (env.bottom as unknown as Record<string, unknown>)[k] = k === 'baseDepth' ? Math.max(8, val as number) : val;
+          note('bottom.' + k, val);
+        }
+      }
+      e.rebuildEnvironment();
+      log(`Ambiente alterado (estado mantido): ${changes.join(', ') || 'sem mudanças'}`, 'Ambiente');
       break;
     }
     case 'demoWeight': {

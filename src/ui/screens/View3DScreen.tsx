@@ -1,13 +1,13 @@
 /** Tela 6 — Visualização 3D. */
-import { useState } from 'react';
 import { usePersisted } from '../persist';
 import { TankSelector } from '../components/TankSelector';
 import { VectorSelector } from '../components/VectorSelector';
 import { useSim } from '../store';
 import type { ViewMode } from '../../render3d/SubmarineScene';
-import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
+import { Scene3D } from '../components/Scene3D';
+import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
-import type { OceanQuality } from '../../render3d/Ocean';
+import { TrimGainSelect } from '../components/TrimGain';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 
@@ -23,6 +23,8 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'submerso', label: 'Submerso' },
   { id: 'tanques', label: 'Vista tanques' },
   { id: 'forcas', label: 'Vista forças' },
+  { id: 'calado', label: 'Calado' },
+  { id: 'navio', label: 'Navio próximo' },
   { id: 'livre', label: 'Livre' },
 ];
 
@@ -33,11 +35,7 @@ export function View3DScreen() {
   const [cut, setCut] = usePersisted('v3d.cut', false);
   const [tankF, setTankF] = usePersisted<string[] | null>('v3d.tankFilter', null);
   const [selOpen, setSelOpen] = usePersisted('v3d.tankSelOpen', true);
-  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
-  const setQuality = (q: OceanQuality) => {
-    saveQuality(q);
-    setQualityS(q);
-  };
+  const [quality, setQuality] = useQuality();
   const [trail, setTrail] = usePersisted('v3d.trail', true);
   const [fog, setFog] = usePersisted('v3d.fog', true);
   const [vec, setVec] = usePersisted('v3d.vec', false);
@@ -54,6 +52,8 @@ export function View3DScreen() {
     if (v.hiddenVectors !== undefined) setHiddenV(v.hiddenVectors);
   };
   const [marks, setMarks] = usePersisted('v3d.marks', false);
+  const [trimRef, setTrimRef] = usePersisted('v3d.trimRef', false);
+  const [ships, setShips] = usePersisted('v3d.ships', true);
   const o = e.outputs;
   const s = e.state;
   return (
@@ -72,6 +72,8 @@ export function View3DScreen() {
         hiddenVectors: hiddenV,
         noWater: dry,
         markers: marks,
+        trimRef,
+        ships,
         pipes: true,
         flows: true,
         labels: true,
@@ -103,6 +105,8 @@ export function View3DScreen() {
                 setView(v.id);
                 if (v.id === 'tanques') setCut(true);
                 if (v.id === 'forcas') setVec(true);
+                if (v.id === 'calado') setTrimRef(true);
+                if (v.id === 'navio') setShips(true);
               }}
             >
               {v.label}
@@ -144,7 +148,14 @@ export function View3DScreen() {
           <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
             Boias
           </button>
+          <button className={`btn sm ${trimRef ? 'on' : ''}`} onClick={() => setTrimRef(!trimRef)} title="Calados AV/AR, linha d'água do casco × nível do mar">
+            Calado/trim
+          </button>
+          <button className={`btn sm ${ships ? 'on' : ''}`} onClick={() => setShips(!ships)} title="Contatos da mesa tática como navios no mar">
+            Navios
+          </button>
         </div>
+        {trimRef && <TrimGainSelect />}
         {anyVec && (
           <div className="tanksel-pop">
             <button className="btn sm" onClick={() => setVecOpen(!vecOpen)}>

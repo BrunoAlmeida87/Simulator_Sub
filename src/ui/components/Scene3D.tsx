@@ -7,24 +7,17 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 import { loadPersisted, savePersisted } from '../persist';
 import { visualOut, isVisualWindow } from '../sync';
 import type { PickTarget } from '../ops/opsBus';
+import { graphics } from '../graphics';
+import { appearanceRev, currentAppearance } from '../appearance';
+import { TrimGainBanner } from './TrimGain';
+import { geoOriginOf } from '../routeNav';
 
-const K_Q = 'sx1.quality.v1';
+/** qualidade gráfica preferida (guardada nas preferências gráficas) */
 export function defaultQuality(): OceanQuality {
-  try {
-    const q = localStorage.getItem(K_Q);
-    if (q === 'baixa' || q === 'media' || q === 'alta') return q;
-  } catch {
-    /* sem armazenamento */
-  }
-  const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
-  return coarse || window.innerWidth < 900 ? 'baixa' : 'alta';
+  return graphics.get().quality;
 }
 export function saveQuality(q: OceanQuality): void {
-  try {
-    localStorage.setItem(K_Q, q);
-  } catch {
-    /* sem armazenamento */
-  }
+  graphics.set({ quality: q });
 }
 
 export interface Scene3DProps {
@@ -109,6 +102,12 @@ export function Scene3D(props: Scene3DProps) {
             savePersisted(`cam.${opts.current.persistKey}`, sc.getCameraPose());
           }
           if (sc) {
+            sc.setAppearance(currentAppearance(), appearanceRev());
+            sc.trimGain = graphics.get().trimGain;
+            sc.geoOrigin = geoOriginOf(runner.engine);
+            sc.shipRange = graphics.get().shipRange;
+            sc.terrainDetail = graphics.get().coastDetail;
+            sc.lighting = graphics.get().lighting;
             sc.layers = mergedLayers(opts.current);
             if (!isVisualWindow) {
               visualOut.layers = sc.layers;
@@ -244,6 +243,7 @@ export function Scene3D(props: Scene3DProps) {
     <div className={`view3d ${props.className ?? ''}`} ref={box} style={props.style} onPointerDown={onDown} onPointerUp={onUp}>
       {err && <div style={{ padding: 20 }}>{err}</div>}
       <div className="lbl3d-host" ref={lblBox} />
+      <TrimGainBanner />
       {props.children}
     </div>
   );

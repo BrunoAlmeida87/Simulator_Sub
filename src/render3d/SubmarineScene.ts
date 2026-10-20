@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Ocean, UnderwaterSky, addCaustics, type OceanQuality } from './Ocean';
+import { LIGHTING, addRim, type RimUniforms, type SceneLighting } from './lighting';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { SimRunner } from '../sim/core/runner';
 import { qToMat3, DEG } from '../sim/core/math';
@@ -20,13 +21,21 @@ import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
 import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
+import type { Appearance } from './sailArt';
+import { SailDecals, anechoicTextures, bladeGeometry, draftMarkBand, finGeometry } from './HullDetail';
+import { DRAFT_MARK_X, draftInfo } from '../sim/drafts';
+import { qFromEuler, qToEuler } from '../sim/core/math';
+import { ShipsLayer } from './Ships';
+import { TerrainLayer, type TerrainDetail } from './Terrain';
+import { buildQuay, placeQuay } from './Quay';
+import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
  * mundo: o submarino atravessa o quadro) e enquadramentos rápidos de
  * apresentação ('superficie', 'submerso', 'tanques', 'forcas').
  */
-export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas';
+export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas' | 'calado' | 'navio';
 
 interface Particle {
   n: number;
@@ -81,7 +90,29 @@ export class SubmarineScene {
   private sailMat: THREE.MeshStandardMaterial;
   private fins: Record<string, THREE.Object3D> = {};
   private prop = new THREE.Group();
-  private mast!: THREE.Mesh;
+  private mast!: THREE.Group;
+  /** material das superfícies de controle (cor configurável) */
+  private ctrlMat!: THREE.MeshStandardMaterial;
+  private deckMat!: THREE.MeshStandardMaterial;
+  private decals: SailDecals | null = null;
+  /** marcas de calado pintadas (proa e popa, dois bordos) */
+  private draftMarks: THREE.Object3D[] = [];
+  /** linhas de referência de trim: nível do mar (fixo no mundo) × linha d'água do casco (fixa no casco) */
+  private trimLines!: THREE.LineSegments;
+  /**
+   * Ampliação VISUAL do ângulo de trim (1 = real). Só a pose desenhada muda;
+   * a física não. A interface mostra o aviso quando > 1.
+   */
+  trimGain = 1;
+  /** navios da mesa tática */
+  private ships = new ShipsLayer();
+  /** origem geográfica do referencial local (para posicionar os navios como no mapa) */
+  geoOrigin: LatLon = DEFAULT_ORIGIN;
+  /** alcance de desenho dos navios (km) */
+  shipRange = 12;
+  private appRev = -1;
+  private texDetail: Appearance['textures'] | null = null;
+  private tileTex: { hull: { map: THREE.Texture; bump: THREE.Texture } | null; sail: { map: THREE.Texture; bump: THREE.Texture } | null } = { hull: null, sail: null };
   private hullMesh!: THREE.Mesh;
   private pickables: THREE.Object3D[] = [];
   private dryBg = new THREE.Color(0x5a6b7e);
@@ -103,8 +134,11 @@ export class SubmarineScene {
   private caustics = { uTime: { value: 0 }, uCaustic: { value: 0 } };
   private wallTime = 0;
   readonly quality: OceanQuality;
-  private seabed: THREE.Mesh | null = null;
-  private seabedCenter = { n: 1e12, e: 1e12 };
+  /** fundo do mar e terra (mesma função de profundidade da física), com níveis de detalhe */
+  private terrain: TerrainLayer | null = null;
+  /** detalhe do terreno (Configurações → Qualidade gráfica) */
+  terrainDetail: TerrainDetail = 'media';
+  private quay: THREE.Group | null = null;
   private particles: Particle[] = [];
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
   private snow: THREE.Points;
@@ -119,6 +153,9 @@ export class SubmarineScene {
   private viewBlend = 1;
   private viewFrom = new THREE.Vector3();
   realisticFog = true;
+  /** perfil de iluminação (apenas visual) */
+  lighting: SceneLighting = 'clara';
+  private rim: RimUniforms = { uRim: { value: 0 }, uRimColor: { value: new THREE.Color(0xa8dcff) } };
   private clock = new THREE.Clock();
   private dot = dotTexture();
   private env: () => SimulationEngine;
@@ -168,9 +205,13 @@ export class SubmarineScene {
     // submarino
     this.hullMat = new THREE.MeshStandardMaterial({ color: 0x3a4654, metalness: 0.3, roughness: 0.5, emissive: 0x0e1923 });
     addCaustics(this.hullMat, this.caustics, 14);
-    this.sailMat = this.hullMat;
+    addRim(this.hullMat, this.rim);
+    this.sailMat = new THREE.MeshStandardMaterial({ color: 0x3a4654, metalness: 0.3, roughness: 0.5, emissive: 0x0e1923 });
+    addCaustics(this.sailMat, this.caustics, 14);
+    addRim(this.sailMat, this.rim);
     this.buildSubmarine();
     this.scene.add(this.sub);
+    this.scene.add(this.trimLines);
     this.forces = new ForceArrows(this.env());
     this.scene.add(this.forces.group);
     this.trimVis = new TrimVis(this.env());
@@ -180,6 +221,7 @@ export class SubmarineScene {
     this.scene.add(this.fx.group);
     this.markers = new Markers(this.env(), this.dot);
     this.scene.add(this.markers.group);
+    this.scene.add(this.ships.group);
 
     // oceano: mesmas componentes de onda da física, deslocadas em GPU
     this.ocean = new Ocean(quality, this.sunDir);
@@ -292,21 +334,79 @@ export class SubmarineScene {
     const sail = new THREE.Mesh(sg, this.sailMat);
     sail.position.y = R - 0.6;
     this.sub.add(sail);
-    // mastro do snorkel
-    const mg = new THREE.CylinderGeometry(0.22, 0.22, v.hull.snorkelMast.extension, 12);
-    this.mast = new THREE.Mesh(mg, new THREE.MeshStandardMaterial({ color: 0x5a6672, metalness: 0.5, roughness: 0.4 }));
-    this.mast.position.set(0, R + sv.height - v.hull.snorkelMast.extension / 2, -v.hull.snorkelMast.x);
-    this.sub.add(this.mast);
+    // topo da vela: carenagens dos mastros recolhidos (decorativas)
+    {
+      const capMat = new THREE.MeshStandardMaterial({ color: 0x2e3946, metalness: 0.35, roughness: 0.55 });
+      for (const [x, r, h] of [
+        [sv.xFwd - 2.0, 0.28, 0.35],
+        [sv.xFwd - 3.4, 0.22, 0.3],
+        [sv.xAft + 2.2, 0.3, 0.32],
+      ] as const) {
+        const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, h, 14), capMat);
+        c.position.set(0, R + sv.height + h / 2, -x);
+        this.sub.add(c);
+      }
+    }
+    // pintura da vela (emblema + inscrição) na parte alta, acima dos lemes de vela
+    {
+      const xFlat0 = sv.xAft + w;
+      const xFlat1 = sv.xFwd - len * 0.25;
+      const fb0 = v.fins.find((f) => f.id === 'bow');
+      const planeTop = fb0 ? -fb0.position.z + 0.2 : R + sv.height * 0.45;
+      const top = R + sv.height - 0.15;
+      const dh = Math.max(1.2, Math.min(top - planeTop, (xFlat1 - xFlat0) / 2));
+      this.decals = new SailDecals((xFlat0 + xFlat1) / 2, w, top - dh / 2, dh * 2, dh, 1024);
+      this.sub.add(this.decals.group);
+    }
+    // mastro do snorkel (mais grosso que antes para ficar visível; o curso e a altura da cabeça são os da física)
+    {
+      const ext = v.hull.snorkelMast.extension;
+      const mastMat = new THREE.MeshStandardMaterial({ color: 0x5f6b78, metalness: 0.5, roughness: 0.38 });
+      const headMat = new THREE.MeshStandardMaterial({ color: 0x8b97a3, metalness: 0.45, roughness: 0.35 });
+      const bandMat = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: 0.2, roughness: 0.5, emissive: 0x202428 });
+      this.mast = new THREE.Group();
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, ext, 18), mastMat);
+      // cabeça (válvula de cabeça / boia) no topo
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.42, 0.95, 18), headMat);
+      head.position.y = ext / 2 - 0.35;
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.51, 0.51, 0.16, 18), bandMat);
+      band.position.y = ext / 2 - 0.55;
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), headMat);
+      cap.position.y = ext / 2 + 0.12;
+      this.mast.add(tube, head, band, cap);
+      this.mast.position.set(0, R + sv.height - ext / 2, -v.hull.snorkelMast.x);
+      this.sub.add(this.mast);
+    }
+    // convés (chapa plana sobre o casco cilíndrico)
+    {
+      this.deckMat = new THREE.MeshStandardMaterial({ color: 0x323c48, metalness: 0.25, roughness: 0.75 });
+      addRim(this.deckMat, this.rim);
+      const xa = -v.hull.length / 2 + v.hull.sternLength + 1;
+      const xf = v.hull.length / 2 - v.hull.bowLength - 1;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.16, xf - xa), this.deckMat);
+      deck.position.set(0, R - 0.02, -(xa + xf) / 2);
+      this.sub.add(deck);
+      // escotilhas
+      const hatchMat = new THREE.MeshStandardMaterial({ color: 0x252e38, metalness: 0.3, roughness: 0.6 });
+      for (const x of [xf - 3, sv.xAft - 3, xa + 4]) {
+        const hch = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 20), hatchMat);
+        hch.position.set(0, R + 0.1, -x);
+        this.sub.add(hch);
+      }
+    }
     // superfícies
     const finMat = new THREE.MeshStandardMaterial({ color: 0x3a4652, metalness: 0.3, roughness: 0.6 });
-    const ctrlMat = new THREE.MeshStandardMaterial({ color: 0xc2763a, metalness: 0.2, roughness: 0.6 });
+    addRim(finMat, this.rim);
+    const ctrlMat = new THREE.MeshStandardMaterial({ color: 0xc2763a, metalness: 0.2, roughness: 0.55 });
+    this.ctrlMat = ctrlMat;
     const makeH = (x: number, z: number, span: number, chord: number, mat: THREE.Material, id: string | null, root?: number) => {
       const r0 = root ?? Math.max(0.3, e.geom.radiusAt(x) - 0.1);
       const g = new THREE.Group();
       for (const side of [-1, 1]) {
         const piv = new THREE.Group();
         piv.position.set(side * (r0 + span / 2), -z, -x);
-        const m = new THREE.Mesh(new THREE.BoxGeometry(span, 0.22, chord), mat);
+        const m = new THREE.Mesh(finGeometry(span, chord, 0.3, true), mat);
+        m.scale.x = side; // ponta para fora nos dois bordos
         m.position.z = chord * 0.2;
         if (id) {
           m.userData.pick = { kind: 'fin', id };
@@ -323,7 +423,8 @@ export class SubmarineScene {
       for (const side of [-1, 1]) {
         const piv = new THREE.Group();
         piv.position.set(0, side * (r0 + span / 2), -x);
-        const m = new THREE.Mesh(new THREE.BoxGeometry(0.22, span, chord), mat);
+        const m = new THREE.Mesh(finGeometry(span, chord, 0.3, false), mat);
+        m.scale.y = side;
         m.position.z = chord * 0.2;
         if (id) {
           m.userData.pick = { kind: 'fin', id };
@@ -345,17 +446,14 @@ export class SubmarineScene {
     const hub = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.6, 16), finMat);
     hub.rotation.x = -Math.PI / 2;
     this.prop.add(hub);
-    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xb08d57, metalness: 0.7, roughness: 0.3 });
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xb08d57, metalness: 0.75, roughness: 0.28, side: THREE.DoubleSide });
     const nb = v.propulsion.propeller.blades;
     const Rp = v.propulsion.propeller.diameter / 2;
+    const bg = bladeGeometry(0.35, Rp);
     for (let k = 0; k < nb; k++) {
       const arm = new THREE.Group();
       arm.rotation.z = (k / nb) * Math.PI * 2;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.75, Rp - 0.4, 0.07), bladeMat);
-      b.position.y = (Rp - 0.4) / 2 + 0.4;
-      b.rotation.y = 0.55;
-      b.rotation.z = 0.12;
-      arm.add(b);
+      arm.add(new THREE.Mesh(bg, bladeMat));
       this.prop.add(arm);
     }
     this.prop.position.set(0, 0, L / 2 + 0.6);
@@ -365,6 +463,25 @@ export class SubmarineScene {
     this.pickables.push(this.mast);
     this.sub.add(this.prop);
 
+    // marcas de calado (proa e popa, dois bordos)
+    for (const xm of [DRAFT_MARK_X.fwd, DRAFT_MARK_X.aft])
+      for (const side of [1, -1] as const) {
+        const m = draftMarkBand(e.geom.radiusAt, xm, side);
+        if (m) {
+          this.draftMarks.push(m);
+          this.sub.add(m);
+        }
+      }
+    // linhas de referência de trim (atualizadas a cada quadro; camada "Calado/trim")
+    {
+      const lg = new THREE.BufferGeometry();
+      lg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(8 * 3), 3));
+      lg.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(8 * 3), 3));
+      this.trimLines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, transparent: true, toneMapped: false, fog: false }));
+      this.trimLines.renderOrder = 30;
+      this.trimLines.frustumCulled = false;
+      this.trimLines.visible = false;
+    }
     // tanques, tubulações e escoamentos (corte)
     this.systems = new SystemsVis(e, this.dot);
     this.sub.add(this.systems.group);
@@ -372,6 +489,55 @@ export class SubmarineScene {
       // desenhados depois do oceano (que não grava profundidade): visíveis também abaixo da linha d'água
       if (o.renderOrder < 6) o.renderOrder = 6;
     });
+  }
+
+  /**
+   * Aplica a aparência (identificação e detalhe das texturas). Chamado a cada
+   * quadro pela interface; só refaz algo quando rev muda. Puramente visual.
+   */
+  setAppearance(a: Appearance, rev: number): void {
+    if (rev === this.appRev) return;
+    this.appRev = rev;
+    this.ctrlMat.color.set(a.finColor);
+    this.ctrlMat.emissive.set(a.finColor).multiplyScalar(0.22);
+    this.decals?.update(a);
+    if (a.textures !== this.texDetail) {
+      this.texDetail = a.textures;
+      this.buildTileTextures(a.textures);
+    }
+    this.hullState = { ...this.hullState, op: -1 };
+  }
+
+  /** placas anecoicas: casco (UV do torno) e vela (UV em metros) */
+  private buildTileTextures(detail: Appearance['textures']): void {
+    for (const t of [this.tileTex.hull, this.tileTex.sail]) {
+      t?.map.dispose();
+      t?.bump.dispose();
+    }
+    const size = detail === 'alta' ? 1024 : 512;
+    const base = anechoicTextures(size, 8);
+    if (!base) return;
+    const v = this.env().vessel;
+    const tile = 0.55; // m por placa
+    const circ = Math.PI * v.hull.diameter;
+    const hull = { map: base.map, bump: base.bump };
+    for (const t of [hull.map, hull.bump]) t.repeat.set(Math.round(circ / (8 * tile)), v.hull.length / (8 * tile));
+    const sail = { map: base.map.clone(), bump: base.bump.clone() };
+    for (const t of [sail.map, sail.bump]) {
+      t.repeat.set(1 / (8 * tile), 1 / (8 * tile));
+      t.needsUpdate = true;
+    }
+    this.tileTex = { hull, sail };
+    const bumpScale = detail === 'alta' ? 0.35 : 0.12;
+    for (const [m, tx] of [
+      [this.hullMat, hull],
+      [this.sailMat, sail],
+    ] as const) {
+      m.map = tx.map;
+      m.bumpMap = tx.bump;
+      m.bumpScale = bumpScale;
+      m.needsUpdate = true;
+    }
   }
 
   resize(): void {
@@ -475,26 +641,38 @@ export class SubmarineScene {
     return this.systems.pick(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
   }
 
-  private hullState = { cut: false, op: 1, pres: false };
+  private hullState = { cut: false, op: 1, pres: false, light: '' };
   private applyHull(): void {
     const cut = this.layers.tanks;
     const op = cut ? Math.max(0.04, Math.min(1, this.layers.hullOpacity)) : 1;
     const pres = this.layers.presLight;
+    const light = this.lighting;
     const hs = this.hullState;
-    if (hs.cut === cut && hs.op === op && hs.pres === pres) return;
-    const m = this.hullMat;
-    m.transparent = op < 0.999;
-    m.opacity = op;
-    m.color.set(cut ? 0x9cc0e4 : pres ? 0x4d5c6c : 0x3a4654);
-    m.emissive.set(pres ? 0x1d2c3a : 0x0e1923);
-    m.depthWrite = op >= 0.999;
-    m.needsUpdate = true;
+    if (hs.cut === cut && hs.op === op && hs.pres === pres && hs.light === light) return;
+    const hc = pres ? LIGHTING.estudio.hull : (LIGHTING[light] ?? LIGHTING.clara).hull;
+    for (const [m, tx] of [
+      [this.hullMat, this.tileTex.hull],
+      [this.sailMat, this.tileTex.sail],
+    ] as const) {
+      m.transparent = op < 0.999;
+      m.opacity = op;
+      m.color.set(cut ? 0x9cc0e4 : hc.color);
+      m.emissive.set(hc.emissive);
+      m.depthWrite = op >= 0.999;
+      // no corte as placas do revestimento atrapalham a leitura dos tanques
+      m.map = cut ? null : (tx?.map ?? null);
+      m.bumpMap = cut ? null : (tx?.bump ?? null);
+      m.needsUpdate = true;
+    }
+    this.deckMat.transparent = op < 0.999;
+    this.deckMat.opacity = op;
+    this.deckMat.depthWrite = op >= 0.999;
+    if (this.decals) this.decals.group.visible = !cut;
+    for (const m of this.draftMarks) m.visible = !cut;
     // no corte o casco é desenhado depois do oceano (fica visível abaixo da linha d'água)
     this.hullMesh.renderOrder = cut ? 5 : 0;
     this.profile.visible = cut;
-    this.keyLight.intensity = pres ? 1.6 : 0;
-    this.fillLight.intensity = pres ? 0.45 : 0;
-    this.hullState = { cut, op, pres };
+    this.hullState = { cut, op, pres, light };
   }
 
   private headingVectors(): { fwd: THREE.Vector3; stbd: THREE.Vector3 } {
@@ -516,6 +694,7 @@ export class SubmarineScene {
   }
 
   private cameraTarget(v: ViewMode): THREE.Vector3 {
+    const v0L = this.env().vessel.hull.length;
     const { fwd, stbd } = this.headingVectors();
     const c = this.lastSubPos.clone();
     const asp = Math.max(0.3, this.camera.aspect);
@@ -532,6 +711,21 @@ export class SubmarineScene {
       case 'tanques': {
         const cam = c.add(stbd.multiplyScalar(Math.max(58, 66 / asp)));
         cam.y = this.lastSubPos.y + 10;
+        return cam;
+      }
+      case 'navio': {
+        // atrás e acima do submarino, olhando para o navio mais próximo
+        const sh = this.ships.nearest;
+        if (!sh) return c.add(fwd.multiplyScalar(-70)).add(new THREE.Vector3(0, 25, 0));
+        const dir = sh.pos.clone().sub(c).setY(0).normalize();
+        return c.add(dir.multiplyScalar(-55)).add(new THREE.Vector3(0, 14, 0));
+      }
+      case 'calado': {
+        // lateral rente à água, teleobjetiva: o casco inteiro no quadro e a linha d'água em perfil
+        const half = Math.tan(((this.camera.fov / 2) * Math.PI) / 180) * asp;
+        const dist = (v0L / 2 + 10) / Math.max(0.05, half);
+        const cam = c.add(stbd.multiplyScalar(dist));
+        cam.y = this.lastSubPos.y > -6 ? 1.2 : this.lastSubPos.y + 1.2;
         return cam;
       }
       case 'forcas': {
@@ -560,47 +754,17 @@ export class SubmarineScene {
     }
   }
 
-  private rebuildSeabed(n0: number, e0: number): void {
-    const env = this.env().env;
-    const size = 3600;
-    const seg = 140;
-    const g = new THREE.PlaneGeometry(size, size, seg, seg);
-    g.rotateX(-Math.PI / 2);
-    const pos = g.getAttribute('position') as THREE.BufferAttribute;
-    const colors = new Float32Array(pos.count * 3);
-    const c1 = new THREE.Color(0x6b5a3e);
-    const c2 = new THREE.Color(0x2b3a3e);
-    let dmin = Infinity;
-    let dmax = -Infinity;
-    const depths = new Float32Array(pos.count);
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      const d = env.bottomDepthAt(n0 - z, e0 + x);
-      depths[i] = d;
-      dmin = Math.min(dmin, d);
-      dmax = Math.max(dmax, d);
-      pos.setY(i, -d);
+  /** cria/recria o terreno quando o nível de detalhe muda */
+  private ensureTerrain(): TerrainLayer {
+    if (!this.terrain || this.terrain.detail !== this.terrainDetail) {
+      if (this.terrain) {
+        this.scene.remove(this.terrain.group);
+        this.terrain.dispose();
+      }
+      this.terrain = new TerrainLayer(this.terrainDetail, (m) => addCaustics(m, this.caustics, 45));
+      this.scene.add(this.terrain.group);
     }
-    for (let i = 0; i < pos.count; i++) {
-      const t = (depths[i] - dmin) / Math.max(1, dmax - dmin);
-      const c = c1.clone().lerp(c2, t);
-      colors[i * 3] = c.r;
-      colors[i * 3 + 1] = c.g;
-      colors[i * 3 + 2] = c.b;
-    }
-    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    g.computeVertexNormals();
-    if (this.seabed) {
-      this.scene.remove(this.seabed);
-      this.seabed.geometry.dispose();
-      (this.seabed.material as THREE.Material).dispose();
-    }
-    const bedMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
-    addCaustics(bedMat, this.caustics, 45);
-    this.seabed = new THREE.Mesh(g, bedMat);
-    this.scene.add(this.seabed);
-    this.seabedCenter = { n: n0, e: e0 };
+    return this.terrain;
   }
 
   /** Atualiza a cena a partir do estado e renderiza. Retorna rótulos de sobreposição. */
@@ -620,6 +784,13 @@ export class SubmarineScene {
     const q1 = new THREE.Quaternion(s.body.quat.x, s.body.quat.y, s.body.quat.z, s.body.quat.w);
     if (q0.dot(q1) < 0) q1.set(-q1.x, -q1.y, -q1.z, -q1.w);
     q0.slerp(q1, a);
+    if (this.trimGain !== 1) {
+      // ampliação visual do trim (demonstração): só o ângulo de pitch desenhado é multiplicado
+      const eu = qToEuler({ w: q0.w, x: q0.x, y: q0.y, z: q0.z });
+      const th = Math.max(-0.5, Math.min(0.5, eu.theta * this.trimGain));
+      const qq = qFromEuler(eu.phi, th, eu.psi);
+      q0.set(qq.x, qq.y, qq.z, qq.w);
+    }
     const R = qToMat3({ w: q0.w, x: q0.x, y: q0.y, z: q0.z });
     // M₃ = P·R·Pᵀ com P: (n,e,d) → (e, −d, −n)
     const m = new THREE.Matrix4();
@@ -643,9 +814,19 @@ export class SubmarineScene {
     const R0 = v.hull.diameter / 2;
     this.mast.position.y = R0 + v.hull.sail.height - v.hull.snorkelMast.extension / 2 - 0.5 + s.snorkel.pos * v.hull.snorkelMast.extension;
 
-    // fundo (reconstruído ao afastar-se)
-    if (Math.hypot(pn - this.seabedCenter.n, pe - this.seabedCenter.e) > 800) this.rebuildSeabed(Math.round(pn / 100) * 100, Math.round(pe / 100) * 100);
-    if (this.seabed) this.seabed.position.set(this.seabedCenter.e - pe, 0, -(this.seabedCenter.n - pn));
+    // fundo e terra (reconstruídos ao afastar-se ou quando o fundo/costa mudam)
+    const coastOn = !!e.env.cfg.geo?.coast;
+    const terrain = this.ensureTerrain();
+    terrain.update(e.env, pn, pe, coastOn);
+    // cais (só com a costa ligada: senão não há terra desenhada)
+    if (coastOn && e.env.cfg.geo) {
+      if (!this.quay) {
+        this.quay = buildQuay();
+        this.scene.add(this.quay);
+      }
+      placeQuay(this.quay, e.env.cfg.geo.origin, e.env, pn, pe);
+      this.quay.visible = true;
+    } else if (this.quay) this.quay.visible = false;
 
     // bolhas dos suspiros/embornais (taxa proporcional à vazão de ar simulada)
     const Rm = qToMat3(s.body.quat);
@@ -735,7 +916,13 @@ export class SubmarineScene {
     dl.needsUpdate = true;
     this.depthLine.computeLineDistances();
 
-    // câmera: segue o submarino
+    // câmera: segue o submarino (vista "Calado" usa teleobjetiva)
+    const sh = this.view === 'navio' ? this.ships.nearest : null;
+    const fov = this.view === 'calado' ? 16 : sh ? Math.max(2.5, Math.min(50, ((2 * Math.atan((sh.length * 1.8) / (2 * (sh.dist + 55)))) * 180) / Math.PI)) : 50;
+    if (this.camera.fov !== fov) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
     const delta = subPos.clone().sub(this.lastSubPos);
     this.lastSubPos.copy(subPos);
     if (this.view === 'livre') {
@@ -751,6 +938,7 @@ export class SubmarineScene {
       this.camera.position.lerpVectors(this.viewFrom, target, k);
       this.controls.target.copy(subPos);
       if (this.view === 'piloto') this.controls.target.add(this.headingVectors().fwd.multiplyScalar(this.pilotLead()));
+      if (sh) this.controls.target.copy(sh.pos).add(new THREE.Vector3(0, 8, 0));
       if (this.viewBlend >= 1) this.viewFrom.copy(target);
     }
     this.camera.up.set(0, 1, 0);
@@ -764,14 +952,20 @@ export class SubmarineScene {
     const under = this.camera.position.y < 0;
     const camDepth = Math.max(0, -this.camera.position.y);
     this.wallTime += dtR;
-    const uw = this.underSky.update(this.camera.position, camDepth, this.wallTime);
+    const prof = LIGHTING[this.lighting] ?? LIGHTING.clara;
+    const uw = this.underSky.update(this.camera.position, camDepth, this.wallTime, prof.water);
     const deepColor = uw.horizon.clone();
     this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
     this.sky.position.copy(this.camera.position);
     this.sky.visible = !under;
     this.underSky.mesh.visible = under;
     // fundo só quando dentro do alcance de visibilidade (senão aparece como faixa de névoa)
-    if (this.seabed) this.seabed.visible = under && (e.env.bottomDepthAt(pn, pe) - camDepth < (this.realisticFog ? 330 : 1200));
+    // fundo: debaixo d'água só dentro do alcance de visibilidade (senão vira faixa de névoa) ou perto da costa;
+    // acima d'água o oceano cobre o fundo e a terra aparece; níveis grosseiros só acima d'água
+    {
+      const nearBottom = e.env.bottomDepthAt(pn, pe) - camDepth < (this.realisticFog ? 330 : 1200);
+      terrain.setVisible(under ? nearBottom || terrain.landNear : coastOn, !under && coastOn);
+    }
     // sem água: só o submarino (e o que está dentro dele) sobre um fundo neutro
     const dry = this.layers.noWater;
     this.ocean.mesh.visible = !dry;
@@ -781,7 +975,8 @@ export class SubmarineScene {
     if (dry) {
       this.underSky.mesh.visible = false;
       this.sky.visible = false;
-      if (this.seabed) this.seabed.visible = false;
+      this.terrain?.setVisible(false, false);
+      if (this.quay) this.quay.visible = false;
     }
     this.caustics.uTime.value = this.wallTime;
     this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15);
@@ -794,7 +989,17 @@ export class SubmarineScene {
       this.scene.fog = this.realisticFog ? new THREE.FogExp2(deepColor.getHex(), 0.0032) : new THREE.FogExp2(deepColor.getHex(), 0.0008);
     } else {
       this.scene.background = new THREE.Color(0x9dbad4);
-      this.scene.fog = new THREE.Fog(0x9dbad4, 3000, 14000);
+      // com a costa ligada a névoa vai mais longe: a serra aparece ao fundo
+      this.scene.fog = new THREE.Fog(0x9dbad4, coastOn ? 5000 : 3000, coastOn ? 32000 : 14000);
+    }
+    // iluminação: exposição, luz presa à câmera (mais fraca acima d'água, onde o sol ilumina) e contorno do casco
+    {
+      const pres = this.layers.presLight;
+      const k = under ? 1 : 0.5;
+      this.renderer.toneMappingExposure = under && !dry ? prof.exposureUnder : prof.exposureAbove;
+      this.keyLight.intensity = Math.max(pres ? 1.6 : 0, prof.camKey * k);
+      this.fillLight.intensity = Math.max(pres ? 0.45 : 0, prof.camFill * k);
+      this.rim.uRim.value = this.layers.tanks ? 0 : prof.rim * (under && !dry ? 1 : 0.35);
     }
     // camadas: casco, tanques/circuitos, vetores
     this.applyHull();
@@ -810,6 +1015,8 @@ export class SubmarineScene {
     this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
+    this.updateTrimRef(e, lbl, proj);
+    this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj);
     this.renderer.render(this.scene, this.camera);
 
     const ps = proj(new THREE.Vector3(0, 0, 0));
@@ -819,6 +1026,61 @@ export class SubmarineScene {
     const pb = proj(new THREE.Vector3(0, -bottom, 0));
     lbl.push({ id: 'bot', text: `fundo ${bottom.toFixed(0)} m (altitude ${e.outputs.altitude.toFixed(0)} m)`, ...pb });
     return lbl;
+  }
+
+  /**
+   * Referências de trim: linha d'água do casco (amarela, fixa no casco, no
+   * calado médio atual) × nível do mar (ciano, horizontal) junto às marcas de
+   * calado, com as leituras calculadas de calado AV/AR e trim.
+   */
+  private updateTrimRef(e: SimulationEngine, lbl: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
+    const on = this.layers.trimRef;
+    this.trimLines.visible = on;
+    if (!on) return;
+    const d = draftInfo(e);
+    const r = e.vessel.hull.diameter / 2;
+    const zwl = r - d.mean; // cota (corpo, + para baixo) da linha d'água sem trim
+    const b = Math.sqrt(Math.max(0, r * r - zwl * zwl)) + 0.3;
+    const pos = this.trimLines.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const col = this.trimLines.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const yellow = new THREE.Color(0xffe14d);
+    const cyan = new THREE.Color(0x49dcff);
+    let k = 0;
+    const put = (v: THREE.Vector3, c: THREE.Color) => {
+      pos.setXYZ(k, v.x, v.y, v.z);
+      col.setXYZ(k, c.r, c.g, c.b);
+      k++;
+    };
+    const pts: { side: number; f: THREE.Vector3; a: THREE.Vector3 }[] = [];
+    for (const side of [1, -1]) {
+      const f = this.sub.localToWorld(new THREE.Vector3(side * b, -zwl, -DRAFT_MARK_X.fwd));
+      const a = this.sub.localToWorld(new THREE.Vector3(side * b, -zwl, -DRAFT_MARK_X.aft));
+      put(f, yellow);
+      put(a, yellow);
+      put(new THREE.Vector3(f.x, 0, f.z), cyan);
+      put(new THREE.Vector3(a.x, 0, a.z), cyan);
+      pts.push({ side, f, a });
+    }
+    pos.needsUpdate = true;
+    col.needsUpdate = true;
+    if (!this.layers.labels) return;
+    // rótulos do bordo voltado para a câmera
+    const cam = this.camera.position;
+    const near = pts.reduce((p, q) => (q.f.distanceTo(cam) < p.f.distanceTo(cam) ? q : p));
+    const up = new THREE.Vector3(0, 2.6, 0);
+    const cm = (m: number) => `${Math.round(Math.abs(m) * 100)} cm`;
+    lbl.push({ id: 'drF', text: `Calado AV ${d.fwd.toFixed(2)} m`, color: '#ffe14d', small: true, prio: 0, ...proj(near.f.clone().add(up)) });
+    lbl.push({ id: 'drA', text: `Calado AR ${d.aft.toFixed(2)} m`, color: '#ffe14d', small: true, prio: 0, ...proj(near.a.clone().add(up)) });
+    const mid = near.f.clone().add(near.a).multiplyScalar(0.5).add(new THREE.Vector3(0, 9, 0));
+    const trimTxt = Math.abs(d.trim) < 0.005 ? 'sem trim' : `trim ${cm(d.trim)} ${d.trim > 0 ? 'pela popa' : 'pela proa'}`;
+    lbl.push({
+      id: 'drT',
+      text: `${trimTxt} · θ ${d.pitch.toFixed(2)}°${this.trimGain > 1 ? ` (desenho ×${this.trimGain})` : ''}`,
+      sub: d.surfaced ? `Na superfície o plano de flutuação deixa o trim ${Math.round(d.ratio)}× mais rígido que submerso · ${d.mtc.toFixed(1)} t·m por cm` : 'Submerso: rigidez de trim = W·BG',
+      color: '#ffffff',
+      prio: 0,
+      ...proj(mid),
+    });
   }
 
   dispose(): void {

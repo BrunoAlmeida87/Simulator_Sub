@@ -34,6 +34,15 @@ A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre vis�
 
 As outras abas continuam servindo para diagramas maiores, histórico e detalhes técnicos. Todas usam os mesmos comandos e o mesmo estado.
 
+## Painel de governo (aba Governo)
+
+Inspirado no posto de governo de um submarino, com cena 3D (perseguição, lateral, topo ou livre) em cima e três blocos embaixo:
+- **GOVERNO** (azul): **manche** — arrastar para os lados comanda o leme de direção (BB/BE); empurrar (para cima) comanda os lemes de ré a DESCER e puxar (para baixo) a SUBIR. **Alavanca dos lemes de vante** ao lado. Botões giratórios de **rumo** e **profundidade** ordenados (gire e solte) com MAN/AUTO.
+- **INSTRUMENTOS**: rosa de rumo (com o rumo ordenado), fita de profundidade (com a cota ordenada e o fundo), atitude e velocidade.
+- **POTÊNCIA** (laranja): **alavanca do telégrafo**, que encaixa nas ordens (RÉ TODA … AV TODA), ajuste fino de ±5 rpm, rotação do eixo, potência e empuxo.
+
+A peça que se move mostra o **comandado**; o marcador **verde** mostra a resposta **real** (ângulo dos lemes, rotação do eixo). Funciona com mouse e toque. Os comandos são os mesmos das outras telas (aparecem no histórico, entram na gravação e ficam sincronizados com a Pilotagem); mover o manche com o piloto em AUTO desengaja o canal, como nas outras telas.
+
 ## Mapa tático
 
 A aba **Mapa tático** mostra a posição geográfica do submarino. O ponto de partida padrão fica na Baía de Sepetiba, junto ao **Estaleiro e Base Naval da Ilha da Madeira (Itaguaí-RJ)**. O mapa mostra:
@@ -50,6 +59,8 @@ Ferramentas:
 
 Fundos de mapa, todos gratuitos e sem chave de API: tático escuro e mapa (OpenStreetMap), relevo (OpenTopoMap) e satélite (Sentinel-2 sem nuvens, EOX), mais sinais náuticos do OpenSeaMap. Eles vêm da internet; sem conexão, fica só a grade (opção *Nenhum*). A batimetria real não é modelada: a profundidade do fundo é a do cenário.
 
+**Navios no 3D:** os contatos do quadro tático aparecem como navios no mar das cenas 3D (camada **Navios**, ligada por padrão), na mesma posição geográfica, com o mesmo rumo e a mesma velocidade da tabela de contatos — a conversão é a mesma (`contactsLocal`). Modelos leves por tipo: graneleiro (M1), porta-contêineres (M2), pesqueiro (P1), rebocador (R1) e navio-patrulha (N1), com esteira proporcional à velocidade e rótulo com identificação, distância, rumo e velocidade. A vista **Navio próximo** mira o navio mais perto, com teleobjetiva. O alcance de desenho (5–30 km) fica em Configurações → Qualidade gráfica. São apenas visuais: não colidem nem interagem com a física. Os contatos são fictícios (não são posições AIS reais).
+
 ## Fluxo de energia
 
 A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de fluxo, em que a largura de cada faixa é proporcional à potência e o tracejado anda no sentido do fluxo. O caminho completo é: combustível e ar do snorkel → diesel-geradores (com o consumo de óleo) → barramento → bateria e consumidores (motor principal, habitabilidade, navegação, hidráulica, compressor, bombas).
@@ -57,6 +68,24 @@ A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de flux
 - **Geradores parados:** a bateria aparece **descarregando** para os sistemas, com a autonomia estimada.
 
 *Preparar demonstração* carrega a cota periscópica com mar calmo, piloto de profundidade em 14 m e snorkel içando. Depois é só partir os geradores. Com os diesel em carga, a cena 3D mostra **fumaça** saindo do topo do mastro, mais escura na partida.
+
+**Interativo:** clique em qualquer equipamento do diagrama para abrir o painel ao lado com o estado (desligado, partindo, funcionando, parando, sem ar, falha) e os comandos que fazem sentido: partir/parar diesel-geradores (exigem tomada de ar), içar/arriar o snorkel, abrir/fechar o disjuntor da bateria, telégrafo do motor principal, partir/parar as bombas de compensação, trim e banda e o compressor. Elementos sem liga/desliga (combustível, barramento, hidráulica automática, cargas fixas) mostram a explicação do estado. O anel em volta de cada consumidor indica o estado (verde funcionando, âmbar em transição, cinza desligado, vermelho falha/sem energia). Os comandos são os mesmos das outras telas e respeitam as condições físicas (ex.: gerador comandado sem ar fica “SEM AR”).
+
+## Propulsão — linha de eixo
+
+No topo da aba **Propulsão e energia**, o diagrama **barramento → motor elétrico principal → eixo → mancal de escora → hélice** mostra os valores de cada passo: potência e corrente elétricas do motor, rotação real e ordenada, torque do motor (barra fica vermelha no torque máximo), potência no eixo, sentido de giro (horário visto da popa = avante), empuxo transmitido ao casco pelo mancal de escora (seta para vante ou para ré), torque absorvido pelo hélice, coeficiente de avanço J e rendimento elétrico→eixo. O rotor e o hélice giram na rotação real (multiplicada pela aceleração; param com a simulação pausada). Os mostradores, o telégrafo e as leituras que já existiam continuam abaixo.
+
+## Costa, terra e cais (região de Sepetiba)
+
+A costa da Baía de Sepetiba — continente de Itaguaí a Guaratiba, Restinga e Ilha da Marambaia, ilhas da baía e o leste da Ilha Grande — está embutida no simulador (funciona sem internet).
+- **Com a costa ligada** (Configurações → Fundo do mar → Costa), a terra entra na física: numa faixa costeira (padrão 1 km) o fundo sobe suavemente da profundidade de mar aberto até zero na orla, e em terra o “fundo” fica acima d'água — encostar é **encalhe** (contato com o fundo). O ecobatímetro, os alarmes de altitude e o desenho 3D usam a mesma função.
+- **No 3D**: fundo texturizado e terra com cores por altura e declive (praia, mata, rocha), em três níveis de detalhe que acompanham o submarino (perto, médio e longe — este só acima d'água; a névoa vai mais longe e a serra aparece ao fundo). Detalhe em Configurações → Qualidade gráfica → Terreno e costa.
+- **Cais** modelado na orla da base da Ilha da Madeira (plataforma sobre estacas, defensas, cabeços, postes, guindaste, galpão). **Só visual: não colide.**
+- **No mapa tático**: o botão *Costa do simulador* desenha em laranja a costa usada pela simulação (a mesma do 3D) e o cais, também sem internet.
+- **Cenários**: *Saída da base — Itaguaí* (superfície, perto do cais) e *Aproximação da Restinga da Marambaia* (submerso, fundo subindo, alarmes antes do encalhe) vêm com a costa ligada. Os outros cenários continuam em mar aberto (costa desligada), como antes — partindo da baía, vários encontrariam terra em poucos quilômetros.
+- **Posição geográfica**: *Definir posição* e *Posição inicial* no mapa mudam a posição da simulação (comando registrado); com a costa ligada, o simulador recusa colocar o casco em terra ou sobre o fundo.
+
+Dados: polígonos de terra do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL; pacote geo-maps) corrigidos com o relevo Terrarium (AWS Open Data/Mapzen: SRTM e outros). A batimetria real da baía não é usada: o fundo de mar aberto é o configurado.
 
 ## Duas janelas (dois monitores)
 
@@ -124,6 +153,14 @@ Uma carga de demonstração de 5 t corre num trilho longitudinal (−25 a +25 m,
 - **Vetores de trim:** camada própria, que liga e desliga sem afetar as outras. Mostra o binário do peso, a variação de peso em TT-AV e TT-AR e um arco com o momento líquido ("Trim compensado" quando os momentos se anulam).
 - **Onde está o painel:** Apresentação (situação pronta "Trim: deslocar peso e compensar"), Pilotagem e Trim e banda.
 
+### Trim na superfície (por que quase não aparece)
+
+Na superfície o plano de flutuação resiste à inclinação: a rigidez de trim fica ~130× maior que submerso. Os 5 t levados 23 m a vante, que embicam o submarino ~9,5° submerso, mudam o pitch só ~0,09° na superfície — cerca de 6 cm de diferença entre os calados a vante e a ré. É o comportamento físico correto (conferido em `tests/trim-surface.test.ts`). Para perceber:
+- **Marcas de calado** pintadas na proa (x = +25 m) e na popa (x = −13,4 m), numerais a cada metro e traços a cada 0,2 m.
+- **Camada Calado/trim**: linha d'água do casco (amarela, presa ao casco) × nível do mar (ciano), com as leituras de calado AV e AR, o trim em centímetros e a rigidez em relação à submersa. Os mesmos valores aparecem na aba Trim e banda (painel "Calados e trim").
+- **Vista Calado**: câmera lateral rente à água com teleobjetiva, o casco inteiro no quadro.
+- **Ampliar trim** (×5 a ×50): multiplica só o ângulo de pitch **desenhado**, para demonstração. Enquanto ligada, todas as cenas (inclusive a 2ª janela) mostram o aviso "TRIM AMPLIADO ×N" com o ângulo real; ao recarregar a página volta ao real.
+
 ## Tanques visíveis e visualização salva
 
 - **Tanques visíveis:** ao ligar *Ver tanques*, abre a lista de tanques. Você pode mostrar todos, só um grupo (lastro principal, compensação, trim, banda) ou tanques individuais. As tubulações e os escoamentos acompanham a seleção.
@@ -153,6 +190,40 @@ O roteiro automático equivalente fica em **Guia → Demonstração automática*
 | Cota periscópica | Snorkel, diesel-geradores, recarga da bateria e aumento de peso pelo combustível compensado. |
 | Mar grosso | Estado do mar 5 na cota periscópica: o casco joga, as cristas fecham a válvula do snorkel e há sucção para baixo; use o piloto de profundidade. |
 | Alagamento a 120 m | A vazão do rombo diminui à medida que o submarino sobe (√Δp); sopro de emergência, lemes a subir e toda força. |
+
+## Configurações (aba ⚙)
+
+Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeito:
+
+| Etiqueta | Significado |
+|---|---|
+| **VISUAL** | só aparência; aplicada na hora, sem efeito na física |
+| **SIMULAÇÃO · AGORA** | muda a física da simulação em curso, sem reiniciar; fica registrada no histórico de comandos |
+| **SIMULAÇÃO · REINICIAR** | vale quando o cenário é reiniciado (“Salvar e reiniciar o cenário”) |
+
+- **Sessão — salvar e continuar:** *Salvar a simulação atual* (guarda no navegador), *Baixar arquivo* (.json para guardar ou abrir em outro computador), *Carregar arquivo* e *Retomar a simulação*. Ao carregar, tudo volta ao ponto salvo — posição, profundidade, rumo, velocidade, inclinação, tempo, tanques, bateria, combustível, ar, válvulas, bombas, telégrafo, lemes, piloto e referências, falhas, alarmes, ambiente e as automações em andamento (manobra rápida, demonstração, cenário guiado, rota) — e a simulação fica **pausada** até *Retomar*. Arquivos de versões anteriores abrem com conversão automática.
+- **Identificação do submarino** (VISUAL): nome, inscrição vermelha da vela, emblema e cor dos lemes.
+- **Qualidade gráfica** (VISUAL): cena/oceano, texturas e **iluminação da cena**; vale para todas as abas e para a 2ª janela.
+- **Iluminação da cena** (VISUAL) — também no seletor **Luz** ao lado de “Gráfico” nas cenas 3D (Pilotagem, Visualização 3D, Apresentação):
+  - **Natural**: a água escurece com a profundidade, como no mar; o casco escuro fica pouco visível em cotas grandes.
+  - **Clara** (padrão): água mais clara, luz suave presa à câmera e contorno do casco realçado — o submarino se destaca do fundo em qualquer profundidade.
+  - **Estúdio**: luz forte presa à câmera, para projetor ou sala clara.
+  Nenhuma das três altera a física; a escolha fica guardada e chega à 2ª janela.
+- **Ambiente** (AGORA): estado do mar, salinidade, temperaturas, termoclina e declinação. *Aplicar agora* mantém o estado; *Usar nos próximos cenários* guarda como padrão.
+- **Fundo do mar** (AGORA): uniforme (padrão de 300 m) ou com relevo. O simulador recusa um fundo que ficaria acima do casco na posição atual.
+- **Simulação** e **Parâmetros da embarcação** (REINICIAR): passo de integração, semente, instrumentação e parâmetros fictícios do casco, propulsão, bombas, lemes e limites.
+
+A aba **Cenários** fica só com as condições iniciais e a condição de carga.
+
+## Gravação e reprodução de comandos
+
+Em **Configurações → Gravação e reprodução de comandos**:
+- **Iniciar gravação**: guarda a condição atual completa como ponto de partida e passa a registrar cada comando — os seus e os das automações (manobras rápidas, demonstração, cenário guiado, rota) — com o passo fixo e o tempo de simulação em que foi aplicado, além da narração das automações. A barra superior mostra **● REC**.
+- **Parar gravação**, **Salvar** (no navegador, até 6), **Baixar gravação** (.json) e **Carregar gravação**.
+- **Reproduzir**: volta à condição inicial gravada e reaplica os comandos nos mesmos passos; **Pausar/Continuar**; **Encerrar reprodução** devolve o controle no ponto em que estiver. Durante a reprodução, as automações ficam paradas (seus comandos já estão na gravação, então nada é executado duas vezes) e os comandos manuais são recusados com um aviso.
+- **Conferência**: a cada 10 s de simulação a gravação guarda um ponto de controle (posição, atitude, velocidade, bateria e um resumo do estado). Na reprodução o painel mostra quantos pontos ficaram idênticos.
+
+Limitações: trocar de cenário ou reiniciar encerra a gravação (o trecho gravado é mantido). Uma gravação feita em outra versão do simulador abre com aviso; se a física mudou entre as versões, ou se o navegador calcula funções matemáticas de modo ligeiramente diferente, a reprodução pode divergir aos poucos — a conferência mostra o desvio.
 
 ## Falhas para treinamento
 
