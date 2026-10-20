@@ -16,6 +16,7 @@ import { identity, FIN_COLORS, DEFAULT_IDENTITY } from '../identity';
 import { graphics, useGraphics } from '../graphics';
 import { currentAppearance, useIdentity } from '../appearance';
 import { drawSailDecal } from '../../render3d/sailArt';
+import { TrimGainSelect } from '../components/TrimGain';
 import { WATER_PARAMS, BOTTOM_RELIEF_PARAMS, VESSEL_PARAMS, ParamGrid } from '../settingsParams';
 import { defaultSimConfig } from '../../sim/config/defaultVessel';
 import type { SimConfig } from '../../sim/config/types';
@@ -375,6 +376,16 @@ function GraphicsPanel() {
             ))}
           </div>
         </div>
+      </div>
+      <div className="row mt8">
+        <span className="subtle" style={{ minWidth: 120 }}>
+          Ampliação do trim
+        </span>
+        <TrimGainSelect compact />
+      </div>
+      <div className="note">
+        A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao recarregar a
+        página ela volta para o valor real.
       </div>
       <div className="note">
         Qualidade baixa: menos vértices no oceano, menos partículas e texturas menores — recomendada em notebooks sem placa de vídeo e em celulares. Vale para todas as abas e para a segunda janela.

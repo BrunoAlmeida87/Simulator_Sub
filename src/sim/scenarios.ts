@@ -204,5 +204,7 @@ export function buildScenario(id: string, baseConfig?: SimConfig, opts: Scenario
   engine.state.autopilot.depthSet = Math.max(0, Math.round(engine.outputs.depthKeel));
   engine.state.autopilot.headingSet = Math.round(engine.outputs.euler.heading);
   engine.state.trimRef = { a: engine.state.trim.tankA.mass, b: engine.state.trim.tankB.mass };
+  // a cena desenha a pose já assentada (antes do 1º passo) e não a da construção
+  engine.resetInterpolation();
   return engine;
 }

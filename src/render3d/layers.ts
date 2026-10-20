@@ -34,6 +34,8 @@ export interface SceneLayers {
   hiddenVectors: string[];
   /** sem água: oculta o mar, a névoa e os efeitos de água para ver melhor o submarino */
   noWater: boolean;
+  /** referências de trim/calado: linha do nível do mar × linha do casco e leituras de calado AV/AR */
+  trimRef: boolean;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -54,6 +56,7 @@ export const defaultLayers = (): SceneLayers => ({
   tankFilter: null,
   hiddenVectors: [],
   noWater: false,
+  trimRef: false,
 });
 
 /** Linguagem visual única para as categorias de tanques e circuitos. */

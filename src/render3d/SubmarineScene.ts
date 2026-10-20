@@ -21,14 +21,16 @@ import { TrimVis } from './TrimVis';
 import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
 import type { Appearance } from './sailArt';
-import { SailDecals, anechoicTextures, bladeGeometry, finGeometry } from './HullDetail';
+import { SailDecals, anechoicTextures, bladeGeometry, draftMarkBand, finGeometry } from './HullDetail';
+import { DRAFT_MARK_X, draftInfo } from '../sim/drafts';
+import { qFromEuler, qToEuler } from '../sim/core/math';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
  * mundo: o submarino atravessa o quadro) e enquadramentos rápidos de
  * apresentação ('superficie', 'submerso', 'tanques', 'forcas').
  */
-export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas';
+export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas' | 'calado';
 
 interface Particle {
   n: number;
@@ -88,6 +90,15 @@ export class SubmarineScene {
   private ctrlMat!: THREE.MeshStandardMaterial;
   private deckMat!: THREE.MeshStandardMaterial;
   private decals: SailDecals | null = null;
+  /** marcas de calado pintadas (proa e popa, dois bordos) */
+  private draftMarks: THREE.Object3D[] = [];
+  /** linhas de referência de trim: nível do mar (fixo no mundo) × linha d'água do casco (fixa no casco) */
+  private trimLines!: THREE.LineSegments;
+  /**
+   * Ampliação VISUAL do ângulo de trim (1 = real). Só a pose desenhada muda;
+   * a física não. A interface mostra o aviso quando > 1.
+   */
+  trimGain = 1;
   private appRev = -1;
   private texDetail: Appearance['textures'] | null = null;
   private tileTex: { hull: { map: THREE.Texture; bump: THREE.Texture } | null; sail: { map: THREE.Texture; bump: THREE.Texture } | null } = { hull: null, sail: null };
@@ -181,6 +192,7 @@ export class SubmarineScene {
     addCaustics(this.sailMat, this.caustics, 14);
     this.buildSubmarine();
     this.scene.add(this.sub);
+    this.scene.add(this.trimLines);
     this.forces = new ForceArrows(this.env());
     this.scene.add(this.forces.group);
     this.trimVis = new TrimVis(this.env());
@@ -429,6 +441,25 @@ export class SubmarineScene {
     this.pickables.push(this.mast);
     this.sub.add(this.prop);
 
+    // marcas de calado (proa e popa, dois bordos)
+    for (const xm of [DRAFT_MARK_X.fwd, DRAFT_MARK_X.aft])
+      for (const side of [1, -1] as const) {
+        const m = draftMarkBand(e.geom.radiusAt, xm, side);
+        if (m) {
+          this.draftMarks.push(m);
+          this.sub.add(m);
+        }
+      }
+    // linhas de referência de trim (atualizadas a cada quadro; camada "Calado/trim")
+    {
+      const lg = new THREE.BufferGeometry();
+      lg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(8 * 3), 3));
+      lg.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(8 * 3), 3));
+      this.trimLines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, transparent: true, toneMapped: false, fog: false }));
+      this.trimLines.renderOrder = 30;
+      this.trimLines.frustumCulled = false;
+      this.trimLines.visible = false;
+    }
     // tanques, tubulações e escoamentos (corte)
     this.systems = new SystemsVis(e, this.dot);
     this.sub.add(this.systems.group);
@@ -613,6 +644,7 @@ export class SubmarineScene {
     this.deckMat.opacity = op;
     this.deckMat.depthWrite = op >= 0.999;
     if (this.decals) this.decals.group.visible = !cut;
+    for (const m of this.draftMarks) m.visible = !cut;
     // no corte o casco é desenhado depois do oceano (fica visível abaixo da linha d'água)
     this.hullMesh.renderOrder = cut ? 5 : 0;
     this.profile.visible = cut;
@@ -640,6 +672,7 @@ export class SubmarineScene {
   }
 
   private cameraTarget(v: ViewMode): THREE.Vector3 {
+    const v0L = this.env().vessel.hull.length;
     const { fwd, stbd } = this.headingVectors();
     const c = this.lastSubPos.clone();
     const asp = Math.max(0.3, this.camera.aspect);
@@ -656,6 +689,14 @@ export class SubmarineScene {
       case 'tanques': {
         const cam = c.add(stbd.multiplyScalar(Math.max(58, 66 / asp)));
         cam.y = this.lastSubPos.y + 10;
+        return cam;
+      }
+      case 'calado': {
+        // lateral rente à água, teleobjetiva: o casco inteiro no quadro e a linha d'água em perfil
+        const half = Math.tan(((this.camera.fov / 2) * Math.PI) / 180) * asp;
+        const dist = (v0L / 2 + 10) / Math.max(0.05, half);
+        const cam = c.add(stbd.multiplyScalar(dist));
+        cam.y = this.lastSubPos.y > -6 ? 1.2 : this.lastSubPos.y + 1.2;
         return cam;
       }
       case 'forcas': {
@@ -744,6 +785,13 @@ export class SubmarineScene {
     const q1 = new THREE.Quaternion(s.body.quat.x, s.body.quat.y, s.body.quat.z, s.body.quat.w);
     if (q0.dot(q1) < 0) q1.set(-q1.x, -q1.y, -q1.z, -q1.w);
     q0.slerp(q1, a);
+    if (this.trimGain !== 1) {
+      // ampliação visual do trim (demonstração): só o ângulo de pitch desenhado é multiplicado
+      const eu = qToEuler({ w: q0.w, x: q0.x, y: q0.y, z: q0.z });
+      const th = Math.max(-0.5, Math.min(0.5, eu.theta * this.trimGain));
+      const qq = qFromEuler(eu.phi, th, eu.psi);
+      q0.set(qq.x, qq.y, qq.z, qq.w);
+    }
     const R = qToMat3({ w: q0.w, x: q0.x, y: q0.y, z: q0.z });
     // M₃ = P·R·Pᵀ com P: (n,e,d) → (e, −d, −n)
     const m = new THREE.Matrix4();
@@ -859,7 +907,12 @@ export class SubmarineScene {
     dl.needsUpdate = true;
     this.depthLine.computeLineDistances();
 
-    // câmera: segue o submarino
+    // câmera: segue o submarino (vista "Calado" usa teleobjetiva)
+    const fov = this.view === 'calado' ? 16 : 50;
+    if (this.camera.fov !== fov) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
     const delta = subPos.clone().sub(this.lastSubPos);
     this.lastSubPos.copy(subPos);
     if (this.view === 'livre') {
@@ -934,6 +987,7 @@ export class SubmarineScene {
     this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
+    this.updateTrimRef(e, lbl, proj);
     this.renderer.render(this.scene, this.camera);
 
     const ps = proj(new THREE.Vector3(0, 0, 0));
@@ -943,6 +997,61 @@ export class SubmarineScene {
     const pb = proj(new THREE.Vector3(0, -bottom, 0));
     lbl.push({ id: 'bot', text: `fundo ${bottom.toFixed(0)} m (altitude ${e.outputs.altitude.toFixed(0)} m)`, ...pb });
     return lbl;
+  }
+
+  /**
+   * Referências de trim: linha d'água do casco (amarela, fixa no casco, no
+   * calado médio atual) × nível do mar (ciano, horizontal) junto às marcas de
+   * calado, com as leituras calculadas de calado AV/AR e trim.
+   */
+  private updateTrimRef(e: SimulationEngine, lbl: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
+    const on = this.layers.trimRef;
+    this.trimLines.visible = on;
+    if (!on) return;
+    const d = draftInfo(e);
+    const r = e.vessel.hull.diameter / 2;
+    const zwl = r - d.mean; // cota (corpo, + para baixo) da linha d'água sem trim
+    const b = Math.sqrt(Math.max(0, r * r - zwl * zwl)) + 0.3;
+    const pos = this.trimLines.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const col = this.trimLines.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const yellow = new THREE.Color(0xffe14d);
+    const cyan = new THREE.Color(0x49dcff);
+    let k = 0;
+    const put = (v: THREE.Vector3, c: THREE.Color) => {
+      pos.setXYZ(k, v.x, v.y, v.z);
+      col.setXYZ(k, c.r, c.g, c.b);
+      k++;
+    };
+    const pts: { side: number; f: THREE.Vector3; a: THREE.Vector3 }[] = [];
+    for (const side of [1, -1]) {
+      const f = this.sub.localToWorld(new THREE.Vector3(side * b, -zwl, -DRAFT_MARK_X.fwd));
+      const a = this.sub.localToWorld(new THREE.Vector3(side * b, -zwl, -DRAFT_MARK_X.aft));
+      put(f, yellow);
+      put(a, yellow);
+      put(new THREE.Vector3(f.x, 0, f.z), cyan);
+      put(new THREE.Vector3(a.x, 0, a.z), cyan);
+      pts.push({ side, f, a });
+    }
+    pos.needsUpdate = true;
+    col.needsUpdate = true;
+    if (!this.layers.labels) return;
+    // rótulos do bordo voltado para a câmera
+    const cam = this.camera.position;
+    const near = pts.reduce((p, q) => (q.f.distanceTo(cam) < p.f.distanceTo(cam) ? q : p));
+    const up = new THREE.Vector3(0, 2.6, 0);
+    const cm = (m: number) => `${Math.round(Math.abs(m) * 100)} cm`;
+    lbl.push({ id: 'drF', text: `Calado AV ${d.fwd.toFixed(2)} m`, color: '#ffe14d', small: true, prio: 0, ...proj(near.f.clone().add(up)) });
+    lbl.push({ id: 'drA', text: `Calado AR ${d.aft.toFixed(2)} m`, color: '#ffe14d', small: true, prio: 0, ...proj(near.a.clone().add(up)) });
+    const mid = near.f.clone().add(near.a).multiplyScalar(0.5).add(new THREE.Vector3(0, 9, 0));
+    const trimTxt = Math.abs(d.trim) < 0.005 ? 'sem trim' : `trim ${cm(d.trim)} ${d.trim > 0 ? 'pela popa' : 'pela proa'}`;
+    lbl.push({
+      id: 'drT',
+      text: `${trimTxt} · θ ${d.pitch.toFixed(2)}°${this.trimGain > 1 ? ` (desenho ×${this.trimGain})` : ''}`,
+      sub: d.surfaced ? `Na superfície o plano de flutuação deixa o trim ${Math.round(d.ratio)}× mais rígido que submerso · ${d.mtc.toFixed(1)} t·m por cm` : 'Submerso: rigidez de trim = W·BG',
+      color: '#ffffff',
+      prio: 0,
+      ...proj(mid),
+    });
   }
 
   dispose(): void {

@@ -27,6 +27,7 @@ const LAYER_BTNS: [keyof SceneLayers, string][] = [
   ['markers', 'Boias'],
   ['wake', 'Esteira'],
   ['noWater', 'Sem água'],
+  ['trimRef', 'Calado/trim'],
 ];
 
 const VIEWS: [ViewMode | 'seguir', string][] = [
@@ -37,6 +38,7 @@ const VIEWS: [ViewMode | 'seguir', string][] = [
   ['submerso', 'Submerso'],
   ['tanques', 'Vista tanques'],
   ['forcas', 'Vista forças'],
+  ['calado', 'Calado'],
   ['fixa', 'Fixa'],
   ['livre', 'Livre'],
 ];
@@ -58,6 +60,7 @@ export function VisualApp() {
     setMode(k);
     if (k === 'tanques') setOver({ ...over, tanks: true });
     if (k === 'forcas') setOver({ ...over, vectors: true });
+    if (k === 'calado') setOver({ ...over, trimRef: true });
   };
   const ov = v?.overlay;
   const vb = verticalBalance(e);

@@ -9,6 +9,7 @@ import { visualOut, isVisualWindow } from '../sync';
 import type { PickTarget } from '../ops/opsBus';
 import { graphics } from '../graphics';
 import { appearanceRev, currentAppearance } from '../appearance';
+import { TrimGainBanner } from './TrimGain';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
 export function defaultQuality(): OceanQuality {
@@ -101,6 +102,7 @@ export function Scene3D(props: Scene3DProps) {
           }
           if (sc) {
             sc.setAppearance(currentAppearance(), appearanceRev());
+            sc.trimGain = graphics.get().trimGain;
             sc.layers = mergedLayers(opts.current);
             if (!isVisualWindow) {
               visualOut.layers = sc.layers;
@@ -236,6 +238,7 @@ export function Scene3D(props: Scene3DProps) {
     <div className={`view3d ${props.className ?? ''}`} ref={box} style={props.style} onPointerDown={onDown} onPointerUp={onUp}>
       {err && <div style={{ padding: 20 }}>{err}</div>}
       <div className="lbl3d-host" ref={lblBox} />
+      <TrimGainBanner />
       {props.children}
     </div>
   );

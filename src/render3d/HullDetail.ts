@@ -190,3 +190,74 @@ export class SailDecals {
     }
   }
 }
+
+/**
+ * MARCAS DE CALADO pintadas no costado (numerais a cada metro e traços a
+ * cada 0,2 m, medidos da linha de base = fundo do cilindro). Faixa que
+ * acompanha a curvatura do casco (torno parcial), em um bordo.
+ * xc: posição longitudinal (m, corpo); side: +1 boreste, −1 bombordo.
+ */
+export function draftMarkBand(radiusAt: (x: number) => number, xc: number, side: 1 | -1, maxDraft = 6.2): THREE.Mesh | null {
+  if (typeof document === 'undefined') return null;
+  const r = radiusAt(xc);
+  const len = 1.5; // m ao longo do casco
+  const phiTop = Math.acos(Math.min(1, maxDraft / r - 1)); // ângulo (a partir do topo) da marca mais alta
+  const phiLen = Math.PI - phiTop;
+  const phiStart = side > 0 ? phiTop : Math.PI;
+  const pts: THREE.Vector2[] = [];
+  for (let i = 0; i <= 6; i++) {
+    const x = xc - len / 2 + (len * i) / 6;
+    pts.push(new THREE.Vector2(radiusAt(x) + 0.012, x));
+  }
+  const geo = new THREE.LatheGeometry(pts, 64, phiStart, phiLen);
+  geo.rotateX(-Math.PI / 2);
+  const W = 1024;
+  const H = 192;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  const su = W / (r * phiLen); // px por metro ao redor do casco
+  const sv = H / len; // px por metro ao longo do casco
+  /** posição u (px) de uma altura h (m) acima da linha de base */
+  const uOf = (h: number) => {
+    const phi = Math.acos(Math.max(-1, Math.min(1, h / r - 1)));
+    return side > 0 ? ((phi - phiTop) / phiLen) * W : ((Math.PI - phi) / phiLen) * W;
+  };
+  // texto "em pé" no mundo: o eixo u é vertical no costado e v é longitudinal
+  const frame = (h: number, vMid: number) => {
+    const X = uOf(h);
+    const Y = H - vMid * sv;
+    // (tx, ty) em centímetros do texto → canvas; boreste: proa à direita; bombordo: proa à esquerda
+    if (side > 0) g.setTransform(0, -sv / 100, su / 100, 0, X, Y);
+    else g.setTransform(0, sv / 100, -su / 100, 0, X, Y);
+  };
+  g.fillStyle = '#f2f2f2';
+  g.strokeStyle = 'rgba(15,15,15,0.9)';
+  const vCenter = len / 2;
+  for (let k = 1; k <= Math.floor(maxDraft / 0.2); k++) {
+    const h = k * 0.2;
+    const meter = Math.abs(h - Math.round(h)) < 1e-6;
+    frame(h, vCenter);
+    g.lineWidth = 2;
+    if (meter) {
+      // numeral com a base na altura exata
+      g.font = 'bold 34px Arial, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'alphabetic';
+      const t = `${Math.round(h)}M`;
+      g.strokeText(t, 0, 0);
+      g.fillText(t, 0, 0);
+    } else {
+      g.fillRect(-20, -4, 40, 4);
+    }
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.6, emissive: 0x555555, emissiveMap: tex, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const m = new THREE.Mesh(geo, mat);
+  m.renderOrder = 1;
+  return m;
+}

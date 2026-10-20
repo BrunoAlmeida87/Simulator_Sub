@@ -14,6 +14,7 @@ import { cmd, runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
+import { TrimGainSelect } from '../components/TrimGain';
 import { DepthTape } from '../components/gauges';
 import { NumSet, TELEGRAPH } from '../components/Controls';
 import type { ViewMode } from '../../render3d/SubmarineScene';
@@ -194,6 +195,7 @@ export function PilotScreen() {
     if (v.hiddenVectors !== undefined) setHiddenV(v.hiddenVectors);
   };
   const [marks, setMarks] = usePersisted('pilot.marks', true);
+  const [trimRef, setTrimRef] = usePersisted('pilot.trimRef', false);
   const [quality, setQuality] = useQuality();
   const o = e.outputs;
   const ap = e.state.autopilot;
@@ -219,6 +221,7 @@ export function PilotScreen() {
               hiddenVectors: hiddenV,
               noWater: dry,
               markers: marks,
+              trimRef,
               pipes: true,
               flows: true,
               labels: true,
@@ -247,6 +250,7 @@ export function PilotScreen() {
                     ['perseguicao', 'Perseguição'],
                     ['tanques', 'Vista tanques'],
                     ['forcas', 'Vista forças'],
+                    ['calado', 'Calado'],
                     ['fixa', 'Fixa'],
                     ['livre', 'Livre'],
                   ] as [ViewMode, string][]
@@ -259,6 +263,7 @@ export function PilotScreen() {
                       // os enquadramentos de apresentação já ligam o que mostram
                       if (v === 'tanques') setCut(true);
                       if (v === 'forcas') setVec(true);
+                      if (v === 'calado') setTrimRef(true);
                     }}
                     title={v === 'tanques' ? 'Câmera de perto no corte (liga os tanques)' : v === 'forcas' ? 'Câmera lateral para os vetores (liga peso/empuxo)' : undefined}
                   >
@@ -298,7 +303,11 @@ export function PilotScreen() {
                 <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
                   Boias
                 </button>
+                <button className={`btn sm ${trimRef ? 'on' : ''}`} onClick={() => setTrimRef(!trimRef)} title="Calados AV/AR, linha d'água do casco × nível do mar">
+                  Calado/trim
+                </button>
               </div>
+              {trimRef && <TrimGainSelect compact />}
               {anyVec && (
                 <div className="tanksel-pop">
                   <button className="btn sm" onClick={() => setVecOpen(!vecOpen)}>

@@ -124,6 +124,14 @@ Uma carga de demonstração de 5 t corre num trilho longitudinal (−25 a +25 m,
 - **Vetores de trim:** camada própria, que liga e desliga sem afetar as outras. Mostra o binário do peso, a variação de peso em TT-AV e TT-AR e um arco com o momento líquido ("Trim compensado" quando os momentos se anulam).
 - **Onde está o painel:** Apresentação (situação pronta "Trim: deslocar peso e compensar"), Pilotagem e Trim e banda.
 
+### Trim na superfície (por que quase não aparece)
+
+Na superfície o plano de flutuação resiste à inclinação: a rigidez de trim fica ~130× maior que submerso. Os 5 t levados 23 m a vante, que embicam o submarino ~9,5° submerso, mudam o pitch só ~0,09° na superfície — cerca de 6 cm de diferença entre os calados a vante e a ré. É o comportamento físico correto (conferido em `tests/trim-surface.test.ts`). Para perceber:
+- **Marcas de calado** pintadas na proa (x = +25 m) e na popa (x = −13,4 m), numerais a cada metro e traços a cada 0,2 m.
+- **Camada Calado/trim**: linha d'água do casco (amarela, presa ao casco) × nível do mar (ciano), com as leituras de calado AV e AR, o trim em centímetros e a rigidez em relação à submersa. Os mesmos valores aparecem na aba Trim e banda (painel "Calados e trim").
+- **Vista Calado**: câmera lateral rente à água com teleobjetiva, o casco inteiro no quadro.
+- **Ampliar trim** (×5 a ×50): multiplica só o ângulo de pitch **desenhado**, para demonstração. Enquanto ligada, todas as cenas (inclusive a 2ª janela) mostram o aviso "TRIM AMPLIADO ×N" com o ângulo real; ao recarregar a página volta ao real.
+
 ## Tanques visíveis e visualização salva
 
 - **Tanques visíveis:** ao ligar *Ver tanques*, abre a lista de tanques. Você pode mostrar todos, só um grupo (lastro principal, compensação, trim, banda) ou tanques individuais. As tubulações e os escoamentos acompanham a seleção.

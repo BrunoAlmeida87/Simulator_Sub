@@ -492,6 +492,12 @@ export class SimulationEngine {
     return { x: mw.x + mb.x, y: mw.y + mb.y, z: mw.z + mb.z };
   }
 
+  /** Pose "anterior" da interpolação visual = pose atual (após ajustes feitos fora de step()). */
+  resetInterpolation(): void {
+    this.prevPos = { ...this.state.body.pos };
+    this.prevQuat = { ...this.state.body.quat };
+  }
+
   /** Inicializa as leituras dos sensores com os valores verdadeiros atuais. */
   primeSensors(): void {
     this.computeOutputs();
