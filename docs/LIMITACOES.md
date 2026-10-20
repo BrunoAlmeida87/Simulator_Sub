@@ -62,3 +62,10 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 ## Interface
 - A simulação avança pelo `requestAnimationFrame`. Com a aba do navegador oculta, o tempo simulado fica suspenso.
 - O motor roda na thread principal. A separação total (sem DOM) permite migrá-lo para um Web Worker se necessário.
+
+## Costa, navios e cais
+
+- A costa cobre só a região de Sepetiba (−23,20° a −22,80°; −44,20° a −43,50°). Fora dela, a borda da grade é estendida (ao sul, mar aberto).
+- Linha de costa com resolução de ~50 m (polígonos simplificados do OpenStreetMap) e relevo de 200 m; a batimetria real (rasa) da baía não é usada — o fundo de mar aberto é o configurado e a transição até a orla é uma curva suave.
+- O cais e os navios são apenas visuais (sem colisão). Os navios são os contatos fictícios do quadro tático, não posições AIS reais.
+- A costa vem desligada nos cenários originais (feitos para mar aberto); ligue em Configurações.

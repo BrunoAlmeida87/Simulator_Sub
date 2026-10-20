@@ -25,6 +25,8 @@ import { SailDecals, anechoicTextures, bladeGeometry, draftMarkBand, finGeometry
 import { DRAFT_MARK_X, draftInfo } from '../sim/drafts';
 import { qFromEuler, qToEuler } from '../sim/core/math';
 import { ShipsLayer } from './Ships';
+import { TerrainLayer, type TerrainDetail } from './Terrain';
+import { buildQuay, placeQuay } from './Quay';
 import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 
 /**
@@ -131,8 +133,11 @@ export class SubmarineScene {
   private caustics = { uTime: { value: 0 }, uCaustic: { value: 0 } };
   private wallTime = 0;
   readonly quality: OceanQuality;
-  private seabed: THREE.Mesh | null = null;
-  private seabedCenter = { n: 1e12, e: 1e12 };
+  /** fundo do mar e terra (mesma função de profundidade da física), com níveis de detalhe */
+  private terrain: TerrainLayer | null = null;
+  /** detalhe do terreno (Configurações → Qualidade gráfica) */
+  terrainDetail: TerrainDetail = 'media';
+  private quay: THREE.Group | null = null;
   private particles: Particle[] = [];
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
   private snow: THREE.Points;
@@ -741,47 +746,17 @@ export class SubmarineScene {
     }
   }
 
-  private rebuildSeabed(n0: number, e0: number): void {
-    const env = this.env().env;
-    const size = 3600;
-    const seg = 140;
-    const g = new THREE.PlaneGeometry(size, size, seg, seg);
-    g.rotateX(-Math.PI / 2);
-    const pos = g.getAttribute('position') as THREE.BufferAttribute;
-    const colors = new Float32Array(pos.count * 3);
-    const c1 = new THREE.Color(0x6b5a3e);
-    const c2 = new THREE.Color(0x2b3a3e);
-    let dmin = Infinity;
-    let dmax = -Infinity;
-    const depths = new Float32Array(pos.count);
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      const d = env.bottomDepthAt(n0 - z, e0 + x);
-      depths[i] = d;
-      dmin = Math.min(dmin, d);
-      dmax = Math.max(dmax, d);
-      pos.setY(i, -d);
+  /** cria/recria o terreno quando o nível de detalhe muda */
+  private ensureTerrain(): TerrainLayer {
+    if (!this.terrain || this.terrain.detail !== this.terrainDetail) {
+      if (this.terrain) {
+        this.scene.remove(this.terrain.group);
+        this.terrain.dispose();
+      }
+      this.terrain = new TerrainLayer(this.terrainDetail, (m) => addCaustics(m, this.caustics, 45));
+      this.scene.add(this.terrain.group);
     }
-    for (let i = 0; i < pos.count; i++) {
-      const t = (depths[i] - dmin) / Math.max(1, dmax - dmin);
-      const c = c1.clone().lerp(c2, t);
-      colors[i * 3] = c.r;
-      colors[i * 3 + 1] = c.g;
-      colors[i * 3 + 2] = c.b;
-    }
-    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    g.computeVertexNormals();
-    if (this.seabed) {
-      this.scene.remove(this.seabed);
-      this.seabed.geometry.dispose();
-      (this.seabed.material as THREE.Material).dispose();
-    }
-    const bedMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
-    addCaustics(bedMat, this.caustics, 45);
-    this.seabed = new THREE.Mesh(g, bedMat);
-    this.scene.add(this.seabed);
-    this.seabedCenter = { n: n0, e: e0 };
+    return this.terrain;
   }
 
   /** Atualiza a cena a partir do estado e renderiza. Retorna rótulos de sobreposição. */
@@ -831,9 +806,19 @@ export class SubmarineScene {
     const R0 = v.hull.diameter / 2;
     this.mast.position.y = R0 + v.hull.sail.height - v.hull.snorkelMast.extension / 2 - 0.5 + s.snorkel.pos * v.hull.snorkelMast.extension;
 
-    // fundo (reconstruído ao afastar-se)
-    if (Math.hypot(pn - this.seabedCenter.n, pe - this.seabedCenter.e) > 800) this.rebuildSeabed(Math.round(pn / 100) * 100, Math.round(pe / 100) * 100);
-    if (this.seabed) this.seabed.position.set(this.seabedCenter.e - pe, 0, -(this.seabedCenter.n - pn));
+    // fundo e terra (reconstruídos ao afastar-se ou quando o fundo/costa mudam)
+    const coastOn = !!e.env.cfg.geo?.coast;
+    const terrain = this.ensureTerrain();
+    terrain.update(e.env, pn, pe, coastOn);
+    // cais (só com a costa ligada: senão não há terra desenhada)
+    if (coastOn && e.env.cfg.geo) {
+      if (!this.quay) {
+        this.quay = buildQuay();
+        this.scene.add(this.quay);
+      }
+      placeQuay(this.quay, e.env.cfg.geo.origin, e.env, pn, pe);
+      this.quay.visible = true;
+    } else if (this.quay) this.quay.visible = false;
 
     // bolhas dos suspiros/embornais (taxa proporcional à vazão de ar simulada)
     const Rm = qToMat3(s.body.quat);
@@ -966,7 +951,12 @@ export class SubmarineScene {
     this.sky.visible = !under;
     this.underSky.mesh.visible = under;
     // fundo só quando dentro do alcance de visibilidade (senão aparece como faixa de névoa)
-    if (this.seabed) this.seabed.visible = under && (e.env.bottomDepthAt(pn, pe) - camDepth < (this.realisticFog ? 330 : 1200));
+    // fundo: debaixo d'água só dentro do alcance de visibilidade (senão vira faixa de névoa) ou perto da costa;
+    // acima d'água o oceano cobre o fundo e a terra aparece; níveis grosseiros só acima d'água
+    {
+      const nearBottom = e.env.bottomDepthAt(pn, pe) - camDepth < (this.realisticFog ? 330 : 1200);
+      terrain.setVisible(under ? nearBottom || terrain.landNear : coastOn, !under && coastOn);
+    }
     // sem água: só o submarino (e o que está dentro dele) sobre um fundo neutro
     const dry = this.layers.noWater;
     this.ocean.mesh.visible = !dry;
@@ -976,7 +966,8 @@ export class SubmarineScene {
     if (dry) {
       this.underSky.mesh.visible = false;
       this.sky.visible = false;
-      if (this.seabed) this.seabed.visible = false;
+      this.terrain?.setVisible(false, false);
+      if (this.quay) this.quay.visible = false;
     }
     this.caustics.uTime.value = this.wallTime;
     this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15);
@@ -989,7 +980,8 @@ export class SubmarineScene {
       this.scene.fog = this.realisticFog ? new THREE.FogExp2(deepColor.getHex(), 0.0032) : new THREE.FogExp2(deepColor.getHex(), 0.0008);
     } else {
       this.scene.background = new THREE.Color(0x9dbad4);
-      this.scene.fog = new THREE.Fog(0x9dbad4, 3000, 14000);
+      // com a costa ligada a névoa vai mais longe: a serra aparece ao fundo
+      this.scene.fog = new THREE.Fog(0x9dbad4, coastOn ? 5000 : 3000, coastOn ? 32000 : 14000);
     }
     // camadas: casco, tanques/circuitos, vetores
     this.applyHull();

@@ -386,6 +386,24 @@ function GraphicsPanel() {
       </div>
       <div className="row mt8">
         <span className="subtle" style={{ minWidth: 120 }}>
+          Terreno e costa
+        </span>
+        <div className="seg">
+          {(
+            [
+              ['baixa', 'Leve'],
+              ['media', 'Médio'],
+              ['alta', 'Detalhado'],
+            ] as const
+          ).map(([k, l]) => (
+            <button key={k} className={g.coastDetail === k ? 'on' : ''} onClick={() => graphics.set({ coastDetail: k })} title="Resolução do fundo e da terra perto do submarino e alcance da terra ao longe">
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="row mt8">
+        <span className="subtle" style={{ minWidth: 120 }}>
           Alcance dos navios
         </span>
         <div className="seg">

@@ -10,7 +10,7 @@ import type { PickTarget } from '../ops/opsBus';
 import { graphics } from '../graphics';
 import { appearanceRev, currentAppearance } from '../appearance';
 import { TrimGainBanner } from './TrimGain';
-import { mapOrigin } from '../routeNav';
+import { geoOriginOf } from '../routeNav';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
 export function defaultQuality(): OceanQuality {
@@ -104,8 +104,9 @@ export function Scene3D(props: Scene3DProps) {
           if (sc) {
             sc.setAppearance(currentAppearance(), appearanceRev());
             sc.trimGain = graphics.get().trimGain;
-            sc.geoOrigin = mapOrigin.get();
+            sc.geoOrigin = geoOriginOf(runner.engine);
             sc.shipRange = graphics.get().shipRange;
+            sc.terrainDetail = graphics.get().coastDetail;
             sc.layers = mergedLayers(opts.current);
             if (!isVisualWindow) {
               visualOut.layers = sc.layers;

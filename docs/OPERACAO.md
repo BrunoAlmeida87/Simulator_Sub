@@ -75,6 +75,18 @@ A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de flux
 
 No topo da aba **Propulsão e energia**, o diagrama **barramento → motor elétrico principal → eixo → mancal de escora → hélice** mostra os valores de cada passo: potência e corrente elétricas do motor, rotação real e ordenada, torque do motor (barra fica vermelha no torque máximo), potência no eixo, sentido de giro (horário visto da popa = avante), empuxo transmitido ao casco pelo mancal de escora (seta para vante ou para ré), torque absorvido pelo hélice, coeficiente de avanço J e rendimento elétrico→eixo. O rotor e o hélice giram na rotação real (multiplicada pela aceleração; param com a simulação pausada). Os mostradores, o telégrafo e as leituras que já existiam continuam abaixo.
 
+## Costa, terra e cais (região de Sepetiba)
+
+A costa da Baía de Sepetiba — continente de Itaguaí a Guaratiba, Restinga e Ilha da Marambaia, ilhas da baía e o leste da Ilha Grande — está embutida no simulador (funciona sem internet).
+- **Com a costa ligada** (Configurações → Fundo do mar → Costa), a terra entra na física: numa faixa costeira (padrão 1 km) o fundo sobe suavemente da profundidade de mar aberto até zero na orla, e em terra o “fundo” fica acima d'água — encostar é **encalhe** (contato com o fundo). O ecobatímetro, os alarmes de altitude e o desenho 3D usam a mesma função.
+- **No 3D**: fundo texturizado e terra com cores por altura e declive (praia, mata, rocha), em três níveis de detalhe que acompanham o submarino (perto, médio e longe — este só acima d'água; a névoa vai mais longe e a serra aparece ao fundo). Detalhe em Configurações → Qualidade gráfica → Terreno e costa.
+- **Cais** modelado na orla da base da Ilha da Madeira (plataforma sobre estacas, defensas, cabeços, postes, guindaste, galpão). **Só visual: não colide.**
+- **No mapa tático**: o botão *Costa do simulador* desenha em laranja a costa usada pela simulação (a mesma do 3D) e o cais, também sem internet.
+- **Cenários**: *Saída da base — Itaguaí* (superfície, perto do cais) e *Aproximação da Restinga da Marambaia* (submerso, fundo subindo, alarmes antes do encalhe) vêm com a costa ligada. Os outros cenários continuam em mar aberto (costa desligada), como antes — partindo da baía, vários encontrariam terra em poucos quilômetros.
+- **Posição geográfica**: *Definir posição* e *Posição inicial* no mapa mudam a posição da simulação (comando registrado); com a costa ligada, o simulador recusa colocar o casco em terra ou sobre o fundo.
+
+Dados: polígonos de terra do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL; pacote geo-maps) corrigidos com o relevo Terrarium (AWS Open Data/Mapzen: SRTM e outros). A batimetria real da baía não é usada: o fundo de mar aberto é o configurado.
+
 ## Duas janelas (dois monitores)
 
 **⧉ 2ª janela** abre a cena numa nova janela, que pode ir para o outro monitor (use *Tela cheia*). A física roda só na janela principal. A segunda espelha o estado pelo canal de comunicação entre janelas do navegador (BroadcastChannel; é preciso o mesmo navegador e o mesmo endereço). O que ela mostra:

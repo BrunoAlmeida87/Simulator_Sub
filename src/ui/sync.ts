@@ -44,6 +44,8 @@ type Msg =
       sent: number;
       /** identificação (sem a imagem do emblema) e preferências gráficas da janela de controle */
       vis?: { identity: Partial<Identity>; graphics: GraphicsSettings };
+      /** ambiente (fundo, água, costa, posição geográfica) quando mudou desde o envio do motor */
+      env?: string;
     }
   | { type: 'visImg'; img: string | null }
   | { type: 'pick'; target: PickTarget | null }
@@ -79,6 +81,8 @@ export class SyncMaster {
   private lastTrail = 0;
   viewers = 0;
   private lastImg: string | null | undefined = undefined;
+  private lastEnv = '';
+  private lastEnvCheck = 0;
   onPick: ((t: PickTarget | null) => void) | null = null;
 
   constructor(private runner: SimRunner) {
@@ -91,6 +95,7 @@ export class SyncMaster {
         // só reenvia o motor completo se a visualização não tem o atual
         if (this.lastEngine !== this.runner.engine || m.id !== this.engineId) this.sendEngine();
         if (m.id !== this.engineId) this.lastImg = undefined;
+        this.lastEnv = '';
       } else if (m.type === 'pick') this.onPick?.(m.target);
       else if (m.type === 'toggleRun') {
         this.runner.running = !this.runner.running;
@@ -141,8 +146,19 @@ export class SyncMaster {
     if (sendTrail) this.lastTrail = now;
     const trail = sendTrail ? s.nav.trail : [];
     const lite = { ...s, nav: { ...s.nav, trail }, commands: s.commands.slice(-12), alarms: { runtime: s.alarms.runtime, log: [] } } as SimState;
+    // ambiente: reenviado quando muda (comandos de ambiente/costa/posição)
+    let env: string | undefined;
+    if (now - this.lastEnvCheck > 400) {
+      this.lastEnvCheck = now;
+      const j = JSON.stringify(e.config.environment);
+      if (j !== this.lastEnv) {
+        this.lastEnv = j;
+        env = j;
+      }
+    }
     this.ch.postMessage({
       type: 'state',
+      env,
       id: this.engineId,
       state: lite,
       waves: e.config.environment.waves,
@@ -242,6 +258,14 @@ export class SyncViewer {
       if (m.vis) {
         identity.set(m.vis.identity, false);
         graphics.set(m.vis.graphics, false);
+      }
+      if (m.env) {
+        const env = JSON.parse(m.env) as typeof e.config.environment;
+        if (JSON.stringify(e.config.environment) !== m.env) {
+          Object.assign(e.config.environment, env);
+          if (!env.geo) delete e.config.environment.geo;
+          e.rebuildEnvironment();
+        }
       }
     } else if (m.type === 'visImg') {
       identity.set({ emblemImage: m.img }, false);
