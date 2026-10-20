@@ -203,7 +203,12 @@ Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeit
 
 - **Sessão — salvar e continuar:** *Salvar a simulação atual* (guarda no navegador), *Baixar arquivo* (.json para guardar ou abrir em outro computador), *Carregar arquivo* e *Retomar a simulação*. Ao carregar, tudo volta ao ponto salvo — posição, profundidade, rumo, velocidade, inclinação, tempo, tanques, bateria, combustível, ar, válvulas, bombas, telégrafo, lemes, piloto e referências, falhas, alarmes, ambiente e as automações em andamento (manobra rápida, demonstração, cenário guiado, rota) — e a simulação fica **pausada** até *Retomar*. Arquivos de versões anteriores abrem com conversão automática.
 - **Identificação do submarino** (VISUAL): nome, inscrição vermelha da vela, emblema e cor dos lemes.
-- **Qualidade gráfica** (VISUAL): cena/oceano e texturas; vale para todas as abas e para a 2ª janela.
+- **Qualidade gráfica** (VISUAL): cena/oceano, texturas e **iluminação da cena**; vale para todas as abas e para a 2ª janela.
+- **Iluminação da cena** (VISUAL) — também no seletor **Luz** ao lado de “Gráfico” nas cenas 3D (Pilotagem, Visualização 3D, Apresentação):
+  - **Natural**: a água escurece com a profundidade, como no mar; o casco escuro fica pouco visível em cotas grandes.
+  - **Clara** (padrão): água mais clara, luz suave presa à câmera e contorno do casco realçado — o submarino se destaca do fundo em qualquer profundidade.
+  - **Estúdio**: luz forte presa à câmera, para projetor ou sala clara.
+  Nenhuma das três altera a física; a escolha fica guardada e chega à 2ª janela.
 - **Ambiente** (AGORA): estado do mar, salinidade, temperaturas, termoclina e declinação. *Aplicar agora* mantém o estado; *Usar nos próximos cenários* guarda como padrão.
 - **Fundo do mar** (AGORA): uniforme (padrão de 300 m) ou com relevo. O simulador recusa um fundo que ficaria acima do casco na posição atual.
 - **Simulação** e **Parâmetros da embarcação** (REINICIAR): passo de integração, semente, instrumentação e parâmetros fictícios do casco, propulsão, bombas, lemes e limites.

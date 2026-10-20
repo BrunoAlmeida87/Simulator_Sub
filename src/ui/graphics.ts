@@ -1,11 +1,12 @@
 /**
  * PREFERÊNCIAS GRÁFICAS (apenas visuais): qualidade do oceano/cena, nível de
  * detalhe das texturas, ampliação visual do trim para demonstração, alcance
- * de desenho dos navios e detalhe da costa. Guardadas no navegador e
+ * de desenho dos navios, detalhe da costa e iluminação da cena. Guardadas no navegador e
  * enviadas à segunda janela. Nada aqui altera a física.
  */
 import { useEffect, useReducer } from 'react';
 import type { OceanQuality } from '../render3d/Ocean';
+import type { SceneLighting } from '../render3d/lighting';
 
 export interface GraphicsSettings {
   quality: OceanQuality;
@@ -20,6 +21,8 @@ export interface GraphicsSettings {
   shipRange: number;
   /** detalhe do terreno da costa */
   coastDetail: 'baixa' | 'media' | 'alta';
+  /** iluminação da cena: natural (escurece com a profundidade), clara (padrão) ou estúdio */
+  lighting: SceneLighting;
 }
 
 const K_Q = 'sx1.quality.v1';
@@ -46,6 +49,7 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     trimGain: typeof p?.trimGain === 'number' && TRIM_GAINS.includes(p.trimGain) ? p.trimGain : base.trimGain,
     shipRange: typeof p?.shipRange === 'number' && p.shipRange >= 2 && p.shipRange <= 30 ? p.shipRange : base.shipRange,
     coastDetail: p?.coastDetail === 'baixa' || p?.coastDetail === 'media' || p?.coastDetail === 'alta' ? p.coastDetail : base.coastDetail,
+    lighting: p?.lighting === 'natural' || p?.lighting === 'clara' || p?.lighting === 'estudio' ? p.lighting : base.lighting,
   };
 }
 
@@ -56,7 +60,7 @@ class GraphicsStore {
 
   constructor() {
     const q = typeof window !== 'undefined' ? initialQuality() : 'alta';
-    const def: GraphicsSettings = { quality: q, textures: q === 'baixa' ? 'normal' : 'alta', trimGain: 1, shipRange: 12, coastDetail: q === 'baixa' ? 'baixa' : 'media' };
+    const def: GraphicsSettings = { quality: q, textures: q === 'baixa' ? 'normal' : 'alta', trimGain: 1, shipRange: 12, coastDetail: q === 'baixa' ? 'baixa' : 'media', lighting: 'clara' };
     let saved: Partial<GraphicsSettings> | null = null;
     try {
       const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
@@ -102,6 +106,9 @@ export function useGraphics(): GraphicsSettings {
   useEffect(() => graphics.subscribe(f), []);
   return graphics.get();
 }
+
+export const LIGHTINGS: SceneLighting[] = ['natural', 'clara', 'estudio'];
+export const LIGHTING_LABELS: Record<SceneLighting, string> = { natural: 'Natural', clara: 'Clara', estudio: 'Estúdio' };
 
 /** [qualidade, alterar] — compartilhado por todas as telas com cena 3D. */
 export function useQuality(): [OceanQuality, (q: OceanQuality) => void] {

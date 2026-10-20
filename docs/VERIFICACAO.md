@@ -23,6 +23,7 @@ Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
 - Fundo do mar: modo uniforme padrão, relevo preservado, ecobatímetro e contato (`tests/bottom.test.ts`).
 - Trimagem na superfície: rigidez e Δθ calculados × esperados, calados nas marcas (`tests/trim-surface.test.ts`).
 - Gravação e reprodução: reprodução bit a bit com manobra automática, sem duplicar comandos, bloqueio de comandos e avisos de versão (`tests/recording.test.ts`).
+- Iluminação da cena: padrão Clara, valores inválidos ignorados, perfis completos (`tests/graphics.test.ts`).
 - Navios: posição 3D = posição do mapa (< 1 m) para três origens; um modelo por tipo (`tests/ships.test.ts`).
 - Costa: terra/mar/restinga nos dados embutidos, cais na orla, transição contínua do fundo, costa desligada nos cenários originais e nos arquivos v1, cenários costeiros sem encalhe e com alarme antes do contato (`tests/coast.test.ts`).
 
@@ -40,13 +41,14 @@ Executado no ambiente de nuvem (Linux, Chromium 1194 do Playwright com WebGL por
 
 | Verificação | Resultado |
 |---|---|
-| `npm test` | 10 arquivos, 77 testes aprovados |
+| `npm test` | 11 arquivos, 79 testes aprovados |
 | `npm run build` | sem erros de tipos; build gerado |
 | Estado antigo (`estado-v1-submerso50.json`) pela interface | abre convertido, pausado a 57,7 m; ▶ Retomar continua |
 | Segunda janela (duas páginas no mesmo navegador) | nome, aviso de trim ampliado, aviso de gravação, camadas novas e mudança da costa chegam à visualização |
 | Electron (`electron .` sobre o build) | abre, carrega o estado v1, aba Governo com cena 3D, 2ª janela espelhando |
 | Celular (Pixel 5, 393 px) | sem rolagem horizontal em Pilotagem, Governo, Fluxo de energia, Propulsão, Trim, 3D, Mapa, Configurações e Cenários |
 | Toque | manche do painel de governo responde a arrastar com toque |
+| Iluminação da cena | Natural, Clara e Estúdio aplicadas na hora; a 2ª janela acompanha; preferência antiga sem o campo abre em Clara; sem a faixa clara no limite do fundo debaixo d'água |
 | Desempenho (medido em Node) | terreno médio: 78 ms para montar, 36 ms para recentrar (alto: 251/94 ms); fundo com costa: 0,25 µs por consulta |
 
 Não verificado aqui: desempenho real em placa de vídeo (a renderização por software não é representativa), o executável Windows gerado (`npm run dist:win`) e os fundos de mapa da internet (bloqueados neste ambiente).

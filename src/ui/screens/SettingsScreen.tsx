@@ -14,7 +14,8 @@ import { storage, downloadText } from '../storage';
 import { captureSession, restoreSession, resumeSimulation, sessionFileName, type RestoreReport } from '../session';
 import { parseSaveText, saveToText, type SaveFile } from '../../sim/persistence';
 import { identity, FIN_COLORS, DEFAULT_IDENTITY } from '../identity';
-import { graphics, useGraphics } from '../graphics';
+import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS } from '../graphics';
+import type { SceneLighting } from '../../render3d/lighting';
 import { currentAppearance, useIdentity } from '../appearance';
 import { drawSailDecal } from '../../render3d/sailArt';
 import { TrimGainSelect } from '../components/TrimGain';
@@ -337,6 +338,12 @@ function IdentityPanel() {
 }
 
 // ------------------------------------------------------------ gráficos
+const LIGHTING_HINTS: Record<SceneLighting, string> = {
+  natural: 'A água escurece com a profundidade, como no mar',
+  clara: 'Água mais clara, luz suave junto à câmera e contorno do casco realçado',
+  estudio: 'Luz forte junto à câmera — para projetor ou sala clara',
+};
+
 function GraphicsPanel() {
   const g = useGraphics();
   return (
@@ -380,6 +387,18 @@ function GraphicsPanel() {
       </div>
       <div className="row mt8">
         <span className="subtle" style={{ minWidth: 120 }}>
+          Iluminação da cena
+        </span>
+        <div className="seg">
+          {LIGHTINGS.map((k) => (
+            <button key={k} className={g.lighting === k ? 'on' : ''} onClick={() => graphics.set({ lighting: k })} title={LIGHTING_HINTS[k]}>
+              {LIGHTING_LABELS[k]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="row mt8">
+        <span className="subtle" style={{ minWidth: 120 }}>
           Ampliação do trim
         </span>
         <TrimGainSelect compact />
@@ -417,6 +436,10 @@ function GraphicsPanel() {
       <div className="note">
         A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao recarregar a
         página ela volta para o valor real.
+      </div>
+      <div className="note">
+        Iluminação: <b>Natural</b> escurece a água com a profundidade, como no mar (o casco escuro some no fundo escuro); <b>Clara</b> (padrão) clareia a água, acende uma luz suave junto à câmera e realça o contorno do
+        casco; <b>Estúdio</b> usa luz forte, para projetor ou sala clara. Também pode ser trocada no seletor “Luz” das cenas 3D.
       </div>
       <div className="note">
         Qualidade baixa: menos vértices no oceano, menos partículas e texturas menores — recomendada em notebooks sem placa de vídeo e em celulares. Vale para todas as abas e para a segunda janela.

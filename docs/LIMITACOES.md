@@ -58,6 +58,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - O traçado das tubulações e a posição de bombas, válvulas e garrafas no corte são esquemáticos (arquitetura fictícia). As vazões e os estados exibidos são os simulados.
 - O nível dos TLP em seção "D" é obtido invertendo a curva área × altura da seção desenhada. O volume mostrado é o simulado, mas a forma do tanque é simplificada.
 - A vazão por tanque da compensação é a parcela atribuída a cada tanque pelo modelo (proporcional à abertura da válvula do tanque).
+- A iluminação subaquática não é medida: no perfil **Clara** (padrão) e **Estúdio** a água é mais clara do que no mar real a essa profundidade e há uma luz presa à câmera, para o submarino ficar visível. O perfil **Natural** aproxima o escurecimento com a profundidade.
 
 ## Interface
 - A simulação avança pelo `requestAnimationFrame`. Com a aba do navegador oculta, o tempo simulado fica suspenso.
