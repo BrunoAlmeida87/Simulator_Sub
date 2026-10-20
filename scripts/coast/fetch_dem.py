@@ -8,6 +8,7 @@ def ty(lat):
 xs=range(tx(LON0),tx(LON1)+1); ys=range(ty(LAT1),ty(LAT0)+1)
 print('x',list(xs),'y',list(ys))
 ctx=ssl.create_default_context(cafile=os.environ.get('SSL_CERT_FILE'))
+os.makedirs('dem', exist_ok=True)
 for x in xs:
     for y in ys:
         fn=f'dem/{Z}_{x}_{y}.png'
