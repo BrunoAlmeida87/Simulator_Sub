@@ -69,6 +69,10 @@ A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de flux
 
 **Interativo:** clique em qualquer equipamento do diagrama para abrir o painel ao lado com o estado (desligado, partindo, funcionando, parando, sem ar, falha) e os comandos que fazem sentido: partir/parar diesel-geradores (exigem tomada de ar), içar/arriar o snorkel, abrir/fechar o disjuntor da bateria, telégrafo do motor principal, partir/parar as bombas de compensação, trim e banda e o compressor. Elementos sem liga/desliga (combustível, barramento, hidráulica automática, cargas fixas) mostram a explicação do estado. O anel em volta de cada consumidor indica o estado (verde funcionando, âmbar em transição, cinza desligado, vermelho falha/sem energia). Os comandos são os mesmos das outras telas e respeitam as condições físicas (ex.: gerador comandado sem ar fica “SEM AR”).
 
+## Propulsão — linha de eixo
+
+No topo da aba **Propulsão e energia**, o diagrama **barramento → motor elétrico principal → eixo → mancal de escora → hélice** mostra os valores de cada passo: potência e corrente elétricas do motor, rotação real e ordenada, torque do motor (barra fica vermelha no torque máximo), potência no eixo, sentido de giro (horário visto da popa = avante), empuxo transmitido ao casco pelo mancal de escora (seta para vante ou para ré), torque absorvido pelo hélice, coeficiente de avanço J e rendimento elétrico→eixo. O rotor e o hélice giram na rotação real (multiplicada pela aceleração; param com a simulação pausada). Os mostradores, o telégrafo e as leituras que já existiam continuam abaixo.
+
 ## Duas janelas (dois monitores)
 
 **⧉ 2ª janela** abre a cena numa nova janela, que pode ir para o outro monitor (use *Tela cheia*). A física roda só na janela principal. A segunda espelha o estado pelo canal de comunicação entre janelas do navegador (BroadcastChannel; é preciso o mesmo navegador e o mesmo endereço). O que ela mostra:
