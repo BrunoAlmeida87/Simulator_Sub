@@ -1,7 +1,8 @@
 /**
  * VISUALIZAÇÃO 3D (Three.js). Apenas LÊ o estado da simulação: nenhuma
- * animação é independente da física — posição, atitude, deflexão dos lemes,
+ * animação do submarino é independente da física — posição, atitude, deflexão dos lemes,
  * rotação do hélice, níveis dos tanques e bolhas dos suspiros vêm do estado.
+ * A fauna é decorativa e acompanha o relógio da simulação.
  *
  * Mapeamento NED → Three.js (Y para cima): X₃ = Leste, Y₃ = −profundidade,
  * Z₃ = −Norte. Origem flutuante na posição horizontal do submarino.
@@ -29,6 +30,7 @@ import { ShipsLayer } from './Ships';
 import { TerrainLayer, type TerrainDetail } from './Terrain';
 import { buildQuay, placeQuay } from './Quay';
 import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
+import { MarineLife } from './MarineLife';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
@@ -106,6 +108,8 @@ export class SubmarineScene {
   trimGain = 1;
   /** navios da mesa tática */
   private ships = new ShipsLayer();
+  /** fauna decorativa; preferências compartilhadas com a segunda janela */
+  readonly marineLife = new MarineLife();
   /** origem geográfica do referencial local (para posicionar os navios como no mapa) */
   geoOrigin: LatLon = DEFAULT_ORIGIN;
   /** alcance de desenho dos navios (km) */
@@ -222,6 +226,7 @@ export class SubmarineScene {
     this.markers = new Markers(this.env(), this.dot);
     this.scene.add(this.markers.group);
     this.scene.add(this.ships.group);
+    this.scene.add(this.marineLife.group);
 
     // oceano: mesmas componentes de onda da física, deslocadas em GPU
     this.ocean = new Ocean(quality, this.sunDir);
@@ -1017,6 +1022,7 @@ export class SubmarineScene {
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
     this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj);
+    this.marineLife.update(e.env, tWave, pn, pe, !dry);
     this.renderer.render(this.scene, this.camera);
 
     const ps = proj(new THREE.Vector3(0, 0, 0));
@@ -1084,6 +1090,7 @@ export class SubmarineScene {
   }
 
   dispose(): void {
+    this.marineLife.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.scene.traverse((o) => {

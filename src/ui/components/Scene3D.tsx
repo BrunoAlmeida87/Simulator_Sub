@@ -108,6 +108,7 @@ export function Scene3D(props: Scene3DProps) {
             sc.shipRange = graphics.get().shipRange;
             sc.terrainDetail = graphics.get().coastDetail;
             sc.lighting = graphics.get().lighting;
+            sc.marineLife.settings = graphics.get();
             sc.layers = mergedLayers(opts.current);
             if (!isVisualWindow) {
               visualOut.layers = sc.layers;
