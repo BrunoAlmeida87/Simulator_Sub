@@ -2,7 +2,9 @@
 
 Plataforma de **simulação de engenharia e treinamento conceitual** de um submarino convencional diesel-elétrico **fictício** ("SX-1 Marlim"), executada no navegador ou como aplicativo desktop com Electron.
 
-Não é um jogo: todas as respostas visuais vêm de um **motor físico independente** com estado central compartilhado. Abrir um suspiro libera ar por um orifício compressível, a água entra pelos embornais, a massa aumenta, o empuxo líquido muda e o casco 6-GL responde. Nenhuma animação simula um efeito por conta própria.
+Não é um jogo: as respostas do submarino vêm de um **motor físico independente** com estado central compartilhado. Abrir um suspiro libera ar por um orifício compressível, a água entra pelos embornais, a massa aumenta, o empuxo líquido muda e o casco 6-GL responde.
+
+**Vida marinha decorativa:** poucos peixes de aparência e movimento variados nadam na água e perto do fundo, com saltos ocasionais na superfície. Em **Configurações → Vida marinha**, escolha a quantidade (discreta por padrão) e habilite saltos e peixes submersos separadamente. As opções ficam salvas e acompanham a segunda janela; os peixes seguem o relógio da simulação sem alterar a física.
 
 **▶ Simulador publicado:** https://brunoalmeida87.github.io/Simulator_Sub/
 

@@ -448,6 +448,37 @@ function GraphicsPanel() {
   );
 }
 
+function MarineLifePanel() {
+  const g = useGraphics();
+  const disabled = g.fishDensity === 'desligada';
+  return (
+    <Panel title="Vida marinha" tag={<Kind k="visual" />}>
+      <label className="field">
+        <span>Quantidade de peixes</span>
+        <select value={g.fishDensity} onChange={(ev) => graphics.set({ fishDensity: ev.target.value as typeof g.fishDensity })}>
+          <option value="desligada">Desligada</option>
+          <option value="discreta">Discreta (padrão)</option>
+          <option value="moderada">Moderada</option>
+        </select>
+      </label>
+      <div className="col mt8">
+        <label className="row">
+          <input type="checkbox" checked={g.fishJumps} disabled={disabled} onChange={(ev) => graphics.set({ fishJumps: ev.target.checked })} />
+          Saltos ocasionais na superfície
+        </label>
+        <label className="row">
+          <input type="checkbox" checked={g.fishUnderwater} disabled={disabled} onChange={(ev) => graphics.set({ fishUnderwater: ev.target.checked })} />
+          Peixes nadando na água e perto do fundo
+        </label>
+      </div>
+      <div className="note">
+        Poucos peixes, com tamanhos, cores e trajetórias variados. Os saltos aparecem em locais e intervalos aleatórios; pode levar um tempo até ver um.
+        As preferências ficam salvas e valem também para a segunda janela. A animação acompanha a pausa e a velocidade da simulação.
+      </div>
+    </Panel>
+  );
+}
+
 // ------------------------------------------------------------ ambiente (aplicável agora)
 function useDraftEnv(): [EnvironmentConfig, () => void, (fn: (c: EnvironmentConfig) => void) => void] {
   const e = useSim(2);
@@ -790,6 +821,7 @@ export function SettingsScreen() {
         <RecordingPanel />
         <IdentityPanel />
         <GraphicsPanel />
+        <MarineLifePanel />
         <EnvironmentPanel />
         <BottomPanel />
         <RestartPanels />

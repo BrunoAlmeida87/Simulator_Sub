@@ -7,8 +7,9 @@
 import { useEffect, useReducer } from 'react';
 import type { OceanQuality } from '../render3d/Ocean';
 import type { SceneLighting } from '../render3d/lighting';
+import { DEFAULT_MARINE_LIFE, type MarineLifeSettings } from '../render3d/marineLifeMotion';
 
-export interface GraphicsSettings {
+export interface GraphicsSettings extends MarineLifeSettings {
   quality: OceanQuality;
   /** texturas do casco: 'alta' (placas anecoicas, marcas, mais resolução) ou 'normal' */
   textures: 'alta' | 'normal';
@@ -50,6 +51,9 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     shipRange: typeof p?.shipRange === 'number' && p.shipRange >= 2 && p.shipRange <= 30 ? p.shipRange : base.shipRange,
     coastDetail: p?.coastDetail === 'baixa' || p?.coastDetail === 'media' || p?.coastDetail === 'alta' ? p.coastDetail : base.coastDetail,
     lighting: p?.lighting === 'natural' || p?.lighting === 'clara' || p?.lighting === 'estudio' ? p.lighting : base.lighting,
+    fishDensity: p?.fishDensity === 'desligada' || p?.fishDensity === 'discreta' || p?.fishDensity === 'moderada' ? p.fishDensity : base.fishDensity,
+    fishJumps: typeof p?.fishJumps === 'boolean' ? p.fishJumps : base.fishJumps,
+    fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
   };
 }
 
@@ -60,7 +64,7 @@ class GraphicsStore {
 
   constructor() {
     const q = typeof window !== 'undefined' ? initialQuality() : 'alta';
-    const def: GraphicsSettings = { quality: q, textures: q === 'baixa' ? 'normal' : 'alta', trimGain: 1, shipRange: 12, coastDetail: q === 'baixa' ? 'baixa' : 'media', lighting: 'clara' };
+    const def: GraphicsSettings = { ...DEFAULT_MARINE_LIFE, quality: q, textures: q === 'baixa' ? 'normal' : 'alta', trimGain: 1, shipRange: 12, coastDetail: q === 'baixa' ? 'baixa' : 'media', lighting: 'clara' };
     let saved: Partial<GraphicsSettings> | null = null;
     try {
       const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
