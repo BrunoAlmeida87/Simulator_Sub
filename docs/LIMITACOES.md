@@ -64,9 +64,11 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - A simulação avança pelo `requestAnimationFrame`. Com a aba do navegador oculta, o tempo simulado fica suspenso.
 - O motor roda na thread principal. A separação total (sem DOM) permite migrá-lo para um Web Worker se necessário.
 
-## Costa, navios e cais
+## Costa, navios e estaleiro
 
 - A costa cobre só a região de Sepetiba (−23,20° a −22,80°; −44,20° a −43,50°). Fora dela, a borda da grade é estendida (ao sul, mar aberto).
 - Linha de costa com resolução de ~50 m (polígonos simplificados do OpenStreetMap) e relevo de 200 m; a batimetria real (rasa) da baía não é usada — o fundo de mar aberto é o configurado e a transição até a orla é uma curva suave.
-- O cais e os navios são apenas visuais (sem colisão). Os navios são os contatos fictícios do quadro tático, não posições AIS reais.
+- Os navios são apenas visuais (sem colisão): são os contatos fictícios do quadro tático, não posições AIS reais.
+- Estaleiro da Ilha da Madeira: contornos traçados em imagem Sentinel-2 de 10 m (precisão ≈ ±10 m). Galpões, tanques e guindastes têm posição, tamanho e altura **estimados** (não há medidas oficiais publicadas) e são só visuais, assim como o submarino no shiplift e o píer do Porto Sudeste. A profundidade dragada da bacia (16 m) é estimada. O contato do casco com os cais é o mesmo modelo de contato com o fundo (pontos da quilha), sem impacto lateral.
+- A costa de 50 m vem do OpenStreetMap anterior à obra; o aterro, os quebra-mares e a dragagem do estaleiro são sobrepostos a ela.
 - A costa vem desligada nos cenários originais (feitos para mar aberto); ligue em Configurações.

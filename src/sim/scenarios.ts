@@ -170,14 +170,19 @@ export const SCENARIOS: ScenarioDef[] = [
 SCENARIOS.push(
   {
     id: 'base_itaguai',
-    name: 'Saída da base — Itaguaí (costa e cais)',
+    name: 'Saída da base — Estaleiro e Base Naval de Itaguaí',
     description:
-      'Na superfície, a ~500 m do cais modelado da base naval da Ilha da Madeira (Itaguaí), aproado a sudoeste, para o centro da baía. A terra, a orla e o fundo costeiro estão na física: perto da orla o fundo sobe até zero (encalhe).',
-    objectives: ['Observar a terra, a orla e o cais no 3D', 'Afastar-se do cais com pouca velocidade e governar para o centro da baía', 'Acompanhar o ecobatímetro e o fundo subindo perto da costa'],
+      'Na superfície, no centro da bacia do Estaleiro e Base Naval da Ilha da Madeira (Itaguaí), aproado à entrada (214°). Aterro, cais, quebra-mares e shiplift estão na física e no 3D; a bacia e a entrada são dragadas (16 m, estimado) e a baía tem fundo de 30 m. Fora da área dragada o fundo sobe junto às estruturas (encalhe).',
+    objectives: [
+      'Reconhecer no 3D e no mapa o aterro, os quebra-mares, o shiplift e os galpões',
+      'Sair da bacia com pouca velocidade pela entrada entre os quebra-mares',
+      'Acompanhar o ecobatímetro: bacia dragada, fundo subindo junto aos quebra-mares',
+    ],
     env: (c) => {
-      c.environment.geo = { origin: { lat: -22.93498, lon: -43.84015 }, coast: true, shelfWidth: 1000 };
+      c.environment.geo = { origin: { lat: -22.93041, lon: -43.85273 }, coast: true, shelfWidth: 400 };
+      c.environment.bottom = { ...c.environment.bottom, mode: 'uniforme', baseDepth: 30 };
     },
-    pose: { depth: 2.2, heading: 225, speed: 0 },
+    pose: { depth: 2.2, heading: 214, speed: 0 },
     submerged: false,
     compensationDepth: 37,
   },

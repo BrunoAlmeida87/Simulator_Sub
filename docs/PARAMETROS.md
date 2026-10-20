@@ -104,7 +104,8 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 |---|---|
 | Salinidade | 35 PSU |
 | Temperatura | 22 °C na superfície → 12 °C abaixo da termoclina (80 m, espessura de 25 m) |
-| Costa | Desligada por padrão (ligada nos cenários costeiros); faixa costeira de 1.000 m (Restinga: 3.000 m): fundo = profundidade de mar aberto × suavização (3x² − 2x³), x = distância à orla / faixa; em terra, altura do terreno |
+| Costa | Desligada por padrão (ligada nos cenários costeiros); faixa costeira de 1.000 m (Restinga: 3.000 m; Saída da base: 400 m com fundo de 30 m): fundo = profundidade de mar aberto × suavização (3x² − 2x³), x = distância à orla / faixa; em terra, altura do terreno |
+| Estaleiro (Ilha da Madeira) | Com a costa ligada: aterro, cais e shiplift a +3 m (paredes verticais); quebra-mares de enrocamento com crista a +5 m e talude 1:1,5; fora das estruturas o fundo é limitado por d/1,5 ÷ (1 − (d/300)²) (d = distância à estrutura, m) e, na área dragada, nunca menor que 16 m (estimado) |
 | Fundo | Padrão de sessões novas: **uniforme, 300 m**. Modo relevo: profundidade na origem + declividades (+6 m/km N, −3 m/km E) e ondulações de ±25 m (λ = 1.800 m). Arquivos salvos antigos e o cenário “Águas rasas” continuam em relevo (antigo padrão: 420 m na origem) |
 | Declinação magnética | −21,5° |
 | Passo de integração | 0,02 s (50 Hz) |

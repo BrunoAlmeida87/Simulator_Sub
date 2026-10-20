@@ -28,7 +28,7 @@ import { DRAFT_MARK_X, draftInfo } from '../sim/drafts';
 import { qFromEuler, qToEuler } from '../sim/core/math';
 import { ShipsLayer } from './Ships';
 import { TerrainLayer, type TerrainDetail } from './Terrain';
-import { buildQuay, placeQuay } from './Quay';
+import { ShipyardModel } from './Shipyard';
 import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 import { MarineLife } from './MarineLife';
 
@@ -142,7 +142,8 @@ export class SubmarineScene {
   private terrain: TerrainLayer | null = null;
   /** detalhe do terreno (Configurações → Qualidade gráfica) */
   terrainDetail: TerrainDetail = 'media';
-  private quay: THREE.Group | null = null;
+  private shipyard: ShipyardModel | null = null;
+  private shipyardDist = Infinity;
   private particles: Particle[] = [];
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
   private snow: THREE.Points;
@@ -823,15 +824,14 @@ export class SubmarineScene {
     const coastOn = !!e.env.cfg.geo?.coast;
     const terrain = this.ensureTerrain();
     terrain.update(e.env, pn, pe, coastOn);
-    // cais (só com a costa ligada: senão não há terra desenhada)
+    // estaleiro e base naval (só com a costa ligada: faz parte da costa, também na física)
     if (coastOn && e.env.cfg.geo) {
-      if (!this.quay) {
-        this.quay = buildQuay();
-        this.scene.add(this.quay);
+      if (!this.shipyard) {
+        this.shipyard = new ShipyardModel(this.quality);
+        this.scene.add(this.shipyard.group);
       }
-      placeQuay(this.quay, e.env.cfg.geo.origin, e.env, pn, pe);
-      this.quay.visible = true;
-    } else if (this.quay) this.quay.visible = false;
+      this.shipyardDist = this.shipyard.place(e.env.cfg.geo.origin, pn, pe, this.camera.position);
+    } else if (this.shipyard) this.shipyard.group.visible = false;
 
     // bolhas dos suspiros/embornais (taxa proporcional à vazão de ar simulada)
     const Rm = qToMat3(s.body.quat);
@@ -981,7 +981,7 @@ export class SubmarineScene {
       this.underSky.mesh.visible = false;
       this.sky.visible = false;
       this.terrain?.setVisible(false, false);
-      if (this.quay) this.quay.visible = false;
+      if (this.shipyard) this.shipyard.group.visible = false;
     }
     this.caustics.uTime.value = this.wallTime;
     this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15);
@@ -1023,6 +1023,7 @@ export class SubmarineScene {
     this.updateTrimRef(e, lbl, proj);
     this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj);
     this.marineLife.update(e.env, tWave, pn, pe, !dry);
+    if (this.shipyard && this.layers.labels && !dry && coastOn) this.shipyard.label(lbl, proj, this.shipyardDist);
     this.renderer.render(this.scene, this.camera);
 
     const ps = proj(new THREE.Vector3(0, 0, 0));
@@ -1091,6 +1092,7 @@ export class SubmarineScene {
 
   dispose(): void {
     this.marineLife.dispose();
+    this.shipyard?.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.scene.traverse((o) => {
