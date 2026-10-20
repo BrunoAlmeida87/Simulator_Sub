@@ -1,0 +1,32 @@
+# Verificação por etapa
+
+Referência estável antes desta série de mudanças: commit `fa4e609` da `main`
+("Gera executáveis Windows automaticamente ao atualizar a main"), com 46 testes
+automáticos aprovados e build de produção sem erros.
+
+Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
+`tests/fixtures/` e são abertos pelos testes a cada execução
+(`tests/session.test.ts`):
+
+| Arquivo | Conteúdo |
+|---|---|
+| `estado-v1-submerso50.json` | 50 m, 90 rpm, pilotos de rumo e profundidade em AUTO, admissão automática de compensação em andamento, falha de ecobatímetro (deriva) |
+| `estado-v1-antigo.json` | o mesmo estado sem campos acrescentados ao longo do tempo (ondas, peso deslocável, referência de trim) |
+
+## Verificações automáticas (`npm test`)
+
+- Validação física V01…V13 (`tests/validation.test.ts`).
+- Coerência da apresentação, manobras, cenário guiado (`tests/presentation.test.ts`).
+- Unidades e conversões (`tests/units.test.ts`).
+- Sessão: continuação exata após salvar/carregar, números não finitos, abertura dos arquivos v1, mensagens de erro (`tests/session.test.ts`).
+- Sessão pela interface: manobra IMERGIR salva no meio retoma na mesma etapa (`tests/session-ui.test.ts`).
+
+As etapas seguintes acrescentam seus próprios testes (listados no fim deste documento conforme forem criados).
+
+## Cenários de verificação manual (navegador e Electron)
+
+1. **Estado antigo** — Configurações → Carregar arquivo → `tests/fixtures/estado-v1-submerso50.json`: deve aparecer pausado a ~58 m, 30°, piloto em AUTO; ▶ continua.
+2. **Salvar e continuar** — cenário "Submerso 50 m", ordenar 6 nós e uma manobra; Baixar arquivo; recarregar a página; Carregar arquivo; conferir profundidade, rumo, velocidade, tanques, bateria e etapa da manobra; ▶.
+3. **Segunda janela** — "⧉ 2ª janela": a cena, camadas, identificação e navios devem acompanhar a janela de controle.
+4. **Desempenho** — aba Pilotagem em qualidade alta e baixa: a barra superior não deve mostrar "CPU: tempo reduzido" em 1× e 8×.
+5. **Celular** — largura de 390 px: sem rolagem horizontal nas abas novas.
