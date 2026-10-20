@@ -28,6 +28,7 @@ const LAYER_BTNS: [keyof SceneLayers, string][] = [
   ['wake', 'Esteira'],
   ['noWater', 'Sem água'],
   ['trimRef', 'Calado/trim'],
+  ['ships', 'Navios'],
 ];
 
 const VIEWS: [ViewMode | 'seguir', string][] = [
@@ -39,6 +40,7 @@ const VIEWS: [ViewMode | 'seguir', string][] = [
   ['tanques', 'Vista tanques'],
   ['forcas', 'Vista forças'],
   ['calado', 'Calado'],
+  ['navio', 'Navio próximo'],
   ['fixa', 'Fixa'],
   ['livre', 'Livre'],
 ];

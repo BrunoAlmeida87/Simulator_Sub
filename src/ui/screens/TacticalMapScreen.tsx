@@ -13,7 +13,7 @@ import { runner, useSim } from '../store';
 import { Panel } from '../components/Panel';
 import { usePersisted } from '../persist';
 import { route, mapOrigin } from '../routeNav';
-import { bearingRange, contactsAt, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
+import { bearingRange, contactsAt, contactsLocal, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
 import { fmt, fmtTime } from '../format';
 import { useIdentity } from '../appearance';
@@ -225,9 +225,9 @@ export function TacticalMapScreen() {
 
   // ---- painel
   const o = e.outputs;
-  const contacts = contactsAt(s.t).map((c) => {
-    const cn = latLonToNed(origin, nedToLatLon(DEFAULT_ORIGIN, c.n, c.e));
-    const cc = { ...c, n: cn.n, e: cn.e };
+  // mesma conversão usada pela cena 3D (navios): mesma posição, rumo e velocidade
+  const contacts = contactsLocal(s.t, origin).map((cc) => {
+    const c = cc;
     const br = bearingRange(own, cc);
     const cp = cpa({ ...own, vn: o.velNED.x, ve: o.velNED.y }, cc);
     return { c, br, cp };
@@ -359,7 +359,7 @@ export function TacticalMapScreen() {
                 })}
             </tbody>
           </table>
-          <div className="note">CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios; não há sonar simulado.</div>
+          <div className="note">CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios (não são posições AIS reais) e aparecem como navios na cena 3D, na mesma posição; não há sonar simulado.</div>
         </Panel>
         <Panel title="Rota (pontos de passagem)">
           <div className="row">

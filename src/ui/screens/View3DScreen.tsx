@@ -24,6 +24,7 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'tanques', label: 'Vista tanques' },
   { id: 'forcas', label: 'Vista forças' },
   { id: 'calado', label: 'Calado' },
+  { id: 'navio', label: 'Navio próximo' },
   { id: 'livre', label: 'Livre' },
 ];
 
@@ -52,6 +53,7 @@ export function View3DScreen() {
   };
   const [marks, setMarks] = usePersisted('v3d.marks', false);
   const [trimRef, setTrimRef] = usePersisted('v3d.trimRef', false);
+  const [ships, setShips] = usePersisted('v3d.ships', true);
   const o = e.outputs;
   const s = e.state;
   return (
@@ -71,6 +73,7 @@ export function View3DScreen() {
         noWater: dry,
         markers: marks,
         trimRef,
+        ships,
         pipes: true,
         flows: true,
         labels: true,
@@ -103,6 +106,7 @@ export function View3DScreen() {
                 if (v.id === 'tanques') setCut(true);
                 if (v.id === 'forcas') setVec(true);
                 if (v.id === 'calado') setTrimRef(true);
+                if (v.id === 'navio') setShips(true);
               }}
             >
               {v.label}
@@ -146,6 +150,9 @@ export function View3DScreen() {
           </button>
           <button className={`btn sm ${trimRef ? 'on' : ''}`} onClick={() => setTrimRef(!trimRef)} title="Calados AV/AR, linha d'água do casco × nível do mar">
             Calado/trim
+          </button>
+          <button className={`btn sm ${ships ? 'on' : ''}`} onClick={() => setShips(!ships)} title="Contatos da mesa tática como navios no mar">
+            Navios
           </button>
         </div>
         {trimRef && <TrimGainSelect />}

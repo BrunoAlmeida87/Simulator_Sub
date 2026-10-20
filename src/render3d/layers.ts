@@ -36,6 +36,8 @@ export interface SceneLayers {
   noWater: boolean;
   /** referências de trim/calado: linha do nível do mar × linha do casco e leituras de calado AV/AR */
   trimRef: boolean;
+  /** navios (contatos da mesa tática) no mar */
+  ships: boolean;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -57,6 +59,7 @@ export const defaultLayers = (): SceneLayers => ({
   hiddenVectors: [],
   noWater: false,
   trimRef: false,
+  ships: true,
 });
 
 /** Linguagem visual única para as categorias de tanques e circuitos. */

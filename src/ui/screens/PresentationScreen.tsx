@@ -34,6 +34,7 @@ const FRAMES: [ViewMode, string, string][] = [
   ['tanques', 'Tanques', 'Inspeção dos tanques e circuitos no corte'],
   ['forcas', 'Forças', 'Vista lateral para os vetores de peso, empuxo e resultante'],
   ['calado', 'Calado', 'Lateral rente à água: calados a vante e a ré e linha d’água (trim na superfície)'],
+  ['navio', 'Navio', 'Mira o navio (contato da mesa tática) mais próximo'],
   ['piloto', 'Seguir', 'Câmera lateral que acompanha o submarino'],
   ['perseguicao', 'Perseguição', 'Câmera atrás do submarino'],
   ['fixa', 'Fixa', 'Câmera parada no cenário: o submarino atravessa o quadro'],
@@ -54,6 +55,7 @@ const LAYER_LIST: [keyof SceneLayers, string][] = [
   ['presLight', 'Iluminação'],
   ['noWater', 'Sem água'],
   ['trimRef', 'Calado/trim'],
+  ['ships', 'Navios'],
 ];
 
 function usePres() {

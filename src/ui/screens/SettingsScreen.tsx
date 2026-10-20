@@ -384,6 +384,18 @@ function GraphicsPanel() {
         </span>
         <TrimGainSelect compact />
       </div>
+      <div className="row mt8">
+        <span className="subtle" style={{ minWidth: 120 }}>
+          Alcance dos navios
+        </span>
+        <div className="seg">
+          {[5, 12, 20, 30].map((k) => (
+            <button key={k} className={g.shipRange === k ? 'on' : ''} onClick={() => graphics.set({ shipRange: k })}>
+              {k} km
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="note">
         A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao recarregar a
         página ela volta para o valor real.

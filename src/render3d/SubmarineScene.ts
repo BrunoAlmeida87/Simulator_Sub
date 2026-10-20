@@ -24,13 +24,15 @@ import type { Appearance } from './sailArt';
 import { SailDecals, anechoicTextures, bladeGeometry, draftMarkBand, finGeometry } from './HullDetail';
 import { DRAFT_MARK_X, draftInfo } from '../sim/drafts';
 import { qFromEuler, qToEuler } from '../sim/core/math';
+import { ShipsLayer } from './Ships';
+import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
  * mundo: o submarino atravessa o quadro) e enquadramentos rápidos de
  * apresentação ('superficie', 'submerso', 'tanques', 'forcas').
  */
-export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas' | 'calado';
+export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas' | 'calado' | 'navio';
 
 interface Particle {
   n: number;
@@ -99,6 +101,12 @@ export class SubmarineScene {
    * a física não. A interface mostra o aviso quando > 1.
    */
   trimGain = 1;
+  /** navios da mesa tática */
+  private ships = new ShipsLayer();
+  /** origem geográfica do referencial local (para posicionar os navios como no mapa) */
+  geoOrigin: LatLon = DEFAULT_ORIGIN;
+  /** alcance de desenho dos navios (km) */
+  shipRange = 12;
   private appRev = -1;
   private texDetail: Appearance['textures'] | null = null;
   private tileTex: { hull: { map: THREE.Texture; bump: THREE.Texture } | null; sail: { map: THREE.Texture; bump: THREE.Texture } | null } = { hull: null, sail: null };
@@ -202,6 +210,7 @@ export class SubmarineScene {
     this.scene.add(this.fx.group);
     this.markers = new Markers(this.env(), this.dot);
     this.scene.add(this.markers.group);
+    this.scene.add(this.ships.group);
 
     // oceano: mesmas componentes de onda da física, deslocadas em GPU
     this.ocean = new Ocean(quality, this.sunDir);
@@ -691,6 +700,13 @@ export class SubmarineScene {
         cam.y = this.lastSubPos.y + 10;
         return cam;
       }
+      case 'navio': {
+        // atrás e acima do submarino, olhando para o navio mais próximo
+        const sh = this.ships.nearest;
+        if (!sh) return c.add(fwd.multiplyScalar(-70)).add(new THREE.Vector3(0, 25, 0));
+        const dir = sh.pos.clone().sub(c).setY(0).normalize();
+        return c.add(dir.multiplyScalar(-55)).add(new THREE.Vector3(0, 14, 0));
+      }
       case 'calado': {
         // lateral rente à água, teleobjetiva: o casco inteiro no quadro e a linha d'água em perfil
         const half = Math.tan(((this.camera.fov / 2) * Math.PI) / 180) * asp;
@@ -908,7 +924,8 @@ export class SubmarineScene {
     this.depthLine.computeLineDistances();
 
     // câmera: segue o submarino (vista "Calado" usa teleobjetiva)
-    const fov = this.view === 'calado' ? 16 : 50;
+    const sh = this.view === 'navio' ? this.ships.nearest : null;
+    const fov = this.view === 'calado' ? 16 : sh ? Math.max(2.5, Math.min(50, ((2 * Math.atan((sh.length * 1.8) / (2 * (sh.dist + 55)))) * 180) / Math.PI)) : 50;
     if (this.camera.fov !== fov) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
@@ -928,6 +945,7 @@ export class SubmarineScene {
       this.camera.position.lerpVectors(this.viewFrom, target, k);
       this.controls.target.copy(subPos);
       if (this.view === 'piloto') this.controls.target.add(this.headingVectors().fwd.multiplyScalar(this.pilotLead()));
+      if (sh) this.controls.target.copy(sh.pos).add(new THREE.Vector3(0, 8, 0));
       if (this.viewBlend >= 1) this.viewFrom.copy(target);
     }
     this.camera.up.set(0, 1, 0);
@@ -988,6 +1006,7 @@ export class SubmarineScene {
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
+    this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj);
     this.renderer.render(this.scene, this.camera);
 
     const ps = proj(new THREE.Vector3(0, 0, 0));

@@ -122,3 +122,17 @@ export function cpa(own: { n: number; e: number; vn: number; ve: number }, c: Co
   const t = Math.max(0, tc);
   return { tcpa: t, dcpa: Math.hypot(rn + vn * t, re + ve * t) };
 }
+
+/**
+ * Contatos no referencial LOCAL (NED, m) de uma origem geográfica qualquer:
+ * a mesma posição geográfica do quadro tático. Usado pelo mapa (tabela) e
+ * pela cena 3D (navios), para os dois mostrarem o mesmo contato no mesmo
+ * lugar, com o mesmo rumo e a mesma velocidade.
+ */
+export function contactsLocal(t: number, origin: LatLon): (Contact & { lat: number; lon: number })[] {
+  return contactsAt(t).map((c) => {
+    const ll = nedToLatLon(DEFAULT_ORIGIN, c.n, c.e);
+    const p = latLonToNed(origin, ll);
+    return { ...c, n: p.n, e: p.e, lat: ll.lat, lon: ll.lon };
+  });
+}

@@ -196,6 +196,7 @@ export function PilotScreen() {
   };
   const [marks, setMarks] = usePersisted('pilot.marks', true);
   const [trimRef, setTrimRef] = usePersisted('pilot.trimRef', false);
+  const [ships, setShips] = usePersisted('pilot.ships', true);
   const [quality, setQuality] = useQuality();
   const o = e.outputs;
   const ap = e.state.autopilot;
@@ -222,6 +223,7 @@ export function PilotScreen() {
               noWater: dry,
               markers: marks,
               trimRef,
+              ships,
               pipes: true,
               flows: true,
               labels: true,
@@ -305,6 +307,9 @@ export function PilotScreen() {
                 </button>
                 <button className={`btn sm ${trimRef ? 'on' : ''}`} onClick={() => setTrimRef(!trimRef)} title="Calados AV/AR, linha d'água do casco × nível do mar">
                   Calado/trim
+                </button>
+                <button className={`btn sm ${ships ? 'on' : ''}`} onClick={() => setShips(!ships)} title="Contatos da mesa tática como navios no mar">
+                  Navios
                 </button>
               </div>
               {trimRef && <TrimGainSelect compact />}

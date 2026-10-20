@@ -196,6 +196,7 @@ class PresentationStore {
     if (autoLayers && v === 'tanques' && !this.layers.tanks) this.layers = { ...this.layers, tanks: true };
     if (autoLayers && v === 'forcas' && !this.layers.vectors) this.layers = { ...this.layers, vectors: true };
     if (autoLayers && v === 'calado' && !this.layers.trimRef) this.layers = { ...this.layers, trimRef: true };
+    if (autoLayers && v === 'navio' && !this.layers.ships) this.layers = { ...this.layers, ships: true };
     try {
       localStorage.setItem(K_VIEW, v);
     } catch {
