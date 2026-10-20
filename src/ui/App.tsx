@@ -11,6 +11,7 @@ import { fmt, fmtTime } from './format';
 import { SimSpeedButtons } from './components/Controls';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
+import { HelmScreen } from './screens/HelmScreen';
 import { PresentationScreen } from './screens/PresentationScreen';
 import { TacticalMapScreen } from './screens/TacticalMapScreen';
 import { EnergyFlowScreen } from './screens/EnergyFlowScreen';
@@ -40,6 +41,7 @@ import { openVisualWindow } from './sync';
 
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'pilotagem', n: '0', label: 'Pilotagem' },
+  { id: 'governo', label: 'Governo' },
   { id: 'apresentacao', label: 'Apresentação' },
   { id: 'mapa', label: 'Mapa tático' },
   { id: 'energia', label: 'Fluxo de energia' },
@@ -294,6 +296,7 @@ export function App() {
 
   const screens: Record<ScreenId, ReactNode> = {
     pilotagem: <PilotScreen />,
+    governo: <HelmScreen />,
     apresentacao: <PresentationScreen />,
     mapa: <TacticalMapScreen />,
     energia: <EnergyFlowScreen />,

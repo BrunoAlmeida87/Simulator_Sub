@@ -471,3 +471,38 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .rec-status { font-size: 12px; }
 .recbar { height: 6px; background: #142133; border-radius: 3px; overflow: hidden; margin: 4px 0; }
 .recbar > span { display: block; height: 100%; background: var(--accent); }
+
+/* ---------------------------------------------------------- painel de governo */
+.helm { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.helm-view { height: 34vh; min-height: 200px; position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.helm-view .view3d { height: 100%; }
+.helm-hud { position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: #d8e4f0; background: rgba(8, 16, 26, 0.6); padding: 3px 8px; border-radius: 4px; }
+.helm-console { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 0.9fr); gap: 10px; align-items: start; }
+.helm-sec { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; min-width: 0; }
+.helm-sec > header { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; letter-spacing: 0.08em; font-size: 12px; }
+.helm-sec.gov { border-top: 3px solid #36c5f0; }
+.helm-sec.gov > header b { color: #36c5f0; }
+.helm-sec.pwr { border-top: 3px solid #ffb347; }
+.helm-sec.pwr > header b { color: #ffb347; }
+.helm-sec.inst > header b { color: #b9cde2; }
+.helm-row { display: flex; gap: 10px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.helm-col { display: flex; flex-direction: column; gap: 6px; align-items: center; min-width: 0; }
+.helm-yoke { width: min(300px, 100%); aspect-ratio: 1; touch-action: none; cursor: grab; user-select: none; }
+.helm-lever { height: auto; width: auto; touch-action: none; cursor: grab; user-select: none; }
+.helm-knob { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.helm-knob svg { width: 110px; height: 110px; touch-action: none; cursor: grab; user-select: none; }
+.helm-pad { fill: #0d1824; stroke: #2c4260; stroke-width: 2; }
+.helm-track { fill: #0d1824; stroke: #2c4260; stroke-width: 2; }
+.helm-grid { stroke: #1f3247; stroke-width: 1; }
+.helm-axis { stroke: #3c5878; stroke-width: 1.5; }
+.helm-lbl { fill: #8fa6bf; font-size: 11px; }
+.helm-det { fill: #7f93a8; font-size: 10.5px; }
+.helm-det.on { fill: #ffd18a; font-weight: 700; }
+.helm-knobtxt { fill: #0a121b; font-size: 11px; font-weight: 700; }
+.helm-knobval { fill: #e9f8ff; font-size: 15px; font-weight: 700; font-family: ui-monospace, monospace; }
+.helm-read { display: flex; flex-direction: column; gap: 2px; font-size: 12px; text-align: center; }
+.helm-ap { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.helm-apbox { border: 1px solid var(--line2); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.helm-inst { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; }
+@media (max-width: 1250px) { .helm-console { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .helm-sec.inst { grid-column: 1 / -1; order: 3; } }
+@media (max-width: 760px) { .helm-console { grid-template-columns: 1fr; } .helm-view { height: 28vh; } }

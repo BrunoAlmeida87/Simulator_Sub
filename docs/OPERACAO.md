@@ -34,6 +34,15 @@ A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre vis�
 
 As outras abas continuam servindo para diagramas maiores, histórico e detalhes técnicos. Todas usam os mesmos comandos e o mesmo estado.
 
+## Painel de governo (aba Governo)
+
+Inspirado no posto de governo de um submarino, com cena 3D (perseguição, lateral, topo ou livre) em cima e três blocos embaixo:
+- **GOVERNO** (azul): **manche** — arrastar para os lados comanda o leme de direção (BB/BE); empurrar (para cima) comanda os lemes de ré a DESCER e puxar (para baixo) a SUBIR. **Alavanca dos lemes de vante** ao lado. Botões giratórios de **rumo** e **profundidade** ordenados (gire e solte) com MAN/AUTO.
+- **INSTRUMENTOS**: rosa de rumo (com o rumo ordenado), fita de profundidade (com a cota ordenada e o fundo), atitude e velocidade.
+- **POTÊNCIA** (laranja): **alavanca do telégrafo**, que encaixa nas ordens (RÉ TODA … AV TODA), ajuste fino de ±5 rpm, rotação do eixo, potência e empuxo.
+
+A peça que se move mostra o **comandado**; o marcador **verde** mostra a resposta **real** (ângulo dos lemes, rotação do eixo). Funciona com mouse e toque. Os comandos são os mesmos das outras telas (aparecem no histórico, entram na gravação e ficam sincronizados com a Pilotagem); mover o manche com o piloto em AUTO desengaja o canal, como nas outras telas.
+
 ## Mapa tático
 
 A aba **Mapa tático** mostra a posição geográfica do submarino. O ponto de partida padrão fica na Baía de Sepetiba, junto ao **Estaleiro e Base Naval da Ilha da Madeira (Itaguaí-RJ)**. O mapa mostra:
