@@ -1,7 +1,8 @@
 /**
- * LINHA DE EIXO — barramento → motor elétrico principal → eixo → mancal de
- * escora → hélice, com os valores do passo de simulação: potência elétrica,
- * torque do motor e do hélice, rotação e sentido de giro, potência no eixo,
+ * LINHA DE EIXO — da direita (proa) para a esquerda (popa), como os
+ * diagramas de trim e lastro: barramento → motor elétrico principal → eixo →
+ * mancal de escora → hélice, com os valores do passo de simulação: potência
+ * elétrica, torque do motor e do hélice, rotação e sentido de giro, potência no eixo,
  * empuxo (transmitido ao casco pelo mancal de escora) e velocidade.
  * A animação gira na rotação real (× aceleração da simulação; parada quando
  * a simulação está pausada).
@@ -42,37 +43,37 @@ export function PropulsionDiagram({ e }: { e: SimulationEngine }) {
     <WideDiagram minWidth={800}>
       <svg viewBox="0 0 1000 300" className="svgbox pdiag" role="img" aria-label="Diagrama motor elétrico, eixo e hélice">
         {/* casco (corte) */}
-        <path d="M10 40 H770 Q930 40 985 150 Q930 260 770 260 H10" className="pd-hull" />
+        <path d="M990 40 H230 Q70 40 15 150 Q70 260 230 260 H990" className="pd-hull" />
         <text x={20} y={30} className="pd-t">
-          ◀ proa
+          ◀ popa
         </text>
         <text x={980} y={30} className="pd-t" textAnchor="end">
-          popa ▶
+          proa ▶
         </text>
         {/* alimentação elétrica */}
         <g>
-          <rect x={30} y={110} width={110} height={80} rx={8} className={`enode ${s.electrical.energized ? 'on' : 'bad'}`} />
-          <text x={85} y={135} className="pd-t" textAnchor="middle">
+          <rect x={860} y={110} width={110} height={80} rx={8} className={`enode ${s.electrical.energized ? 'on' : 'bad'}`} />
+          <text x={915} y={135} className="pd-t" textAnchor="middle">
             Barramento
           </text>
-          <text x={85} y={157} className="pd-v" textAnchor="middle">
+          <text x={915} y={157} className="pd-v" textAnchor="middle">
             {fmt(s.electrical.voltage, 0)} V
           </text>
-          <text x={85} y={177} className="pd-s" textAnchor="middle">
+          <text x={915} y={177} className="pd-s" textAnchor="middle">
             {fmt(s.electrical.loads.MEP ? s.electrical.loads.MEP / Math.max(1, s.electrical.voltage) : 0, 0)} A no motor
           </text>
-          <path d="M140 150 H190" className={`pd-elec ${p.elecPower > 1000 ? 'on' : ''}`} />
-          <text x={165} y={140} className="pd-s" textAnchor="middle">
+          <path d="M860 150 H810" className={`pd-elec ${p.elecPower > 1000 ? 'on' : ''}`} />
+          <text x={835} y={140} className="pd-s" textAnchor="middle">
             {kw(p.elecPower)}
           </text>
         </g>
         {/* motor elétrico principal */}
         <g>
-          <rect x={190} y={85} width={190} height={130} rx={12} className={`enode ${p.failed ? 'bad' : moving ? 'on' : ''}`} />
-          <text x={285} y={108} className="pd-t" textAnchor="middle">
+          <rect x={620} y={85} width={190} height={130} rx={12} className={`enode ${p.failed ? 'bad' : moving ? 'on' : ''}`} />
+          <text x={715} y={108} className="pd-t" textAnchor="middle">
             Motor elétrico principal
           </text>
-          <g transform="translate(245 160)">
+          <g transform="translate(755 160)">
             <circle r={36} className="pd-stator" />
             <g style={spin()} className="pd-rot">
               {[0, 45, 90, 135].map((a) => (
@@ -80,44 +81,44 @@ export function PropulsionDiagram({ e }: { e: SimulationEngine }) {
               ))}
             </g>
           </g>
-          <text x={335} y={142} className="pd-v" textAnchor="middle">
+          <text x={665} y={142} className="pd-v" textAnchor="middle">
             {fmt(rpm, 0)} rpm
           </text>
-          <text x={335} y={164} className="pd-s" textAnchor="middle">
+          <text x={665} y={164} className="pd-s" textAnchor="middle">
             ordem {fmt(p.rpmCmd, 0)}
           </text>
-          <text x={335} y={186} className="pd-s" textAnchor="middle">
+          <text x={665} y={186} className="pd-s" textAnchor="middle">
             {fmt(p.motorTorque / 1000, 0)} kN·m
           </text>
           {/* barra de torque */}
-          <rect x={200} y={202} width={170} height={6} rx={3} fill="#142133" />
-          <rect x={200} y={202} width={170 * torqueFrac} height={6} rx={3} fill={torqueFrac > 0.95 ? '#ff5257' : '#36c5f0'} />
+          <rect x={630} y={202} width={170} height={6} rx={3} fill="#142133" />
+          <rect x={630} y={202} width={170 * torqueFrac} height={6} rx={3} fill={torqueFrac > 0.95 ? '#ff5257' : '#36c5f0'} />
         </g>
         {/* eixo */}
         <g>
-          <rect x={380} y={140} width={420} height={20} rx={4} className="pd-shaft" />
-          <line x1={380} y1={150} x2={800} y2={150} className="pd-shaftstripe" style={shaftFlow} />
-          <text x={470} y={130} className="pd-s" textAnchor="middle">
+          <rect x={200} y={140} width={420} height={20} rx={4} className="pd-shaft" />
+          <line x1={620} y1={150} x2={200} y2={150} className="pd-shaftstripe" style={shaftFlow} />
+          <text x={530} y={130} className="pd-s" textAnchor="middle">
             eixo · {kw(p.shaftPower)}
           </text>
           {/* sentido de giro */}
-          <g transform="translate(560 150)">
+          <g transform="translate(440 150)">
             <path d={ahead ? 'M-14 -26 A28 28 0 1 1 -26 12' : 'M14 -26 A28 28 0 1 0 26 12'} className={`pd-dir ${moving ? 'on' : ''}`} markerEnd="url(#pdArrow)" />
           </g>
-          <text x={560} y={205} className="pd-s" textAnchor="middle">
+          <text x={440} y={205} className="pd-s" textAnchor="middle">
             {moving ? `${ahead ? 'horário' : 'anti-horário'} visto da popa` : 'eixo parado'}
           </text>
         </g>
         {/* mancal de escora: empuxo transmitido ao casco */}
         <g>
-          <rect x={650} y={118} width={34} height={64} rx={5} className="enode" />
-          <text x={667} y={108} className="pd-s" textAnchor="middle">
+          <rect x={316} y={118} width={34} height={64} rx={5} className="enode" />
+          <text x={333} y={108} className="pd-s" textAnchor="middle">
             mancal de escora
           </text>
           {Math.abs(thrustKN) > 0.5 && (
             <g>
-              <path d={thrustKN > 0 ? `M650 236 H${650 - Math.max(12, arrowLen)}` : `M684 236 H${684 + Math.max(12, arrowLen)}`} className="pd-thrust" markerEnd="url(#pdArrowT)" />
-              <text x={667} y={262} className="pd-v" textAnchor="middle" fill="#a8ff7a">
+              <path d={thrustKN > 0 ? `M350 236 H${350 + Math.max(12, arrowLen)}` : `M316 236 H${316 - Math.max(12, arrowLen)}`} className="pd-thrust" markerEnd="url(#pdArrowT)" />
+              <text x={333} y={262} className="pd-v" textAnchor="middle" fill="#a8ff7a">
                 empuxo {fmt(Math.abs(thrustKN), 0)} kN {thrustKN > 0 ? '(empurra para vante)' : '(empurra para ré)'}
               </text>
             </g>
@@ -126,11 +127,11 @@ export function PropulsionDiagram({ e }: { e: SimulationEngine }) {
         {/* hélice (vista lateral + vista da popa) */}
         <g>
           {/* vista lateral: pás vistas de perfil (disco do hélice) */}
-          <ellipse cx={832} cy={150} rx={11} ry={66} className="pd-disk" />
-          <path d="M826 150 C 818 120, 822 96, 836 86 C 842 104, 840 128, 834 150 Z" className="pd-blade" />
-          <path d="M826 150 C 820 178, 824 202, 838 212 C 842 192, 840 170, 834 150 Z" className="pd-blade" />
-          <ellipse cx={832} cy={150} rx={12} ry={18} className="pd-hub" />
-          <g transform="translate(910 150)">
+          <ellipse cx={168} cy={150} rx={11} ry={66} className="pd-disk" />
+          <path d="M174 150 C 182 120, 178 96, 164 86 C 158 104, 160 128, 166 150 Z" className="pd-blade" />
+          <path d="M174 150 C 180 178, 176 202, 162 212 C 158 192, 160 170, 166 150 Z" className="pd-blade" />
+          <ellipse cx={168} cy={150} rx={12} ry={18} className="pd-hub" />
+          <g transform="translate(90 150)">
             <circle r={50} className="pd-disk" />
             <g style={spin()} className="pd-rot">
               {Array.from({ length: nb }, (_, k) => (
@@ -139,14 +140,14 @@ export function PropulsionDiagram({ e }: { e: SimulationEngine }) {
             </g>
             <circle r={7} className="pd-hub" />
           </g>
-          <text x={910} y={222} className="pd-s" textAnchor="middle">
+          <text x={90} y={222} className="pd-s" textAnchor="middle">
             hélice {nb} pás · {fmt(v.propulsion.propeller.diameter, 1)} m
           </text>
-          <text x={910} y={238} className="pd-s" textAnchor="middle">
+          <text x={90} y={238} className="pd-s" textAnchor="middle">
             vista da popa
           </text>
           {/* esteira do hélice */}
-          {Math.abs(thrustKN) > 0.5 && <path d={ahead ? 'M968 150 h24' : 'M968 150 h24'} className="pd-wash" style={{ ...shaftFlow, opacity: Math.min(1, Math.abs(thrustKN) / 80) }} />}
+          {Math.abs(thrustKN) > 0.5 && <path d="M32 150 h-24" className="pd-wash" style={{ ...shaftFlow, opacity: Math.min(1, Math.abs(thrustKN) / 80) }} />}
         </g>
         {/* rodapé de valores */}
         <text x={20} y={288} className="pd-s">
