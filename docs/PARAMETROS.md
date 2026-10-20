@@ -104,6 +104,6 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 |---|---|
 | Salinidade | 35 PSU |
 | Temperatura | 22 °C na superfície → 12 °C abaixo da termoclina (80 m, espessura de 25 m) |
-| Fundo | 420 m na origem; declividades de +6 m/km (N) e −3 m/km (E); relevo de ±25 m |
+| Fundo | Padrão de sessões novas: **uniforme, 300 m**. Modo relevo: profundidade na origem + declividades (+6 m/km N, −3 m/km E) e ondulações de ±25 m (λ = 1.800 m). Arquivos salvos antigos e o cenário “Águas rasas” continuam em relevo (antigo padrão: 420 m na origem) |
 | Declinação magnética | −21,5° |
 | Passo de integração | 0,02 s (50 Hz) |

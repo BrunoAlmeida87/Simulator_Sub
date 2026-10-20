@@ -128,6 +128,7 @@ export const SCENARIOS: ScenarioDef[] = [
     description: 'Operação próxima do fundo com relevo ondulado. Monitore o ecobatímetro e os alarmes de aproximação.',
     objectives: ['Manter altitude segura sobre o fundo', 'Reagir aos alarmes de proximidade'],
     env: (c) => {
+      c.environment.bottom.mode = 'relevo';
       c.environment.bottom.baseDepth = 95;
       c.environment.bottom.roughness = 12;
       c.environment.bottom.slopeNorth = 25;

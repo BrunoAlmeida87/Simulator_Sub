@@ -11,7 +11,15 @@
 import { seawaterDensity } from './seawater';
 import { WaveField, type WaveConfig } from './waves';
 
+export type BottomMode = 'uniforme' | 'relevo';
+
 export interface BottomConfig {
+  /**
+   * 'uniforme': profundidade constante (baseDepth) em toda a área;
+   * 'relevo': declividades e ondulações em torno de baseDepth.
+   * Ausente = 'relevo' (comportamento dos arquivos salvos antigos).
+   */
+  mode?: BottomMode;
   /** Profundidade de referência do fundo na origem (m). */
   baseDepth: number;
   /** Declividade para o Norte (m de profundidade a mais por km). */
@@ -50,7 +58,8 @@ export const defaultEnvironment = (): EnvironmentConfig => ({
   gravity: 9.80665,
   magneticDeclination: -21.5,
   bottom: {
-    baseDepth: 420,
+    mode: 'uniforme',
+    baseDepth: 300,
     slopeNorth: 6,
     slopeEast: -3,
     roughness: 25,
@@ -151,6 +160,7 @@ export class Environment {
   /** Profundidade do fundo (m) na posição horizontal (Norte, Leste) em metros. */
   bottomDepthAt(north: number, east: number): number {
     const b = this.cfg.bottom;
+    if (b.mode === 'uniforme') return Math.max(8, b.baseDepth);
     const k = (2 * Math.PI) / Math.max(50, b.wavelength);
     const relief =
       0.6 * Math.sin(k * north + 0.7) * Math.cos(0.8 * k * east - 0.3) +

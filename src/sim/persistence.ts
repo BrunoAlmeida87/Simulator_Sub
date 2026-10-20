@@ -143,7 +143,7 @@ export function migrateSave(raw: unknown): SaveFile {
   // configuração: completa campos obrigatórios acrescentados em versões posteriores
   fillMissing(f.config as unknown as Record<string, unknown>, defaultSimConfig() as unknown as Record<string, unknown>, CONFIG_OPTIONAL);
   // fundo: arquivos sem "modo" usam o relevo (comportamento das versões anteriores)
-  const b = f.config.environment.bottom as typeof f.config.environment.bottom & { mode?: string };
+  const b = f.config.environment.bottom;
   if (b && b.mode === undefined) b.mode = 'relevo';
   // estado: completa com um estado novo construído para a mesma configuração
   const st = f.state;
