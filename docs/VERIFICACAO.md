@@ -35,7 +35,7 @@ Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
 2. **Salvar e continuar** — cenário "Submerso 50 m", ordenar 6 nós e uma manobra; Baixar arquivo; recarregar a página; Carregar arquivo; conferir profundidade, rumo, velocidade, tanques, bateria e etapa da manobra; ▶.
 3. **Segunda janela** — "⧉ 2ª janela": a cena, camadas, identificação e navios devem acompanhar a janela de controle.
 4. **Desempenho** — aba Pilotagem em qualidade alta e baixa: a barra superior não deve mostrar "CPU: tempo reduzido" em 1× e 8×.
-5. **Celular** — largura de 390 px: sem rolagem horizontal nas abas novas.
+5. **Celular** — em pé e deitado: cabeçalho compacto com ☰, botão ⚙ Vista nas cenas 3D, diagramas com rolagem lateral, sem rolagem horizontal da página em nenhuma aba. No PC, a mesma página deve continuar idêntica.
 
 ## Registro da verificação desta série (20/10/2026)
 
@@ -48,7 +48,8 @@ Executado no ambiente de nuvem (Linux, Chromium 1194 do Playwright com WebGL por
 | Estado antigo (`estado-v1-submerso50.json`) pela interface | abre convertido, pausado a 57,7 m; ▶ Retomar continua |
 | Segunda janela (duas páginas no mesmo navegador) | nome, aviso de trim ampliado, aviso de gravação, camadas novas e mudança da costa chegam à visualização |
 | Electron (`electron .` sobre o build) | abre, carrega o estado v1, aba Governo com cena 3D, 2ª janela espelhando |
-| Celular (Pixel 5, 393 px) | sem rolagem horizontal em Pilotagem, Governo, Fluxo de energia, Propulsão, Trim, 3D, Mapa, Configurações e Cenários |
+| Celular (toque) | iPhone SE 320 px, Galaxy S8 360 px, iPhone 13 390 px e Pixel 7 412 px em pé; iPhone 13 e Galaxy S8 deitados: cabeçalho de 70 px, sem rolagem horizontal nas 17 abas, controles do 3D recolhidos, diagramas legíveis |
+| PC inalterado pela adaptação ao celular | 17 abas × 1366×768, 1920×1080 e 1100×800 (mouse): 20 433 elementos com a mesma posição e o mesmo tamanho e nenhum pixel diferente (cena 3D oculta, animações paradas) em relação à versão anterior |
 | Toque | manche do painel de governo responde a arrastar com toque |
 | Iluminação da cena | Natural, Clara e Estúdio aplicadas na hora; a 2ª janela acompanha; preferência antiga sem o campo abre em Clara; sem a faixa clara no limite do fundo debaixo d'água |
 | Estaleiro (Ilha da Madeira) | contornos ajustados à imagem Sentinel-2 (sobreposição de 83 % com a máscara de construções); 3D com 16 malhas e ~5 mil triângulos (35 ms para montar); consulta às estruturas ≈ 1 µs; física na bacia ~5–8 % mais lenta que a superfície em mar aberto; 2ª janela mostra o estaleiro e o rótulo; mapa com os mesmos contornos |

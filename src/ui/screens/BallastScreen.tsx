@@ -13,6 +13,7 @@ import { R_AIR } from '../../sim/core/context';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtMass } from '../format';
 import { QuickBallast } from '../components/Controls';
+import { WideDiagram } from '../components/WideDiagram';
 
 const VS = (st: { cmd: number; pos: number; stuck: boolean }) => {
   const s = valveStatus(st);
@@ -51,119 +52,121 @@ export function Diagram({ e }: { e: SimulationEngine }) {
   const tcPos = comp.tanks.map((t) => X(t.center.x));
   const conX = X(comp.seaConnection.x);
   return (
-    <svg viewBox="0 -30 860 330" className="svgbox">
-      {wl > -30 ? (
-        <>
-          <rect x="0" y="-30" width="860" height={wl + 30} fill="#0e1a26" />
-          <rect x="0" y={wl} width="860" height={330} fill="#08192a" />
-          <line x1="0" x2="860" y1={wl} y2={wl} stroke="#57a8ff" strokeWidth="1.2" />
-          <text x="8" y={wl - 4} fontSize="10" fill="#57a8ff">
-            superfície do mar (posição real, sem trim)
-          </text>
-        </>
-      ) : (
-        <>
-          <rect x="0" y="-30" width="860" height={360} fill="#08192a" />
-          <text x="8" y="-16" fontSize="10" fill="#57a8ff">
-            ▲ superfície {fmt(s.body.pos.z, 0)} m acima do eixo
-          </text>
-        </>
-      )}
-      <path d={hull} fill="#1a2838" stroke="#9fb7cf" strokeWidth="1.4" />
-      <rect x={X(sail.xAft)} y={Y(-R - sail.height)} width={X(sail.xFwd) - X(sail.xAft)} height={sail.height * 20} rx="6" fill="#1a2838" stroke="#9fb7cf" />
-      {/* casco resistente */}
-      <rect x={X(-15)} y={Y(-R + 0.25)} width={X(24) - X(-15)} height={(2 * R - 0.5) * 20} fill="none" stroke="#3d5d80" strokeDasharray="5 4" />
-      <text x={X(4.5)} y={Y(-R + 0.25) + 12} fontSize="9" textAnchor="middle" fill="#5a7a9c">
-        casco resistente (pressão interna 1 atm)
-      </text>
-      {/* coletor AP */}
-      <Pipe d={`M${X(-27)},${hpY} L${X(31)},${hpY}`} flow={anyBlow ? 1 : 0} color="#c9d6e3" width={2.5} />
-      <text x={X(-6)} y={hpY - 6} fontSize="9" textAnchor="middle" fill="#c9d6e3">
-        coletor de ar AP — {fmt(e.outputs.hpManifoldBar, 0)} bar
-      </text>
-      {v.hpAir.banks.map((b, i) => {
-        const p = bankPressure(v.hpAir, b.id, s.hpAir.banks[b.id].mass) / 1e5;
-        const bx = X(-11 + i * 4.5);
-        return (
-          <g key={b.id}>
-            <TankGlyph x={bx - 24} y={Y(-1.6)} w={48} h={34} fill={p / 250} color="#8ea7c0" label={b.id} sub={`${p.toFixed(0)} bar`} air inspect={'hp:' + b.id} />
-            <Pipe d={`M${bx},${Y(-1.6)} L${bx},${hpY}`} flow={s.hpAir.banks[b.id].valve.pos > 0.05 && anyBlow ? 1 : 0} color="#c9d6e3" width={2} />
-            <ValveGlyph x={bx} y={Y(-2.4)} st={s.hpAir.banks[b.id].valve} vertical size={6} onToggle={() => cmd({ type: 'hpBankValve', bank: b.id, open: s.hpAir.banks[b.id].valve.cmd < 0.5 })} inspect={'hp:' + b.id} />
-          </g>
-        );
-      })}
-      {groups.map((g) =>
-        g.ids.map((id, k) => {
-          const t = v.ballast.tanks.find((x) => x.id === id)!;
-          const st = s.ballast[id];
-          const x0 = X(g.xc - g.w / 2 + (k * g.w) / 2);
-          const w = (g.w / 2) * 11.7 - 2;
-          const y0 = Y(t.center.z - t.height / 2);
-          const h = t.height * 20;
-          const vx = x0 + w / 2;
+    <WideDiagram minWidth={720}>
+      <svg viewBox="0 -30 860 330" className="svgbox">
+        {wl > -30 ? (
+          <>
+            <rect x="0" y="-30" width="860" height={wl + 30} fill="#0e1a26" />
+            <rect x="0" y={wl} width="860" height={330} fill="#08192a" />
+            <line x1="0" x2="860" y1={wl} y2={wl} stroke="#57a8ff" strokeWidth="1.2" />
+            <text x="8" y={wl - 4} fontSize="10" fill="#57a8ff">
+              superfície do mar (posição real, sem trim)
+            </text>
+          </>
+        ) : (
+          <>
+            <rect x="0" y="-30" width="860" height={360} fill="#08192a" />
+            <text x="8" y="-16" fontSize="10" fill="#57a8ff">
+              ▲ superfície {fmt(s.body.pos.z, 0)} m acima do eixo
+            </text>
+          </>
+        )}
+        <path d={hull} fill="#1a2838" stroke="#9fb7cf" strokeWidth="1.4" />
+        <rect x={X(sail.xAft)} y={Y(-R - sail.height)} width={X(sail.xFwd) - X(sail.xAft)} height={sail.height * 20} rx="6" fill="#1a2838" stroke="#9fb7cf" />
+        {/* casco resistente */}
+        <rect x={X(-15)} y={Y(-R + 0.25)} width={X(24) - X(-15)} height={(2 * R - 0.5) * 20} fill="none" stroke="#3d5d80" strokeDasharray="5 4" />
+        <text x={X(4.5)} y={Y(-R + 0.25) + 12} fontSize="9" textAnchor="middle" fill="#5a7a9c">
+          casco resistente (pressão interna 1 atm)
+        </text>
+        {/* coletor AP */}
+        <Pipe d={`M${X(-27)},${hpY} L${X(31)},${hpY}`} flow={anyBlow ? 1 : 0} color="#c9d6e3" width={2.5} />
+        <text x={X(-6)} y={hpY - 6} fontSize="9" textAnchor="middle" fill="#c9d6e3">
+          coletor de ar AP — {fmt(e.outputs.hpManifoldBar, 0)} bar
+        </text>
+        {v.hpAir.banks.map((b, i) => {
+          const p = bankPressure(v.hpAir, b.id, s.hpAir.banks[b.id].mass) / 1e5;
+          const bx = X(-11 + i * 4.5);
           return (
-            <g key={id}>
-              <TankGlyph x={x0} y={y0} w={w} h={h} fill={st.water / t.volume} label={id.replace('TLP', '')} sub={`${((st.water / t.volume) * 100).toFixed(0)}%`} air inspect={'mbt:' + id} alarm={st.vent.stuck || st.blow.stuck || st.ventLeak > 0} />
-              {/* suspiro */}
-              <Pipe d={`M${vx},${y0} L${vx},${y0 - 12}`} flow={st.mdotVent > 0.01 ? 1 : 0} color="#e9f2fb" width={2} />
-              <ValveGlyph x={vx} y={y0 - 16} st={st.vent} vertical size={5} onToggle={() => cmd({ type: 'mbtVent', tank: id, open: st.vent.cmd < 0.5 })} inspect={'mbt:' + id} />
-              {st.mdotVent > 0.01 && (
-                <g>
-                  {[0, 1, 2].map((j) => (
-                    <circle key={j} cx={vx + (j - 1) * 4} cy={y0 - 28 - j * 6} r={2 + j} fill="none" stroke="#cfe7ff" opacity={0.7 - j * 0.2} />
-                  ))}
-                </g>
-              )}
-              {/* sopro */}
-              <Pipe d={`M${vx + w / 3},${y0} L${vx + w / 3},${hpY}`} flow={st.mdotBlow > 0 ? -1 : 0} color="#c9d6e3" width={1.6} />
-              <ValveGlyph x={vx + w / 3} y={hpY + 12} st={st.blow} vertical size={4.5} onToggle={() => cmd({ type: 'mbtBlow', tank: id, open: st.blow.cmd < 0.5 })} inspect={'mbt:' + id} />
-              {/* embornais */}
-              <line x1={x0 + 2} x2={x0 + w - 2} y1={y0 + h + 2} y2={y0 + h + 2} stroke="#57a8ff" strokeDasharray="2 2" strokeWidth="2" />
-              {Math.abs(st.qWater) > 0.01 && (
-                <text x={vx} y={y0 + h + 13} fontSize="9" textAnchor="middle" fill="#57a8ff">
-                  {st.qWater > 0 ? '▲' : '▼'} {(Math.abs(st.qWater) * 1000).toFixed(0)} L/s
-                </text>
-              )}
-              {st.mdotSpill > 0.01 && (
-                <text x={vx} y={y0 + h + 24} fontSize="9" textAnchor="middle" fill="#cfe7ff">
-                  ar escapando
-                </text>
-              )}
+            <g key={b.id}>
+              <TankGlyph x={bx - 24} y={Y(-1.6)} w={48} h={34} fill={p / 250} color="#8ea7c0" label={b.id} sub={`${p.toFixed(0)} bar`} air inspect={'hp:' + b.id} />
+              <Pipe d={`M${bx},${Y(-1.6)} L${bx},${hpY}`} flow={s.hpAir.banks[b.id].valve.pos > 0.05 && anyBlow ? 1 : 0} color="#c9d6e3" width={2} />
+              <ValveGlyph x={bx} y={Y(-2.4)} st={s.hpAir.banks[b.id].valve} vertical size={6} onToggle={() => cmd({ type: 'hpBankValve', bank: b.id, open: s.hpAir.banks[b.id].valve.cmd < 0.5 })} inspect={'hp:' + b.id} />
             </g>
           );
-        }),
-      )}
-      {/* compensação */}
-      {comp.tanks.map((t, i) => {
-        const st = s.compensation.tanks[t.id];
-        const w = 60;
-        const h = 30;
-        const x0 = tcPos[i] - w / 2;
-        const y0 = Y(R) - h - 10;
-        return (
-          <g key={t.id}>
-            <TankGlyph x={x0} y={y0} w={w} h={h} fill={tankVolume(st) / t.capacity} label={t.id} sub={`${tankVolume(st).toFixed(2)} m³`} color="#2a7fd4" inspect={'comp:' + t.id} />
-            <Pipe d={`M${tcPos[i]},${y0 + h} L${tcPos[i]},${manY}`} flow={s.compensation.tankValves[comp.tankValves[i].id].pos > 0.02 ? s.compensation.qIn - s.compensation.qOut : 0} width={2.5} />
-            <ValveGlyph x={tcPos[i]} y={y0 + h + 12} st={s.compensation.tankValves[comp.tankValves[i].id]} vertical size={5} label={comp.tankValves[i].id} onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: comp.tankValves[i].id, open: s.compensation.tankValves[comp.tankValves[i].id].cmd < 0.5 })} inspect={'comp:' + t.id} />
-          </g>
-        );
-      })}
-      <Pipe d={`M${Math.min(...tcPos)},${manY} L${X(12)},${manY}`} flow={s.compensation.qIn - s.compensation.qOut} width={3} />
-      {/* admissão */}
-      <Pipe d={`M${X(12)},${manY} L${X(12)},${seaY}`} flow={-s.compensation.qIn} width={3} />
-      <ValveGlyph x={X(12)} y={manY + 22} st={s.compensation.inlet} vertical label="V-AM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'inlet', open: s.compensation.inlet.cmd < 0.5 })} inspect="comp:inlet" />
-      {/* descarga por bomba */}
-      <Pipe d={`M${conX - 70},${manY} L${conX - 70},${manY + 40} L${conX - 10},${manY + 40} L${conX - 10},${seaY}`} flow={s.compensation.qOut} width={3} />
-      <PumpGlyph x={conX - 70} y={manY + 22} st={s.compensation.pump} label="BC" onToggle={() => cmd({ type: 'pump', system: 'compensation', run: !s.compensation.pump.cmd })} inspect="comp:pump" />
-      <ValveGlyph x={conX - 10} y={manY + 55} st={s.compensation.discharge} vertical label="V-DM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'discharge', open: s.compensation.discharge.cmd < 0.5 })} inspect="comp:discharge" />
-      <line x1="0" x2="860" y1={seaY} y2={seaY} stroke="#2a7fd4" strokeWidth="2" opacity="0.6" />
-      <text x="8" y={seaY + 14} fontSize="9.5" fill="#57a8ff">
-        MAR — pressão na tomada {fmt(e.env.pressureAt(e.outputs.depthKeel) / 1e5, 2)} bar
-      </text>
-      <text x="852" y={seaY + 14} fontSize="9" textAnchor="end" fill="#7f93a8">
-        esquemático fictício — clique nas válvulas/bomba para operar
-      </text>
-    </svg>
+        })}
+        {groups.map((g) =>
+          g.ids.map((id, k) => {
+            const t = v.ballast.tanks.find((x) => x.id === id)!;
+            const st = s.ballast[id];
+            const x0 = X(g.xc - g.w / 2 + (k * g.w) / 2);
+            const w = (g.w / 2) * 11.7 - 2;
+            const y0 = Y(t.center.z - t.height / 2);
+            const h = t.height * 20;
+            const vx = x0 + w / 2;
+            return (
+              <g key={id}>
+                <TankGlyph x={x0} y={y0} w={w} h={h} fill={st.water / t.volume} label={id.replace('TLP', '')} sub={`${((st.water / t.volume) * 100).toFixed(0)}%`} air inspect={'mbt:' + id} alarm={st.vent.stuck || st.blow.stuck || st.ventLeak > 0} />
+                {/* suspiro */}
+                <Pipe d={`M${vx},${y0} L${vx},${y0 - 12}`} flow={st.mdotVent > 0.01 ? 1 : 0} color="#e9f2fb" width={2} />
+                <ValveGlyph x={vx} y={y0 - 16} st={st.vent} vertical size={5} onToggle={() => cmd({ type: 'mbtVent', tank: id, open: st.vent.cmd < 0.5 })} inspect={'mbt:' + id} />
+                {st.mdotVent > 0.01 && (
+                  <g>
+                    {[0, 1, 2].map((j) => (
+                      <circle key={j} cx={vx + (j - 1) * 4} cy={y0 - 28 - j * 6} r={2 + j} fill="none" stroke="#cfe7ff" opacity={0.7 - j * 0.2} />
+                    ))}
+                  </g>
+                )}
+                {/* sopro */}
+                <Pipe d={`M${vx + w / 3},${y0} L${vx + w / 3},${hpY}`} flow={st.mdotBlow > 0 ? -1 : 0} color="#c9d6e3" width={1.6} />
+                <ValveGlyph x={vx + w / 3} y={hpY + 12} st={st.blow} vertical size={4.5} onToggle={() => cmd({ type: 'mbtBlow', tank: id, open: st.blow.cmd < 0.5 })} inspect={'mbt:' + id} />
+                {/* embornais */}
+                <line x1={x0 + 2} x2={x0 + w - 2} y1={y0 + h + 2} y2={y0 + h + 2} stroke="#57a8ff" strokeDasharray="2 2" strokeWidth="2" />
+                {Math.abs(st.qWater) > 0.01 && (
+                  <text x={vx} y={y0 + h + 13} fontSize="9" textAnchor="middle" fill="#57a8ff">
+                    {st.qWater > 0 ? '▲' : '▼'} {(Math.abs(st.qWater) * 1000).toFixed(0)} L/s
+                  </text>
+                )}
+                {st.mdotSpill > 0.01 && (
+                  <text x={vx} y={y0 + h + 24} fontSize="9" textAnchor="middle" fill="#cfe7ff">
+                    ar escapando
+                  </text>
+                )}
+              </g>
+            );
+          }),
+        )}
+        {/* compensação */}
+        {comp.tanks.map((t, i) => {
+          const st = s.compensation.tanks[t.id];
+          const w = 60;
+          const h = 30;
+          const x0 = tcPos[i] - w / 2;
+          const y0 = Y(R) - h - 10;
+          return (
+            <g key={t.id}>
+              <TankGlyph x={x0} y={y0} w={w} h={h} fill={tankVolume(st) / t.capacity} label={t.id} sub={`${tankVolume(st).toFixed(2)} m³`} color="#2a7fd4" inspect={'comp:' + t.id} />
+              <Pipe d={`M${tcPos[i]},${y0 + h} L${tcPos[i]},${manY}`} flow={s.compensation.tankValves[comp.tankValves[i].id].pos > 0.02 ? s.compensation.qIn - s.compensation.qOut : 0} width={2.5} />
+              <ValveGlyph x={tcPos[i]} y={y0 + h + 12} st={s.compensation.tankValves[comp.tankValves[i].id]} vertical size={5} label={comp.tankValves[i].id} onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: comp.tankValves[i].id, open: s.compensation.tankValves[comp.tankValves[i].id].cmd < 0.5 })} inspect={'comp:' + t.id} />
+            </g>
+          );
+        })}
+        <Pipe d={`M${Math.min(...tcPos)},${manY} L${X(12)},${manY}`} flow={s.compensation.qIn - s.compensation.qOut} width={3} />
+        {/* admissão */}
+        <Pipe d={`M${X(12)},${manY} L${X(12)},${seaY}`} flow={-s.compensation.qIn} width={3} />
+        <ValveGlyph x={X(12)} y={manY + 22} st={s.compensation.inlet} vertical label="V-AM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'inlet', open: s.compensation.inlet.cmd < 0.5 })} inspect="comp:inlet" />
+        {/* descarga por bomba */}
+        <Pipe d={`M${conX - 70},${manY} L${conX - 70},${manY + 40} L${conX - 10},${manY + 40} L${conX - 10},${seaY}`} flow={s.compensation.qOut} width={3} />
+        <PumpGlyph x={conX - 70} y={manY + 22} st={s.compensation.pump} label="BC" onToggle={() => cmd({ type: 'pump', system: 'compensation', run: !s.compensation.pump.cmd })} inspect="comp:pump" />
+        <ValveGlyph x={conX - 10} y={manY + 55} st={s.compensation.discharge} vertical label="V-DM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'discharge', open: s.compensation.discharge.cmd < 0.5 })} inspect="comp:discharge" />
+        <line x1="0" x2="860" y1={seaY} y2={seaY} stroke="#2a7fd4" strokeWidth="2" opacity="0.6" />
+        <text x="8" y={seaY + 14} fontSize="9.5" fill="#57a8ff">
+          MAR — pressão na tomada {fmt(e.env.pressureAt(e.outputs.depthKeel) / 1e5, 2)} bar
+        </text>
+        <text x="852" y={seaY + 14} fontSize="9" textAnchor="end" fill="#7f93a8">
+          esquemático fictício — clique nas válvulas/bomba para operar
+        </text>
+      </svg>
+    </WideDiagram>
   );
 }
 

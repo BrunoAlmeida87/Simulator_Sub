@@ -26,6 +26,7 @@ import { GROUPS } from '../ops/OpsGroups';
 import { OpsStrip } from '../ops/OpsStrip';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt } from '../format';
+import { OverlayCtl } from '../components/OverlayCtl';
 
 export function useOps() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -243,7 +244,7 @@ export function PilotScreen() {
               </span>
               <span className="subtle">Clique num tanque, leme, hélice, mastro, bateria ou válvula para abrir os controles.</span>
             </div>
-            <div className="overlay-ctl">
+            <OverlayCtl>
               <SeaControls quality={quality} setQuality={setQuality} />
               <div className="seg">
                 {(
@@ -339,7 +340,7 @@ export function PilotScreen() {
                   {selOpen && <TankSelector e={e} value={tankF} onChange={setTankF} />}
                 </div>
               )}
-            </div>
+            </OverlayCtl>
             <div className="pres-bottom">
               <ManeuverStatus compact />
             </div>

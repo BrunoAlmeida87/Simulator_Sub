@@ -13,6 +13,7 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt } from '../format';
 import { usePersisted } from '../persist';
 import type { ReactNode } from 'react';
+import { WideDiagram } from '../components/WideDiagram';
 
 const LOAD_INFO: Record<string, { name: string; color: string }> = {
   MEP: { name: 'Motor elétrico principal', color: '#36c5f0' },
@@ -121,126 +122,128 @@ function Diagram({ e, sel, onPick }: { e: SimulationEngine; sel: string | null; 
     onKeyDown: (ev: React.KeyboardEvent) => (ev.key === 'Enter' || ev.key === ' ') && onPick(id),
   });
   return (
-    <svg viewBox="0 0 980 560" className="svgbox eflow-svg" role="img" aria-label="Diagrama do fluxo de energia">
-      {/* combustível e ar */}
-      <g {...pick('fuel')}>
-        <title>Combustível — clique para detalhes</title>
-        <rect x={20} y={40} width={90} height={150} rx={8} className="enode" />
-        <rect x={26} y={46 + 138 * (1 - fuelFrac)} width={78} height={138 * fuelFrac} rx={4} fill="#8a6a3a" opacity={0.75} />
-        <text x={65} y={30} className="enode-t" textAnchor="middle">
-          Combustível
+    <WideDiagram minWidth={800}>
+      <svg viewBox="0 0 980 560" className="svgbox eflow-svg" role="img" aria-label="Diagrama do fluxo de energia">
+        {/* combustível e ar */}
+        <g {...pick('fuel')}>
+          <title>Combustível — clique para detalhes</title>
+          <rect x={20} y={40} width={90} height={150} rx={8} className="enode" />
+          <rect x={26} y={46 + 138 * (1 - fuelFrac)} width={78} height={138 * fuelFrac} rx={4} fill="#8a6a3a" opacity={0.75} />
+          <text x={65} y={30} className="enode-t" textAnchor="middle">
+            Combustível
+          </text>
+          <text x={65} y={210} className="enode-v" textAnchor="middle">
+            {fmt(el.fuel, 1)} m³
+          </text>
+        </g>
+        <g {...pick('air')}>
+          <title>Snorkel (ar para os diesel) — clique para comandar</title>
+          <rect x={20} y={250} width={90} height={60} rx={8} className={`enode ${sn.headValveOpen ? 'on' : ''}`} />
+          <text x={65} y={274} className="enode-t" textAnchor="middle">
+            Ar (snorkel)
+          </text>
+          <text x={65} y={294} className="enode-v" textAnchor="middle">
+            {sn.headValveOpen ? 'aberto' : e.outputs.surfaced ? 'pela vela' : sn.pos > 0.5 ? 'fechado' : 'arriado'}
+          </text>
+        </g>
+        {/* geradores */}
+        {gens.map((g, i) => {
+          const st = el.generators[g.id];
+          const on = st.status === 'EM CARGA';
+          const y = 60 + i * 150;
+          const fuelKgH = g.sfc * gp[i] * 3600;
+          return (
+            <g key={g.id}>
+              <Flow d={`M110 ${115} C 150 ${115}, 160 ${y + 45}, 200 ${y + 45}`} p={on ? gp[i] * 2.4 : 0} pmax={pmax * 2.4} color="#c9a46a" />
+              <Flow d={`M110 280 C 150 280, 160 ${y + 70}, 200 ${y + 70}`} p={on ? gp[i] : 0} pmax={pmax} color="#bfe3ff" />
+              <g {...pick('gen:' + g.id)}>
+              <title>{g.name} — clique para partir/parar</title>
+              <rect x={200} y={y} width={150} height={110} rx={10} className={`enode ${on ? 'on' : st.status === 'PARTINDO' ? 'warn' : st.failed || st.status === 'SEM AR' ? 'bad' : ''}`} />
+              <g transform={`translate(${235} ${y + 55})`}>
+                <circle r={22} className="egen" />
+                <g className={on ? 'espin' : st.status === 'PARTINDO' ? 'espin slow' : ''}>
+                  {[0, 60, 120].map((a) => (
+                    <rect key={a} x={-2} y={-18} width={4} height={36} rx={2} fill="#d8e4f0" transform={`rotate(${a})`} />
+                  ))}
+                </g>
+              </g>
+              <text x={300} y={y + 30} className="enode-t" textAnchor="middle">
+                {g.name.replace('Grupo diesel-gerador', 'Diesel-gerador')}
+              </text>
+              <text x={300} y={y + 56} className="enode-v" textAnchor="middle">
+                {st.status}
+              </text>
+              <text x={300} y={y + 80} className="enode-v" textAnchor="middle">
+                {kw(gp[i])}
+              </text>
+              {on && (
+                <text x={300} y={y + 100} className="enode-s" textAnchor="middle">
+                  {fmt(fuelKgH, 0)} kg/h de óleo
+                </text>
+              )}
+              </g>
+              <Flow d={`M350 ${y + 55} C 400 ${y + 55}, 420 ${y + 55}, ${busX} ${y + 55}`} p={gp[i]} pmax={pmax} color="#ffd18a" label={gp[i] > 1 ? kw(gp[i]) : undefined} lx={410} ly={y + 45} />
+            </g>
+          );
+        })}
+        {/* barramento */}
+        <g {...pick('bus')}>
+          <title>Barramento principal — clique para detalhes</title>
+          <rect x={busX} y={busY0} width={22} height={busY1 - busY0} rx={6} className={`ebus ${el.energized ? 'on' : 'bad'}`} />
+        </g>
+        <text x={busX + 11} y={busY0 - 48} className="enode-t" textAnchor="middle">
+          Barramento
         </text>
-        <text x={65} y={210} className="enode-v" textAnchor="middle">
-          {fmt(el.fuel, 1)} m³
+        <text x={busX + 11} y={busY0 - 0} dy={-30} className="enode-v" textAnchor="middle">
+          {fmt(el.voltage, 0)} V
         </text>
-      </g>
-      <g {...pick('air')}>
-        <title>Snorkel (ar para os diesel) — clique para comandar</title>
-        <rect x={20} y={250} width={90} height={60} rx={8} className={`enode ${sn.headValveOpen ? 'on' : ''}`} />
-        <text x={65} y={274} className="enode-t" textAnchor="middle">
-          Ar (snorkel)
-        </text>
-        <text x={65} y={294} className="enode-v" textAnchor="middle">
-          {sn.headValveOpen ? 'aberto' : e.outputs.surfaced ? 'pela vela' : sn.pos > 0.5 ? 'fechado' : 'arriado'}
-        </text>
-      </g>
-      {/* geradores */}
-      {gens.map((g, i) => {
-        const st = el.generators[g.id];
-        const on = st.status === 'EM CARGA';
-        const y = 60 + i * 150;
-        const fuelKgH = g.sfc * gp[i] * 3600;
-        return (
-          <g key={g.id}>
-            <Flow d={`M110 ${115} C 150 ${115}, 160 ${y + 45}, 200 ${y + 45}`} p={on ? gp[i] * 2.4 : 0} pmax={pmax * 2.4} color="#c9a46a" />
-            <Flow d={`M110 280 C 150 280, 160 ${y + 70}, 200 ${y + 70}`} p={on ? gp[i] : 0} pmax={pmax} color="#bfe3ff" />
-            <g {...pick('gen:' + g.id)}>
-            <title>{g.name} — clique para partir/parar</title>
-            <rect x={200} y={y} width={150} height={110} rx={10} className={`enode ${on ? 'on' : st.status === 'PARTINDO' ? 'warn' : st.failed || st.status === 'SEM AR' ? 'bad' : ''}`} />
-            <g transform={`translate(${235} ${y + 55})`}>
-              <circle r={22} className="egen" />
-              <g className={on ? 'espin' : st.status === 'PARTINDO' ? 'espin slow' : ''}>
-                {[0, 60, 120].map((a) => (
-                  <rect key={a} x={-2} y={-18} width={4} height={36} rx={2} fill="#d8e4f0" transform={`rotate(${a})`} />
-                ))}
+        {/* bateria */}
+        <g>
+          <Flow d={`M${busX} 420 C 420 420, 400 470, 350 470`} p={Math.abs(pb)} pmax={pmax} color={charging ? '#3ddc84' : '#ff9a5c'} rev={!charging} label={Math.abs(pb) > 1 ? `${charging ? 'carga' : 'descarga'} ${kw(Math.abs(pb))}` : undefined} lx={405} ly={410} />
+          <g {...pick('battery')}>
+          <title>Bateria e disjuntor — clique para comandar</title>
+          <rect x={200} y={410} width={150} height={120} rx={10} className={`enode ${charging ? 'on' : el.batteryFailed || !el.breakerClosed ? 'bad' : ''}`} />
+          <rect x={214} y={430} width={110} height={56} rx={5} fill="none" stroke="#9fb7cf" strokeWidth={2} />
+          <rect x={324} y={448} width={7} height={20} rx={2} fill="#9fb7cf" />
+          <rect x={218} y={434} width={102 * soc} height={48} rx={3} fill={soc > 0.5 ? '#3ddc84' : soc > 0.25 ? '#ffc040' : '#ff4d4d'} className={charging ? 'echarge' : ''} />
+          <text x={269} y={466} className="enode-big eflow-lbl" textAnchor="middle">
+            {fmt(soc * 100, 1)} %
+          </text>
+          <text x={275} y={404} className="enode-t" textAnchor="middle">
+            Bateria
+          </text>
+          <text x={275} y={506} className="enode-v" textAnchor="middle">
+            {fmt(el.current, 0)} A · {charging ? 'CARREGANDO' : pb > 1 ? 'DESCARREGANDO' : 'em repouso'}
+          </text>
+          <text x={275} y={523} className="enode-s" textAnchor="middle">
+            {el.breakerClosed ? 'disjuntor fechado' : 'DISJUNTOR ABERTO'}
+          </text>
+          </g>
+        </g>
+        {/* consumidores */}
+        {loads.map(({ k, p }, i) => {
+          const y = ly(i);
+          const info = LOAD_INFO[k];
+          return (
+            <g key={k}>
+              <Flow d={`M${busX + 22} ${Math.min(busY1 - 10, Math.max(busY0 + 10, y + 18))} C ${busX + 90} ${y + 18}, 600 ${y + 18}, 650 ${y + 18}`} p={p} pmax={pmax} color={info.color} />
+              <g {...pick('load:' + k)}>
+              <title>{`${info.name}: ${loadStatus(e, k).label} — clique para ${loadStatus(e, k).cmd ? 'comandar' : 'detalhes'}`}</title>
+              <rect x={650} y={y} width={300} height={38} rx={7} className={`enode ${p > 1 ? 'on' : ''} ${loadStatus(e, k).cls === 'bad' ? 'bad' : ''}`} />
+              <circle cx={666} cy={y + 19} r={5} fill={info.color} />
+              <circle cx={666} cy={y + 19} r={8} fill="none" stroke={STATUS_COLOR[loadStatus(e, k).cls]} strokeWidth={2} />
+              <text x={678} y={y + 23} className="enode-l">
+                {info.name}
+              </text>
+              <text x={940} y={y + 23} className="enode-v" textAnchor="end">
+                {kw(p)}
+              </text>
               </g>
             </g>
-            <text x={300} y={y + 30} className="enode-t" textAnchor="middle">
-              {g.name.replace('Grupo diesel-gerador', 'Diesel-gerador')}
-            </text>
-            <text x={300} y={y + 56} className="enode-v" textAnchor="middle">
-              {st.status}
-            </text>
-            <text x={300} y={y + 80} className="enode-v" textAnchor="middle">
-              {kw(gp[i])}
-            </text>
-            {on && (
-              <text x={300} y={y + 100} className="enode-s" textAnchor="middle">
-                {fmt(fuelKgH, 0)} kg/h de óleo
-              </text>
-            )}
-            </g>
-            <Flow d={`M350 ${y + 55} C 400 ${y + 55}, 420 ${y + 55}, ${busX} ${y + 55}`} p={gp[i]} pmax={pmax} color="#ffd18a" label={gp[i] > 1 ? kw(gp[i]) : undefined} lx={410} ly={y + 45} />
-          </g>
-        );
-      })}
-      {/* barramento */}
-      <g {...pick('bus')}>
-        <title>Barramento principal — clique para detalhes</title>
-        <rect x={busX} y={busY0} width={22} height={busY1 - busY0} rx={6} className={`ebus ${el.energized ? 'on' : 'bad'}`} />
-      </g>
-      <text x={busX + 11} y={busY0 - 48} className="enode-t" textAnchor="middle">
-        Barramento
-      </text>
-      <text x={busX + 11} y={busY0 - 0} dy={-30} className="enode-v" textAnchor="middle">
-        {fmt(el.voltage, 0)} V
-      </text>
-      {/* bateria */}
-      <g>
-        <Flow d={`M${busX} 420 C 420 420, 400 470, 350 470`} p={Math.abs(pb)} pmax={pmax} color={charging ? '#3ddc84' : '#ff9a5c'} rev={!charging} label={Math.abs(pb) > 1 ? `${charging ? 'carga' : 'descarga'} ${kw(Math.abs(pb))}` : undefined} lx={405} ly={410} />
-        <g {...pick('battery')}>
-        <title>Bateria e disjuntor — clique para comandar</title>
-        <rect x={200} y={410} width={150} height={120} rx={10} className={`enode ${charging ? 'on' : el.batteryFailed || !el.breakerClosed ? 'bad' : ''}`} />
-        <rect x={214} y={430} width={110} height={56} rx={5} fill="none" stroke="#9fb7cf" strokeWidth={2} />
-        <rect x={324} y={448} width={7} height={20} rx={2} fill="#9fb7cf" />
-        <rect x={218} y={434} width={102 * soc} height={48} rx={3} fill={soc > 0.5 ? '#3ddc84' : soc > 0.25 ? '#ffc040' : '#ff4d4d'} className={charging ? 'echarge' : ''} />
-        <text x={269} y={466} className="enode-big eflow-lbl" textAnchor="middle">
-          {fmt(soc * 100, 1)} %
-        </text>
-        <text x={275} y={404} className="enode-t" textAnchor="middle">
-          Bateria
-        </text>
-        <text x={275} y={506} className="enode-v" textAnchor="middle">
-          {fmt(el.current, 0)} A · {charging ? 'CARREGANDO' : pb > 1 ? 'DESCARREGANDO' : 'em repouso'}
-        </text>
-        <text x={275} y={523} className="enode-s" textAnchor="middle">
-          {el.breakerClosed ? 'disjuntor fechado' : 'DISJUNTOR ABERTO'}
-        </text>
-        </g>
-      </g>
-      {/* consumidores */}
-      {loads.map(({ k, p }, i) => {
-        const y = ly(i);
-        const info = LOAD_INFO[k];
-        return (
-          <g key={k}>
-            <Flow d={`M${busX + 22} ${Math.min(busY1 - 10, Math.max(busY0 + 10, y + 18))} C ${busX + 90} ${y + 18}, 600 ${y + 18}, 650 ${y + 18}`} p={p} pmax={pmax} color={info.color} />
-            <g {...pick('load:' + k)}>
-            <title>{`${info.name}: ${loadStatus(e, k).label} — clique para ${loadStatus(e, k).cmd ? 'comandar' : 'detalhes'}`}</title>
-            <rect x={650} y={y} width={300} height={38} rx={7} className={`enode ${p > 1 ? 'on' : ''} ${loadStatus(e, k).cls === 'bad' ? 'bad' : ''}`} />
-            <circle cx={666} cy={y + 19} r={5} fill={info.color} />
-            <circle cx={666} cy={y + 19} r={8} fill="none" stroke={STATUS_COLOR[loadStatus(e, k).cls]} strokeWidth={2} />
-            <text x={678} y={y + 23} className="enode-l">
-              {info.name}
-            </text>
-            <text x={940} y={y + 23} className="enode-v" textAnchor="end">
-              {kw(p)}
-            </text>
-            </g>
-          </g>
-        );
-      })}
-    </svg>
+          );
+        })}
+      </svg>
+    </WideDiagram>
   );
 }
 

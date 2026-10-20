@@ -56,6 +56,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Identificação | ✅ “S50 Vasco da Gama”: emblema na vela (estilizado ou imagem própria), inscrição vermelha configurável, cor dos lemes, snorkel destacado, texturas detalhadas (placas anecoicas, lemes perfilados, hélice de 7 pás) |
 | Trim na superfície | ✅ Investigação documentada (física correta: ~130× mais rígido que submerso); marcas de calado, leitura de calados AV/AR, vista Calado e ampliação opcional identificada |
 | Painel de governo | ✅ Aba Governo: manche (leme + lemes de ré), alavanca dos lemes de vante, telégrafo em alavanca, piloto com botões giratórios; mouse e toque; comandado × real |
+| Celular | ✅ Página adaptada a telas de toque pequenas (em pé ou deitado): cabeçalho compacto com ☰, controles do 3D no botão ⚙ Vista, diagramas legíveis com rolagem lateral; no PC nada muda |
 | Fluxo de energia e propulsão | ✅ Equipamentos clicáveis com estados e comandos; diagrama motor → eixo → hélice com rotação, sentido, torque, potência e empuxo |
 | Navios e costa no 3D | ✅ Contatos da mesa tática como navios 3D na mesma posição; costa de Sepetiba embutida (offline) com terra, orla e fundo costeiro na física; Estaleiro e Base Naval da Ilha da Madeira no lugar real (satélite Sentinel-2), com aterro, quebra-mares, shiplift e bacia dragada na física e no mapa |
 
