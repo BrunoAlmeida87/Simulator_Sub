@@ -17,7 +17,8 @@ import { cmd } from '../store';
 import { useUi } from '../uiContext';
 import { Environment } from '../../sim/environment/environment';
 import { coastMask } from '../../sim/environment/coast';
-import { bearingRange, contactsAt, contactsLocal, cpa, QUAY, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
+import { shipyardOutlines } from '../../sim/environment/shipyard';
+import { bearingRange, contactsAt, contactsLocal, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
 import { fmt, fmtTime } from '../format';
 import { useIdentity } from '../appearance';
@@ -157,7 +158,7 @@ export function TacticalMapScreen() {
     if (seamarks) L_.current.sea = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { attribution: 'Sinais náuticos © OpenSeaMap', maxZoom: 18, opacity: 0.9 }).addTo(m);
   }, [base, seamarks]);
 
-  // ---- costa usada pela simulação (máscara embutida) e cais modelado
+  // ---- costa usada pela simulação (máscara embutida) e estaleiro
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !coastOv) return;
@@ -183,13 +184,25 @@ export function TacticalMapScreen() {
       [bounds.lat0, bounds.lon0],
       [bounds.lat1, bounds.lon1],
     ], { opacity: 0.9, interactive: false }).addTo(m);
-    const q1 = QUAY.root;
-    const b = (QUAY.bearing * Math.PI) / 180;
-    const q2 = nedToLatLon(q1, Math.cos(b) * QUAY.length, Math.sin(b) * QUAY.length);
-    const pier = L.polyline([ll(q1), ll(q2)], { color: '#e8e8e8', weight: 5, opacity: 0.95 }).bindTooltip('Cais modelado no 3D (Ilha da Madeira, Itaguaí)').addTo(m);
+    // estaleiro e base naval: os mesmos contornos da física e do 3D
+    const y = shipyardOutlines();
+    const yard = L.layerGroup().addTo(m);
+    const tip = 'Estaleiro e Base Naval — Ilha da Madeira (Itaguaí)<br/>aterro, cais, quebra-mares e shiplift: na física e no 3D';
+    L.polygon(y.dredge.map(ll), { color: '#7fd3ff', weight: 1, dashArray: '4 4', fill: false, interactive: false }).addTo(yard);
+    L.polygon(y.platform.map(ll), { color: '#efe6cf', weight: 1.5, fillColor: '#d8cfb8', fillOpacity: 0.9 }).bindTooltip(tip).addTo(yard);
+    for (const mo of y.moles)
+      L.polygon(mo.ring.map(ll), { color: mo.kind === 'cais' ? '#efe6cf' : '#a39d92', weight: 1, fillColor: mo.kind === 'cais' ? '#d8cfb8' : '#8c877d', fillOpacity: 0.95 })
+        .bindTooltip(mo.name)
+        .addTo(yard);
+    L.polygon(y.shiplift.map(ll), { color: '#2fb5aa', weight: 1, fillColor: '#6f757c', fillOpacity: 0.95 }).bindTooltip('Shiplift (elevador de navios) — 110 × 20 m, 8 000 t').addTo(yard);
+    for (const b of y.buildings)
+      L.polygon(b.ring.map(ll), { color: '#8a939c', weight: 1, fillColor: '#b8bfc6', fillOpacity: 0.95 })
+        .bindTooltip(b.name + ' (posição estimada)')
+        .addTo(yard);
+    for (const line of y.sudeste) L.polyline(line.map(ll), { color: '#a07d62', weight: 3, opacity: 0.9 }).bindTooltip('Porto Sudeste (referência visual)').addTo(yard);
     return () => {
       m.removeLayer(ov);
-      m.removeLayer(pier);
+      m.removeLayer(yard);
     };
   }, [coastOv]);
 

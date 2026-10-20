@@ -23,10 +23,11 @@ Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
 - Fundo do mar: modo uniforme padrão, relevo preservado, ecobatímetro e contato (`tests/bottom.test.ts`).
 - Trimagem na superfície: rigidez e Δθ calculados × esperados, calados nas marcas (`tests/trim-surface.test.ts`).
 - Gravação e reprodução: reprodução bit a bit com manobra automática, sem duplicar comandos, bloqueio de comandos e avisos de versão (`tests/recording.test.ts`).
+- Estaleiro: posição (coordenada publicada da base), galpões sobre o aterro, aterro/quebra-mar/shiplift na física, fundo contínuo, caminho dragado da bacia ao mar, 3D e mapa com os mesmos contornos da física, cenário Saída da base sai pela entrada sem contato (`tests/shipyard.test.ts`).
 - Rota do mapa: o rumo ordenado usa a origem geográfica da simulação, também nos cenários costeiros (`tests/route.test.ts`).
 - Iluminação da cena: padrão Clara, valores inválidos ignorados, perfis completos (`tests/graphics.test.ts`).
 - Navios: posição 3D = posição do mapa (< 1 m) para três origens; um modelo por tipo (`tests/ships.test.ts`).
-- Costa: terra/mar/restinga nos dados embutidos, cais na orla, transição contínua do fundo, costa desligada nos cenários originais e nos arquivos v1, cenários costeiros sem encalhe e com alarme antes do contato (`tests/coast.test.ts`).
+- Costa: terra/mar/restinga nos dados embutidos, transição contínua do fundo, costa desligada nos cenários originais e nos arquivos v1, cenários costeiros sem encalhe e com alarme antes do contato (`tests/coast.test.ts`).
 
 ## Cenários de verificação manual (navegador e Electron)
 
@@ -42,7 +43,7 @@ Executado no ambiente de nuvem (Linux, Chromium 1194 do Playwright com WebGL por
 
 | Verificação | Resultado |
 |---|---|
-| `npm test` | 12 arquivos, 80 testes aprovados |
+| `npm test` | 14 arquivos, 96 testes aprovados |
 | `npm run build` | sem erros de tipos; build gerado |
 | Estado antigo (`estado-v1-submerso50.json`) pela interface | abre convertido, pausado a 57,7 m; ▶ Retomar continua |
 | Segunda janela (duas páginas no mesmo navegador) | nome, aviso de trim ampliado, aviso de gravação, camadas novas e mudança da costa chegam à visualização |
@@ -50,6 +51,7 @@ Executado no ambiente de nuvem (Linux, Chromium 1194 do Playwright com WebGL por
 | Celular (Pixel 5, 393 px) | sem rolagem horizontal em Pilotagem, Governo, Fluxo de energia, Propulsão, Trim, 3D, Mapa, Configurações e Cenários |
 | Toque | manche do painel de governo responde a arrastar com toque |
 | Iluminação da cena | Natural, Clara e Estúdio aplicadas na hora; a 2ª janela acompanha; preferência antiga sem o campo abre em Clara; sem a faixa clara no limite do fundo debaixo d'água |
+| Estaleiro (Ilha da Madeira) | contornos ajustados à imagem Sentinel-2 (sobreposição de 83 % com a máscara de construções); 3D com 16 malhas e ~5 mil triângulos (35 ms para montar); consulta às estruturas ≈ 1 µs; física na bacia ~5–8 % mais lenta que a superfície em mar aberto; 2ª janela mostra o estaleiro e o rótulo; mapa com os mesmos contornos |
 | Desempenho (medido em Node) | terreno médio: 78 ms para montar, 36 ms para recentrar (alto: 251/94 ms); fundo com costa: 0,25 µs por consulta |
 
 Não verificado aqui: desempenho real em placa de vídeo (a renderização por software não é representativa), o executável Windows gerado (`npm run dist:win`) e os fundos de mapa da internet (bloqueados neste ambiente).

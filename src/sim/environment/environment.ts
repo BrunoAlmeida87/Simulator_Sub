@@ -11,6 +11,7 @@
 import { seawaterDensity } from './seawater';
 import { WaveField, type WaveConfig } from './waves';
 import { coastLandHeight, coastSignedDistance } from './coast';
+import { approachDepth, shipyardAt } from './shipyard';
 import { DEFAULT_ORIGIN, nedToLatLon, type LatLon } from '../geo';
 
 /**
@@ -200,23 +201,52 @@ export class Environment {
    * alarmes de altitude e pelo desenho 3D do fundo e da terra.
    */
   bottomDepthAt(north: number, east: number): number {
+    return this.depthAt(north, east, true);
+  }
+
+  /**
+   * Fundo SEM as estruturas do estaleiro (aterro, cais, quebra-mares e
+   * shiplift), mas com a área dragada: é o terreno desenhado pela cena 3D,
+   * que desenha as estruturas com o próprio modelo (paredes verticais e
+   * taludes que uma malha de terreno não reproduz). O fundo da física é o
+   * mesmo terreno somado às mesmas estruturas.
+   */
+  seabedDepthAt(north: number, east: number): number {
+    return this.depthAt(north, east, false);
+  }
+
+  private depthAt(north: number, east: number, structures: boolean): number {
     const open = this.openBottomDepthAt(north, east);
     const geo = this.cfg.geo;
     if (!geo || !geo.coast) return open;
     const ll = nedToLatLon(geo.origin, north, east);
+    // estaleiro: aterro, cais e quebra-mares valem sobre o relevo antigo (o morro foi cortado e nivelado)
+    const y = shipyardAt(ll.lat, ll.lon);
+    if (y && y.sd <= 0) return structures ? -y.height : 0;
     const sd = coastSignedDistance(ll.lat, ll.lon);
-    if (sd <= 0) return -coastLandHeight(ll.lat, ll.lon, sd);
+    // a área dragada também remove restos da orla antiga (anterior à obra) dentro da bacia
+    if (sd <= 0 && !(y && y.dredge > 0)) return -coastLandHeight(ll.lat, ll.lon, sd);
     const W = Math.max(50, geo.shelfWidth);
-    if (sd >= W) return open;
-    const x = sd / W;
-    return open * x * x * (3 - 2 * x);
+    let depth = open;
+    if (sd < W) {
+      const x = Math.max(0, sd) / W;
+      depth = open * x * x * (3 - 2 * x);
+    }
+    // junto às estruturas o fundo sobe (talude), exceto na área dragada
+    if (y) {
+      depth = Math.min(depth, approachDepth(y.sd));
+      if (y.dredge > depth) depth = y.dredge;
+    }
+    return depth;
   }
 
-  /** Distância com sinal até a orla (m; + mar, − terra) ou null sem costa. */
+  /** Distância com sinal até a orla ou estrutura do estaleiro (m; + mar, − terra) ou null sem costa. */
   coastDistanceAt(north: number, east: number): number | null {
     const geo = this.cfg.geo;
     if (!geo || !geo.coast) return null;
     const ll = nedToLatLon(geo.origin, north, east);
-    return coastSignedDistance(ll.lat, ll.lon);
+    const sd = coastSignedDistance(ll.lat, ll.lon);
+    const y = shipyardAt(ll.lat, ll.lon);
+    return y ? Math.min(sd, y.sd) : sd;
   }
 }

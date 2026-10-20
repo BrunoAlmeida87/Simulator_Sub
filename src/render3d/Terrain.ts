@@ -1,7 +1,9 @@
 /**
  * TERRENO 3D — fundo do mar e, com a costa ligada, terra e orla. Os vértices
- * vêm de Environment.bottomDepthAt (a MESMA função usada pela física, pelo
- * ecobatímetro e pelos alarmes): o que se vê é o que o casco "sente".
+ * vêm de Environment.seabedDepthAt: o fundo da física (o mesmo do
+ * ecobatímetro e dos alarmes) sem as estruturas do estaleiro, que o modelo
+ * Shipyard desenha com paredes e taludes exatos. Terreno + estaleiro = o que
+ * o casco "sente".
  *
  * Detalhe por distância (níveis independentes, recentrados quando o
  * submarino se afasta):
@@ -139,7 +141,7 @@ class Ring {
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
-      const h = -env.bottomDepthAt(n0 - z, e0 + x);
+      const h = -env.seabedDepthAt(n0 - z, e0 + x);
       H[i] = h;
       if (h > 0) land = true;
       else deepest = Math.max(deepest, -h);

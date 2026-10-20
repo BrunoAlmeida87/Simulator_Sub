@@ -8,7 +8,7 @@ import { coastSignedDistance, coastLandHeight } from '../src/sim/environment/coa
 import { Environment, defaultEnvironment } from '../src/sim/environment/environment';
 import { buildScenario, SCENARIOS } from '../src/sim/scenarios';
 import { deserializeEngine } from '../src/sim/persistence';
-import { latLonToNed, QUAY, DEFAULT_ORIGIN } from '../src/sim/geo';
+import { latLonToNed, DEFAULT_ORIGIN } from '../src/sim/geo';
 import { defaultSimConfig } from '../src/sim/config/defaultVessel';
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
@@ -23,22 +23,16 @@ describe('Costa: dados embutidos (sem internet)', () => {
     expect(coastSignedDistance(-23.04, -43.8)).toBeGreaterThan(0); // baía ao norte da restinga
     expect(coastSignedDistance(-23.09, -43.8)).toBeGreaterThan(0); // mar ao sul da restinga
   });
-
-  it('o cais modelado nasce na orla da costa do simulador', () => {
-    expect(Math.abs(coastSignedDistance(QUAY.root.lat, QUAY.root.lon))).toBeLessThan(60);
-  });
 });
 
 describe('Costa: fundo e terra na física', () => {
   const env = new Environment({ ...defaultEnvironment(), geo: { origin: DEFAULT_ORIGIN, coast: true, shelfWidth: 1000 } });
 
-  it('longe da orla = fundo configurado; na orla ≈ 0; em terra acima d’água', () => {
+  it('longe da orla = fundo configurado; em terra acima d’água', () => {
     const center = latLonToNed(DEFAULT_ORIGIN, { lat: -22.98, lon: -43.85 });
     expect(env.bottomDepthAt(center.n, center.e)).toBe(300);
     const land = latLonToNed(DEFAULT_ORIGIN, { lat: -22.865, lon: -43.775 });
     expect(env.bottomDepthAt(land.n, land.e)).toBeLessThan(-5);
-    const root = latLonToNed(DEFAULT_ORIGIN, QUAY.root);
-    expect(Math.abs(env.bottomDepthAt(root.n, root.e))).toBeLessThan(3);
   });
 
   it('transição contínua do mar até a terra (sem degraus)', () => {
@@ -75,15 +69,16 @@ describe('Costa: fundo e terra na física', () => {
 });
 
 describe('Cenários costeiros (acrescentados)', () => {
-  it('Saída da base: flutua junto ao cais, sem contato, fundo sob o casco', () => {
+  it('Saída da base: flutua na bacia do estaleiro, sem contato, fundo dragado sob o casco', () => {
     const e = buildScenario('base_itaguai');
-    e.advanceSim(30);
+    e.advanceSim(60);
     expect(e.state.contact).toBe(false);
     expect(e.outputs.surfaced).toBe(true);
-    expect(e.outputs.bottomDepth).toBeGreaterThan(20);
+    expect(e.outputs.bottomDepth).toBeGreaterThanOrEqual(16);
+    expect(e.outputs.altitude).toBeGreaterThan(10); // sem alarme crítico de fundo
+    expect(e.state.alarms.runtime.BOTTOM_CRIT?.active ?? false).toBe(false);
     const d = e.env.coastDistanceAt(e.state.body.pos.x, e.state.body.pos.y)!;
-    expect(d).toBeGreaterThan(200);
-    expect(d).toBeLessThan(600);
+    expect(d).toBeGreaterThan(150); // longe dos cais e quebra-mares
   });
 
   it('Restinga: o fundo sobe e o alarme de aproximação dispara antes do contato', () => {
