@@ -1,6 +1,6 @@
 # Parâmetros da embarcação fictícia SX-1 "Marlim"
 
-Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública para um submarino convencional de ~70 m. Nenhum valor corresponde a um navio real. A fonte única é `src/sim/config/defaultVessel.ts`; a maioria pode ser alterada na tela **Cenários e configuração**.
+Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública para um submarino convencional de ~70 m. Nenhum valor corresponde a um navio real. A fonte única é `src/sim/config/defaultVessel.ts`; a maioria pode ser alterada na aba **⚙ Configurações** (ambiente e fundo sem reiniciar; embarcação e passo ao reiniciar o cenário).
 
 ## Dimensões e massas
 

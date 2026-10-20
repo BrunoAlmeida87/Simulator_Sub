@@ -533,8 +533,8 @@ function AmbienteBody({ e }: { e: SimulationEngine }) {
           Carregar
         </button>
       </div>
-      <button className="btn sm" onClick={() => ui.setScreen('cenarios')}>
-        Parâmetros avançados (aba Cenários e configuração) →
+      <button className="btn sm" onClick={() => ui.setScreen('config')}>
+        Configurações, sessões e gravações →
       </button>
     </div>
   );

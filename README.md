@@ -48,6 +48,14 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |
 | Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6 e qualidade gráfica ajustável |
 | Interface e controles | ✅ 7 telas, mais cenários, auxiliares, validação, guia e modo engenharia; executar, pausar, passo, reiniciar e acelerar |
+| Configurações | ✅ Aba própria com sessões, gravações, identificação, gráficos, ambiente, fundo, simulação e embarcação; cada grupo indica se é VISUAL, se muda a física AGORA ou se exige REINICIAR |
+| Salvar e continuar | ✅ Sessão completa (estado físico, automações em andamento, aceleração, identificação, posição geográfica) em arquivo compartilhável; carrega pausado; arquivos antigos abrem com conversão |
+| Gravação e reprodução | ✅ Comandos estruturados (operador e automações) com passo fixo e tempo; reprodução exata a partir do estado inicial gravado, com pontos de controle e automações sem duplicar |
+| Identificação | ✅ “S50 Vasco da Gama”: emblema na vela (estilizado ou imagem própria), inscrição vermelha configurável, cor dos lemes, snorkel destacado, texturas detalhadas (placas anecoicas, lemes perfilados, hélice de 7 pás) |
+| Trim na superfície | ✅ Investigação documentada (física correta: ~130× mais rígido que submerso); marcas de calado, leitura de calados AV/AR, vista Calado e ampliação opcional identificada |
+| Painel de governo | ✅ Aba Governo: manche (leme + lemes de ré), alavanca dos lemes de vante, telégrafo em alavanca, piloto com botões giratórios; mouse e toque; comandado × real |
+| Fluxo de energia e propulsão | ✅ Equipamentos clicáveis com estados e comandos; diagrama motor → eixo → hélice com rotação, sentido, torque, potência e empuxo |
+| Navios e costa no 3D | ✅ Contatos da mesa tática como navios 3D na mesma posição; costa de Sepetiba embutida (offline) com terra, orla, fundo costeiro na física e cais modelado |
 
 **Antecipados das Fases 2 e 3** (funcionais, mas simplificados): banda por tanques laterais, balanço de energia com bateria, diesel-geradores, combustível compensado e compressor; sensores com ruído, atraso e falhas; alarmes com prioridade e registro; gráficos históricos sincronizados; piloto automático PID; injeção de falhas (bombas, válvulas, sensores, energia, hidráulica, alagamento); termoclina; topografia do fundo.
 
@@ -71,7 +79,7 @@ npm run dev        # servidor de desenvolvimento → http://localhost:5173
 | `npm run dev` | Servidor de desenvolvimento com recarga automática |
 | `npm run build` | Verificação de tipos (TypeScript) e build de produção em `dist/` |
 | `npm run preview` | Serve o build de produção localmente |
-| `npm test` | Testes automáticos: 12 casos de validação física e 16 testes unitários |
+| `npm test` | Testes automáticos: validação física, apresentação, sessão, fundo e costa, trim na superfície, gravação/reprodução, navios e unidades |
 | `npm run report` | Executa a validação e gera `docs/VALIDACAO.md` |
 | `npm run typecheck` | Somente verificação de tipos |
 
@@ -88,7 +96,7 @@ Instale o Node.js LTS, baixe e extraia o projeto e dê dois cliques em **GERAR-E
 | `npm run desktop` | Compila o simulador e abre a janela do Electron |
 | `npm run dist:win` | Compila e gera instalador `.exe` e versão portátil `.exe` em `release/` |
 
-A simulação e a cena 3D funcionam offline; os fundos do mapa tático dependem de internet. O aplicativo mantém a visualização em segunda janela e a exportação/importação de estados. Os executáveis são gerados sem assinatura digital.
+A simulação, a cena 3D e a costa de Sepetiba (dados embutidos) funcionam offline; os fundos do mapa tático dependem de internet (sem ela o mapa mostra a grade e a costa do simulador). O aplicativo mantém a visualização em segunda janela e a exportação/importação de estados. Os executáveis são gerados sem assinatura digital.
 
 ---
 
@@ -151,7 +159,7 @@ A simulação e a cena 3D funcionam offline; os fundos do mapa tático dependem 
 6. **Visualização 3D:** câmeras lateral, perseguição, perspectiva, perfil, frente, topo, fixa, livre e os enquadramentos de apresentação; corte com níveis reais dos tanques, tubulações e escoamentos; vetores de força; boias; trajetória; bolhas proporcionais à vazão de ar.
 7. **Histórico:** gráficos sincronizados (grandezas de unidades diferentes em eixos separados, à esquerda e à direita), marcas dos comandos, comparação antes × depois e exportação em CSV.
 
-Também há as telas **Cenários e configuração** (9 cenários, condições de carga, ambiente, parâmetros, salvar/carregar/exportar), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
+Também há as telas **Governo** (painel visual de governo com manche, alavancas e instrumentos), **Cenários** (11 cenários e condições de carga), **⚙ Configurações** (sessões salvas e arquivos, gravação e reprodução de comandos, identificação, gráficos, ambiente, fundo e costa, parâmetros), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
 
 O **modo engenharia** (botão ⓘ ou tecla `I`) permite clicar em tanques, válvulas, bombas, lemes e instrumentos. O painel mostra a função do componente, as variáveis ao vivo, o estado, a influência na dinâmica, as equações, as consequências previstas e um gráfico antes × depois.
 
