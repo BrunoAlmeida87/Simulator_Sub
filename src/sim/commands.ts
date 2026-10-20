@@ -64,7 +64,38 @@ function tankName(e: SimulationEngine, id: string): string {
   return e.vessel.ballast.tanks.find((t) => t.id === id)?.name ?? id;
 }
 
+/** Origem dos comandos em curso: 'operador' ou o nome da automação que os emite. */
+let cmdSource = 'operador';
+
+/** Executa fn marcando os comandos emitidos com a origem dada (ex.: 'manobra'). */
+export function withCommandSource<T>(source: string, fn: () => T): T {
+  const prev = cmdSource;
+  cmdSource = source;
+  try {
+    return fn();
+  } finally {
+    cmdSource = prev;
+  }
+}
+
+export const currentCommandSource = (): string => cmdSource;
+
+/**
+ * Aplica um comando (única via de alteração do estado pela interface e pelas
+ * automações). Passa antes pelos ganchos de gravação/reprodução do motor.
+ */
 export function applyCommand(e: SimulationEngine, c: Command): void {
+  if (e.commandGate && !e.commandGate(c, cmdSource)) return;
+  e.commandTap?.(c, cmdSource);
+  e.busy++;
+  try {
+    applyCommandInner(e, c);
+  } finally {
+    e.busy--;
+  }
+}
+
+function applyCommandInner(e: SimulationEngine, c: Command): void {
   const s = e.state;
   const v = e.vessel;
   const log = (text: string, group: string) => e.log(text, group);

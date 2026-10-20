@@ -120,7 +120,22 @@ export class SimulationEngine {
     return this.config.vessel;
   }
 
+  /**
+   * GANCHOS DE GRAVAÇÃO/REPRODUÇÃO (não alteram a física):
+   *  - commandGate: se definido e retornar false, o comando é recusado
+   *    (a reprodução bloqueia comandos que não sejam os gravados);
+   *  - commandTap: recebe cada comando aceito, com a origem;
+   *  - noteTap: recebe as mensagens de histórico emitidas FORA dos passos e
+   *    dos comandos (narração das automações), para serem regravadas.
+   */
+  commandGate: ((c: unknown, source: string) => boolean) | null = null;
+  commandTap: ((c: unknown, source: string) => void) | null = null;
+  noteTap: ((text: string, group: string) => void) | null = null;
+  /** > 0 enquanto um passo ou um comando está sendo aplicado */
+  busy = 0;
+
   log(text: string, group: string): void {
+    if (this.noteTap && this.busy === 0) this.noteTap(text, group);
     this.state.commands.push({ t: this.state.t, text, group });
     if (this.state.commands.length > 500) this.state.commands.splice(0, this.state.commands.length - 500);
   }
@@ -174,6 +189,15 @@ export class SimulationEngine {
 
   /** Executa um passo fixo de simulação. */
   step(): void {
+    this.busy++;
+    try {
+      this.stepInner();
+    } finally {
+      this.busy--;
+    }
+  }
+
+  private stepInner(): void {
     const s = this.state;
     const cfg = this.vessel;
     const env = this.env;

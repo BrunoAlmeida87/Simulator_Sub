@@ -7,6 +7,8 @@
 import { fullSequenceSteps, type SequenceStep } from '../sim/validation/suite';
 import type { SimRunner } from '../sim/core/runner';
 import { visibleAlarms } from '../sim/systems/alarms';
+import { withCommandSource } from '../sim/commands';
+import { replayLock } from './replayLock';
 
 export type StepOutcome = 'pendente' | 'em curso' | 'sucesso' | 'tempo esgotado' | 'falha' | 'interrompida';
 
@@ -39,6 +41,7 @@ export class DemoController {
   }
 
   start(r: SimRunner): void {
+    if (replayLock.active) return;
     this.steps = fullSequenceSteps();
     this.k = 0;
     this.tStep = 0;
@@ -90,7 +93,11 @@ export class DemoController {
   }
 
   tick(r: SimRunner): void {
-    if (!this.active) return;
+    if (!this.active || replayLock.active) return;
+    withCommandSource('demonstracao', () => this.tickInner(r));
+  }
+
+  private tickInner(r: SimRunner): void {
     const e = r.engine;
     const t = e.state.t;
     const dt = t - this.lastT;

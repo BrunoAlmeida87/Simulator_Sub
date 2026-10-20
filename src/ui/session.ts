@@ -63,15 +63,19 @@ function silenceAutomations(): void {
   route.active = false;
 }
 
-/** Restaura uma sessão (qualquer versão aceita). A simulação fica pausada. */
-export function restoreSession(raw: unknown): RestoreReport {
+/**
+ * Restaura uma sessão (qualquer versão aceita). A simulação fica pausada.
+ * automations = false: não retoma manobras/roteiros/rota (usado pela
+ * reprodução de gravações, que reaplica os comandos gravados).
+ */
+export function restoreSession(raw: unknown, opts: { automations?: boolean } = {}): RestoreReport {
   const f = migrateSave(raw);
   const e = new SimulationEngine(f.config, f.state);
   silenceAutomations();
   runner.running = false;
   runner.replaceEngine(e);
   const ses = f.session ?? {};
-  const a = (ses.automation ?? {}) as SessionAutomation;
+  const a = (opts.automations === false ? {} : (ses.automation ?? {})) as SessionAutomation;
   const resumed: string[] = [];
   maneuver.restore(a.maneuver);
   if (maneuver.active) resumed.push(`manobra ${maneuver.active === 'imergir' ? `IMERGIR para ${maneuver.target} m` : 'EMERGIR'} (etapa ${maneuver.step + 1}/${MANEUVER_STEPS[maneuver.active].length})`);

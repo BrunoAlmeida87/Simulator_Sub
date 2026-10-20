@@ -11,7 +11,8 @@
  */
 import type { SimRunner } from '../sim/core/runner';
 import type { SimulationEngine } from '../sim/core/engine';
-import { applyCommand, type Command } from '../sim/commands';
+import { applyCommand, withCommandSource, type Command } from '../sim/commands';
+import { replayLock } from './replayLock';
 import { verticalBalance, hydroArrows, toTf } from '../sim/forceVectors';
 import { toKnots } from '../sim/units';
 import type { SceneLayers } from '../render3d/layers';
@@ -261,7 +262,7 @@ export class TourController {
         const e = r.engine;
         const log = e.state.commands;
         const last = log[log.length - 1];
-        applyCommand(e, c);
+        withCommandSource('guiado', () => applyCommand(e, c));
         let i = log.length - 1;
         while (i >= 0 && log[i] !== last) i--;
         for (const rec of log.slice(i + 1)) this.sent.push({ t: rec.t, text: rec.text, step: this.k });
@@ -318,6 +319,7 @@ export class TourController {
   }
 
   start(r: SimRunner, tour: Tour): void {
+    if (replayLock.active) return;
     this.runner = r;
     pres.prepare(r, { id: 'tour:' + tour.id, name: tour.name, scenario: tour.scenario, sea: tour.sea, view: tour.steps[0].view ?? 'forcas', layers: tour.steps[0].layers ?? {}, note: tour.description });
     this.tour = tour;
@@ -404,7 +406,7 @@ export class TourController {
   }
 
   tick(r: SimRunner, realDt: number): void {
-    if (!this.active || !this.tour) return;
+    if (!this.active || !this.tour || replayLock.active) return;
     if (r !== this.runner) this.runner = r;
     const e = r.engine;
     const dt = e.state.t - this.lastT;

@@ -15,6 +15,7 @@ import { tours } from './tours';
 import { maneuver, MANEUVER_STEPS } from './maneuvers';
 import { visibleAlarms } from '../sim/systems/alarms';
 import { identity, type Identity } from './identity';
+import { recorder } from './recorder';
 import { graphics, type GraphicsSettings } from './graphics';
 
 const CH = 'sx1-sync-v1';
@@ -23,6 +24,8 @@ export interface OverlayData {
   tour: { name: string; k: number; n: number; title: string; text: string; why?: string; waitFor: string; met: boolean; remaining: number } | null;
   maneuver: string | null;
   alarm: { text: string; priority: number } | null;
+  /** gravação/reprodução de comandos em andamento */
+  rec?: string | null;
 }
 
 type Msg =
@@ -121,6 +124,7 @@ export class SyncMaster {
           : null,
       maneuver: maneuver.active ? `${maneuver.active === 'imergir' ? `IMERGIR para ${maneuver.target} m` : 'EMERGIR'} · etapa ${maneuver.step + 1}/${MANEUVER_STEPS[maneuver.active].length}: ${maneuver.phase}` : null,
       alarm: top ? { text: top.def.text, priority: top.def.priority } : null,
+      rec: recorder.mode === 'gravando' ? '● GRAVANDO COMANDOS' : recorder.mode === 'reproduzindo' ? `▶ REPRODUÇÃO DE GRAVAÇÃO${recorder.finished ? ' (concluída)' : ''}` : null,
     };
   }
 

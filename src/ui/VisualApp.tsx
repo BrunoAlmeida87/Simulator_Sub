@@ -75,6 +75,7 @@ export function VisualApp() {
           <div className="visual-status">
             <span className={`badge ${connected ? 'ok' : 'warn'}`}>{connected ? 'Espelhando a janela de controle' : 'Sem conexão'}</span>
             {ov?.alarm && <span className={`badge ${ov.alarm.priority <= 2 ? 'alarm blink' : 'warn'}`}>{ov.alarm.text}</span>}
+            {ov?.rec && <span className="badge info">{ov.rec}</span>}
             {(layers.vectors || layers.hydroVectors) && (
               <span className="badge info">
                 E {fmt(toTf(vb.buoyancyN, vb.g), 1)} tf · P {fmt(toTf(vb.weightN, vb.g), 1)} tf · E − P {fmt(toTf(vb.netN, vb.g), 2)} tf

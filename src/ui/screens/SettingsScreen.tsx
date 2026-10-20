@@ -5,7 +5,8 @@
  * apenas VISUAL, se afeta a SIMULAÇÃO AGORA (comando registrado, sem
  * reiniciar) ou se EXIGE REINICIAR o cenário.
  */
-import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import { RecordingPanel } from '../components/RecordingPanel';
 import { baseConfig, cmd, runner, useSim } from '../store';
 import { Panel } from '../components/Panel';
 import { useUi } from '../uiContext';
@@ -678,7 +679,7 @@ function RestartPanels() {
 }
 
 // ------------------------------------------------------------ tela
-export function SettingsScreen({ recording }: { recording?: ReactNode }) {
+export function SettingsScreen() {
   return (
     <div className="settings">
       <div className="settings-legend">
@@ -686,7 +687,7 @@ export function SettingsScreen({ recording }: { recording?: ReactNode }) {
       </div>
       <div className="grid g2">
         <SessionPanel />
-        {recording}
+        <RecordingPanel />
         <IdentityPanel />
         <GraphicsPanel />
         <EnvironmentPanel />

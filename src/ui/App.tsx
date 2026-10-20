@@ -23,6 +23,8 @@ import { HistoryScreen } from './screens/HistoryScreen';
 import { ScenarioScreen } from './screens/ScenarioScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { useIdentity } from './appearance';
+import { RecIndicator } from './components/RecordingPanel';
+import { recorder } from './recorder';
 import { AuxSystemsScreen } from './screens/AuxSystemsScreen';
 import { ValidationScreen } from './screens/ValidationScreen';
 import { HelpScreen } from './screens/HelpScreen';
@@ -117,6 +119,7 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
         </span>
         {runner.running && runner.lagging && <span className="badge warn">CPU: tempo reduzido</span>}
         <ScenarioPicker current={s.scenarioId} />
+        <RecIndicator />
         <button className={`btn ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
           ⧉ 2ª janela{link.master?.connected ? ' ✓' : ''}
         </button>
@@ -227,6 +230,18 @@ export function App() {
   useEffect(() => {
     storage.setPrefs({ screen, eng });
   }, [screen, eng]);
+
+  // comandos recusados durante a reprodução de uma gravação
+  useEffect(() => {
+    let last = 0;
+    recorder.onBlocked = (m) => {
+      if (performance.now() - last > 4000) toast(m);
+      last = performance.now();
+    };
+    return () => {
+      recorder.onBlocked = null;
+    };
+  }, []);
 
   // altura da barra superior → posição das abas
   useEffect(() => {

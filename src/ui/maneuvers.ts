@@ -6,7 +6,8 @@
  * (sucesso, tempo esgotado, cancelada ou falha).
  */
 import type { SimRunner } from '../sim/core/runner';
-import { applyCommand, type Command } from '../sim/commands';
+import { applyCommand, withCommandSource, type Command } from '../sim/commands';
+import { replayLock } from './replayLock';
 import type { SimulationEngine } from '../sim/core/engine';
 
 export type ManeuverKind = 'imergir' | 'emergir';
@@ -49,7 +50,7 @@ export class ManeuverController {
   private send(e: SimulationEngine, c: Command): void {
     const log = e.state.commands;
     const last = log[log.length - 1];
-    applyCommand(e, c);
+    withCommandSource('manobra', () => applyCommand(e, c));
     let i = log.length - 1;
     while (i >= 0 && log[i] !== last) i--;
     for (const r of log.slice(i + 1)) this.sent.push({ t: r.t, text: r.text });
@@ -64,6 +65,7 @@ export class ManeuverController {
   }
 
   start(r: SimRunner, kind: ManeuverKind, target = 50): void {
+    if (replayLock.active) return;
     const e = r.engine;
     this.active = kind;
     this.target = target;
@@ -95,7 +97,7 @@ export class ManeuverController {
   }
 
   tick(r: SimRunner): void {
-    if (!this.active) return;
+    if (!this.active || replayLock.active) return;
     const e = r.engine;
     const s = e.state;
     const o = e.outputs;

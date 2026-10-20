@@ -181,6 +181,16 @@ Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeit
 
 A aba **Cenários** fica só com as condições iniciais e a condição de carga.
 
+## Gravação e reprodução de comandos
+
+Em **Configurações → Gravação e reprodução de comandos**:
+- **Iniciar gravação**: guarda a condição atual completa como ponto de partida e passa a registrar cada comando — os seus e os das automações (manobras rápidas, demonstração, cenário guiado, rota) — com o passo fixo e o tempo de simulação em que foi aplicado, além da narração das automações. A barra superior mostra **● REC**.
+- **Parar gravação**, **Salvar** (no navegador, até 6), **Baixar gravação** (.json) e **Carregar gravação**.
+- **Reproduzir**: volta à condição inicial gravada e reaplica os comandos nos mesmos passos; **Pausar/Continuar**; **Encerrar reprodução** devolve o controle no ponto em que estiver. Durante a reprodução, as automações ficam paradas (seus comandos já estão na gravação, então nada é executado duas vezes) e os comandos manuais são recusados com um aviso.
+- **Conferência**: a cada 10 s de simulação a gravação guarda um ponto de controle (posição, atitude, velocidade, bateria e um resumo do estado). Na reprodução o painel mostra quantos pontos ficaram idênticos.
+
+Limitações: trocar de cenário ou reiniciar encerra a gravação (o trecho gravado é mantido). Uma gravação feita em outra versão do simulador abre com aviso; se a física mudou entre as versões, ou se o navegador calcula funções matemáticas de modo ligeiramente diferente, a reprodução pode divergir aos poucos — a conferência mostra o desvio.
+
 ## Falhas para treinamento
 
 Na tela **Segurança**, injete:

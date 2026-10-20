@@ -20,8 +20,9 @@ Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
 - Unidades e conversões (`tests/units.test.ts`).
 - Sessão: continuação exata após salvar/carregar, números não finitos, abertura dos arquivos v1, mensagens de erro (`tests/session.test.ts`).
 - Sessão pela interface: manobra IMERGIR salva no meio retoma na mesma etapa (`tests/session-ui.test.ts`).
-
-As etapas seguintes acrescentam seus próprios testes (listados no fim deste documento conforme forem criados).
+- Fundo do mar: modo uniforme padrão, relevo preservado, ecobatímetro e contato (`tests/bottom.test.ts`).
+- Trimagem na superfície: rigidez e Δθ calculados × esperados, calados nas marcas (`tests/trim-surface.test.ts`).
+- Gravação e reprodução: reprodução bit a bit com manobra automática, sem duplicar comandos, bloqueio de comandos e avisos de versão (`tests/recording.test.ts`).
 
 ## Cenários de verificação manual (navegador e Electron)
 
