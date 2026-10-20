@@ -26,6 +26,16 @@ export interface SentCommand {
   text: string;
 }
 
+export interface ManeuverSnapshot {
+  active: ManeuverKind | null;
+  phase: string;
+  step: number;
+  target: number;
+  t0: number;
+  sent: SentCommand[];
+  result: { kind: ManeuverKind; outcome: ManeuverOutcome; why: string; t: number; duration: number } | null;
+}
+
 export class ManeuverController {
   active: ManeuverKind | null = null;
   phase = '';
@@ -119,6 +129,22 @@ export class ManeuverController {
         this.finish(r, 'sucesso', 'na superfície, TLP soprados');
       }
     }
+  }
+
+  /** dados para salvar a sessão (retomada da manobra em andamento) */
+  snapshot(): ManeuverSnapshot {
+    return { active: this.active, phase: this.phase, step: this.step, target: this.target, t0: this.t0, sent: [...this.sent], result: this.result };
+  }
+
+  /** restaura a manobra salva (sem emitir comandos: o estado físico já os contém) */
+  restore(d: Partial<ManeuverSnapshot> | null | undefined): void {
+    this.active = d?.active === 'imergir' || d?.active === 'emergir' ? d.active : null;
+    this.phase = String(d?.phase ?? '');
+    this.step = Number(d?.step ?? 0);
+    this.target = Number(d?.target ?? 50);
+    this.t0 = Number(d?.t0 ?? 0);
+    this.sent = Array.isArray(d?.sent) ? d!.sent.slice(-30) : [];
+    this.result = d?.result ?? null;
   }
 
   private finish(r: SimRunner, outcome: ManeuverOutcome, why: string): void {

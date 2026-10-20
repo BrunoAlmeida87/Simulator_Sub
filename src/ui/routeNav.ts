@@ -9,6 +9,15 @@ import { applyCommand } from '../sim/commands';
 import { bearingRange, latLonToNed, type LatLon } from '../sim/geo';
 import { loadPersisted, savePersisted } from './persist';
 
+export interface RouteSnapshot {
+  points: LatLon[];
+  active: boolean;
+  idx: number;
+  lastT: number;
+  lastSet: number;
+  arrived: boolean;
+}
+
 export class RouteNav {
   points: LatLon[] = loadPersisted<LatLon[]>('map.route', []);
   active = false;
@@ -57,6 +66,20 @@ export class RouteNav {
   stop(r: SimRunner): void {
     if (this.active) r.engine.log('Rota: seguimento interrompido', 'Navegação');
     this.active = false;
+    this.emit();
+  }
+
+  snapshot(): RouteSnapshot {
+    return { points: [...this.points], active: this.active, idx: this.idx, lastT: this.lastT, lastSet: this.lastSet, arrived: this.arrived };
+  }
+
+  restore(d: Partial<RouteSnapshot> | null | undefined): void {
+    this.points = Array.isArray(d?.points) ? d!.points.filter((p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lon)) : [];
+    this.active = !!d?.active && this.points.length > 0;
+    this.idx = Math.max(0, Math.min(this.points.length - 1, Number(d?.idx ?? 0)));
+    this.lastT = Number(d?.lastT ?? -1e9);
+    this.lastSet = Number(d?.lastSet ?? NaN);
+    this.arrived = !!d?.arrived;
     this.emit();
   }
 

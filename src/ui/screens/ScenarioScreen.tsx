@@ -6,7 +6,8 @@ import { SCENARIOS, LOAD_LABELS, buildScenario, type LoadCondition } from '../..
 import { defaultSimConfig } from '../../sim/config/defaultVessel';
 import type { SimConfig } from '../../sim/config/types';
 import { SimulationEngine } from '../../sim/core/engine';
-import { serializeEngine, deserializeEngine, type SaveFile } from '../../sim/persistence';
+import { parseSaveText, saveToText, type SaveFile } from '../../sim/persistence';
+import { captureSession, restoreSession, sessionFileName } from '../session';
 import { storage, downloadText } from '../storage';
 import { useUi } from '../uiContext';
 import { fmtTime } from '../format';
@@ -133,11 +134,10 @@ export function ScenarioScreen() {
   };
   const loadSave = (f: SaveFile) => {
     try {
-      runner.running = false;
-      runner.replaceEngine(deserializeEngine(f));
-      ui.toast(`Estado "${f.name}" recuperado (t = ${fmtTime(f.simTime)}).`);
+      const r = restoreSession(f);
+      ui.toast(`Estado "${r.name}" recuperado (t = ${fmtTime(r.simTime)}), pausado.${r.resumed.length ? ` Em andamento: ${r.resumed.join(', ')}.` : ''}`);
     } catch (ex) {
-      ui.toast('Falha ao carregar: ' + String(ex));
+      ui.toast('Falha ao carregar: ' + (ex instanceof Error ? ex.message : String(ex)));
     }
   };
   return (
@@ -187,7 +187,7 @@ export function ScenarioScreen() {
           <button
             className="btn"
             onClick={() => {
-              const ok = storage.addSave(serializeEngine(e, saveName || `Estado t=${fmtTime(e.state.t)}`));
+              const ok = storage.addSave(captureSession(saveName || `Estado t=${fmtTime(e.state.t)}`));
               ui.toast(ok ? 'Estado salvo no navegador.' : 'Armazenamento local indisponível — use Exportar.');
               setSaveName('');
               bump((x) => x + 1);
@@ -195,7 +195,7 @@ export function ScenarioScreen() {
           >
             Salvar
           </button>
-          <button className="btn" onClick={() => downloadText(`sx1-estado-${Math.round(e.state.t)}s.json`, JSON.stringify(serializeEngine(e, saveName || 'exportado')))}>
+          <button className="btn" onClick={() => downloadText(sessionFileName(saveName || 'exportado', e.state.t), saveToText(captureSession(saveName || 'exportado')))}>
             Exportar arquivo
           </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>
@@ -210,7 +210,7 @@ export function ScenarioScreen() {
               const f = ev.target.files?.[0];
               if (!f) return;
               try {
-                loadSave(JSON.parse(await f.text()) as SaveFile);
+                loadSave(parseSaveText(await f.text()));
               } catch (ex) {
                 ui.toast('Arquivo inválido: ' + String(ex));
               }
@@ -247,7 +247,7 @@ export function ScenarioScreen() {
                   <button className="btn sm" onClick={() => loadSave(f)}>
                     Carregar
                   </button>{' '}
-                  <button className="btn sm" onClick={() => downloadText(`${f.name}.json`, JSON.stringify(f))}>
+                  <button className="btn sm" onClick={() => downloadText(sessionFileName(f.name, f.simTime), saveToText(f))}>
                     Exportar
                   </button>{' '}
                   <button

@@ -4,7 +4,7 @@ import { UiContext, useUi, type ScreenId } from './uiContext';
 import { baseConfig, cmd, runner, useSim } from './store';
 import { buildScenario } from '../sim/scenarios';
 import { visibleAlarms, PRIORITY_LABEL } from '../sim/systems/alarms';
-import { serializeEngine, deserializeEngine } from '../sim/persistence';
+import { captureSession, restoreSession } from './session';
 import { storage } from './storage';
 import { toKnots } from '../sim/units';
 import { fmt, fmtTime } from './format';
@@ -245,7 +245,7 @@ export function App() {
   // salvamento automático
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (runner.running) storage.setAutosave(serializeEngine(runner.engine, 'Salvamento automático'));
+      if (runner.running) storage.setAutosave(captureSession('Salvamento automático'));
     }, 20000);
     return () => window.clearInterval(id);
   }, []);
@@ -312,10 +312,10 @@ export function App() {
               className="btn"
               onClick={() => {
                 try {
-                  runner.replaceEngine(deserializeEngine(resume));
-                  toast('Sessão retomada (pausada).');
+                  const r = restoreSession(resume);
+                  toast(`Sessão carregada (pausada${r.resumed.length ? `; em andamento: ${r.resumed.join(', ')}` : ''}). Pressione ▶ para continuar.`);
                 } catch (ex) {
-                  toast('Não foi possível retomar: ' + String(ex));
+                  toast('Não foi possível retomar: ' + (ex instanceof Error ? ex.message : String(ex)));
                 }
                 setResume(null);
               }}
