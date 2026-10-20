@@ -135,10 +135,10 @@ export function drawSailDecal(canvas: HTMLCanvasElement, a: Appearance, bowRight
   if (!g) return;
   g.clearRect(0, 0, W, H);
   const hasEmblem = a.emblem !== 'nenhum';
-  const eh = H * 0.62;
+  const eh = H * 0.8;
   const ew = eh * 0.85;
-  const ex = bowRight ? W - ew / 2 - W * 0.04 : ew / 2 + W * 0.04;
-  const ey = H * 0.4;
+  const ex = bowRight ? W - ew / 2 - W * 0.03 : ew / 2 + W * 0.03;
+  const ey = H * 0.5;
   if (hasEmblem) {
     const img = a.emblem === 'personalizado' ? emblemImage(a.emblemImage, onImage) : null;
     if (a.emblem === 'personalizado' && img) {
@@ -150,16 +150,16 @@ export function drawSailDecal(canvas: HTMLCanvasElement, a: Appearance, bowRight
   }
   const text = a.sailText.trim();
   if (text) {
-    const area = hasEmblem ? W - ew - W * 0.12 : W * 0.9;
+    const area = hasEmblem ? W - ew - W * 0.1 : W * 0.92;
     const cx = hasEmblem ? (bowRight ? (W - ew - W * 0.06) / 2 : ew + W * 0.06 + area / 2) : W / 2;
-    const size = fitFont(g, text, area, H * 0.62);
+    const size = fitFont(g, text, area, H * 0.8);
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     // contorno escuro fino para destacar sobre o casco
     g.lineWidth = Math.max(2, size * 0.05);
     g.strokeStyle = 'rgba(20,20,20,0.85)';
-    g.strokeText(text, cx, H * 0.42);
+    g.strokeText(text, cx, H * 0.53);
     g.fillStyle = a.sailTextColor;
-    g.fillText(text, cx, H * 0.42);
+    g.fillText(text, cx, H * 0.53);
   }
 }

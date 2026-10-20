@@ -8,6 +8,7 @@ import { loadPersisted, savePersisted } from '../persist';
 import { visualOut, isVisualWindow } from '../sync';
 import type { PickTarget } from '../ops/opsBus';
 import { graphics } from '../graphics';
+import { appearanceRev, currentAppearance } from '../appearance';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
 export function defaultQuality(): OceanQuality {
@@ -99,6 +100,7 @@ export function Scene3D(props: Scene3DProps) {
             savePersisted(`cam.${opts.current.persistKey}`, sc.getCameraPose());
           }
           if (sc) {
+            sc.setAppearance(currentAppearance(), appearanceRev());
             sc.layers = mergedLayers(opts.current);
             if (!isVisualWindow) {
               visualOut.layers = sc.layers;
