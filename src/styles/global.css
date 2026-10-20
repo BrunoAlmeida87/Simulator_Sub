@@ -556,7 +556,7 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .clock { min-width: 0; font-size: 13px; }
   .ph-toggle { min-width: 40px; justify-content: center; }
   /* primeira linha: executar/pausar, relógio e ☰; o que o ☰ abre vem depois */
-  .simctl > * { order: 3; }
+  .simctl > *, .simctl > .ph-wrap > * { order: 3; }
   .simctl > .btn:first-child { order: 0; }
   .simctl > .clock { order: 1; }
   .simctl > .ph-toggle { order: 2; }
