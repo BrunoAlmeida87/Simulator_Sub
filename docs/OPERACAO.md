@@ -67,6 +67,8 @@ A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de flux
 
 *Preparar demonstração* carrega a cota periscópica com mar calmo, piloto de profundidade em 14 m e snorkel içando. Depois é só partir os geradores. Com os diesel em carga, a cena 3D mostra **fumaça** saindo do topo do mastro, mais escura na partida.
 
+**Interativo:** clique em qualquer equipamento do diagrama para abrir o painel ao lado com o estado (desligado, partindo, funcionando, parando, sem ar, falha) e os comandos que fazem sentido: partir/parar diesel-geradores (exigem tomada de ar), içar/arriar o snorkel, abrir/fechar o disjuntor da bateria, telégrafo do motor principal, partir/parar as bombas de compensação, trim e banda e o compressor. Elementos sem liga/desliga (combustível, barramento, hidráulica automática, cargas fixas) mostram a explicação do estado. O anel em volta de cada consumidor indica o estado (verde funcionando, âmbar em transição, cinza desligado, vermelho falha/sem energia). Os comandos são os mesmos das outras telas e respeitam as condições físicas (ex.: gerador comandado sem ar fica “SEM AR”).
+
 ## Duas janelas (dois monitores)
 
 **⧉ 2ª janela** abre a cena numa nova janela, que pode ir para o outro monitor (use *Tela cheia*). A física roda só na janela principal. A segunda espelha o estado pelo canal de comunicação entre janelas do navegador (BroadcastChannel; é preciso o mesmo navegador e o mesmo endereço). O que ela mostra:
