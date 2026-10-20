@@ -7,7 +7,7 @@ def ty(lat):
     r=math.radians(lat); return int((1-math.log(math.tan(r)+1/math.cos(r))/math.pi)/2*2**Z)
 xs=range(tx(LON0),tx(LON1)+1); ys=range(ty(LAT1),ty(LAT0)+1)
 print('x',list(xs),'y',list(ys))
-ctx=ssl.create_default_context(cafile='/root/.ccr/ca-bundle.crt')
+ctx=ssl.create_default_context(cafile=os.environ.get('SSL_CERT_FILE'))
 for x in xs:
     for y in ys:
         fn=f'dem/{Z}_{x}_{y}.png'
