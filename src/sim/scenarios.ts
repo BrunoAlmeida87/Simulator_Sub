@@ -162,6 +162,40 @@ export const SCENARIOS: ScenarioDef[] = [
   },
 ];
 
+/**
+ * CENÁRIOS COSTEIROS (acrescentados; usam a costa da região de Sepetiba com
+ * efeito físico e uma posição geográfica própria). Os cenários acima ficam
+ * como eram (mar aberto, sem costa), a menos que o operador ligue a costa.
+ */
+SCENARIOS.push(
+  {
+    id: 'base_itaguai',
+    name: 'Saída da base — Itaguaí (costa e cais)',
+    description:
+      'Na superfície, a ~500 m do cais modelado da base naval da Ilha da Madeira (Itaguaí), aproado a sudoeste, para o centro da baía. A terra, a orla e o fundo costeiro estão na física: perto da orla o fundo sobe até zero (encalhe).',
+    objectives: ['Observar a terra, a orla e o cais no 3D', 'Afastar-se do cais com pouca velocidade e governar para o centro da baía', 'Acompanhar o ecobatímetro e o fundo subindo perto da costa'],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -22.93498, lon: -43.84015 }, coast: true, shelfWidth: 1000 };
+    },
+    pose: { depth: 2.2, heading: 225, speed: 0 },
+    submerged: false,
+    compensationDepth: 37,
+  },
+  {
+    id: 'restinga',
+    name: 'Aproximação da Restinga da Marambaia — fundo subindo',
+    description:
+      'Submerso a ~40 m, 5 nós, rumo norte, ~2,5 km ao sul da Restinga da Marambaia. A faixa costeira de 3 km faz o fundo subir da profundidade de mar aberto até a orla: o ecobatímetro e os alarmes de altitude avisam antes do encalhe.',
+    objectives: ['Acompanhar o ecobatímetro e a altitude', 'Reagir aos alarmes de proximidade do fundo (guinar ou subir)', 'Comparar o mapa tático, a costa no 3D e a profundidade do fundo'],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -23.087, lon: -43.78 }, coast: true, shelfWidth: 3000 };
+    },
+    pose: { depth: 36.9, heading: 0, speed: 5 * KNOT },
+    submerged: true,
+    compensationDepth: 36.9,
+  },
+);
+
 export function scenarioById(id: string): ScenarioDef {
   return SCENARIOS.find((s) => s.id === id) ?? SCENARIOS[0];
 }

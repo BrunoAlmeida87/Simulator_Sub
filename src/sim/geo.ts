@@ -17,6 +17,13 @@ export const NM = 1852;
 export const EBN_ITAGUAI: LatLon = { lat: -22.9318, lon: -43.8368 };
 /** Ponto de partida padrão: a sul da base, na baía (aprox.). */
 export const DEFAULT_ORIGIN: LatLon = { lat: -22.9455, lon: -43.8395 };
+/**
+ * CAIS MODELADO (3D) da base — Ilha da Madeira, Itaguaí: raiz na orla da
+ * costa do simulador mais próxima da EBN, avançando para o mar no rumo dado.
+ * Apenas visual (não colide).
+ */
+export const QUAY = { root: { lat: -22.93093, lon: -43.83673 } as LatLon, bearing: 182, length: 220, width: 22 };
+
 /** Ponto de partida alternativo em mar aberto, a sul da Restinga da Marambaia. */
 export const OFFSHORE_ORIGIN: LatLon = { lat: -23.3, lon: -43.85 };
 

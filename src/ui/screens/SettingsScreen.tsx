@@ -419,14 +419,20 @@ function useDraftEnv(): [EnvironmentConfig, () => void, (fn: (c: EnvironmentConf
 function patchOf(d: EnvironmentConfig, withBottom: boolean, withWater: boolean): EnvironmentPatch {
   const p: EnvironmentPatch = {};
   if (withWater) for (const k of ['salinity', 'deepSalinity', 'surfaceTemperature', 'deepTemperature', 'thermoclineDepth', 'thermoclineThickness', 'magneticDeclination'] as const) p[k] = d[k];
-  if (withBottom) p.bottom = { ...d.bottom };
+  if (withBottom) {
+    p.bottom = { ...d.bottom };
+    if (d.geo) p.geo = { coast: d.geo.coast, shelfWidth: d.geo.shelfWidth };
+  }
   return p;
 }
 
 /** guarda partes do ambiente como padrão para os próximos cenários */
 function saveEnvDefault(d: EnvironmentConfig, part: 'agua' | 'fundo'): void {
   const base = baseConfig();
-  if (part === 'fundo') base.environment.bottom = structuredClone(d.bottom);
+  if (part === 'fundo') {
+    base.environment.bottom = structuredClone(d.bottom);
+    if (d.geo && base.environment.geo) base.environment.geo = { ...base.environment.geo, coast: d.geo.coast, shelfWidth: d.geo.shelfWidth };
+  }
   else for (const k of ['salinity', 'deepSalinity', 'surfaceTemperature', 'deepTemperature', 'thermoclineDepth', 'thermoclineThickness', 'magneticDeclination'] as const) base.environment[k] = d[k];
   storage.setConfig(base);
 }
@@ -507,7 +513,10 @@ function BottomPanel() {
   const [draft, reset, edit] = useDraftEnv();
   const b = draft.bottom;
   const cur = e.config.environment.bottom;
-  const changed = JSON.stringify({ ...b }) !== JSON.stringify({ ...cur });
+  const geo = draft.geo;
+  const curGeo = e.config.environment.geo;
+  const changed = JSON.stringify({ ...b }) !== JSON.stringify({ ...cur }) || (!!geo && !!curGeo && (geo.coast !== curGeo.coast || geo.shelfWidth !== curGeo.shelfWidth));
+  const coastDist = e.env.coastDistanceAt(e.state.body.pos.x, e.state.body.pos.y);
   const cfgWrap = { environment: draft } as unknown as SimConfig;
   const p = e.state.body.pos;
   const apply = () => {
@@ -554,6 +563,43 @@ function BottomPanel() {
           <ParamGrid params={BOTTOM_RELIEF_PARAMS} cfg={cfgWrap} onChange={() => edit(() => undefined)} />
         </div>
       )}
+      {geo ? (
+        <div className="row mt8">
+          <span className="subtle">Costa (Sepetiba)</span>
+          <div className="seg">
+            <button className={!geo.coast ? 'on' : ''} onClick={() => edit((d) => d.geo && (d.geo.coast = false))}>
+              Desligada
+            </button>
+            <button className={geo.coast ? 'on' : ''} onClick={() => edit((d) => d.geo && (d.geo.coast = true))} title="Terra, orla e fundo costeiro passam a valer na física e no 3D">
+              Ligada
+            </button>
+          </div>
+          {geo.coast && (
+            <label className="row" style={{ gap: 4 }}>
+              <span className="subtle">faixa costeira</span>
+              <input
+                type="number"
+                step={250}
+                min={100}
+                max={10000}
+                value={geo.shelfWidth}
+                style={{ width: 80 }}
+                onChange={(ev) => {
+                  const v = Number(ev.target.value);
+                  if (Number.isFinite(v)) edit((d) => d.geo && (d.geo.shelfWidth = Math.max(100, Math.min(10000, v))));
+                }}
+              />
+              m
+            </label>
+          )}
+          <span className="subtle">
+            posição {geo.origin.lat.toFixed(4)}°, {geo.origin.lon.toFixed(4)}° (definida no Mapa tático)
+            {coastDist !== null ? ` · orla a ${fmt(Math.abs(coastDist), 0)} m${coastDist < 0 ? ' (em terra!)' : ''}` : ''}
+          </span>
+        </div>
+      ) : (
+        <div className="subtle mt8">Esta simulação veio de um arquivo antigo, sem referência geográfica: a costa não se aplica.</div>
+      )}
       <div className="subtle mt8">
         Agora: fundo {cur.mode === 'uniforme' ? 'uniforme' : 'com relevo'} · <b className="mono">{fmt(e.outputs.bottomDepth, 0)} m</b> sob o submarino · altitude <b className="mono">{fmt(e.outputs.altitude, 0)} m</b> ·
         ecobatímetro <b className="mono">{fmt(e.state.sensors.ECO.value, 0)} m</b>
@@ -578,7 +624,8 @@ function BottomPanel() {
       </div>
       <div className="note">
         O mesmo fundo é usado pela física (contato com o casco), pelo ecobatímetro, pelos alarmes de altitude e pelo desenho 3D. Padrão de sessões novas: uniforme a 300 m. O cenário “Águas rasas” e os arquivos salvos
-        antigos mantêm o fundo com relevo que tinham.
+        antigos mantêm o fundo com relevo que tinham. <b>Costa ligada</b>: a terra, a orla e as ilhas da região de Sepetiba (dados embutidos, sem internet) entram na física — na faixa costeira o fundo sobe suavemente até
+        zero na orla (contato = encalhe) — e aparecem no 3D. Vem ligada nos cenários costeiros (Saída da base, Restinga) e desligada nos demais, que foram feitos para mar aberto. O cais é só visual.
       </div>
     </Panel>
   );

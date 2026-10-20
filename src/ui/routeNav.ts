@@ -127,3 +127,12 @@ export const mapOrigin = {
     savePersisted('map.origin', o);
   },
 };
+
+/**
+ * Origem geográfica efetiva do referencial local da simulação: a da
+ * configuração do motor (sessões novas e cenários costeiros) ou, em arquivos
+ * antigos sem essa informação, a preferência do mapa.
+ */
+export function geoOriginOf(e: { config: { environment: { geo?: { origin: LatLon } } } }): LatLon {
+  return e.config.environment.geo?.origin ?? mapOrigin.get();
+}

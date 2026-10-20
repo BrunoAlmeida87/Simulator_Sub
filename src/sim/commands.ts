@@ -9,11 +9,13 @@ import { newDosing } from './systems/internalTanks';
 import { acknowledgeAlarm } from './systems/alarms';
 import { bumplessInit } from './systems/autopilot';
 import { sensorDef } from './systems/sensors';
-import type { BottomConfig, EnvironmentConfig } from './environment/environment';
+import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
 
 /** Alterações de ambiente aplicáveis durante a simulação (o estado é mantido). */
 export type EnvironmentPatch = Partial<Pick<EnvironmentConfig, 'salinity' | 'deepSalinity' | 'surfaceTemperature' | 'deepTemperature' | 'thermoclineDepth' | 'thermoclineThickness' | 'magneticDeclination'>> & {
   bottom?: Partial<BottomConfig>;
+  /** costa e referência geográfica (origem do referencial local) */
+  geo?: Partial<GeoConfig>;
 };
 
 const ENV_LABEL: Record<string, [string, string]> = {
@@ -30,6 +32,9 @@ const ENV_LABEL: Record<string, [string, string]> = {
   'bottom.slopeEast': ['declive L', 'm/km'],
   'bottom.roughness': ['rugosidade', 'm'],
   'bottom.wavelength': ['comprimento do relevo', 'm'],
+  'geo.coast': ['costa', ''],
+  'geo.shelfWidth': ['faixa costeira', 'm'],
+  'geo.origin': ['posição geográfica', ''],
 };
 
 export type FluidSystem = 'compensation' | 'trim' | 'heel';
@@ -283,7 +288,22 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
         const [lbl, unit] = ENV_LABEL[key] ?? [key, ''];
         changes.push(`${lbl} ${typeof v === 'number' ? Number(v.toFixed(2)) : String(v)}${unit ? ' ' + unit : ''}`);
       };
-      const { bottom, ...rest } = c.patch;
+      const { bottom, geo, ...rest } = c.patch;
+      if (geo) {
+        const cur = (env.geo ??= defaultGeo());
+        if (typeof geo.coast === 'boolean') {
+          cur.coast = geo.coast;
+          changes.push(`costa ${geo.coast ? 'LIGADA (terra e fundo costeiro na física)' : 'desligada'}`);
+        }
+        if (typeof geo.shelfWidth === 'number' && Number.isFinite(geo.shelfWidth)) {
+          cur.shelfWidth = Math.max(50, Math.min(20000, geo.shelfWidth));
+          note('geo.shelfWidth', cur.shelfWidth);
+        }
+        if (geo.origin && Number.isFinite(geo.origin.lat) && Number.isFinite(geo.origin.lon)) {
+          cur.origin = { lat: geo.origin.lat, lon: geo.origin.lon };
+          changes.push(`posição geográfica do referencial ${geo.origin.lat.toFixed(4)}°, ${geo.origin.lon.toFixed(4)}°`);
+        }
+      }
       for (const [k, val] of Object.entries(rest)) {
         if (typeof val !== 'number' || !Number.isFinite(val)) continue;
         (env as unknown as Record<string, number>)[k] = val;
