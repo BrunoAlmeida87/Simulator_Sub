@@ -124,14 +124,14 @@ export function drawSonarWaterfall(act: RoomActions) {
       const x = x0 + ((a + 180) / 360) * ww;
       g.fillStyle = '#6f8da5';
       g.fillRect(x - 1, y0 + hh, 2, 10);
-      text(g, a === 0 ? 'PROA' : a === 180 || a === -180 ? 'POPA' : `${a > 0 ? 'BE' : 'BB'} ${Math.abs(a)}`, x, y0 + hh + 24, 14, a === 0 ? C.warn : C.dim, 'center', 'bold');
+      text(g, a === 0 ? 'PROA' : a === 180 || a === -180 ? 'POPA' : `${a > 0 ? 'BE' : 'BB'} ${Math.abs(a)}`, x, y0 + hh + 26, 19, a === 0 ? C.warn : '#a9c3d6', 'center', 'bold');
     }
     g.fillStyle = 'rgba(255,80,60,0.12)';
     g.fillRect(x0, y0, (30 / 360) * ww, hh);
     g.fillRect(x0 + ww - (30 / 360) * ww, y0, (30 / 360) * ww, hh);
-    text(g, 'zona cega', x0 + 10, y0 + 16, 13, '#ff9c8c');
+    text(g, 'zona cega', x0 + 8, y0 + 18, 18, '#ff9c8c', 'left', 'bold');
     const kn = toKnots(Math.abs(e.outputs.speed));
-    text(g, `ruído próprio ${(58 + 0.22 * kn * kn).toFixed(0)} dB · ${kn.toFixed(1)} nós`, W - 46, y0 + 16, 14, kn > 10 ? C.warn : C.dim, 'right', 'bold');
+    text(g, `ruído próprio ${(58 + 0.22 * kn * kn).toFixed(0)} dB · ${kn.toFixed(1)} nós`, W - 46, y0 + 18, 19, kn > 10 ? C.warn : '#cfe6f5', 'right', 'bold');
   };
 }
 
@@ -139,46 +139,48 @@ export function drawSonarWaterfall(act: RoomActions) {
 export function drawSonarContacts(act: RoomActions) {
   return (c: DrawCtx) => {
     const { g, e, W, H } = c;
-    const y0 = screenBg(c, 'CONTATOS ACÚSTICOS E MAGE', 'detecção passiva');
+    const y0 = screenBg(c, 'CONTATOS E MAGE');
     const cts = roomContacts(e, act)
       .map((ct) => ({ ct, se: signalExcess(e, ct) }))
       .filter((x) => x.se > -4)
       .sort((a, b) => b.se - a.se)
-      .slice(0, 7);
-    box(g, 14, y0, W - 28, 300, 'SONAR PASSIVO');
-    text(g, 'TRILHA', 30, y0 + 40, 14, C.dim, 'left', 'bold');
-    text(g, 'MARCAÇÃO', 150, y0 + 40, 14, C.dim, 'left', 'bold');
-    text(g, 'RELATIVA', 300, y0 + 40, 14, C.dim, 'left', 'bold');
-    text(g, 'CLASSIFICAÇÃO', 450, y0 + 40, 14, C.dim, 'left', 'bold');
-    text(g, 'SINAL', W - 40, y0 + 40, 14, C.dim, 'right', 'bold');
-    if (!cts.length) text(g, 'nenhum contato acima do ruído', W / 2, y0 + 150, 20, C.dim, 'center');
+      .slice(0, 6);
+    box(g, 12, y0, W - 24, 312, 'SONAR PASSIVO');
+    const hy = y0 + 54;
+    text(g, 'TRILHA', 26, hy, 18, '#a9c3d6', 'left', 'bold');
+    text(g, 'MARCAÇÃO', 140, hy, 18, '#a9c3d6', 'left', 'bold');
+    text(g, 'RELATIVA', 310, hy, 18, '#a9c3d6', 'left', 'bold');
+    text(g, 'CLASSE', 500, hy, 18, '#a9c3d6', 'left', 'bold');
+    text(g, 'SINAL', W - 30, hy, 18, '#a9c3d6', 'right', 'bold');
+    if (!cts.length) text(g, 'nenhum contato acima do ruído', W / 2, y0 + 170, 24, '#a9c3d6', 'center', 'bold');
     cts.forEach(({ ct, se }, i) => {
-      const y = y0 + 72 + i * 32;
-      text(g, `S${i + 1}`, 30, y, 18, C.real, 'left', 'bold', true);
-      text(g, `${String(Math.round(ct.brg)).padStart(3, '0')}°`, 150, y, 18, C.text, 'left', 'bold', true);
-      text(g, `${ct.rel >= 0 ? 'BE' : 'BB'} ${Math.abs(ct.rel).toFixed(0)}°`, 300, y, 18, C.text, 'left', 'normal', true);
-      text(g, se > 8 ? ct.kind.toUpperCase() : 'em classificação', 450, y, 17, se > 8 ? C.text : C.dim, 'left');
+      const y = hy + 40 + i * 40;
+      text(g, `S${i + 1}`, 26, y, 26, C.real, 'left', 'bold', true);
+      text(g, `${String(Math.round(ct.brg)).padStart(3, '0')}°`, 140, y, 26, C.text, 'left', 'bold', true);
+      text(g, `${ct.rel >= 0 ? 'BE' : 'BB'} ${Math.abs(ct.rel).toFixed(0)}°`, 310, y, 24, C.text, 'left', 'bold', true);
+      text(g, se > 8 ? ct.kind.toUpperCase() : 'em análise', 500, y, 22, se > 8 ? C.text : '#a9c3d6', 'left', 'bold', false, 230);
       g.fillStyle = C.real;
-      g.fillRect(W - 180, y - 7, Math.max(4, Math.min(140, (se + 4) * 5)), 14);
+      g.fillRect(W - 170, y - 9, Math.max(6, Math.min(140, (se + 4) * 5)), 18);
     });
     // MAGE (interceptação de radar)
-    const my = y0 + 310;
-    box(g, 14, my, W - 28, H - my - 12, 'MAGE — INTERCEPTAÇÃO DE RADAR');
+    const my = y0 + 322;
+    box(g, 12, my, W - 24, H - my - 10, 'MAGE — RADARES INTERCEPTADOS');
     const out = mastOut(e);
     if (!out) {
-      text(g, 'ANTENA SUBMERSA — içar o periscópio ou o snorkel na cota periscópica', W / 2, my + (H - my) / 2, 18, C.warn, 'center', 'bold', false, W - 60);
+      text(g, 'ANTENA SUBMERSA', W / 2, my + 96, 30, C.warn, 'center', 'bold');
+      text(g, 'içar o periscópio ou o snorkel na cota periscópica', W / 2, my + 140, 21, '#a9c3d6', 'center', 'bold', false, W - 60);
       return;
     }
     const em = roomContacts(e, act)
       .filter((ct) => (ct.kind === 'patrulha' || ct.kind === 'mercante') && ct.rng < 40000)
       .slice(0, 4);
-    if (!em.length) text(g, 'nenhum emissor interceptado', W / 2, my + 90, 18, C.dim, 'center');
+    if (!em.length) text(g, 'nenhum emissor interceptado', W / 2, my + 110, 24, '#a9c3d6', 'center', 'bold');
     em.forEach((ct, i) => {
-      const y = my + 50 + i * 34;
-      text(g, `E${i + 1}`, 30, y, 18, C.warn, 'left', 'bold', true);
-      text(g, `${String(Math.round(ct.brg)).padStart(3, '0')}°`, 120, y, 18, C.text, 'left', 'bold', true);
-      text(g, ct.kind === 'patrulha' ? 'radar de busca (banda I)' : 'radar de navegação (banda X)', 250, y, 17, C.text, 'left');
-      text(g, ct.rng < 12000 ? 'FORTE' : 'fraco', W - 40, y, 17, ct.rng < 12000 ? C.alarm : C.dim, 'right', 'bold');
+      const y = my + 60 + i * 42;
+      text(g, `E${i + 1}`, 26, y, 26, C.warn, 'left', 'bold', true);
+      text(g, `${String(Math.round(ct.brg)).padStart(3, '0')}°`, 110, y, 26, C.text, 'left', 'bold', true);
+      text(g, ct.kind === 'patrulha' ? 'radar de busca' : 'radar de navegação', 240, y, 22, C.text, 'left', 'bold', false, 420);
+      text(g, ct.rng < 12000 ? 'FORTE' : 'fraco', W - 30, y, 22, ct.rng < 12000 ? C.alarm : '#a9c3d6', 'right', 'bold');
     });
   };
 }
@@ -224,7 +226,7 @@ function plot(c: DrawCtx, act: RoomActions, x: number, y: number, w: number, h: 
     g.beginPath();
     g.arc(cx, cy, (R * i) / 4, 0, Math.PI * 2);
     g.stroke();
-    text(g, `${((scaleKm * i) / 4).toFixed(scaleKm < 5 ? 1 : 0)} km`, cx + (R * i) / 4 - 4, cy - 8, 12, '#5f8fb5', 'right');
+    text(g, `${((scaleKm * i) / 4).toFixed(scaleKm < 5 ? 1 : 0)} km`, cx + (R * i) / 4 - 4, cy - 12, opts.table ? 18 : 16, '#7fa8c8', 'right', 'bold');
   }
   g.beginPath();
   g.moveTo(cx, y);
@@ -232,7 +234,7 @@ function plot(c: DrawCtx, act: RoomActions, x: number, y: number, w: number, h: 
   g.moveTo(x, cy);
   g.lineTo(x + w, cy);
   g.stroke();
-  text(g, 'N', cx, y + 14, 16, C.warn, 'center', 'bold');
+  text(g, 'N', cx, y + 18, 24, C.warn, 'center', 'bold');
   // derrota
   const tr = s.nav.trail;
   if (tr.length > 1) {
@@ -290,7 +292,7 @@ function plot(c: DrawCtx, act: RoomActions, x: number, y: number, w: number, h: 
     g.moveTo(px, py);
     g.lineTo(qx, qy);
     g.stroke();
-    text(g, ct.id, px + 12, py - 12, 13, col, 'left', 'bold');
+    text(g, ct.id, px + 12, py - 14, opts.table ? 20 : 18, col, 'left', 'bold');
   }
   // próprio navio (semicírculo aberto em cima = submarino amigo) e vetor de 6 min
   const hdg = (e.outputs.euler.heading * Math.PI) / 180;
@@ -366,43 +368,44 @@ function drawLand(c: DrawCtx, x: number, y: number, w: number, h: number, own: {
 export function drawTacticalConsole(act: RoomActions) {
   return (c: DrawCtx) => {
     const { g, e, W, H } = c;
-    const y0 = screenBg(c, 'SISTEMA DE COMBATE — QUADRO TÁTICO', 'fictício · sem armamento');
+    const y0 = screenBg(c, 'QUADRO TÁTICO', 'fictício · sem armamento');
     const si = c.ui.page.tacScale ?? 2;
     const scale = SCALES_KM[si];
     const ph = H - y0 - 10;
     const cts = plot(c, act, 10, y0, ph, ph, scale);
     const x1 = ph + 22;
+    const sw = (W - x1 - 12 - 2 * 6) / 3;
     SCALES_KM.forEach((km, i) =>
       button(c, {
         id: `tc-sc-${km}`,
-        x: x1 + i * ((W - x1 - 14) / 5),
-        y: y0,
-        w: (W - x1 - 14) / 5 - 6,
-        h: 40,
+        x: x1 + (i % 3) * (sw + 6),
+        y: y0 + Math.floor(i / 3) * 52,
+        w: sw,
+        h: 46,
         label: `${km} km`,
         on: i === si,
         tone: 'cmd',
         tip: `Escala do quadro: ${km} km`,
         action: () => (c.ui.page.tacScale = i),
-        size: 14,
+        size: 21,
       }),
     );
     const own = { n: e.state.body.pos.x, e: e.state.body.pos.y, vn: e.outputs.velNED.x, ve: e.outputs.velNED.y };
-    text(g, 'CONTATO', x1, y0 + 64, 13, C.dim, 'left', 'bold');
-    text(g, 'MARC.', x1 + 90, y0 + 64, 13, C.dim, 'left', 'bold');
-    text(g, 'DIST.', x1 + 160, y0 + 64, 13, C.dim, 'left', 'bold');
-    text(g, 'PMA', x1 + 250, y0 + 64, 13, C.dim, 'left', 'bold');
+    const ty = y0 + 124;
+    text(g, 'ID', x1, ty, 18, '#a9c3d6', 'left', 'bold');
+    text(g, 'MARC.', x1 + 66, ty, 18, '#a9c3d6', 'left', 'bold');
+    text(g, 'DIST.', x1 + 150, ty, 18, '#a9c3d6', 'left', 'bold');
+    text(g, 'PMA', x1 + 256, ty, 18, '#a9c3d6', 'left', 'bold');
     cts
       .sort((a, b) => a.rng - b.rng)
-      .slice(0, 12)
+      .slice(0, 10)
       .forEach((ct, i) => {
-        const y = y0 + 92 + i * 34;
+        const y = ty + 38 + i * 40;
         const cp = cpa(own, ct);
-        text(g, ct.id, x1, y, 16, ct.kind === 'patrulha' ? '#49a7ff' : '#4cd964', 'left', 'bold', true);
-        text(g, `${String(Math.round(ct.brg)).padStart(3, '0')}°`, x1 + 90, y, 16, C.text, 'left', 'normal', true);
-        text(g, `${(ct.rng / 1852).toFixed(1)} mn`, x1 + 160, y, 16, C.text, 'left', 'normal', true);
-        text(g, cp.tcpa > 0 ? `${(cp.dcpa / 1852).toFixed(1)} mn` : 'afast.', x1 + 250, y, 16, cp.dcpa < 1852 && cp.tcpa > 0 && cp.tcpa < 1800 ? C.alarm : C.dim, 'left', 'normal', true);
-        void W;
+        text(g, ct.id, x1, y, 22, ct.kind === 'patrulha' ? '#49a7ff' : '#4cd964', 'left', 'bold', true);
+        text(g, `${String(Math.round(ct.brg)).padStart(3, '0')}°`, x1 + 66, y, 22, C.text, 'left', 'bold', true);
+        text(g, `${(ct.rng / 1852).toFixed(1)}mn`, x1 + 150, y, 22, C.text, 'left', 'bold', true);
+        text(g, cp.tcpa > 0 ? `${(cp.dcpa / 1852).toFixed(1)}` : 'afast', x1 + 256, y, 22, cp.dcpa < 1852 && cp.tcpa > 0 && cp.tcpa < 1800 ? C.alarm : '#a9c3d6', 'left', 'bold', true, W - x1 - 268);
       });
   };
 }
@@ -413,17 +416,17 @@ export function drawNavigation(act: RoomActions) {
     const { g, e, W, H } = c;
     const s = e.state;
     const o = e.outputs;
-    const y0 = screenBg(c, 'NAVEGAÇÃO', 'sistema de navegação inercial · GPS · ecobatímetro');
+    const y0 = screenBg(c, 'NAVEGAÇÃO', 'INS · GPS · ecobatímetro');
     const origin = act.geoOrigin();
     const ll = nedToLatLon(origin, s.body.pos.x, s.body.pos.y);
-    box(g, 14, y0, W - 28, 170, 'POSIÇÃO');
-    text(g, 'INS', 30, y0 + 48, 16, C.dim, 'left', 'bold');
-    text(g, `${fmtLat(ll.lat)}   ${fmtLon(ll.lon)}`, 100, y0 + 48, 24, C.real, 'left', 'bold', true);
+    box(g, 12, y0, W - 24, 176, 'POSIÇÃO');
+    text(g, 'INS', 26, y0 + 56, 22, '#a9c3d6', 'left', 'bold');
+    text(g, `${fmtLat(ll.lat)}  ${fmtLon(ll.lon)}`, 96, y0 + 56, 32, C.real, 'left', 'bold', true, W - 120);
     const gps = mastOut(e);
-    text(g, 'GPS', 30, y0 + 90, 16, C.dim, 'left', 'bold');
-    text(g, gps ? 'FIXO VÁLIDO (antena fora d’água)' : 'SEM SINAL — antena submersa', 100, y0 + 90, 20, gps ? C.real : C.warn, 'left', 'bold');
+    text(g, 'GPS', 26, y0 + 102, 22, '#a9c3d6', 'left', 'bold');
+    text(g, gps ? 'FIXO VÁLIDO' : 'SEM SINAL — antena submersa', 96, y0 + 102, 26, gps ? C.real : C.warn, 'left', 'bold');
     const drErr = Math.hypot(s.nav.drNorth - s.body.pos.x, s.nav.drEast - s.body.pos.y);
-    text(g, `posição estimada (navegação estimada): erro ${drErr.toFixed(0)} m · distância percorrida ${(s.nav.distance / 1852).toFixed(2)} mn`, 30, y0 + 132, 16, C.dim, 'left', 'normal', false, W - 60);
+    text(g, `estimada: erro ${drErr.toFixed(0)} m · percorrido ${(s.nav.distance / 1852).toFixed(2)} mn`, 26, y0 + 146, 21, '#a9c3d6', 'left', 'bold', false, W - 60);
     const rows: [string, string][] = [
       ['RUMO (GIRO)', `${String(Math.round(((s.sensors.GIRO.value % 360) + 360) % 360)).padStart(3, '0')}°`],
       ['RUMO NO FUNDO', `${String(Math.round(((o.courseOverGround % 360) + 360) % 360)).padStart(3, '0')}°`],
@@ -436,19 +439,19 @@ export function drawNavigation(act: RoomActions) {
       const col = i % 3;
       const row = Math.floor(i / 3);
       const bx = 14 + col * ((W - 28) / 3);
-      const by = y0 + 182 + row * 110;
-      digital(g, bx + 4, by + 24, (W - 28) / 3 - 10, 70, v, '#7dff9c', k);
+      const by = y0 + 186 + row * 100;
+      digital(g, bx + 2, by, (W - 28) / 3 - 8, 90, v, '#7dff9c', k);
     });
-    const ry = y0 + 410;
-    box(g, 14, ry, W - 28, H - ry - 12, 'ROTA (MAPA TÁTICO)');
+    const ry = y0 + 392;
+    box(g, 12, ry, W - 24, H - ry - 10, 'ROTA (MAPA TÁTICO)');
     const rt = act.route();
-    if (!rt.points.length) text(g, 'sem rota — trace pontos no Mapa tático', 30, ry + 50, 17, C.dim, 'left');
+    if (!rt.points.length) text(g, 'sem rota — trace pontos no Mapa tático', 26, ry + 66, 23, '#a9c3d6', 'left', 'bold');
     else {
       const next = rt.points[Math.min(rt.idx, rt.points.length - 1)];
       const q = latLonToNed(origin, next);
       const br = bearingRange({ n: s.body.pos.x, e: s.body.pos.y }, q);
-      text(g, `${rt.points.length} ponto(s) · ${rt.active ? `seguindo para P${rt.idx + 1}` : 'rota parada'}`, 30, ry + 46, 18, rt.active ? C.cmd : C.text, 'left', 'bold');
-      text(g, `próximo: marcação ${String(Math.round(br.brg)).padStart(3, '0')}° · ${(br.rng / 1852).toFixed(2)} mn`, 30, ry + 80, 18, C.text, 'left', 'normal', true);
+      text(g, `${rt.points.length} ponto(s) · ${rt.active ? `seguindo para P${rt.idx + 1}` : 'rota parada'}`, 26, ry + 56, 23, rt.active ? C.cmd : C.text, 'left', 'bold');
+      text(g, `próximo: ${String(Math.round(br.brg)).padStart(3, '0')}° · ${(br.rng / 1852).toFixed(2)} mn`, 26, ry + 92, 23, C.text, 'left', 'bold', true);
     }
   };
 }
@@ -478,12 +481,12 @@ export function drawPlotTable(act: RoomActions) {
         tone: 'cmd',
         tip: `Escala da mesa tática: ${km} km (raio vertical)`,
         action: () => (c.ui.page.tableScale = i),
-        size: 15,
+        size: 20,
       }),
     );
-    text(g, 'MESA TÁTICA', W - 20, 24, 22, '#9fd0ff', 'right', 'bold');
+    text(g, 'MESA TÁTICA', W - 20, 28, 28, '#9fd0ff', 'right', 'bold');
     const origin = act.geoOrigin();
     const ll = nedToLatLon(origin, e.state.body.pos.x, e.state.body.pos.y);
-    text(g, `${fmtLat(ll.lat)} ${fmtLon(ll.lon)} · rumo ${Math.round(e.outputs.euler.heading)}° · ${toKnots(e.outputs.speed).toFixed(1)} nós`, W - 20, 52, 16, C.text, 'right', 'normal', true);
+    text(g, `${fmtLat(ll.lat)} ${fmtLon(ll.lon)} · rumo ${Math.round(e.outputs.euler.heading)}° · ${toKnots(e.outputs.speed).toFixed(1)} nós`, W - 20, 62, 20, C.text, 'right', 'bold', true);
   };
 }
