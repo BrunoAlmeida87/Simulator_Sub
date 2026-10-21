@@ -24,7 +24,8 @@ import { SCENARIOS } from '../../sim/scenarios';
 import { graphics } from '../graphics';
 import { geoOriginOf, route } from '../routeNav';
 import { Scene3D, defaultQuality } from '../components/Scene3D';
-import type { PeriscopeSight, ViewMode } from '../../render3d/SubmarineScene';
+import type { PeriscopeSight } from '../../render3d/SubmarineScene';
+import { RoomPip } from './RoomPip';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { cpa } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
@@ -372,12 +373,6 @@ function PeriscopeView({ sight, setSight, onExit }: { sight: PeriscopeSight; set
   );
 }
 
-const PIP_VIEWS: [ViewMode, string][] = [
-  ['perseguicao', 'Perseguição'],
-  ['piloto', 'Lateral'],
-  ['topo', 'Topo'],
-];
-
 const LIGHT_LABEL: Record<RoomLighting, string> = { normal: 'Normal', vermelha: 'Vermelha', azul: 'Azul' };
 
 export function ControlRoomScreen() {
@@ -395,8 +390,9 @@ export function ControlRoomScreen() {
   const [peri, setPeri] = useState(false);
   const [sight, setSight] = usePersisted<PeriscopeSight>('room.sight', { bearing: 0, elev: 0, fov: 32 });
   const [pip, setPip] = usePersisted('room.pip', false);
-  const [pipView, setPipView] = usePersisted<ViewMode>('room.pipView', 'perseguicao');
   const [lighting, setLighting] = useState<RoomLighting>('normal');
+  const pipRef = useRef(pip);
+  pipRef.current = pip;
   const periRef = useRef(peri);
   periRef.current = peri;
   const lightingRef = useRef(lighting);
@@ -515,6 +511,10 @@ export function ControlRoomScreen() {
         if (!ev.repeat) sceneRef.current.frameStep(ev.code === 'ArrowLeft' ? -1 : 1);
         return;
       }
+      if (ev.code === 'KeyP' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        setPip(!pipRef.current);
+        return;
+      }
       if (MOVE.has(ev.code)) {
         if (ev.code.startsWith('Arrow')) ev.preventDefault();
         sceneRef.current?.key(ev.code, true);
@@ -619,8 +619,8 @@ export function ControlRoomScreen() {
           <button className="btn sm" onClick={() => setPeri(true)} title="Olhar pelo periscópio de ataque">
             Periscópio
           </button>
-          <button className={`btn sm ${pip ? 'on' : ''}`} onClick={() => setPip(!pip)} title="Miniatura da vista 3D externa (a 2ª janela continua com a cena completa)">
-            Vista externa
+          <button className={`btn sm ${pip ? 'on' : ''}`} onClick={() => setPip(!pip)} title="Submarino 3D numa janela sobre a sala (picture-in-picture; tecla P). A 2ª janela continua com a cena completa.">
+            ⧉ Submarino 3D
           </button>
           <button
             className="btn sm"
@@ -750,31 +750,7 @@ export function ControlRoomScreen() {
             {holdBtn('▶', 0, 1, 'Passo para a direita')}
           </div>
         )}
-        {pip && !peri && (
-          <div className="room-pip" onPointerDown={(ev) => ev.stopPropagation()}>
-            <Scene3D
-              view={pipView}
-              quality="baixa"
-              labels={false}
-              syncVisual={false}
-              persistKey="roompip"
-              layers={{ markers: true, wake: true, ships: true, labels: false, vectors: false, hydroVectors: false, tanks: false, trimRef: false }}
-            >
-              <div className="room-pip-ctl">
-                <span className="seg">
-                  {PIP_VIEWS.map(([k, l]) => (
-                    <button key={k} className={pipView === k ? 'on' : ''} onClick={() => setPipView(k)}>
-                      {l}
-                    </button>
-                  ))}
-                </span>
-                <button className="btn sm" onClick={() => setPip(false)}>
-                  ✕
-                </button>
-              </div>
-            </Scene3D>
-          </div>
-        )}
+        {pip && !peri && <RoomPip onClose={() => setPip(false)} />}
         {peri && <PeriscopeView sight={sight} setSight={setSight} onExit={() => setPeri(false)} />}
       </div>
       {focus && panelOpen && <StationPanel id={focus} acts={acts} onClose={() => setPanelOpen(false)} onPeri={() => setPeri(true)} />}
