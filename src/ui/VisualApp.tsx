@@ -8,7 +8,8 @@ import { runner, useSim } from './store';
 import { Scene3D, defaultQuality } from './components/Scene3D';
 import { OpsStrip } from './ops/OpsStrip';
 import { link } from './link';
-import { defaultLayers, type SceneLayers } from '../render3d/layers';
+import { allLayersOff, allLayersOn, defaultLayers, type SceneLayers } from '../render3d/layers';
+import type { LayerKey } from './components/LayerPanel';
 import type { ViewMode } from '../render3d/SubmarineScene';
 import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
@@ -24,12 +25,17 @@ const LAYER_BTNS: [keyof SceneLayers, string][] = [
   ['flows', 'Escoamentos'],
   ['pipes', 'Tubulações'],
   ['labels', 'Identificações'],
+  ['batteryInfo', 'Bateria (%)'],
+  ['airInfo', 'Ar comprimido'],
   ['markers', 'Boias'],
   ['wake', 'Esteira'],
   ['noWater', 'Sem água'],
   ['trimRef', 'Calado/trim'],
   ['ships', 'Navios'],
+  ['hull', 'Casco'],
 ];
+/** “Marcar/Desmarcar todas”: as camadas de informação (o casco fica fora: é o próprio submarino) */
+const ALL_KEYS = LAYER_BTNS.map(([k]) => k).filter((k): k is LayerKey => k !== 'hull');
 
 const VIEWS: [ViewMode | 'seguir', string][] = [
   ['seguir', 'Igual ao controle'],
@@ -103,6 +109,12 @@ export function VisualApp() {
                   {k in over ? ' •' : ''}
                 </button>
               ))}
+              <button className="btn sm" onClick={() => setOver({ ...over, ...allLayersOn(ALL_KEYS) })} title="Liga todas as camadas de informação nesta janela">
+                ☑ Todas
+              </button>
+              <button className="btn sm" onClick={() => setOver({ ...over, ...allLayersOff(ALL_KEYS) })} title="Desliga todas as camadas nesta janela">
+                ☐ Nenhuma
+              </button>
               <button className="btn sm" disabled={Object.keys(over).length === 0} onClick={() => setOver({})} title="Volta a usar as camadas da janela de controle">
                 ↺ Igual ao controle
               </button>

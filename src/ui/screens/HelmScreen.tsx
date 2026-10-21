@@ -18,12 +18,21 @@ import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 import { useIdentity } from '../appearance';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { LayerPanel, type LayerKey } from '../components/LayerPanel';
+import type { SceneLayers } from '../../render3d/layers';
+
+/** camadas da cena do Governo (padrão = como era: boias, esteira e identificações; sem corte, logo sem rótulos internos) */
+const HELM_LAYER_DEFAULTS: Partial<SceneLayers> = { markers: true, wake: true, labels: true, trail: true, ships: true, noWater: false, trimRef: false };
+const HELM_LAYER_KEYS: LayerKey[] = ['labels', 'wake', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
 
 export function HelmScreen() {
   const e = useSim(20);
   const id = useIdentity();
   const [quality] = useQuality();
   const [view, setView] = usePersisted<ViewMode>('helm.view', 'perseguicao');
+  const [layOpen, setLayOpen] = usePersisted('helm.layersOpen', false);
+  const [laySaved, setLay] = usePersisted<Partial<SceneLayers>>('helm.layers', {});
+  const lay = { ...HELM_LAYER_DEFAULTS, ...laySaved };
   const s = e.state;
   const o = e.outputs;
   const v = e.vessel;
@@ -38,7 +47,7 @@ export function HelmScreen() {
   return (
     <div className="helm">
       <div className="helm-view">
-        <Scene3D quality={quality} view={view} labels={false} persistKey="helm" layers={{ markers: true, wake: true, hydroVectors: false, vectors: false }}>
+        <Scene3D quality={quality} view={view} labels={false} persistKey="helm" layers={{ ...lay, hydroVectors: false, vectors: false }}>
           <OverlayCtl>
             <div className="seg">
               {(
@@ -54,6 +63,14 @@ export function HelmScreen() {
                 </button>
               ))}
             </div>
+            <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Camadas da cena, com marcar/desmarcar todas">
+              Camadas {layOpen ? '▴' : '▾'}
+            </button>
+            {layOpen && (
+              <div className="tanksel-pop">
+                <LayerPanel keys={HELM_LAYER_KEYS} value={lay} onChange={(p) => setLay({ ...laySaved, ...p })} />
+              </div>
+            )}
           </OverlayCtl>
           <div className="helm-hud">
             <b>{id.name}</b> · {fmt(o.depthKeel, 1)} m · {fmt(toKnots(s.body.vel.x), 1)} nós · rumo {fmt(o.euler.heading, 0)}°

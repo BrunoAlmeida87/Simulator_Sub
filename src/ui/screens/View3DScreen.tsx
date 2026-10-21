@@ -11,6 +11,12 @@ import { TrimGainSelect } from '../components/TrimGain';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { LayerPanel, type LayerKey } from '../components/LayerPanel';
+import type { SceneLayers } from '../../render3d/layers';
+
+/** camadas sem botão próprio nesta tela (valores de antes: tudo ligado, ar comprimido desligado) */
+const V3D_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true };
+const V3D_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
 
 const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'piloto', label: 'Lateral' },
@@ -55,6 +61,23 @@ export function View3DScreen() {
   const [marks, setMarks] = usePersisted('v3d.marks', false);
   const [trimRef, setTrimRef] = usePersisted('v3d.trimRef', false);
   const [ships, setShips] = usePersisted('v3d.ships', true);
+  // demais camadas (antes fixas: identificações, tubulações, escoamentos e o rótulo da bateria)
+  const [layOpen, setLayOpen] = usePersisted('v3d.layersOpen', false);
+  const [laySaved, setLay] = usePersisted<Partial<SceneLayers>>('v3d.layers', {});
+  const lay = { ...V3D_LAYER_DEFAULTS, ...laySaved };
+  const layerValue: Partial<SceneLayers> = { ...lay, vectors: vec, hydroVectors: hydro, trimVectors: trimV, hiddenVectors: hiddenV, tanks: cut, noWater: dry, markers: marks, trimRef, ships, trail };
+  const setLayers = (p: Partial<SceneLayers>) => {
+    setVecLayers(p);
+    if (p.tanks !== undefined) setCut(p.tanks);
+    if (p.noWater !== undefined) setDry(p.noWater);
+    if (p.markers !== undefined) setMarks(p.markers);
+    if (p.trimRef !== undefined) setTrimRef(p.trimRef);
+    if (p.ships !== undefined) setShips(p.ships);
+    if (p.trail !== undefined) setTrail(p.trail);
+    const rest: Partial<SceneLayers> = {};
+    for (const k of Object.keys(V3D_LAYER_DEFAULTS) as (keyof typeof V3D_LAYER_DEFAULTS)[]) if (p[k] !== undefined) rest[k] = p[k];
+    if (Object.keys(rest).length) setLay({ ...laySaved, ...rest });
+  };
   const o = e.outputs;
   const s = e.state;
   return (
@@ -75,9 +98,7 @@ export function View3DScreen() {
         markers: marks,
         trimRef,
         ships,
-        pipes: true,
-        flows: true,
-        labels: true,
+        ...lay,
       }}
     >
       <div className="hud tl">
@@ -155,7 +176,15 @@ export function View3DScreen() {
           <button className={`btn sm ${ships ? 'on' : ''}`} onClick={() => setShips(!ships)} title="Contatos da mesa tática como navios no mar">
             Navios
           </button>
+          <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Todas as camadas, com marcar/desmarcar todas">
+            Camadas {layOpen ? '▴' : '▾'}
+          </button>
         </div>
+        {layOpen && (
+          <div className="tanksel-pop">
+            <LayerPanel keys={V3D_LAYER_KEYS} value={layerValue} onChange={setLayers} />
+          </div>
+        )}
         {trimRef && <TrimGainSelect />}
         {anyVec && (
           <div className="tanksel-pop">

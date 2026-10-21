@@ -99,6 +99,8 @@ export class SubmarineScene {
   private decals: SailDecals | null = null;
   /** marcas de calado pintadas (proa e popa, dois bordos) */
   private draftMarks: THREE.Object3D[] = [];
+  /** casco externo (casco, vela, carenagens, pintura, convés e escotilhas): camada "hull" */
+  private shell: THREE.Object3D[] = [];
   /** linhas de referência de trim: nível do mar (fixo no mundo) × linha d'água do casco (fixa no casco) */
   private trimLines!: THREE.LineSegments;
   /**
@@ -293,6 +295,7 @@ export class SubmarineScene {
     const hull = new THREE.Mesh(hg, this.hullMat);
     this.hullMesh = hull;
     this.sub.add(hull);
+    this.shell.push(hull);
     // contorno do casco (perfil lateral e planta) para o corte
     {
       const segs: number[] = [];
@@ -340,6 +343,7 @@ export class SubmarineScene {
     const sail = new THREE.Mesh(sg, this.sailMat);
     sail.position.y = R - 0.6;
     this.sub.add(sail);
+    this.shell.push(sail);
     // topo da vela: carenagens dos mastros recolhidos (decorativas)
     {
       const capMat = new THREE.MeshStandardMaterial({ color: 0x2e3946, metalness: 0.35, roughness: 0.55 });
@@ -351,6 +355,7 @@ export class SubmarineScene {
         const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, h, 14), capMat);
         c.position.set(0, R + sv.height + h / 2, -x);
         this.sub.add(c);
+        this.shell.push(c);
       }
     }
     // pintura da vela (emblema + inscrição) na parte alta, acima dos lemes de vela
@@ -392,12 +397,14 @@ export class SubmarineScene {
       const deck = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.16, xf - xa), this.deckMat);
       deck.position.set(0, R - 0.02, -(xa + xf) / 2);
       this.sub.add(deck);
+      this.shell.push(deck);
       // escotilhas
       const hatchMat = new THREE.MeshStandardMaterial({ color: 0x252e38, metalness: 0.3, roughness: 0.6 });
       for (const x of [xf - 3, sv.xAft - 3, xa + 4]) {
         const hch = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 20), hatchMat);
         hch.position.set(0, R + 0.1, -x);
         this.sub.add(hch);
+        this.shell.push(hch);
       }
     }
     // superfícies
@@ -647,14 +654,17 @@ export class SubmarineScene {
     return this.systems.pick(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
   }
 
-  private hullState = { cut: false, op: 1, pres: false, light: '' };
+  private hullState = { cut: false, op: 1, pres: false, light: '', shell: true };
   private applyHull(): void {
     const cut = this.layers.tanks;
     const op = cut ? Math.max(0.04, Math.min(1, this.layers.hullOpacity)) : 1;
     const pres = this.layers.presLight;
     const light = this.lighting;
+    // casco externo oculto: ficam os lemes, o hélice, o mastro e (com o corte) os componentes internos
+    const shell = this.layers.hull !== false;
     const hs = this.hullState;
-    if (hs.cut === cut && hs.op === op && hs.pres === pres && hs.light === light) return;
+    if (hs.cut === cut && hs.op === op && hs.pres === pres && hs.light === light && hs.shell === shell) return;
+    for (const o of this.shell) o.visible = shell;
     const hc = pres ? LIGHTING.estudio.hull : (LIGHTING[light] ?? LIGHTING.clara).hull;
     for (const [m, tx] of [
       [this.hullMat, this.tileTex.hull],
@@ -673,12 +683,13 @@ export class SubmarineScene {
     this.deckMat.transparent = op < 0.999;
     this.deckMat.opacity = op;
     this.deckMat.depthWrite = op >= 0.999;
-    if (this.decals) this.decals.group.visible = !cut;
-    for (const m of this.draftMarks) m.visible = !cut;
+    if (this.decals) this.decals.group.visible = !cut && shell;
+    for (const m of this.draftMarks) m.visible = !cut && shell;
     // no corte o casco é desenhado depois do oceano (fica visível abaixo da linha d'água)
     this.hullMesh.renderOrder = cut ? 5 : 0;
-    this.profile.visible = cut;
-    this.hullState = { cut, op, pres, light };
+    // sem o casco, o contorno lateral fica como referência da forma
+    this.profile.visible = cut || !shell;
+    this.hullState = { cut, op, pres, light, shell };
   }
 
   private headingVectors(): { fwd: THREE.Vector3; stbd: THREE.Vector3 } {
@@ -1026,12 +1037,15 @@ export class SubmarineScene {
     if (this.shipyard && this.layers.labels && !dry && coastOn) this.shipyard.label(lbl, proj, this.shipyardDist);
     this.renderer.render(this.scene, this.camera);
 
-    const ps = proj(new THREE.Vector3(0, 0, 0));
-    lbl.push({ id: 'surf', text: 'superfície', ...ps });
-    const psub = proj(subPos.clone().add(new THREE.Vector3(0, 12, 0)));
-    lbl.push({ id: 'sub', text: `${e.outputs.depthKeel.toFixed(1)} m · ${(e.state.body.vel.x / 0.5144).toFixed(1)} nós`, ...psub });
-    const pb = proj(new THREE.Vector3(0, -bottom, 0));
-    lbl.push({ id: 'bot', text: `fundo ${bottom.toFixed(0)} m (altitude ${e.outputs.altitude.toFixed(0)} m)`, ...pb });
+    // rótulos básicos (superfície, cota/velocidade, fundo): também seguem a camada "Identificações"
+    if (this.layers.labels) {
+      const ps = proj(new THREE.Vector3(0, 0, 0));
+      lbl.push({ id: 'surf', text: 'superfície', ...ps });
+      const psub = proj(subPos.clone().add(new THREE.Vector3(0, 12, 0)));
+      lbl.push({ id: 'sub', text: `${e.outputs.depthKeel.toFixed(1)} m · ${(e.state.body.vel.x / 0.5144).toFixed(1)} nós`, ...psub });
+      const pb = proj(new THREE.Vector3(0, -bottom, 0));
+      lbl.push({ id: 'bot', text: `fundo ${bottom.toFixed(0)} m (altitude ${e.outputs.altitude.toFixed(0)} m)`, ...pb });
+    }
     return lbl;
   }
 

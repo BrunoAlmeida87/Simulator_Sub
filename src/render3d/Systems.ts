@@ -14,6 +14,8 @@
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import { tankVolume } from '../sim/systems/internalTanks';
+import { bankPressure } from '../sim/systems/hpAir';
+import { valveStatus } from '../sim/systems/components';
 import { clean, compensationFlows, compensationNodes, manifoldSegments } from '../sim/systems/compensationNetwork';
 import type { ValveState } from '../sim/core/state';
 import { TANK_STYLE, type SceneLayers, type TankCategory } from './layers';
@@ -83,6 +85,8 @@ interface PortArrow {
 const MAX_PTS = 4000;
 const C_WATER = new THREE.Color(0x9fe0ff);
 const C_AIR = new THREE.Color(0xffffff);
+/** número com vírgula decimal (rótulos em português) */
+const dec = (x: number, d: number) => x.toFixed(d).replace('.', ',');
 const C_HP = new THREE.Color(0xfff0a0);
 
 export class SystemsVis {
@@ -99,6 +103,9 @@ export class SystemsVis {
   private valves: ValveVis[] = [];
   private pumps: PumpVis[] = [];
   private ports: PortArrow[] = [];
+  private hpBottles: { id: string; grp: THREE.Group; at: THREE.Vector3 }[] = [];
+  /** última amostra de massa de cada grupo (para a vazão de consumo/recarga) */
+  private hpPrev = new Map<string, { t: number; m: number; rate: number }>();
   private points: THREE.Points;
   private posAttr: THREE.BufferAttribute;
   private colAttr: THREE.BufferAttribute;
@@ -273,7 +280,8 @@ export class SystemsVis {
   private updatePower(e: SimulationEngine, layers: SceneLayers, labels: Label3D[], sub: THREE.Object3D, proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
     const el = e.state.electrical;
     const soc = el.soc;
-    const hide = !!layers.tankFilter && layers.tankFilter.length > 0;
+    // com um filtro de tanques ativo, bateria e geradores saem do corte
+    const hide = layers.tanks && !!layers.tankFilter;
     for (const m of this.batt) m.visible = !hide;
     this.battBar.forEach((b) => {
       b.visible = !hide;
@@ -285,10 +293,46 @@ export class SystemsVis {
       const st = el.generators[g.id];
       (g.mesh.material as THREE.MeshStandardMaterial).emissive.set(st.status === 'EM CARGA' ? 0x2a7a2a : st.status === 'PARTINDO' ? 0x7a6a10 : st.failed ? 0x7a1010 : 0x2a1c08);
     }
-    if (!hide && layers.labels) {
+    // rótulos de energia: camada própria ("Bateria (%)"), junto da bateria e dos geradores —
+    // só com o corte, quando esses componentes estão à vista (antes flutuava sobre o casco fechado)
+    if (layers.tanks && !hide && layers.batteryInfo) {
       labels.push({ id: 'pwB', text: `Bateria ${(soc * 100).toFixed(0)} %${el.current < -1 ? ' ▲ carregando' : ''}`, color: '#9fe3b0', small: true, prio: 3, ...proj(sub.localToWorld(b2l(14, 0, 1.6))) });
       const run = e.vessel.electrical.generators.filter((g) => el.generators[g.id].status === 'EM CARGA').length;
       if (run) labels.push({ id: 'pwG', text: `Geradores: ${run} em carga`, color: '#ffd18a', small: true, prio: 3, ...proj(sub.localToWorld(b2l(-17.5, 0, 0.4))) });
+    }
+  }
+
+  /**
+   * Camada "Ar comprimido": por grupo de garrafas, a pressão (p = m·R·T/V),
+   * a massa de ar e o ar livre equivalente a 1 atm (V_livre = p·V/p_atm),
+   * com a vazão de consumo ou recarga medida no tempo de simulação.
+   */
+  private updateAir(e: SimulationEngine, layers: SceneLayers, labels: Label3D[], sub: THREE.Object3D, proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }, visible: boolean): void {
+    const cfg = e.vessel.hpAir;
+    const t = e.state.t;
+    const pAtm = e.env.cfg.atmosphericPressure;
+    for (const b of cfg.banks) {
+      const st = e.state.hpAir.banks[b.id];
+      const prev = this.hpPrev.get(b.id);
+      let rate = prev?.rate ?? 0;
+      if (!prev || t < prev.t || t - prev.t > 30) rate = 0;
+      else if (t - prev.t >= 0.5) rate = (st.mass - prev.m) / (t - prev.t);
+      if (!prev || t < prev.t || t - prev.t >= 0.5) this.hpPrev.set(b.id, { t, m: st.mass, rate });
+      if (!layers.airInfo || !visible) continue;
+      const p = bankPressure(cfg, b.id, st.mass);
+      const free = (p * b.volume) / pAtm;
+      const vs = valveStatus(st.valve);
+      const flow = Math.abs(rate) > 0.02 ? ` · ${rate < 0 ? '▼ consumo' : '▲ recarga'} ${dec(Math.abs(rate), Math.abs(rate) < 1 ? 2 : 1)} kg/s` : '';
+      const at = this.hpBottles.find((x) => x.id === b.id)?.at ?? b2l(-8, 0, 1);
+      labels.push({
+        id: 'air' + b.id,
+        text: `${b.id} · ${(p / 1e5).toFixed(0)} bar`,
+        sub: `${st.mass.toFixed(0)} kg de ar ≈ ${free.toFixed(0)} m³ a 1 atm · ${dec(b.volume, 1)} m³ de garrafas · válvula ${vs.toLowerCase()}${flow}`,
+        color: '#e8dc9a',
+        small: true,
+        prio: 2,
+        ...proj(sub.localToWorld(at.clone())),
+      });
     }
   }
 
@@ -366,7 +410,9 @@ export class SystemsVis {
         this.pickables.push(c);
         grp.add(c);
       }
-      this.pipeGroup.add(grp);
+      // as garrafas são reservatórios: aparecem com o corte, mesmo sem a camada de tubulações
+      this.group.add(grp);
+      this.hpBottles.push({ id: b.id, grp, at: b2l(-8, y * 1.25, 0.9) });
       const start = b2l(-8, y, 1.0);
       const riser = [start, b2l(-8, y, 0.2), b2l(-8, 0, zM(-8))];
       this.pipe(riser, 0xb7a95c, ['HP']);
@@ -534,7 +580,8 @@ export class SystemsVis {
     const hl = layers.highlight;
     // filtro de tanques visíveis: circuitos aparecem se pertencem a um tanque visível
     // (ou, sem tanque próprio, ao sistema de um tanque visível)
-    const filt = layers.tankFilter && layers.tankFilter.length ? new Set(layers.tankFilter) : null;
+    // filtro de tanques visíveis (null = todos; lista vazia = nenhum)
+    const filt = layers.tankFilter ? new Set(layers.tankFilter) : null;
     const SYS: Record<TankCategory, string> = { lastro: 'HP', compensacao: 'compensacao', trim: 'trim', banda: 'heel' };
     const sysOn = new Set<string>();
     if (filt) for (const t of this.tanks) if (filt.has(t.id)) sysOn.add(SYS[t.cat]);
@@ -586,6 +633,10 @@ export class SystemsVis {
       }
     }
     this.updatePower(e, layers, labels, sub, proj);
+    const hpVisible = !filt || sysOn.has('HP');
+    for (const b of this.hpBottles) b.grp.visible = hpVisible;
+    // garrafas à vista: com o corte e sem filtro que as esconda
+    this.updateAir(e, layers, labels, sub, proj, layers.tanks && hpVisible);
     // tubulações
     for (const p of this.pipeMats) {
       p.mesh.visible = shown(p.owners);

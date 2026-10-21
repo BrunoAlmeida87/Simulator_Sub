@@ -27,6 +27,12 @@ import { OpsStrip } from '../ops/OpsStrip';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { LayerPanel, type LayerKey } from '../components/LayerPanel';
+import type { SceneLayers } from '../../render3d/layers';
+
+/** camadas da Pilotagem sem botão próprio (valores de antes: tudo ligado, ar comprimido desligado) */
+const PILOT_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, trail: true };
+const PILOT_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
 
 export function useOps() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -198,6 +204,22 @@ export function PilotScreen() {
   const [marks, setMarks] = usePersisted('pilot.marks', true);
   const [trimRef, setTrimRef] = usePersisted('pilot.trimRef', false);
   const [ships, setShips] = usePersisted('pilot.ships', true);
+  // demais camadas (antes fixas: identificações, tubulações, escoamentos e o rótulo da bateria)
+  const [layOpen, setLayOpen] = usePersisted('pilot.layersOpen', false);
+  const [laySaved, setLay] = usePersisted<Partial<SceneLayers>>('pilot.layers', {});
+  const lay = { ...PILOT_LAYER_DEFAULTS, ...laySaved };
+  const layerValue: Partial<SceneLayers> = { ...lay, vectors: vec, hydroVectors: hydro, trimVectors: trimV, hiddenVectors: hiddenV, tanks: cut, noWater: dry, markers: marks, trimRef, ships };
+  const setLayers = (p: Partial<SceneLayers>) => {
+    setVecLayers(p);
+    if (p.tanks !== undefined) setCut(p.tanks);
+    if (p.noWater !== undefined) setDry(p.noWater);
+    if (p.markers !== undefined) setMarks(p.markers);
+    if (p.trimRef !== undefined) setTrimRef(p.trimRef);
+    if (p.ships !== undefined) setShips(p.ships);
+    const rest: Partial<SceneLayers> = {};
+    for (const k of Object.keys(PILOT_LAYER_DEFAULTS) as (keyof typeof PILOT_LAYER_DEFAULTS)[]) if (p[k] !== undefined) rest[k] = p[k];
+    if (Object.keys(rest).length) setLay({ ...laySaved, ...rest });
+  };
   const [quality, setQuality] = useQuality();
   const o = e.outputs;
   const ap = e.state.autopilot;
@@ -225,9 +247,7 @@ export function PilotScreen() {
               markers: marks,
               trimRef,
               ships,
-              pipes: true,
-              flows: true,
-              labels: true,
+              ...lay,
               highlight: ops.highlight,
             }}
             onPick={(p) => {
@@ -312,7 +332,15 @@ export function PilotScreen() {
                 <button className={`btn sm ${ships ? 'on' : ''}`} onClick={() => setShips(!ships)} title="Contatos da mesa tática como navios no mar">
                   Navios
                 </button>
+                <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Todas as camadas, com marcar/desmarcar todas">
+                  Camadas {layOpen ? '▴' : '▾'}
+                </button>
               </div>
+              {layOpen && (
+                <div className="tanksel-pop">
+                  <LayerPanel keys={PILOT_LAYER_KEYS} value={layerValue} onChange={setLayers} />
+                </div>
+              )}
               {trimRef && <TrimGainSelect compact />}
               {anyVec && (
                 <div className="tanksel-pop">

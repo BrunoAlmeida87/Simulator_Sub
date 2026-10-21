@@ -38,6 +38,12 @@ export interface SceneLayers {
   trimRef: boolean;
   /** navios (contatos da mesa tática) no mar */
   ships: boolean;
+  /** rótulos de energia sobre o modelo: carga da bateria (%) e geradores em carga */
+  batteryInfo: boolean;
+  /** rótulos das garrafas de ar comprimido: pressão, massa de ar e ar livre equivalente */
+  airInfo: boolean;
+  /** casco externo (casco, vela e convés); desligado mostra só os componentes internos */
+  hull: boolean;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -60,7 +66,52 @@ export const defaultLayers = (): SceneLayers => ({
   noWater: false,
   trimRef: false,
   ships: true,
+  batteryInfo: true,
+  airInfo: false,
+  hull: true,
 });
+
+/** camadas liga/desliga (as demais chaves de SceneLayers são ajustes, não camadas) */
+export type BoolLayer = { [K in keyof SceneLayers]: SceneLayers[K] extends boolean ? K : never }[keyof SceneLayers];
+
+/**
+ * Catálogo único das camadas, com o nome mostrado nas telas.
+ * `mode`: camadas que mudam o ambiente (tirar a água, iluminação extra) não
+ * entram em “Marcar todas”; “Desmarcar todas” desliga tudo, inclusive elas.
+ */
+export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; title: string; mode?: boolean }> = {
+  vectors: { label: 'Peso/empuxo', title: 'Peso, empuxo e resultante vertical' },
+  hydroVectors: { label: 'Hélice/lemes/resist.', title: 'Empuxo do hélice, resistência e forças dos lemes' },
+  trimVectors: { label: 'Vetores de trim', title: 'Peso deslocável, tanques de trim e momento líquido' },
+  tanks: { label: 'Tanques (corte)', title: 'Casco transparente com os tanques' },
+  pipes: { label: 'Tubulações', title: 'Tubulações, válvulas e bombas (no corte)' },
+  flows: { label: 'Escoamentos', title: 'Partículas das vazões calculadas (no corte)' },
+  labels: { label: 'Identificações', title: 'Nomes e valores sobre a cena (tanques, válvulas, navios, superfície…)' },
+  batteryInfo: { label: 'Bateria (%)', title: 'Carga da bateria e geradores em carga, junto aos componentes (com o corte/tanques)' },
+  airInfo: { label: 'Ar comprimido', title: 'Pressão e quantidade de ar de cada grupo de garrafas, junto às garrafas (com o corte/tanques)' },
+  wake: { label: 'Esteira', title: 'Esteira, onda de proa, espuma e rastro do hélice' },
+  markers: { label: 'Boias/marcos', title: 'Boias e marcos de distância fixos no cenário' },
+  trail: { label: 'Trajetória', title: 'Rastro do caminho percorrido' },
+  trimRef: { label: 'Calado/trim', title: 'Calados AV/AR e linha d’água do casco × nível do mar' },
+  ships: { label: 'Navios', title: 'Contatos da mesa tática como navios no mar' },
+  presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
+  noWater: { label: 'Sem água', title: 'Esconde o mar para ver o submarino isolado', mode: true },
+};
+
+/** “Marcar todas”: liga as camadas de informação da lista (não tira a água nem muda a luz). */
+export function allLayersOn(keys: readonly Exclude<BoolLayer, 'hull'>[]): Partial<SceneLayers> {
+  const p: Partial<SceneLayers> = {};
+  for (const k of keys) if (!LAYER_INFO[k].mode) p[k] = true;
+  if (keys.includes('vectors') || keys.includes('hydroVectors')) p.hiddenVectors = [];
+  return p;
+}
+
+/** “Desmarcar todas”: desliga todas as camadas da lista, sem exceção. */
+export function allLayersOff(keys: readonly Exclude<BoolLayer, 'hull'>[]): Partial<SceneLayers> {
+  const p: Partial<SceneLayers> = {};
+  for (const k of keys) p[k] = false;
+  return p;
+}
 
 /** Linguagem visual única para as categorias de tanques e circuitos. */
 export const TANK_STYLE = {

@@ -29,6 +29,7 @@ import { fmt, fmtTime } from '../format';
 import { toKnots } from '../../sim/units';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { useUi } from '../uiContext';
+import { LayerPanel, type LayerKey } from '../components/LayerPanel';
 
 const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
@@ -43,22 +44,18 @@ const FRAMES: [ViewMode, string, string][] = [
   ['livre', 'Livre', 'Arraste para girar, roda/pinça para aproximar'],
 ];
 
-const LAYER_LIST: [keyof SceneLayers, string][] = [
-  ['vectors', 'Peso/empuxo'],
-  ['hydroVectors', 'Hélice/lemes/resist.'],
-  ['trimVectors', 'Vetores de trim'],
-  ['tanks', 'Tanques'],
-  ['pipes', 'Tubulações'],
-  ['flows', 'Escoamentos'],
-  ['labels', 'Identificações'],
-  ['wake', 'Esteira'],
-  ['markers', 'Boias/marcos'],
-  ['trail', 'Trajetória'],
-  ['presLight', 'Iluminação'],
-  ['noWater', 'Sem água'],
-  ['trimRef', 'Calado/trim'],
-  ['ships', 'Navios'],
+/** camadas da apresentação (nomes no catálogo LAYER_INFO) */
+const LAYER_LIST: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'markers', 'trail', 'presLight', 'noWater', 'trimRef', 'ships'];
+
+/** visualização do casco: externo (opaco), corte (transparente, com os tanques) ou sem o casco externo */
+type HullMode = 'externo' | 'corte' | 'oculto';
+const HULL_MODES: [HullMode, string, string][] = [
+  ['externo', 'Externo', 'Casco opaco: forma externa, vela, lemes e pintura'],
+  ['corte', 'Corte', 'Casco transparente com os componentes internos (transparência ajustável)'],
+  ['oculto', 'Sem casco', 'Esconde casco, vela e convés: ficam os componentes internos, lemes, hélice e o contorno'],
 ];
+const hullModeOf = (L: SceneLayers): HullMode => (L.hull === false ? 'oculto' : L.tanks ? 'corte' : 'externo');
+const HULL_PATCH: Record<HullMode, Partial<SceneLayers>> = { externo: { hull: true, tanks: false }, corte: { hull: true, tanks: true }, oculto: { hull: false, tanks: true } };
 
 function usePres() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -301,13 +298,17 @@ export function PresentationScreen() {
         </Panel>
 
         <Panel title="Camadas">
-          <div className="btngroup">
-            {LAYER_LIST.map(([k, l]) => (
-              <button key={k} className={`btn sm ${L[k] ? 'on' : ''}`} onClick={() => setL(k, !L[k])}>
-                {L[k] ? '☑' : '☐'} {l}
-              </button>
-            ))}
+          <div className="row mb8">
+            <span className="subtle">Casco</span>
+            <div className="seg" role="group" aria-label="Visualização do casco">
+              {HULL_MODES.map(([m, l, tip]) => (
+                <button key={m} className={hullModeOf(L) === m ? 'on' : ''} onClick={() => pres.setLayers(HULL_PATCH[m])} title={tip}>
+                  {l}
+                </button>
+              ))}
+            </div>
           </div>
+          <LayerPanel keys={LAYER_LIST} value={L} onChange={(p) => pres.setLayers(p)} />
           {L.trimRef && (
             <div className="mt8">
               <TrimGainSelect />
