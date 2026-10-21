@@ -43,7 +43,6 @@ import { openVisualWindow } from './sync';
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'pilotagem', n: '0', label: 'Pilotagem' },
   { id: 'governo', label: 'Governo' },
-  { id: 'sala', n: '8', label: 'Sala de comando' },
   { id: 'apresentacao', label: 'Apresentação' },
   { id: 'mapa', label: 'Mapa tático' },
   { id: 'energia', label: 'Fluxo de energia' },
@@ -59,6 +58,7 @@ const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'auxiliares', label: 'Sistemas auxiliares' },
   { id: 'validacao', label: 'Validação' },
   { id: 'ajuda', label: 'Guia' },
+  { id: 'sala', n: '8', label: 'Sala de comando' },
 ];
 
 function ScenarioPicker({ current }: { current: string }) {
