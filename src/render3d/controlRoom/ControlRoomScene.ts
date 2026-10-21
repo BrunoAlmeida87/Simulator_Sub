@@ -74,6 +74,28 @@ interface Control3D {
   update?: (e: SimulationEngine, dt: number) => void;
 }
 
+/** enquadramento da câmera num posto: o posto inteiro, uma tela/face ou parte dela */
+interface Frame {
+  name: string;
+  /** pontos (mundo) que precisam caber na vista */
+  pts: THREE.Vector3[];
+  /** direção do alvo para a câmera */
+  dir: THREE.Vector3;
+  /** "para cima" do painel (vista de cima da mesa) */
+  up?: THREE.Vector3;
+  panel?: CanvasPanel;
+  /** faixa horizontal do painel (0–1) */
+  u?: [number, number];
+  /** posto sem telas (periscópio): enquadramento fixo da estação */
+  fixed?: { pos: THREE.Vector3; look: THREE.Vector3 };
+}
+
+export interface FrameInfo {
+  i: number;
+  n: number;
+  name: string;
+}
+
 interface Obstacle {
   x0: number;
   x1: number;
@@ -117,6 +139,8 @@ export class ControlRoomScene {
   private pickables: THREE.Object3D[] = [];
   private obstacles: Obstacle[] = [];
   private circles: { x: number; z: number; r: number }[] = [];
+  /** cadeiras dos postos: somem quando o posto está em foco (o operador está sentado nela) */
+  private seats: { st: string; obj: THREE.Object3D }[] = [];
   readonly ui: RoomUiState = { dose: {}, page: {}, lampTest: false, guards: {}, lighting: 'normal', scenario: 0 };
   // câmera em primeira pessoa
   private pos = new THREE.Vector3(...START_POSE.pos);
@@ -127,6 +151,14 @@ export class ControlRoomScene {
   move = { f: 0, s: 0 };
   private tween: { from: THREE.Vector3; to: THREE.Vector3; qFrom: THREE.Quaternion; qTo: THREE.Quaternion; t: number } | null = null;
   focused: string | null = null;
+  /** enquadramentos do posto em foco e o atual */
+  private frames: Frame[] = [];
+  private frameIdx = 0;
+  /** o usuário girou a vista no posto: não reenquadrar ao redimensionar */
+  private userLooked = false;
+  onFrame: ((f: FrameInfo | null) => void) | null = null;
+  /** realce do controle 3D sob o mouse */
+  private hl: THREE.Box3Helper;
   // interação
   private ray = new THREE.Raycaster();
   private ndc = new THREE.Vector2();
@@ -188,6 +220,9 @@ export class ControlRoomScene {
     bl.position.set(1.75, 2.3, -6.6);
     this.scene.add(bm, bl);
     this.beacon = { light: bl, mesh: bm };
+    this.hl = new THREE.Box3Helper(new THREE.Box3(), 0xffd54a);
+    this.hl.visible = false;
+    this.scene.add(this.hl);
     this.resize();
     this.updateCamera(0);
   }
@@ -234,7 +269,7 @@ export class ControlRoomScene {
   }
 
   /** separa as peças móveis (painéis, controles) e funde o resto por material (menos chamadas de desenho) */
-  private bake(group: THREE.Group, station: string | null): void {
+  private bake(group: THREE.Group, station: string | null): THREE.Group {
     this.scene.add(group);
     group.updateMatrixWorld(true);
     const dyn: THREE.Object3D[] = [];
@@ -284,6 +319,7 @@ export class ControlRoomScene {
     // também as peças sem estação: bloqueiam o raio (não se clica através de paredes e consoles)
     this.pickables.push(out);
     this.scene.add(out);
+    return out;
   }
 
   private block(x0: number, x1: number, z0: number, z1: number): void {
@@ -296,7 +332,9 @@ export class ControlRoomScene {
     s.rotation.y = rotY;
     const g = new THREE.Group();
     g.add(s);
-    this.bake(g, parentStation);
+    const out = this.bake(g, parentStation);
+    out.traverse((o) => (o.userData.seat = true));
+    if (parentStation) this.seats.push({ st: parentStation, obj: out });
     this.circles.push({ x, z, r: 0.3 });
   }
 
@@ -928,10 +966,11 @@ export class ControlRoomScene {
     const h = Math.max(10, this.container.clientHeight);
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    // telas estreitas (retrato): campo de visão maior
-    const base = w / h < 0.9 ? 78 : 62;
+    const base = this.baseFov();
     this.camera.fov = (2 * Math.atan(Math.tan((base * Math.PI) / 360) / (this.focused ? this.zoom : 1)) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
+    // posto em foco: reenquadra para a nova proporção da vista (painel lateral aberto/fechado, giro do celular)
+    if (this.focused && this.frames.length && !this.userLooked) this.goFrame(false);
     // redesenha já: setSize limpa o canvas (evita um quadro preto ao abrir/fechar o painel lateral)
     if (!this.disposed && this.scene.children.length) this.renderer.render(this.scene, this.camera);
   }
@@ -940,33 +979,175 @@ export class ControlRoomScene {
     return new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
   }
 
-  /** aproxima a câmera de uma estação (ou volta a andar com null) */
-  focus(id: string | null): void {
+  /** campo de visão vertical sem zoom: telas estreitas (retrato) usam um maior */
+  private baseFov(): number {
+    return this.camera.aspect < 0.9 ? 78 : 62;
+  }
+
+  /** enquadramentos de um posto: o posto inteiro, cada tela/face e, nas faces largas, cada metade */
+  private buildFrames(id: string): Frame[] {
+    const st = stationById(id)!;
+    const sdir = new THREE.Vector3(...st.view.pos).sub(new THREE.Vector3(...st.view.look)).normalize();
+    const panels = this.panels.filter((p) => p.opts.station === id);
+    const ctls = this.controls.filter((c) => c.station === id);
+    this.scene.updateMatrixWorld(true);
+    const corners = (b: THREE.Box3) => [0, 1, 2, 3, 4, 5, 6, 7].map((i) => new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z));
+    const panelPts = (p: CanvasPanel, u0 = 0, u1 = 1) =>
+      [
+        [u0, 0],
+        [u1, 0],
+        [u0, 1],
+        [u1, 1],
+      ].map(([u, v]) => new THREE.Vector3((u - 0.5) * p.opts.w, (v - 0.5) * p.opts.h, 0).applyMatrix4(p.mesh.matrixWorld));
+    const normal = (p: CanvasPanel) => new THREE.Vector3(0, 0, 1).transformDirection(p.mesh.matrixWorld);
+    const upOf = (p: CanvasPanel) => new THREE.Vector3(0, 1, 0).transformDirection(p.mesh.matrixWorld);
+    const ctlPts = (cs: Control3D[]) => cs.flatMap((c) => corners(new THREE.Box3().setFromObject(c.obj)));
+    if (!panels.length) return [{ name: st.name, pts: [], dir: sdir, fixed: { pos: new THREE.Vector3(...st.view.pos), look: new THREE.Vector3(...st.view.look) } }];
+    const single = panels.length === 1 ? panels[0] : null;
+    const frames: Frame[] = [
+      {
+        name: 'Visão geral',
+        pts: [...panels.flatMap((p) => panelPts(p)), ...ctlPts(ctls)],
+        dir: single ? normal(single) : sdir,
+        up: single ? upOf(single) : undefined,
+        panel: single && !ctls.length ? single : undefined,
+      },
+    ];
+    for (const p of panels) {
+      if (p !== single || ctls.length) frames.push({ name: p.opts.name, pts: panelPts(p), dir: normal(p), up: upOf(p), panel: p });
+      // faces largas: também cada metade (texto maior)
+      if (p.opts.w > 1.0)
+        for (const [u0, u1, side] of [
+          [0, 0.56, 'esquerda'],
+          [0.44, 1, 'direita'],
+        ] as const)
+          frames.push({ name: `${p.opts.name} — ${side}`, pts: panelPts(p, u0, u1), dir: normal(p), up: upOf(p), panel: p, u: [u0, u1] });
+    }
+    const manual = ctls.filter((c) => c.drag);
+    if (manual.length && panels.length) frames.push({ name: id === 'governo' ? 'Manches e telégrafo' : 'Comandos manuais', pts: ctlPts(manual), dir: sdir });
+    // sem repetições (ex.: face única cujos controles ficam sobre ela)
+    const out: { f: Frame; at: THREE.Vector3 }[] = [];
+    for (const f of frames) {
+      if (!f.pts.length) continue;
+      const at = this.fit(f).pos;
+      const twin = out.find((o) => o.f.dir.dot(f.dir) > 0.98 && o.at.distanceTo(at) < 0.2);
+      if (twin) {
+        // o quadro que fica guarda o painel (clique na face → este quadro)
+        if (!twin.f.panel && f.panel && !f.u) twin.f.panel = f.panel;
+        continue;
+      }
+      out.push({ f, at });
+    }
+    return out.map((o) => o.f);
+  }
+
+  /** posição da câmera que enquadra todos os pontos do quadro, olhando de frente para ele */
+  private fit(f: Frame): { pos: THREE.Vector3; yaw: number; pitch: number } {
+    if (f.fixed) {
+      const d = f.fixed.look.clone().sub(f.fixed.pos).normalize();
+      return { pos: f.fixed.pos.clone(), yaw: Math.atan2(-d.x, -d.z), pitch: Math.asin(clamp(d.y, -1, 1)) };
+    }
+    const c = new THREE.Box3().setFromPoints(f.pts).getCenter(new THREE.Vector3());
+    const fwd = f.dir.clone().negate();
+    const pitch = Math.asin(clamp(fwd.y, -1, 1));
+    // olhando quase na vertical (mesa): o alto da imagem segue o "para cima" do painel
+    const yaw = Math.abs(fwd.y) > 0.97 && f.up ? Math.atan2(-f.up.x, -f.up.z) : Math.atan2(-fwd.x, -fwd.z);
+    const q = this.lookQuat(yaw, pitch);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    const back = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    // faixas da interface sobre a vista (indicadores em cima; barra do posto e dica embaixo)
+    const hpx = Math.max(200, this.container.clientHeight);
+    const padT = 44;
+    const padB = 76;
+    const tanV0 = Math.tan((this.baseFov() * Math.PI) / 360);
+    const tanV = tanV0 * (1 - (padT + padB) / hpx) * 0.95;
+    const tanH = tanV0 * this.camera.aspect * 0.92;
+    let d = 0.3;
+    for (const p of f.pts) {
+      const r = p.clone().sub(c);
+      const z = r.dot(back);
+      d = Math.max(d, z + Math.abs(r.dot(right)) / tanH, z + Math.abs(r.dot(up)) / tanV);
+    }
+    // desce a câmera para o alvo ficar no meio da área livre (acima da barra inferior)
+    const pos = c.addScaledVector(back, d).addScaledVector(up, (-(padB - padT) / hpx) * tanV0 * d);
+    // dentro do casco
+    pos.z = clamp(pos.z, ROOM.zFwd + 0.2, ROOM.zAft - 0.2);
+    pos.y = clamp(pos.y, 0.6, TOP - 0.3);
+    const hw = halfWidth(pos.y) - 0.15;
+    pos.x = clamp(pos.x, -hw, hw);
+    return { pos, yaw, pitch };
+  }
+
+  /** leva a câmera ao enquadramento atual (com transição suave ou direto) */
+  private goFrame(smooth: boolean): void {
+    const f = this.frames[this.frameIdx];
+    if (!f) return;
+    const t = this.fit(f);
+    const qTo = this.lookQuat(t.yaw, t.pitch);
+    if (smooth) this.tween = { from: this.camera.position.clone(), to: t.pos, qFrom: this.camera.quaternion.clone(), qTo, t: 0 };
+    else if (this.tween) {
+      this.tween.to = t.pos;
+      this.tween.qTo = qTo;
+    } else this.pos.copy(t.pos);
+    this.yaw = t.yaw;
+    this.pitch = t.pitch;
+  }
+
+  private emitFrame(): void {
+    const f = this.frames[this.frameIdx];
+    this.onFrame?.(this.focused && f ? { i: this.frameIdx, n: this.frames.length, name: f.name } : null);
+  }
+
+  /** aproxima a câmera de uma estação (ou volta a andar com null); `frame` escolhe o enquadramento */
+  focus(id: string | null, frame = 0): void {
     this.zoom = 1;
     if (!id) {
       if (this.focused) {
         this.focused = null;
+        this.frames = [];
+        for (const s of this.seats) s.obj.visible = true;
         this.resize();
         // de pé no lugar, fora dos obstáculos
         this.pos.y = ROOM.eye;
         this.collide();
         this.onFocus?.(null);
+        this.emitFrame();
       }
       return;
     }
-    const st = stationById(id);
-    if (!st) return;
-    const to = new THREE.Vector3(...st.view.pos);
-    const look = new THREE.Vector3(...st.view.look);
-    const d = look.clone().sub(to).normalize();
-    const yaw = Math.atan2(-d.x, -d.z);
-    const pitch = Math.asin(clamp(d.y, -1, 1));
-    this.tween = { from: this.pos.clone(), to, qFrom: this.lookQuat(this.yaw, this.pitch), qTo: this.lookQuat(yaw, pitch), t: 0 };
-    this.yaw = yaw;
-    this.pitch = pitch;
+    if (!stationById(id)) return;
+    const was = this.focused;
+    if (id !== was || !this.frames.length) this.frames = this.buildFrames(id);
+    this.frameIdx = clamp(frame, 0, this.frames.length - 1);
+    this.userLooked = false;
     this.focused = id;
+    for (const s of this.seats) s.obj.visible = s.st !== id;
     this.resize();
-    this.onFocus?.(id);
+    this.goFrame(true);
+    if (was !== id) this.onFocus?.(id);
+    this.emitFrame();
+  }
+
+  /** enquadramento seguinte/anterior do posto em foco (◀ ▶) */
+  frameStep(d: number): void {
+    if (!this.focused || !this.frames.length) return;
+    const n = this.frames.length;
+    this.focus(this.focused, (((this.frameIdx + d) % n) + n) % n);
+  }
+
+  /** posto seguinte/anterior (Tab) */
+  stationStep(d: number): void {
+    const n = STATIONS.length;
+    const i = this.focused ? STATIONS.findIndex((s) => s.id === this.focused) : d > 0 ? -1 : 0;
+    this.focus(STATIONS[(((i + d) % n) + n) % n].id);
+  }
+
+  /** índice do enquadramento que mostra este painel (a metade sob o ponto clicado, nas faces largas) */
+  private panelFrame(id: string, panel: CanvasPanel): number {
+    const frames = id === this.focused && this.frames.length ? this.frames : this.buildFrames(id);
+    const i = frames.findIndex((f) => f.panel === panel && !f.u);
+    return i < 0 ? 0 : i;
   }
 
   /** tecla pressionada/solta (WASD/setas, Shift = correr) */
@@ -978,9 +1159,10 @@ export class ControlRoomScene {
   /** olha ao redor (px de arrasto) */
   look(dx: number, dy: number): void {
     this.cancelTween();
+    if (this.focused) this.userLooked = true;
     const k = (this.camera.fov / 62) * 0.0042;
     this.yaw -= dx * k;
-    this.pitch = clamp(this.pitch - dy * k, -1.35, 1.35);
+    this.pitch = clamp(this.pitch - dy * k, -1.5, 1.5);
   }
 
   private cancelTween(): void {
@@ -1091,6 +1273,8 @@ export class ControlRoomScene {
     this.setNdc(x, y);
     const hits = this.ray.intersectObjects(this.pickables, true);
     for (const h of hits) {
+      // cadeira escondida (posto em foco): não bloqueia
+      if (h.object.userData.seat && !h.object.parent?.visible) continue;
       let o: THREE.Object3D | null = h.object;
       while (o && !o.userData.control && !o.userData.panel && !o.userData.station) o = o.parent;
       // primeira superfície sem função (parede, piso, teto): bloqueia
@@ -1155,6 +1339,8 @@ export class ControlRoomScene {
     if (prevPanel && (prevPanel !== this.hoverPanel || prevRegion !== this.hoverRegion)) prevPanel.dirty = true;
     if (this.hoverPanel && prevRegion !== this.hoverRegion) this.hoverPanel.dirty = true;
     this.renderer.domElement.style.cursor = p && (p.ctl || p.region?.action || p.station) ? 'pointer' : 'default';
+    const nearCtl = !!p?.ctl && (p.dist < REACH || !p.ctl.station || this.focused === p.ctl.station);
+    this.highlight(nearCtl ? p!.ctl : null);
     if (!p) return this.onHover?.(null);
     const near = p.dist < REACH || (!!p.station && this.focused === p.station);
     const st = p.station ? stationById(p.station) : null;
@@ -1163,6 +1349,16 @@ export class ControlRoomScene {
     if (p.tip) return this.emitHover(p.tip, false, p.station);
     if (st) return this.emitHover(`${st.name} — clique para aproximar e abrir o painel`, false, st.id);
     this.onHover?.(null);
+  }
+
+  private highlighted: Control3D | null = null;
+
+  /** contorno no controle 3D que o clique/arrasto vai acionar */
+  private highlight(c: Control3D | null): void {
+    if (c === this.highlighted) return;
+    this.highlighted = c;
+    this.hl.visible = !!c;
+    if (c) this.hl.box.setFromObject(c.obj);
   }
 
   private click(x: number, y: number): void {
@@ -1178,6 +1374,12 @@ export class ControlRoomScene {
     if (p.region?.action && near) {
       p.region.action();
       this.markDirty(p.panel?.opts.station ?? null);
+      return;
+    }
+    // clique numa tela/face fora dos botões: centraliza a câmera nela
+    if (p.panel && p.station) {
+      const cur = this.focused === p.station ? this.frames[this.frameIdx] : null;
+      if (cur?.panel !== p.panel) this.focus(p.station, this.panelFrame(p.station, p.panel));
       return;
     }
     if (p.station && this.focused !== p.station) this.focus(p.station);
@@ -1277,6 +1479,7 @@ export class ControlRoomScene {
       for (const mt of Array.isArray(m.material) ? m.material : [m.material]) mats.add(mt);
     });
     for (const mt of mats) mt.dispose();
+    this.hl.dispose();
     this.envTex.dispose();
     this.pmrem.dispose();
     disposeRoomTextures();

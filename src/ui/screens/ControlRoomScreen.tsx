@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cmd, runner, useSim } from '../store';
 import { usePersisted, loadPersisted, savePersisted } from '../persist';
 import { useUi } from '../uiContext';
-import type { ControlRoomScene, HoverInfo } from '../../render3d/controlRoom/ControlRoomScene';
+import type { ControlRoomScene, FrameInfo, HoverInfo } from '../../render3d/controlRoom/ControlRoomScene';
 import type { RoomActions } from '../../render3d/controlRoom/actions';
 import type { RoomLighting } from '../../render3d/controlRoom/panel';
 import { STATIONS, stationById } from '../../render3d/controlRoom/stations';
@@ -387,6 +387,7 @@ export function ControlRoomScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
+  const [frame, setFrame] = useState<FrameInfo | null>(null);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [panelOpen, setPanelOpen] = usePersisted('room.panelOpen', true);
   const [help, setHelp] = usePersisted('room.help', true);
@@ -454,6 +455,7 @@ export function ControlRoomScreen() {
         const scen = SCENARIOS.findIndex((s) => s.id === runner.engine.state.scenarioId);
         sc.ui.scenario = Math.max(0, scen);
         sc.onHover = setHover;
+        sc.onFrame = setFrame;
         sc.onFocus = (id) => {
           setFocus(id);
           if (id) setMenu(false);
@@ -499,6 +501,18 @@ export function ControlRoomScreen() {
       if (ev.code === 'Escape') {
         if (menu) setMenu(false);
         else sceneRef.current?.focus(null);
+        return;
+      }
+      // Tab / Shift+Tab: posto seguinte/anterior; ← → no posto: tela seguinte/anterior
+      if (ev.code === 'Tab' && !ev.ctrlKey && !ev.altKey) {
+        ev.preventDefault();
+        sceneRef.current?.stationStep(ev.shiftKey ? -1 : 1);
+        setPanelOpen(true);
+        return;
+      }
+      if (sceneRef.current?.focused && (ev.code === 'ArrowLeft' || ev.code === 'ArrowRight')) {
+        ev.preventDefault();
+        if (!ev.repeat) sceneRef.current.frameStep(ev.code === 'ArrowLeft' ? -1 : 1);
         return;
       }
       if (MOVE.has(ev.code)) {
@@ -649,7 +663,7 @@ export function ControlRoomScreen() {
                   <b>Olhar:</b> arraste o dedo na cena.
                 </li>
                 <li>
-                  <b>Toque num posto:</b> a câmera se aproxima e o painel com todos os controles abre abaixo da cena.
+                  <b>Toque num posto:</b> a câmera se aproxima e o painel com todos os controles abre abaixo da cena. Tocar numa tela fora dos botões centraliza a câmera nela; ◀ ▶ passam de tela em tela.
                 </li>
                 <li>
                   <b>De perto:</b> toque nos botões das telas e do painel do lastro, nos volantes e no anunciador; arraste os <b>manches</b> e o <b>telégrafo</b>.
@@ -667,7 +681,10 @@ export function ControlRoomScreen() {
                   <b>Olhar:</b> arraste em qualquer ponto vazio.
                 </li>
                 <li>
-                  <b>Clique num posto de longe:</b> a câmera se aproxima e o painel com todos os controles abre ao lado.
+                  <b>Clique num posto de longe:</b> a câmera se aproxima e o painel com todos os controles abre ao lado. Clicar numa tela fora dos botões centraliza a câmera nela.
+                </li>
+                <li>
+                  <b>No posto:</b> ← → (ou ◀ ▶) passam de tela em tela; <b>Tab</b> / Shift+Tab vão ao posto seguinte/anterior; a roda do mouse aproxima a vista.
                 </li>
                 <li>
                   <b>De perto:</b> os botões das telas, as lâmpadas do painel do lastro, os volantes e o anunciador funcionam com o clique; arraste os <b>manches</b> e o <b>telégrafo</b>.
@@ -685,8 +702,21 @@ export function ControlRoomScreen() {
         {focus && (
           <div className="room-focusbar" onPointerDown={(ev) => ev.stopPropagation()}>
             <button className="btn sm" onClick={leave}>
-              ◀ Sair do posto (Esc)
+              ✕ Sair do posto (Esc)
             </button>
+            {frame && frame.n > 1 && (
+              <span className="room-frames">
+                <button className="btn sm" onClick={() => sceneRef.current?.frameStep(-1)} title="Enquadramento anterior (←)">
+                  ◀
+                </button>
+                <span className="room-frame-name">
+                  {frame.name} <small>{`${frame.i + 1}/${frame.n}`}</small>
+                </span>
+                <button className="btn sm" onClick={() => sceneRef.current?.frameStep(1)} title="Próximo enquadramento (→)">
+                  ▶
+                </button>
+              </span>
+            )}
             {!panelOpen && (
               <button className="btn sm on" onClick={() => setPanelOpen(true)}>
                 Abrir painel
@@ -699,13 +729,13 @@ export function ControlRoomScreen() {
             )}
           </div>
         )}
-        <div className={`room-hint ${hover?.direct ? 'direct' : ''}`}>
+        <div className={`room-hint ${hover?.direct ? 'direct' : ''} ${hover ? '' : 'idle'}`}>
           {hover
             ? hover.text
             : focus
               ? coarse
-                ? 'Toque nos controles da estação ou use o painel abaixo.'
-                : 'Clique nos controles da estação ou use o painel ao lado.'
+                ? 'Toque nos controles · ◀ ▶ trocam de tela · painel abaixo'
+                : 'Clique nos controles · ← → trocam de tela · Tab = próximo posto'
               : coarse
                 ? 'Arraste para olhar · ▲▼◀▶ para andar · toque num posto'
                 : 'Arraste para olhar · WASD para andar · clique num posto para se aproximar'}
