@@ -133,7 +133,7 @@ export function ScenarioScreen() {
                 <Badges kind="posiciona e enquadra" coast={coast[x.scenario] ?? false} />
                 <div className="subtle">{x.note}</div>
                 <div className="subtle">Parte de: {scenarioName(x.scenario)}</div>
-                <button className={`btn ${pres.presetId === x.id && e.state.scenarioId === x.scenario ? 'on' : ''}`} onClick={() => openSituation(x.id)}>
+                <button className="btn" onClick={() => openSituation(x.id)}>
                   ▶ Abrir na Apresentação
                 </button>
               </div>
@@ -142,8 +142,8 @@ export function ScenarioScreen() {
         </div>
       </Panel>
 
-      <Panel title="Roteiros automáticos" className="span-all" tag={<span className="badge info">executa sozinho</span>}>
-        <TourList goTo />
+      <Panel title="Roteiros automáticos" className="span-all">
+        <TourList goTo extra={(tr) => <Badges kind="executa sozinho" coast={coast[tr.scenario] ?? false} />} />
       </Panel>
     </div>
   );

@@ -1,4 +1,5 @@
 /** Cartão de narração do roteiro automático e lista de roteiros. */
+import type { ReactNode } from 'react';
 import { runner, useSim } from '../store';
 import { tours, TOURS, type Tour, type TourOutcome } from '../tours';
 import { useUi } from '../uiContext';
@@ -93,8 +94,8 @@ export function TourCard({ compact }: { compact?: boolean }) {
   );
 }
 
-/** Lista dos roteiros automáticos com botão de início. */
-export function TourList({ goTo }: { goTo?: boolean }) {
+/** Lista dos roteiros automáticos com botão de início (`extra`: indicações extras por roteiro). */
+export function TourList({ goTo, extra }: { goTo?: boolean; extra?: (tr: Tour) => ReactNode }) {
   useSim(2);
   const ui = useUi();
   const go = (tr: Tour) => {
@@ -115,6 +116,7 @@ export function TourList({ goTo }: { goTo?: boolean }) {
               </button>
             )}
           </div>
+          {extra?.(tr)}
           <div className="subtle">
             {tr.description} {tr.steps.length} etapas, narradas.
           </div>
