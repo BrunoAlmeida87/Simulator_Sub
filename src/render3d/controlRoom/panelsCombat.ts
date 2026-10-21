@@ -265,6 +265,33 @@ function plot(c: DrawCtx, act: RoomActions, x: number, y: number, w: number, h: 
     g.stroke();
     g.setLineDash([]);
   }
+  // marcações do periscópio: linha de marcação a partir de onde foi observada (e a distância, se medida)
+  for (const m of act.periMarks?.() ?? []) {
+    if (m.t > s.t + 1e-6) continue;
+    const b = (m.brg * Math.PI) / 180;
+    const len = m.rng ?? scaleKm * 1000 * 1.6;
+    const [ox, oy] = P(m.n, m.e);
+    const [tx, ty] = P(m.n + Math.cos(b) * len, m.e + Math.sin(b) * len);
+    g.strokeStyle = '#ff9f43';
+    g.lineWidth = 2;
+    g.setLineDash(m.rng ? [] : [10, 7]);
+    g.beginPath();
+    g.moveTo(ox, oy);
+    g.lineTo(tx, ty);
+    g.stroke();
+    g.setLineDash([]);
+    if (m.rng) {
+      g.beginPath();
+      g.moveTo(tx - 8, ty - 8);
+      g.lineTo(tx + 8, ty + 8);
+      g.moveTo(tx + 8, ty - 8);
+      g.lineTo(tx - 8, ty + 8);
+      g.stroke();
+    }
+    const lx = m.rng ? tx : ox + (tx - ox) * 0.25;
+    const ly = m.rng ? ty : oy + (ty - oy) * 0.25;
+    text(g, m.label, lx + 10, ly + 16, opts.table ? 19 : 17, '#ff9f43', 'left', 'bold');
+  }
   // contatos
   const cts = roomContacts(e, act);
   for (const ct of cts) {

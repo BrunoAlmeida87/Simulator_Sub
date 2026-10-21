@@ -30,4 +30,21 @@ export interface RoomActions {
   geoOrigin: () => LatLon;
   /** rota por pontos (mapa tático): pontos restantes e destino atual */
   route: () => { points: { lat: number; lon: number }[]; idx: number; active: boolean };
+  /** marcações feitas pelo periscópio (desenhadas no quadro tático e na mesa) */
+  periMarks?: () => PeriMark[];
+}
+
+/** observação pelo periscópio: de onde (posição própria NED), para onde (marcação verdadeira) e, se medida, a distância */
+export interface PeriMark {
+  label: string;
+  /** tempo da simulação (s) */
+  t: number;
+  n: number;
+  e: number;
+  /** marcação verdadeira (°) */
+  brg: number;
+  /** distância pelo estadímetro (m) ou null */
+  rng: number | null;
+  /** contato na linha de visada, se houver */
+  id: string | null;
 }

@@ -23,19 +23,16 @@ import { maneuver, MANEUVER_STEPS } from '../maneuvers';
 import { SCENARIOS } from '../../sim/scenarios';
 import { graphics } from '../graphics';
 import { geoOriginOf, route } from '../routeNav';
-import { Scene3D, defaultQuality } from '../components/Scene3D';
+import { defaultQuality } from '../components/Scene3D';
 import type { PeriscopeSight } from '../../render3d/SubmarineScene';
 import { RoomPip } from './RoomPip';
+import { RoomPeriscope, recentMarks } from './RoomPeriscope';
+import { periMarks } from './periMarks';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { cpa } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
 import { nearestOrder } from '../../sim/telegraph';
 import { fmt } from '../format';
-
-const PERI_POWERS: { fov: number; label: string }[] = [
-  { fov: 32, label: '1,5×' },
-  { fov: 8, label: '6×' },
-];
 
 function maneuverText(): string | null {
   if (!maneuver.active) return null;
@@ -171,6 +168,14 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
         <button className="btn ok" onClick={onPeri}>
           Olhar pelo periscópio
         </button>
+        {recentMarks().length > 0 && (
+          <div className="subtle">
+            Marcações: <span className="mono">{recentMarks().slice(-6).join(' · ')}</span>{' '}
+            <button className="btn sm" onClick={() => periMarks.clear()}>
+              Apagar marcações
+            </button>
+          </div>
+        )}
         <div className="subtle">
           Na cota periscópica (≈ {fmt(e.vessel.hull.diameter + e.vessel.hull.sail.height + 5.3, 0)} m de quilha) e com o periscópio içado, a cabeça fica fora d’água.{' '}
           {mastOut(e) ? 'Agora há mastro/antena fora d’água.' : ''}
@@ -244,135 +249,6 @@ function StationPanel({ id, acts, onClose, onPeri }: { id: string; acts: RoomAct
   );
 }
 
-/** visada do periscópio: cena externa com a câmera na cabeça do periscópio, retículo e escala de marcação */
-function PeriscopeView({ sight, setSight, onExit }: { sight: PeriscopeSight; setSight: (s: PeriscopeSight) => void; onExit: () => void }) {
-  const e = useSim(10);
-  const pr = e.state.periscope ?? { cmd: false, pos: 0 };
-  const raised = pr.pos > 0.97;
-  const drag = useRef<{ x: number; y: number; b: number; el: number } | null>(null);
-  const hdg = e.outputs.euler.heading;
-  const trueBrg = (((hdg + sight.bearing) % 360) + 360) % 360;
-  const wrap = (b: number) => ((((b + 180) % 360) + 360) % 360) - 180;
-  const k = sight.fov / 600;
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') onExit();
-      else if (ev.key === 'ArrowLeft' || ev.key === 'a') setSight({ ...sight, bearing: wrap(sight.bearing - 2) });
-      else if (ev.key === 'ArrowRight' || ev.key === 'd') setSight({ ...sight, bearing: wrap(sight.bearing + 2) });
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
-  return (
-    <div
-      className="room-peri"
-      onPointerDown={(ev) => {
-        (ev.currentTarget as Element).setPointerCapture(ev.pointerId);
-        drag.current = { x: ev.clientX, y: ev.clientY, b: sight.bearing, el: sight.elev };
-      }}
-      onPointerMove={(ev) => {
-        const d = drag.current;
-        if (!d) return;
-        setSight({ ...sight, bearing: wrap(d.b - (ev.clientX - d.x) * k), elev: Math.max(-10, Math.min(30, d.el + (ev.clientY - d.y) * k)) });
-      }}
-      onPointerUp={() => (drag.current = null)}
-    >
-      <Scene3D
-        view="periscopio"
-        periscope={sight}
-        quality={defaultQuality()}
-        labels={false}
-        syncVisual={false}
-        layers={{
-          vectors: false,
-          hydroVectors: false,
-          trimVectors: false,
-          tanks: false,
-          flows: false,
-          pipes: false,
-          labels: false,
-          batteryInfo: false,
-          airInfo: false,
-          trail: false,
-          trimRef: false,
-          noWater: false,
-          markers: false,
-          wake: true,
-          ships: true,
-          hull: true,
-        }}
-      />
-      <svg className="room-reticle" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <mask id="peri-mask">
-            <rect x="-1000" y="-1000" width="2000" height="2000" fill="white" />
-            <circle r="92" fill="black" />
-          </mask>
-        </defs>
-        <rect x="-1000" y="-1000" width="2000" height="2000" fill="#000" mask="url(#peri-mask)" />
-        <circle r="92" fill="none" stroke="#000" strokeWidth="3" />
-        <line x1="-92" y1="0" x2="-8" y2="0" stroke="#111" strokeWidth="0.8" />
-        <line x1="8" y1="0" x2="92" y2="0" stroke="#111" strokeWidth="0.8" />
-        <line x1="0" y1="-92" x2="0" y2="-8" stroke="#111" strokeWidth="0.8" />
-        <line x1="0" y1="8" x2="0" y2="40" stroke="#111" strokeWidth="0.8" />
-        {Array.from({ length: 9 }, (_, i) => i - 4)
-          .filter((i) => i)
-          .map((i) => (
-            <line key={i} x1={i * 10} y1="-3" x2={i * 10} y2="3" stroke="#111" strokeWidth="0.7" />
-          ))}
-        {Array.from({ length: 4 }, (_, i) => i + 1).map((i) => (
-          <line key={i} x1="-3" y1={i * 8} x2="3" y2={i * 8} stroke="#111" strokeWidth="0.7" />
-        ))}
-      </svg>
-      {!raised && <div className="room-peri-dark" style={{ opacity: Math.min(1, 1.15 - pr.pos) }} />}
-      {!raised && (
-        <div className="room-peri-off">
-          <b>PERISCÓPIO {pr.cmd ? `IÇANDO… ${Math.round(pr.pos * 100)} %` : 'ARRIADO'}</b>
-          <span>{pr.cmd ? 'Aguarde o fim do curso.' : 'Ice o periscópio para olhar.'}</span>
-        </div>
-      )}
-      <div className="room-peri-bar" onPointerDown={(ev) => ev.stopPropagation()}>
-        <div className="room-peri-brg mono">
-          <span>
-            MARCAÇÃO <b>{String(Math.round(trueBrg)).padStart(3, '0')}°</b>
-          </span>
-          <span>
-            relativa {sight.bearing >= 0 ? 'BE' : 'BB'} {Math.abs(Math.round(sight.bearing))}°
-          </span>
-          <span>elevação {fmt(sight.elev, 0)}°</span>
-        </div>
-        <div className="row" style={{ gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button className="btn sm" onClick={() => setSight({ ...sight, bearing: wrap(sight.bearing - 10) })}>
-            ◀ 10°
-          </button>
-          <button className="btn sm" onClick={() => setSight({ ...sight, bearing: 0, elev: 0 })}>
-            Proa
-          </button>
-          <button className="btn sm" onClick={() => setSight({ ...sight, bearing: wrap(sight.bearing + 10) })}>
-            10° ▶
-          </button>
-          <span className="seg">
-            {PERI_POWERS.map((p) => (
-              <button key={p.label} className={Math.abs(sight.fov - p.fov) < 0.1 ? 'on' : ''} onClick={() => setSight({ ...sight, fov: p.fov })}>
-                {p.label}
-              </button>
-            ))}
-          </span>
-          <button className={`btn sm ${pr.cmd ? 'on' : ''}`} onClick={() => cmd({ type: 'periscope', raise: !pr.cmd })}>
-            {pr.cmd ? 'Arriar' : 'Içar'} periscópio
-          </button>
-          <button className="btn sm warn" onClick={onExit}>
-            Sair (Esc)
-          </button>
-        </div>
-        <div className="subtle">
-          Arraste para girar o periscópio · cota {fmt(e.outputs.depthKeel, 1)} m · {fmt(toKnots(e.outputs.speed), 1)} nós
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const LIGHT_LABEL: Record<RoomLighting, string> = { normal: 'Normal', vermelha: 'Vermelha', azul: 'Azul' };
 
 export function ControlRoomScreen() {
@@ -425,6 +301,7 @@ export function ControlRoomScreen() {
       traffic: () => graphics.get().traffic,
       geoOrigin: () => geoOriginOf(runner.engine),
       route: () => ({ points: route.points, idx: route.idx, active: route.active }),
+      periMarks: () => periMarks.list(runner.engine.state.t),
     }),
     [],
   );
@@ -751,7 +628,7 @@ export function ControlRoomScreen() {
           </div>
         )}
         {pip && !peri && <RoomPip onClose={() => setPip(false)} />}
-        {peri && <PeriscopeView sight={sight} setSight={setSight} onExit={() => setPeri(false)} />}
+        {peri && <RoomPeriscope sight={sight} setSight={setSight} onExit={() => setPeri(false)} acts={acts} />}
       </div>
       {focus && panelOpen && <StationPanel id={focus} acts={acts} onClose={() => setPanelOpen(false)} onPeri={() => setPeri(true)} />}
     </div>
