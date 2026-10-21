@@ -82,7 +82,7 @@ export function restoreSession(raw: unknown, opts: { automations?: boolean } = {
   demo.restore(a.demo);
   if (demo.active) resumed.push(`demonstração automática (etapa ${demo.k + 1}/${demo.steps.length})`);
   tours.restore(runner, a.tour);
-  if (tours.active && tours.tour) resumed.push(`cenário guiado “${tours.tour.name}” (etapa ${tours.k + 1}/${tours.tour.steps.length})`);
+  if (tours.active && tours.tour) resumed.push(`roteiro automático “${tours.tour.name}” (etapa ${tours.k + 1}/${tours.tour.steps.length})`);
   if (a.route) {
     route.restore(a.route);
     if (route.active) resumed.push(`seguimento de rota (ponto ${route.idx + 1}/${route.points.length})`);

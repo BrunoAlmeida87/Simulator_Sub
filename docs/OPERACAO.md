@@ -22,7 +22,7 @@ A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre vis�
   - *Energia e snorkel*: bateria, disjuntor, demanda, geradores e mastro.
   - *Falhas e segurança*: alarmes, reconhecimento, injeção e remoção de falhas.
   - *Ambiente e configuração*: mar, condições da água, cenário e acesso aos parâmetros avançados.
-  - *Cenários guiados*.
+  - *Roteiros automáticos*.
 - **📌 Fixar**: até dois grupos ficam sempre abertos no topo, por exemplo Lastro + Ar comprimido. *Recolher todos* fecha os demais.
 - **Controles ligados à cena:**
   - clicar num **tanque** abre o grupo do tanque, destaca a linha dele e realça as suas conexões;
@@ -96,7 +96,7 @@ Dados: polígonos de terra do OpenStreetMap (© colaboradores do OpenStreetMap, 
 - a câmera "Igual ao controle", ou uma câmera própria;
 - as mesmas camadas (tanques, vetores, escoamentos);
 - os indicadores principais;
-- a narração dos cenários guiados e as manobras.
+- a narração dos roteiros automáticos e as manobras.
 
 Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. A segunda janela tem também os seus próprios botões de camadas: tanques, peso/empuxo, hélice/lemes, vetores de trim, escoamentos, tubulações, identificações, boias e esteira. Eles valem só para ela; um • indica o que foi alterado ali, e "↺ Igual ao controle" volta a seguir a janela principal.
 
@@ -106,8 +106,8 @@ Os botões de câmera *Vista tanques* e *Vista forças* (em todas as telas) muda
 
 A aba **Apresentação** foi feita para quem conduz uma demonstração para um público. A cena, os tanques, os vetores de força e os indicadores ficam juntos, de modo que, ao operar uma válvula, se veja ao mesmo tempo o tanque enchendo, a massa e o peso aumentando, a resultante mudando e a resposta do submarino.
 
-**Condução**
-- *Situação pronta* + **Preparar**: carrega o cenário, o estado do mar, o enquadramento e as camadas sugeridas, já pausado. O texto abaixo da lista sugere o que mostrar.
+**Situações de aula e condução**
+- *Situação de aula* + **Preparar**: carrega o cenário, o estado do mar, o enquadramento e as camadas sugeridas, já pausado. O texto abaixo da lista sugere o que mostrar. As mesmas situações aparecem, com descrição, na aba **Cenários**; o botão **📚 Biblioteca** leva até lá.
 - **Executar/Pausar**, **+0,1 s**, **+1 s** e velocidades de **×0,25** a **×10** (câmera lenta abaixo de ×1; a física usa sempre o mesmo passo fixo).
 - **↺ Estado inicial** volta exatamente à condição preparada.
 - **📌 Marcar "antes"** guarda o estado atual; a tabela **Antes × agora** mostra profundidade, velocidade vertical, atitude, massa, P, E, E − P, volume deslocado, fração imersa e os volumes de cada tanque, com as diferenças. **↩ Voltar ao "antes"** repete a demonstração a partir do ponto marcado.
@@ -124,9 +124,9 @@ A aba **Apresentação** foi feita para quem conduz uma demonstração para um p
 
 **Manobras automáticas**: a barra sobre a cena mostra a etapa atual, as etapas seguintes e os comandos enviados. Ao terminar, informa **SUCESSO**, **TEMPO ESGOTADO**, **CANCELADA** ou **FALHA** (por exemplo, falta de ar comprimido ou profundidade de teste excedida).
 
-## Cenários guiados (automáticos)
+## Roteiros automáticos
 
-Em **Apresentação** (ou **Pilotagem**, que leva até ela), *Cenários guiados → ▶ Iniciar*. O simulador conduz a operação sozinho, devagar. Em cada etapa ele:
+Na aba **Cenários**, em **Apresentação** ou em **Pilotagem** (que leva até a Apresentação), *Roteiros automáticos → ▶ Iniciar*. O simulador conduz a operação sozinho, devagar. Em cada etapa ele:
 - explica o que está acontecendo, com os valores ao vivo;
 - explica o porquê;
 - troca a câmera e as camadas (mostrando, por exemplo, só os TLP enquanto alagam);
@@ -204,7 +204,7 @@ Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeit
 | **SIMULAÇÃO · AGORA** | muda a física da simulação em curso, sem reiniciar; fica registrada no histórico de comandos |
 | **SIMULAÇÃO · REINICIAR** | vale quando o cenário é reiniciado (“Salvar e reiniciar o cenário”) |
 
-- **Sessão — salvar e continuar:** *Salvar a simulação atual* (guarda no navegador), *Baixar arquivo* (.json para guardar ou abrir em outro computador), *Carregar arquivo* e *Retomar a simulação*. Ao carregar, tudo volta ao ponto salvo — posição, profundidade, rumo, velocidade, inclinação, tempo, tanques, bateria, combustível, ar, válvulas, bombas, telégrafo, lemes, piloto e referências, falhas, alarmes, ambiente e as automações em andamento (manobra rápida, demonstração, cenário guiado, rota) — e a simulação fica **pausada** até *Retomar*. Arquivos de versões anteriores abrem com conversão automática.
+- **Sessão — salvar e continuar:** *Salvar a simulação atual* (guarda no navegador), *Baixar arquivo* (.json para guardar ou abrir em outro computador), *Carregar arquivo* e *Retomar a simulação*. Ao carregar, tudo volta ao ponto salvo — posição, profundidade, rumo, velocidade, inclinação, tempo, tanques, bateria, combustível, ar, válvulas, bombas, telégrafo, lemes, piloto e referências, falhas, alarmes, ambiente e as automações em andamento (manobra rápida, demonstração, roteiro automático, rota) — e a simulação fica **pausada** até *Retomar*. Arquivos de versões anteriores abrem com conversão automática.
 - **Identificação do submarino** (VISUAL): nome, inscrição vermelha da vela, emblema e cor dos lemes.
 - **Qualidade gráfica** (VISUAL): cena/oceano, texturas e **iluminação da cena**; vale para todas as abas e para a 2ª janela.
 - **Vida marinha** (VISUAL): quantidade **Desligada**, **Discreta** (padrão) ou **Moderada**, com controles separados para **Saltos ocasionais na superfície** e **Peixes nadando na água e perto do fundo**. Pequenos peixes de cores, tamanhos e trajetórias variados ocupam a água e o fundo; saltos são raros, em locais e intervalos aleatórios. Não aparecem em terra, sob o fundo nem na vista “Sem água”. A animação acompanha o tempo, a pausa e a velocidade da simulação; as preferências ficam salvas no navegador e são enviadas à segunda janela. A fauna é decorativa e não interfere na física.
@@ -217,12 +217,17 @@ Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeit
 - **Fundo do mar** (AGORA): uniforme (padrão de 300 m) ou com relevo. O simulador recusa um fundo que ficaria acima do casco na posição atual.
 - **Simulação** e **Parâmetros da embarcação** (REINICIAR): passo de integração, semente, instrumentação e parâmetros fictícios do casco, propulsão, bombas, lemes e limites.
 
-A aba **Cenários** fica só com as condições iniciais e a condição de carga.
+A aba **Cenários** é a biblioteca de tudo o que dá para carregar, em três seções. Cada cartão diz o que faz e se o lugar tem costa (**com costa**) ou não (**mar aberto**):
+- **Condições iniciais** (*só posiciona*): coloca o navio numa situação de partida e para; o operador conduz. A condição de carga e a compensação pré-calculada valem para estas.
+- **Situações de aula** (*posiciona e enquadra*): parte de uma condição inicial e já ajusta o mar, a câmera e as camadas para explicar um tema. *▶ Abrir na Apresentação* prepara a situação (pausada) e abre a aba Apresentação.
+- **Roteiros automáticos** (*executa sozinho*): o simulador conduz a operação etapa por etapa, com narração (veja *Roteiros automáticos*).
+
+A palavra "cenário" fica para as condições iniciais. Os cenários que não fixam a costa seguem o que está em Configurações; a indicação do cartão é calculada ao abrir a aba.
 
 ## Gravação e reprodução de comandos
 
 Em **Configurações → Gravação e reprodução de comandos**:
-- **Iniciar gravação**: guarda a condição atual completa como ponto de partida e passa a registrar cada comando — os seus e os das automações (manobras rápidas, demonstração, cenário guiado, rota) — com o passo fixo e o tempo de simulação em que foi aplicado, além da narração das automações. A barra superior mostra **● REC**.
+- **Iniciar gravação**: guarda a condição atual completa como ponto de partida e passa a registrar cada comando — os seus e os das automações (manobras rápidas, demonstração, roteiro automático, rota) — com o passo fixo e o tempo de simulação em que foi aplicado, além da narração das automações. A barra superior mostra **● REC**.
 - **Parar gravação**, **Salvar** (no navegador, até 6), **Baixar gravação** (.json) e **Carregar gravação**.
 - **Reproduzir**: volta à condição inicial gravada e reaplica os comandos nos mesmos passos; **Pausar/Continuar**; **Encerrar reprodução** devolve o controle no ponto em que estiver. Durante a reprodução, as automações ficam paradas (seus comandos já estão na gravação, então nada é executado duas vezes) e os comandos manuais são recusados com um aviso.
 - **Conferência**: a cada 10 s de simulação a gravação guarda um ponto de controle (posição, atitude, velocidade, bateria e um resumo do estado). Na reprodução o painel mostra quantos pontos ficaram idênticos.

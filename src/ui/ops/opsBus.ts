@@ -19,7 +19,7 @@ export const GROUP_TITLE: Record<GroupId, string> = {
   energia: 'Energia e snorkel',
   falhas: 'Falhas e segurança',
   ambiente: 'Ambiente e configuração',
-  guiados: 'Cenários guiados',
+  guiados: 'Roteiros automáticos',
 };
 
 /** objeto selecionado na cena 3D */
