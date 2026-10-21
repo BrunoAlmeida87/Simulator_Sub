@@ -57,7 +57,9 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - A esteira, a onda de proa, os braços de Kelvin, o rastro do hélice e o jato dos suspiros são **representações** acionadas pelo estado físico (velocidade, empuxo, vazão de ar, proximidade da superfície). Não são soluções de escoamento: o ângulo de Kelvin (≈ 19,5°) e o jato ∝ √(T/ρA) dão a forma e a intensidade.
 - O traçado das tubulações e a posição de bombas, válvulas e garrafas no corte são esquemáticos (arquitetura fictícia). As vazões e os estados exibidos são os simulados.
 - O nível dos TLP em seção "D" é obtido invertendo a curva área × altura da seção desenhada. O volume mostrado é o simulado, mas a forma do tanque é simplificada.
-- A vazão por tanque da compensação é a parcela atribuída a cada tanque pelo modelo (proporcional à abertura da válvula do tanque).
+- A vazão por tanque da compensação é a parcela atribuída a cada tanque pelo modelo (proporcional à abertura da válvula do tanque). A vazão de cada trecho do coletor é obtida por conservação de massa entre os nós (admissão, bomba, tanques); a diferença de densidade entre a água do mar admitida e a nominal (~0,1 %) é desprezada na animação.
+- Descarga dos diesel-geradores: a existência da descarga vem do estado dos geradores (só EM CARGA ou PARTINDO queimam combustível) e o caminho do mastro (içado → mastro; recolhido → dispersores atrás da vela). A posição dos dispersores, a quantidade de bolhas e a carga mínima de 15 % atribuída a um gerador em carga para a intensidade do efeito são representações, não medidas.
+- As referências de profundidade (faixas a cada 20 m e sombra no fundo) são auxílios visuais; não representam camadas físicas da água.
 - A iluminação subaquática não é medida: no perfil **Clara** (padrão) e **Estúdio** a água é mais clara do que no mar real a essa profundidade e há uma luz presa à câmera, para o submarino ficar visível. O perfil **Natural** aproxima o escurecimento com a profundidade.
 
 ## Interface
@@ -68,7 +70,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 
 - A costa cobre só a região de Sepetiba (−23,20° a −22,80°; −44,20° a −43,50°). Fora dela, a borda da grade é estendida (ao sul, mar aberto).
 - Linha de costa com resolução de ~50 m (polígonos simplificados do OpenStreetMap) e relevo de 200 m; a batimetria real (rasa) da baía não é usada — o fundo de mar aberto é o configurado e a transição até a orla é uma curva suave.
-- Os navios são apenas visuais (sem colisão): são os contatos fictícios do quadro tático, não posições AIS reais.
+- Os navios são apenas visuais (sem colisão): são os contatos fictícios do quadro tático e o tráfego adicional, não posições AIS reais. O tráfego adicional é sorteado em volta da origem do cenário (raio de 1,2 a 9 km); perto da costa podem caber menos navios do que o pedido, porque trechos sem água suficiente são recusados.
 - Estaleiro da Ilha da Madeira: contornos traçados em imagem Sentinel-2 de 10 m (precisão ≈ ±10 m). Galpões, tanques e guindastes têm posição, tamanho e altura **estimados** (não há medidas oficiais publicadas) e são só visuais, assim como o submarino no shiplift e o píer do Porto Sudeste. A profundidade dragada da bacia (16 m) é estimada. O contato do casco com os cais é o mesmo modelo de contato com o fundo (pontos da quilha), sem impacto lateral.
 - A costa de 50 m vem do OpenStreetMap anterior à obra; o aterro, os quebra-mares e a dragagem do estaleiro são sobrepostos a ela.
 - A costa vem desligada nos cenários originais (feitos para mar aberto); ligue em Configurações.

@@ -17,6 +17,8 @@ A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre vis�
   - *Navegação*: telégrafo com régua, lemes e pilotos de rumo, profundidade e inclinação.
   - *Lastro principal*: suspiro e sopro de cada TLP, sopro de emergência.
   - *Compensação*: válvulas, bomba, dosagem e ajuste calculado.
+
+**Diagrama da compensação (aba Lastro e compensação):** um coletor liga a admissão do mar (**V-AM**, à direita), a sucção da bomba **BC** (que recalca pela **V-DM** para o mar, à esquerda) e o ramal de cada tanque (**VC-1 → TC-1**, **VC-2 → TC-2**). Cada trecho anima com a vazão calculada para ele, no sentido real do escoamento: admitindo, a água vai do mar para os tanques abertos; esgotando, dos tanques para a bomba e o mar; ramais com válvula fechada, trechos isolados e a bomba com a V-DM fechada (aviso “descarga fechada”) ou sem tanque aberto (“sem sucção”) ficam parados. Com admissão e bomba ao mesmo tempo, o excedente passa direto da admissão para a bomba. As vazões de admissão e descarga aparecem junto às linhas. O corte 3D usa as mesmas vazões por trecho.
   - *Trim e banda*: transferências com efeito previsto e peso deslocável.
   - *Ar comprimido*: garrafas, isolamento, pressão e compressor.
   - *Energia e snorkel*: bateria, disjuntor, demanda, geradores e mastro.
@@ -61,6 +63,8 @@ Fundos de mapa, todos gratuitos e sem chave de API: tático escuro e mapa (OpenS
 
 **Navios no 3D:** os contatos do quadro tático aparecem como navios no mar das cenas 3D (camada **Navios**, ligada por padrão), na mesma posição geográfica, com o mesmo rumo e a mesma velocidade da tabela de contatos — a conversão é a mesma (`contactsLocal`). Modelos leves por tipo: graneleiro (M1), porta-contêineres (M2), pesqueiro (P1), rebocador (R1) e navio-patrulha (N1), com esteira proporcional à velocidade e rótulo com identificação, distância, rumo e velocidade. A vista **Navio próximo** mira o navio mais perto, com teleobjetiva. O alcance de desenho (5–30 km) fica em Configurações → Qualidade gráfica. São apenas visuais: não colidem nem interagem com a física. Os contatos são fictícios (não são posições AIS reais).
 
+**Navios adicionais:** em Configurações → Qualidade gráfica, *Navios adicionais* (0 a 20) acrescenta tráfego fictício em volta da área do cenário (ids T01, T02…), além dos cinco contatos fixos. Cada navio percorre em vaivém um trecho reto que só é aceito se houver água com profundidade para o seu calado em todo o caminho (segundo o fundo e a costa simulados), se passar a mais de 500 m da posição inicial do submarino e se ficar afastado dos trechos de todos os outros navios — por isso nunca aparecem sobrepostos. Mesma posição na cena 3D, no mapa e na tabela de contatos (com CPA). Para manter a fluidez, só os navios dentro do alcance de desenho são desenhados, com modelos leves; aumentar ou reduzir a quantidade vale na hora.
+
 ## Fluxo de energia
 
 A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de fluxo, em que a largura de cada faixa é proporcional à potência e o tracejado anda no sentido do fluxo. O caminho completo é: combustível e ar do snorkel → diesel-geradores (com o consumo de óleo) → barramento → bateria e consumidores (motor principal, habitabilidade, navegação, hidráulica, compressor, bombas).
@@ -68,6 +72,8 @@ A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de flux
 - **Geradores parados:** a bateria aparece **descarregando** para os sistemas, com a autonomia estimada.
 
 *Preparar demonstração* carrega a cota periscópica com mar calmo, piloto de profundidade em 14 m e snorkel içando. Depois é só partir os geradores. Com os diesel em carga, a cena 3D mostra **fumaça** saindo do topo do mastro, mais escura na partida.
+
+**Descarga dos geradores pelos dispersores (bolhas):** os geradores só funcionam com tomada de ar — na superfície ou com o snorkel içado e a válvula de cabeça aberta; submerso com o mastro recolhido, um gerador comandado fica **SEM AR** e não há descarga. Com gerador em carga e o mastro **recolhido** (operação na superfície), a descarga sai pelos dispersores no casco, logo atrás da vela, abaixo da linha d'água: um fluxo moderado de bolhas pequenas sobe até a superfície, mais intenso com mais geradores e na partida, e acompanha a posição, a inclinação e o movimento do submarino. Com o mastro **içado**, a descarga sai pelo mastro (fumaça). Ao parar os geradores as bolhas cessam. A lógica dos geradores não foi alterada para o efeito (ver `src/sim/systems/exhaust.ts`).
 
 **Interativo:** clique em qualquer equipamento do diagrama para abrir o painel ao lado com o estado (desligado, partindo, funcionando, parando, sem ar, falha) e os comandos que fazem sentido: partir/parar diesel-geradores (exigem tomada de ar), içar/arriar o snorkel, abrir/fechar o disjuntor da bateria, telégrafo do motor principal, partir/parar as bombas de compensação, trim e banda e o compressor. Elementos sem liga/desliga (combustível, barramento, hidráulica automática, cargas fixas) mostram a explicação do estado. O anel em volta de cada consumidor indica o estado (verde funcionando, âmbar em transição, cinza desligado, vermelho falha/sem energia). Os comandos são os mesmos das outras telas e respeitam as condições físicas (ex.: gerador comandado sem ar fica “SEM AR”).
 
@@ -98,7 +104,7 @@ Dados: polígonos de terra do OpenStreetMap (© colaboradores do OpenStreetMap, 
 - os indicadores principais;
 - a narração dos roteiros automáticos e as manobras.
 
-Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. A segunda janela tem também os seus próprios botões de camadas: tanques, peso/empuxo, hélice/lemes, vetores de trim, escoamentos, tubulações, identificações, boias e esteira. Eles valem só para ela; um • indica o que foi alterado ali, e "↺ Igual ao controle" volta a seguir a janela principal.
+Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. A segunda janela tem também os seus próprios botões de camadas: tanques, peso/empuxo, hélice/lemes, vetores de trim, escoamentos, tubulações, identificações, bateria (%), ar comprimido, boias, esteira, sem água, calado/trim, navios e casco, com **☑ Todas** e **☐ Nenhuma**. Eles valem só para ela; um • indica o que foi alterado ali, e "↺ Igual ao controle" volta a seguir a janela principal. Os navios adicionais, as referências de profundidade e a quantidade de peixes chegam a ela junto com as preferências gráficas.
 
 Os botões de câmera *Vista tanques* e *Vista forças* (em todas as telas) mudam o enquadramento e já ligam, respectivamente, os tanques e os vetores. Os botões de camada (*Ver tanques*, *Vetores*, *Trim*) ligam e desligam o que é desenhado. Mantenha a janela principal visível (não minimizada): navegadores pausam a animação de janelas minimizadas, e com isso a simulação também pausa.
 
@@ -114,7 +120,13 @@ A aba **Apresentação** foi feita para quem conduz uma demonstração para um p
 
 **Enquadramentos**: *Superfície* (3/4 elevado, mostra esteira e proa), *Submerso*, *Tanques* (corte de perto), *Forças* (vista lateral para os vetores), *Seguir*, *Perseguição*, *Fixa* (câmera parada no cenário, o submarino atravessa o quadro) e *Livre*.
 
-**Camadas** (independentes): peso/empuxo, hélice/lemes/resistência, tanques, tubulações, escoamentos, identificações, esteira, boias/marcos, trajetória e iluminação de apresentação. A transparência do casco é ajustável. **Sem água** esconde o mar, a superfície, o fundo e as partículas para ver o submarino isolado sobre fundo neutro; um clique devolve tudo.
+**Casco:** *Externo* (casco opaco, forma externa, vela, lemes e pintura), *Corte* (casco transparente com os componentes internos; transparência ajustável) e *Sem casco* (esconde casco, vela e convés; ficam os componentes internos, lemes, hélice, mastro e o contorno do casco). Trocar a vista do casco não altera a simulação.
+
+**Camadas** (independentes): peso/empuxo, hélice/lemes/resistência, vetores de trim, tanques (corte), tubulações, escoamentos, identificações, **bateria (%)**, **ar comprimido**, esteira, boias/marcos, trajetória, iluminação de apresentação, sem água, calado/trim e navios. **☑ Marcar todas** liga as camadas de informação (não tira a água nem muda a iluminação); **☐ Desmarcar todas** desliga todas — fica só o submarino no mar, sem vetores, textos ou percentuais. Nenhuma camada volta sozinha. **Sem água** esconde o mar, a superfície, o fundo e as partículas para ver o submarino isolado sobre fundo neutro; um clique devolve tudo.
+
+**Camadas de informação dos sistemas** (junto aos componentes, com o corte ligado):
+- **Bateria (%)**: carga da bateria (e “carregando”) e geradores em carga. Antes o percentual aparecia sobre o casco fechado na Pilotagem sem opção para ocultar; agora tem camada própria. Os instrumentos e a barra superior continuam mostrando a bateria.
+- **Ar comprimido**: para cada grupo de garrafas (AP1, AP2), a **pressão** (p = m·R·T/V), a **massa de ar** armazenada, o **ar livre equivalente** a 1 atm (V·p/p_atm), o volume das garrafas, o estado da válvula e a vazão de **consumo** (sopro) ou **recarga** (compressor) medida no tempo de simulação. Pressão e quantidade são grandezas diferentes: com a válvula aberta os grupos se equalizam na pressão, mas cada um guarda a sua massa.
 
 **Escolha dos vetores**: nas telas Pilotagem e Visualização 3D, o botão **Vetores** liga os vetores e abre um painel recolhível para marcar quais aparecem (peso, empuxo, resultante, hélice, resistência, lemes de vante, ré e direção, trim), com *Todos* e *Nenhum*. O botão **💧 Tirar água / Pôr água** faz o mesmo que a camada *Sem água*.
 
@@ -166,7 +178,8 @@ Na superfície o plano de flutuação resiste à inclinação: a rigidez de trim
 
 ## Tanques visíveis e visualização salva
 
-- **Tanques visíveis:** ao ligar *Ver tanques*, abre a lista de tanques. Você pode mostrar todos, só um grupo (lastro principal, compensação, trim, banda) ou tanques individuais. As tubulações e os escoamentos acompanham a seleção.
+- **Tanques visíveis:** ao ligar *Ver tanques*, abre a lista de tanques. Você pode mostrar todos, nenhum (*Nenhum*), só um grupo (lastro principal, compensação, trim, banda) ou tanques individuais — inclusive desmarcar o último. As tubulações e os escoamentos acompanham a seleção.
+- **Camadas ▾ (Pilotagem, Visualização 3D e Governo):** abre a lista completa de camadas com **☑ Marcar todas** e **☐ Desmarcar todas** — identificações, tubulações, escoamentos, bateria (%), ar comprimido, esteira, trajetória e as demais, que antes ficavam sempre ligadas nessas telas. Os botões rápidos (Ver tanques, Vetores, Boias…) continuam e refletem a mesma escolha. Com *Identificações* desligadas somem também os rótulos de superfície, cota e fundo e a linha tracejada entre eles.
 - **Visualização salva:** Pilotagem, Visualização 3D e Apresentação guardam a câmera, a posição da câmera livre, os botões e a seleção de tanques ao trocar de aba. Também ficam guardados ao recarregar a página.
 
 ## Sequência completa (cenário "Superfície — pronto para imergir")
@@ -206,8 +219,10 @@ Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeit
 
 - **Sessão — salvar e continuar:** *Salvar a simulação atual* (guarda no navegador), *Baixar arquivo* (.json para guardar ou abrir em outro computador), *Carregar arquivo* e *Retomar a simulação*. Ao carregar, tudo volta ao ponto salvo — posição, profundidade, rumo, velocidade, inclinação, tempo, tanques, bateria, combustível, ar, válvulas, bombas, telégrafo, lemes, piloto e referências, falhas, alarmes, ambiente e as automações em andamento (manobra rápida, demonstração, roteiro automático, rota) — e a simulação fica **pausada** até *Retomar*. Arquivos de versões anteriores abrem com conversão automática.
 - **Identificação do submarino** (VISUAL): nome, inscrição vermelha da vela, emblema e cor dos lemes.
-- **Qualidade gráfica** (VISUAL): cena/oceano, texturas e **iluminação da cena**; vale para todas as abas e para a 2ª janela.
-- **Vida marinha** (VISUAL): quantidade **Desligada**, **Discreta** (padrão) ou **Moderada**, com controles separados para **Saltos ocasionais na superfície** e **Peixes nadando na água e perto do fundo**. Pequenos peixes de cores, tamanhos e trajetórias variados ocupam a água e o fundo; saltos são raros, em locais e intervalos aleatórios. Não aparecem em terra, sob o fundo nem na vista “Sem água”. A animação acompanha o tempo, a pausa e a velocidade da simulação; as preferências ficam salvas no navegador e são enviadas à segunda janela. A fauna é decorativa e não interfere na física.
+- **Qualidade gráfica** (VISUAL): cena/oceano, texturas e **iluminação da cena**; vale para todas as abas e para a 2ª janela. Também aqui:
+  - **Navios adicionais** (0 a 20): tráfego fictício além dos contatos fixos (ver *Mapa tático*).
+  - **Referências discretas de profundidade** (ligadas por padrão): faixas finas de partículas em suspensão em cotas fixas, a cada 20 m — ao subir ou descer o submarino as atravessa, o que mostra a variação de profundidade sem linhas nem números — e uma sombra suave no fundo, sob o submarino, que fica mais nítida e escura quanto mais perto do fundo (alinhada ao declive local). A linha tracejada superfície–submarino–fundo também segue esta opção.
+- **Vida marinha** (VISUAL): quantidade **Desligada**, **Discreta** (padrão; cerca de 4 peixes à vista em média) ou **Moderada** (cerca de 6), com controles separados para **Saltos ocasionais na superfície** e **Peixes nadando na água e perto do fundo**. Pequenos peixes de cores, tamanhos e trajetórias variados ocupam a água e o fundo; saltos são raros, em locais e intervalos aleatórios. Não aparecem em terra, sob o fundo nem na vista “Sem água”. A animação acompanha o tempo, a pausa e a velocidade da simulação; as preferências ficam salvas no navegador e são enviadas à segunda janela. A fauna é decorativa e não interfere na física.
 - **Iluminação da cena** (VISUAL) — também no seletor **Luz** ao lado de “Gráfico” nas cenas 3D (Pilotagem, Visualização 3D, Apresentação):
   - **Natural**: a água escurece com a profundidade, como no mar; o casco escuro fica pouco visível em cotas grandes.
   - **Clara** (padrão): água mais clara, luz suave presa à câmera e contorno do casco realçado — o submarino se destaca do fundo em qualquer profundidade.
