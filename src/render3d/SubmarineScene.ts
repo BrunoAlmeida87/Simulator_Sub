@@ -961,7 +961,8 @@ export class SubmarineScene {
       }
       // descarga dos diesel-geradores: sai atrás da vela, abaixo d'água, e sobe em bolhas (ver sim/systems/exhaust.ts)
       const ex = dieselExhaust(v, s);
-      if (ex.route) {
+      // efeito da camada "Esteira" (desligada: sem bolhas novas e as existentes ocultas)
+      if (ex.route && this.layers.wake) {
         const psi = (e.outputs.euler.heading * Math.PI) / 180;
         const fN = Math.cos(psi);
         const fE = Math.sin(psi);
@@ -1153,7 +1154,7 @@ export class SubmarineScene {
     this.ocean.mesh.visible = !dry;
     this.fx.group.visible = this.fx.group.visible && !dry;
     this.bubbles.visible = !dry;
-    this.exBubbles.visible = !dry;
+    this.exBubbles.visible = !dry && this.layers.wake;
     this.snow.visible = !dry;
     // referências de profundidade: faixas e sombra (opção gráfica); a linha tracejada superfície–submarino–fundo
     // é o eixo dos rótulos de cota, por isso também segue a camada "Identificações"

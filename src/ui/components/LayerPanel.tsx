@@ -5,7 +5,7 @@
  * Qualquer combinação é permitida, inclusive nenhuma camada: nada é religado
  * sem um clique do operador.
  */
-import { LAYER_GROUPS, LAYER_INFO, allLayersOff, allLayersOn, type BoolLayer, type SceneLayers } from '../../render3d/layers';
+import { LAYER_GROUPS, LAYER_INFO, allLayersOff, allLayersOn, toggleLayerGroup, type BoolLayer, type SceneLayers } from '../../render3d/layers';
 
 export type LayerKey = Exclude<BoolLayer, 'hull'>;
 
@@ -43,14 +43,9 @@ export function LayerPanel({
         {groups.map((g) => {
           const on = g.keys.filter((k) => !!value[k]).length;
           const full = on === g.keys.length;
-          const info = g.keys.filter((k) => !LAYER_INFO[k].mode);
           return (
             <div key={g.id} className="layergroup">
-              <button
-                className={`layergroup-h ${on ? (full ? 'all' : 'some') : ''}`}
-                title={`${g.title} — clique para ${on ? 'desmarcar' : 'marcar'} o grupo`}
-                onClick={() => onChange(on ? allLayersOff(g.keys) : allLayersOn(info.length ? info : g.keys))}
-              >
+              <button className={`layergroup-h ${on ? (full ? 'all' : 'some') : ''}`} title={`${g.title} — clique para ${on ? 'desmarcar' : 'marcar'} o grupo`} onClick={() => onChange(toggleLayerGroup(g.keys, value))}>
                 <span className="lg-box">{full ? '☑' : on ? '◩' : '☐'}</span> {g.label}{' '}
                 <small>
                   {on}/{g.keys.length}

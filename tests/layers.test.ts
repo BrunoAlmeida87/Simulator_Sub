@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { buildScenario } from '../src/sim/scenarios';
 import { applyCommand } from '../src/sim/commands';
 import { SystemsVis } from '../src/render3d/Systems';
-import { LAYER_INFO, allLayersOff, allLayersOn, defaultLayers, type SceneLayers } from '../src/render3d/layers';
+import { LAYER_GROUPS, LAYER_INFO, allLayersOff, allLayersOn, defaultLayers, toggleLayerGroup, type SceneLayers } from '../src/render3d/layers';
 import type { Label3D } from '../src/render3d/SubmarineScene';
 import { bankPressure } from '../src/sim/systems/hpAir';
 
@@ -91,5 +91,22 @@ describe('Camadas no 3D (valores do modelo)', () => {
       return n;
     };
     expect(anyVisible(vis.group)).toBe(0);
+  });
+});
+
+describe('Camadas em grupos', () => {
+  it('toda camada está em exatamente um grupo', () => {
+    const all = LAYER_GROUPS.flatMap((g) => g.keys);
+    expect(new Set(all).size).toBe(all.length);
+    expect([...all].sort()).toEqual([...KEYS].sort());
+  });
+  it('o clique no grupo liga as camadas de informação ou desliga o grupo; o grupo só de modos (Ambiente) também liga', () => {
+    const vet = LAYER_GROUPS.find((g) => g.id === 'vetores')!.keys;
+    expect(toggleLayerGroup(vet, {})).toEqual({ vectors: true, hydroVectors: true, trimVectors: true, hiddenVectors: [] });
+    expect(toggleLayerGroup(vet, { hydroVectors: true })).toEqual({ vectors: false, hydroVectors: false, trimVectors: false });
+    const amb = LAYER_GROUPS.find((g) => g.id === 'amb')!.keys;
+    expect(toggleLayerGroup(amb, {})).toEqual({ noWater: true, presLight: true });
+    expect(toggleLayerGroup(['noWater'], {})).toEqual({ noWater: true });
+    expect(toggleLayerGroup(amb, { noWater: true })).toEqual({ noWater: false, presLight: false });
   });
 });
