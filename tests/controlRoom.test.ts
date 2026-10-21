@@ -14,7 +14,7 @@ import type { SimulationEngine } from '../src/sim/core/engine';
 import type { RoomActions } from '../src/render3d/controlRoom/actions';
 import type { DrawCtx, HitRegion, RoomUiState } from '../src/render3d/controlRoom/panel';
 import { drawAnnunciator, drawConningOfficer, drawDivingGauges, drawHelmsman, drawPlanesman } from '../src/render3d/controlRoom/panelsShip';
-import { drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, greenBoard, hullOpenings, MANIFOLD_VALVES } from '../src/render3d/controlRoom/panelsBallast';
+import { drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, greenBoard, hullOpenings, MANIFOLD_VALVES, manifoldToggle } from '../src/render3d/controlRoom/panelsBallast';
 import { drawEnergy, drawInstructorFailures, drawInstructorSim, drawPropulsion } from '../src/render3d/controlRoom/panelsPlatform';
 import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, drawTacticalConsole, mastOut, roomContacts, signalExcess } from '../src/render3d/controlRoom/panelsCombat';
 import { STATIONS } from '../src/render3d/controlRoom/stations';
@@ -110,6 +110,33 @@ describe('Periscópio', () => {
     const head = -periscopeHeadZ(e.vessel, 1) + e.vessel.hull.diameter / 2;
     expect(head).toBeGreaterThan(15);
     expect(head).toBeLessThan(20);
+  });
+});
+
+describe('Correções da revisão', () => {
+  it('mastros recolhidos não dão GPS/MAGE, mesmo com a vela perto da superfície', () => {
+    const e = buildScenario('submerso_50');
+    e.state.body.pos.z = 8; // quilha a ≈ 11 m: vela perto da superfície, casco submerso
+    e.computeOutputs();
+    expect(e.outputs.surfaced).toBe(false);
+    expect(mastOut(e)).toBe(false);
+    e.state.periscope = { cmd: true, pos: 1 };
+    expect(mastOut(e)).toBe(true);
+    e.state.periscope = { cmd: true, pos: 0.5 };
+    expect(mastOut(e)).toBe(false);
+  });
+  it('o volante inverte a ordem mesmo com a válvula ainda em curso', () => {
+    const e = buildScenario('submerso_50');
+    const mv = MANIFOLD_VALVES.find((m) => m.id === 'VTAV')!;
+    applyCommand(e, manifoldToggle(e, mv));
+    run(e, 0.5);
+    expect(e.state.trim.valveA.cmd).toBe(1);
+    expect(e.state.trim.valveA.pos).toBeLessThan(0.5);
+    const c = manifoldToggle(e, mv);
+    expect(c).toEqual({ type: 'valve', system: 'trim', valve: 'A', open: false });
+    const hp = MANIFOLD_VALVES.find((m) => m.sys === 'hp')!;
+    const open = e.state.hpAir.banks[hp.key].valve.cmd > 0.5;
+    expect(manifoldToggle(e, hp)).toEqual({ type: 'hpBankValve', bank: hp.key, open: !open });
   });
 });
 

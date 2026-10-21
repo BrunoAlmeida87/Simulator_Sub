@@ -43,7 +43,7 @@ import {
 } from './furniture';
 import { STATIONS, START_POSE, stationById } from './stations';
 import { drawAnnunciator, drawConningOfficer, drawDivingGauges, drawHelmsman, drawPlanesman } from './panelsShip';
-import { MANIFOLD_VALVES, drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, manifoldValveCmd } from './panelsBallast';
+import { MANIFOLD_VALVES, drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, manifoldToggle, manifoldValveCmd, manifoldValveOrder } from './panelsBallast';
 import { drawEnergy, drawInstructorFailures, drawInstructorSim, drawPropulsion } from './panelsPlatform';
 import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, drawTacticalConsole } from './panelsCombat';
 import { disposeRoomTextures, labelTexture } from './textures';
@@ -850,13 +850,13 @@ export class ControlRoomScene {
         id: `hw-${mv.id}`,
         station: 'coletor',
         obj: w,
-        label: (en) => `${mv.label}: ${manifoldValveCmd(en, mv) > 0.5 ? 'ABERTA' : 'FECHADA'} — clique para ${manifoldValveCmd(en, mv) > 0.5 ? 'FECHAR' : 'ABRIR'}`,
-        click: () => {
-          const en = this.runner.engine;
-          const open = manifoldValveCmd(en, mv) < 0.5;
-          if (mv.sys === 'hp') this.act.cmd({ type: 'hpBankValve', bank: mv.key, open });
-          else this.act.cmd({ type: 'valve', system: mv.sys, valve: mv.key, open });
+        label: (en) => {
+          const order = manifoldValveOrder(en, mv) > 0.5;
+          const pos = manifoldValveCmd(en, mv);
+          const st = pos >= 0.999 ? 'ABERTA' : pos <= 0.001 ? 'FECHADA' : order ? 'ABRINDO' : 'FECHANDO';
+          return `${mv.label}: ${st} — clique para ${order ? 'FECHAR' : 'ABRIR'}`;
         },
+        click: () => this.act.cmd(manifoldToggle(this.runner.engine, mv)),
         update: (en) => (w.rotation.z = -manifoldValveCmd(en, mv) * Math.PI * 3),
       });
     });

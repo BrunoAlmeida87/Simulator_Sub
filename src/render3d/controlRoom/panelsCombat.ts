@@ -38,15 +38,17 @@ export function roomContacts(e: SimulationEngine, act: RoomActions): RoomContact
   });
 }
 
-/** antena/óptica fora d'água: periscópio ou snorkel içados com a cabeça emersa, ou na superfície */
+/** antena/óptica fora d'água: periscópio ou snorkel IÇADOS com a cabeça emersa, ou na superfície (mastros recolhidos não contam) */
 export function mastOut(e: SimulationEngine): boolean {
   const v = e.vessel;
   const o = e.outputs;
   if (o.surfaced) return true;
   const base = v.hull.diameter + v.hull.sail.height;
-  const peri = base + 0.3 + periscopeCfg(v).extension * (e.state.periscope?.pos ?? 0);
-  const snk = base + v.hull.snorkelMast.extension * e.state.snorkel.pos;
-  return o.depthKeel - Math.max(peri, snk) < -0.2;
+  const heads: number[] = [];
+  const pp = e.state.periscope?.pos ?? 0;
+  if (pp > 0.95) heads.push(base + 0.3 + periscopeCfg(v).extension * pp);
+  if (e.state.snorkel.pos > 0.95) heads.push(base + v.hull.snorkelMast.extension * e.state.snorkel.pos);
+  return heads.some((h) => o.depthKeel - h < -0.2);
 }
 
 const SL: Record<Contact['kind'], number> = { mercante: 152, pesqueiro: 136, rebocador: 142, patrulha: 146 };

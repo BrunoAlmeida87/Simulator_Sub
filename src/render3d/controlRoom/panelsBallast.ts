@@ -9,7 +9,8 @@
 import type { DrawCtx } from './panel';
 import type { RoomActions } from './actions';
 import type { SimulationEngine } from '../../sim/core/engine';
-import type { FluidSystem } from '../../sim/commands';
+import type { Command, FluidSystem } from '../../sim/commands';
+import type { ValveState } from '../../sim/core/state';
 import { C, box, button, dial, digital, faceBg, hbar, lamp, lampButton, pipe, plate, pumpSym, screenBg, stepper, tankSym, text, valveSym } from './draw';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
 import { tankVolume, tankCapacityMass } from '../../sim/systems/internalTanks';
@@ -708,13 +709,30 @@ export const MANIFOLD_VALVES: { id: string; label: string; sys: 'hp' | FluidSyst
   { id: 'VBBE', label: 'BANDA BE', sys: 'heel', key: 'B' },
 ];
 
-/** posição comandada (0/1) de uma válvula do coletor */
-export function manifoldValveCmd(e: SimulationEngine, m: (typeof MANIFOLD_VALVES)[number]): number {
+type ManifoldValve = (typeof MANIFOLD_VALVES)[number];
+
+function manifoldValveState(e: SimulationEngine, m: ManifoldValve): ValveState | undefined {
   const s = e.state;
-  if (m.sys === 'hp') return s.hpAir.banks[m.key]?.valve.pos ?? 0;
-  if (m.sys === 'compensation') return (m.key === 'inlet' ? s.compensation.inlet : s.compensation.discharge).pos;
+  if (m.sys === 'hp') return s.hpAir.banks[m.key]?.valve;
+  if (m.sys === 'compensation') return m.key === 'inlet' ? s.compensation.inlet : s.compensation.discharge;
   const t = s[m.sys];
-  return (m.key === 'A' ? t.valveA : t.valveB).pos;
+  return m.key === 'A' ? t.valveA : t.valveB;
+}
+
+/** posição REAL (0…1) de uma válvula do coletor (lâmpadas e giro do volante) */
+export function manifoldValveCmd(e: SimulationEngine, m: ManifoldValve): number {
+  return manifoldValveState(e, m)?.pos ?? 0;
+}
+
+/** posição COMANDADA (0/1) de uma válvula do coletor */
+export function manifoldValveOrder(e: SimulationEngine, m: ManifoldValve): number {
+  return manifoldValveState(e, m)?.cmd ?? 0;
+}
+
+/** comando do volante: inverte a ORDEM atual (mesmo com a válvula ainda em curso) */
+export function manifoldToggle(e: SimulationEngine, m: ManifoldValve): Command {
+  const open = manifoldValveOrder(e, m) < 0.5;
+  return m.sys === 'hp' ? { type: 'hpBankValve', bank: m.key, open } : { type: 'valve', system: m.sys, valve: m.key, open };
 }
 
 /** face do COLETOR (válvulas manuais) com a planta hidráulica e manômetros */
