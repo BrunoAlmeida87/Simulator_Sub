@@ -77,8 +77,10 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 
 ## Sala de comando e periscópio
 - O arranjo da sala, os consoles e as telas são **ilustrativos**, inspirados em salas de controle de submarinos convencionais; não reproduzem nenhum navio real.
-- O periscópio não tem arrasto nem esteira na física (nem limite de velocidade com ele içado). A visada usa a mesma cena 3D externa (sem distorção óptica, sem embaçamento por ondas).
+- O periscópio não tem arrasto nem esteira na física (nem limite de velocidade com ele içado; o aviso de esteira acima de 5 nós é só informativo). A visada usa a mesma cena 3D externa (sem distorção óptica); as ondas na ocular são um efeito de tela.
+- Identificação, alcance visual (horizonte geométrico) e estadímetro do periscópio são **auxílios ilustrativos**: a altura do mastro é a típica da classe, sem refração, visibilidade meteorológica nem iluminação noturna. As marcações são anotações da interface (não entram na gravação).
+- O som da sala é sintetizado e ilustrativo (não são gravações reais); a voz depende das vozes pt-BR instaladas no navegador.
 - Escotilhas (torre, vante e ré) não são modeladas: o indicador de aberturas do casco as mostra sempre fechadas.
 - Sonar passivo e MAGE são **modelos ilustrativos** (perdas esféricas, ruído próprio crescendo com a velocidade, zona cega a ré, emissores por tipo de navio); não há propagação acústica real, camadas de sombra nem classificação por assinatura.
 - O sistema de combate é fictício e não tem armamento.
-- O piso da sala não inclina com o caturro/banda (a câmera é solidária ao navio, como o observador a bordo); a atitude aparece nos instrumentos, na bolha e no pêndulo.
+- A inclinação da sala (opção) gira a vista de quem anda em torno da cabeça, mantida na vertical; não há equilíbrio, deslizamento nem objetos soltos. Sentado num posto, a câmera é solidária ao navio; a atitude aparece nos instrumentos, na bolha e no pêndulo.

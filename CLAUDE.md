@@ -52,12 +52,14 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, fumaça), Markers.ts, Ocean.ts
   controlRoom/        SALA DE COMANDO em 1ª pessoa: ControlRoomScene (sala, câmera, colisão, seleção),
                       panel.ts (canvas + regiões clicáveis), panels*.ts (telas/faces por posto), furniture/textures,
-                      stations.ts (postos e enquadramentos), actions.ts (RoomActions: a cena só monta Commands)
+                      stations.ts (postos e enquadramentos), actions.ts (RoomActions: a cena só monta Commands),
+                      periscope.ts (óptica do periscópio: horizonte, contatos à vista, estadímetro)
 src/ui/               INTERFACE (React)
   App.tsx             abas (TABS) e atalhos de teclado
   VisualApp.tsx       segunda janela (só visual) — modo dois monitores
   sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
+                      sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
   ops/                central de operação da Pilotagem (grupos expansíveis, faixa inferior, opsBus)
   components/         controles, seletores (TankSelector, VectorSelector, LayerPanel), gráficos, Scene3D
   inspector/          modo engenharia (registry.ts = textos e variáveis por componente)

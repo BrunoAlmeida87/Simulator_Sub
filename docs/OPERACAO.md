@@ -55,7 +55,9 @@ A aba **Sala de comando** coloca você **dentro** do submarino, numa sala de con
 
 **Dois jeitos de operar**
 1. **Clicar num posto de longe**: a câmera se aproxima e abre, ao lado (no celular, abaixo), o **painel 2D da estação** com todos os controles e um texto sobre como é aquele posto num submarino real (ⓘ). **Esc** ou *Sair do posto* volta a andar; *✕* fecha só o painel.
-2. **Acionar direto na cena** (de perto ou com a estação em foco): os botões das telas e dos painéis, os volantes e o anunciador respondem ao clique; os **manches** e o **telégrafo** respondem ao arrasto. A barra inferior mostra o que está sob o mouse (borda verde = clique aciona; sem borda = clique aproxima). No posto em foco, a **roda do mouse** aproxima a vista das telas (zoom).
+2. **Acionar direto na cena** (de perto ou com a estação em foco): os botões das telas e dos painéis, os volantes e o anunciador respondem ao clique; os **manches** e o **telégrafo** respondem ao arrasto (o controle 3D sob o mouse ganha um contorno amarelo). A barra inferior mostra o que está sob o mouse (borda verde = clique aciona; sem borda = clique aproxima). No posto em foco, a **roda do mouse** aproxima a vista das telas (zoom).
+
+**Enquadramento centralizado**: ao entrar num posto, a câmera calcula o enquadramento que cabe na vista (tamanho da janela, painel lateral aberto ou não, celular em pé) e fica de frente para os controles; a cadeira do posto some (você está sentado nela). Cada posto tem vários enquadramentos — *Visão geral*, cada tela, as metades das faces largas (painel do lastro) e, no governo, *Manches e telégrafo* — trocados com **◀ ▶** na barra inferior ou **← →** no teclado. Clicar numa tela fora dos botões centraliza a câmera nela. **Tab** / **Shift+Tab** vão ao posto seguinte/anterior.
 
 **Postos**
 | Posto | O que tem | Comandos |
@@ -72,11 +74,18 @@ A aba **Sala de comando** coloca você **dentro** do submarino, numa sala de con
 | Mesa tática | Carta horizontal com terra e águas rasas (mesmo fundo da física), derrota, rota, contatos e área de exercícios | escalas (2–50 km) |
 | Estação do instrutor | Falhas por grupo, tempo da simulação, estado do mar, cenários, peso deslocável, iluminação | injetar/remover falhas, executar/pausar, aceleração, mar, carregar cenário, mover o peso, luz |
 
-**Visada do periscópio**: mostra o mar com o retículo, a marcação verdadeira e relativa e a elevação. Arraste (ou ◀ ▶, setas) para girar; **1,5×/6×** muda o aumento; *Içar/Arriar* comanda o mastro. Com o periscópio arriado a visada fica escura; com a cabeça submersa vê-se debaixo d’água. A cabeça fica fora d’água na cota periscópica (quilha a ≈ 16 m com o periscópio todo içado). Na cena 3D externa o periscópio sobe na vela (arriado, não aparece).
+**Visada do periscópio**: mostra o mar com o retículo e, no alto, a **régua de marcação verdadeira** (N/L/S/O e graus). Arraste, **← →** (Shift = 10°) ou ◀ ▶ para girar; **↑ ↓** elevação; aumentos **1,5× / 6× / 12×** (botões ou roda do mouse); *Içar/Arriar* comanda o mastro. Com o periscópio arriado a visada fica escura; com a cabeça submersa vê-se debaixo d’água; rente à água, as ondas lavam a ocular. A cabeça fica fora d’água na cota periscópica (quilha a ≈ 16 m com o periscópio todo içado). Na cena 3D externa o periscópio sobe na vela (arriado, não aparece).
+- **IDs**: identifica os contatos dentro do horizonte (auxílio de treinamento; a régua mostra ◀ ▶ os que estão fora do campo). O alcance visual é o do horizonte entre a altura da cabeça e a do mastro do alvo.
+- **Estadímetro** (R): com um contato no centro do retículo, estima a distância pela altura típica do mastro da classe (erro de até ±4 % no alto aumento, ±9 % no baixo).
+- **Marcar** (M): registra a marcação (e a distância medida há pouco, se for o mesmo contato). As marcações P1, P2… aparecem no **quadro tático** e na **mesa tática** como linhas laranja a partir do ponto de observação (com X na distância medida) e ficam listadas no painel do periscópio (*Apagar marcações*).
+- **Varredura 360°** (V): giro completo de vigilância em ≈ 10 s.
+- **Exposição**: tempo com a cabeça fora d’água (âmbar após 15 s, vermelho após 30 s) e aviso de **esteira visível** acima de 5 nós.
 
 **Iluminação**: *Luz* (ou o interruptor junto à porta de ré, ou o instrutor) alterna normal, **vermelha** (noturna: preserva a adaptação ao escuro para o periscópio) e azul. Sem energia no barramento, ficam só as lanternas de emergência. Alagamento no compartimento central aparece como água no piso.
 
-**Vista externa e 2ª janela**: o botão *Vista externa* abre uma miniatura da cena 3D (perseguição, lateral ou topo). A **2ª janela** continua mostrando a cena externa completa enquanto você opera de dentro da sala (a sala e a visada do periscópio não mudam a câmera nem as camadas da 2ª janela).
+**Submarino 3D (picture-in-picture) e 2ª janela**: o botão **⧉ Submarino 3D** (tecla **P**) abre uma janela com o submarino em 3D sobre a sala. Arraste pelo título para movê-la; **P / M / G** mudam o tamanho; a lista escolhe a vista (perseguição, lateral, perspectiva, perfil, frente, topo, superfície, submerso, tanques em corte, forças, calado, livre) e *Camadas* liga vetores, tanques, sem água e rastro. A **2ª janela** continua mostrando a cena externa completa enquanto você opera de dentro da sala (a sala, o PiP e a visada do periscópio não mudam a câmera nem as camadas da 2ª janela).
+
+**Opções** (menu 🔈): **Som** sintetizado no navegador (zumbido das máquinas conforme a rotação, ventilação, diesel, chiado do ar AP no sopro, buzina de imersão, sino do telégrafo, bipes de alarme crítico); **Voz** — anúncios no fonoclama (1MC) das ordens e eventos (imergir/emergir, telégrafo, periscópio, snorkel, alarmes críticos), pela síntese de voz pt-BR do navegador; **Sala inclina** com o caturro e a banda para quem está andando (no posto em foco, o operador acompanha o navio).
 
 ## Mapa tático
 
@@ -302,7 +311,7 @@ A página se adapta à tela do celular, em pé ou deitado (telas de toque pequen
 - **Cenas 3D**: os controles de vista, camadas, mar, gráfico e luz ficam no botão **⚙ Vista**, para não cobrir a cena. Com o celular deitado, a cena ocupa a altura da tela (sobra uma faixa para rolar a página).
 - **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
 - Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.
-- **Sala de comando**: botões ▲ ▼ ◀ ▶ para andar, arrastar para olhar, toque num posto para se aproximar; o painel da estação abre abaixo da cena.
+- **Sala de comando**: botões ▲ ▼ ◀ ▶ para andar, arrastar para olhar, toque num posto para se aproximar; o painel da estação abre abaixo da cena. No posto, ◀ ▶ passam de tela em tela (cada tela centralizada); o ⧉ Submarino 3D abre em tamanho maior.
 
 ## Aplicativo Windows
 
