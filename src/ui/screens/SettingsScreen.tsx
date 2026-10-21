@@ -185,7 +185,7 @@ function SessionPanel() {
       </table>
       <div className="note">
         O arquivo guarda tudo o que é preciso para continuar: posição, profundidade, rumo, velocidade e inclinação; tempo de simulação; níveis dos tanques; bateria, combustível e ar comprimido; equipamentos, bombas e
-        válvulas; telégrafo e lemes; piloto automático e referências; falhas, alarmes e ambiente; e as automações em andamento (manobra rápida, demonstração, cenário guiado, rota). Ao carregar, a simulação fica pausada.
+        válvulas; telégrafo e lemes; piloto automático e referências; falhas, alarmes e ambiente; e as automações em andamento (manobra rápida, demonstração, roteiro automático, rota). Ao carregar, a simulação fica pausada.
         Pode ser aberto em outro computador com o simulador {SIM_VERSION} ou mais novo (arquivos de versões anteriores também abrem). Os gráficos do Histórico recomeçam a partir do ponto carregado.
       </div>
     </Panel>

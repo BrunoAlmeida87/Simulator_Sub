@@ -270,7 +270,7 @@ export class TourController {
     };
   }
 
-  /** dados para salvar a sessão (retomada do cenário guiado na mesma etapa) */
+  /** dados para salvar a sessão (retomada do roteiro automático na mesma etapa) */
   snapshot(): TourSnapshot | null {
     if (!this.tour) return null;
     return {
@@ -329,7 +329,7 @@ export class TourController {
     this.sent = [];
     this.finished = null;
     this.ctx = this.makeCtx(r, {});
-    r.engine.log(`CENÁRIO GUIADO iniciado: ${tour.name}`, 'Cenário guiado');
+    r.engine.log(`ROTEIRO AUTOMÁTICO iniciado: ${tour.name}`, 'Roteiro automático');
     this.t0 = r.engine.state.t;
     this.enterStep(r);
     r.running = true;
@@ -344,7 +344,7 @@ export class TourController {
     this.conditionMet = false;
     this.lastT = e.state.t;
     this.outcome[this.k] = 'em curso';
-    e.log(`Cenário guiado — etapa ${this.k + 1}/${this.tour!.steps.length}: ${st.title}`, 'Cenário guiado');
+    e.log(`Roteiro automático — etapa ${this.k + 1}/${this.tour!.steps.length}: ${st.title}`, 'Roteiro automático');
     if (st.layers) pres.setLayers(st.layers);
     if (st.view) pres.setView(st.view);
     if (st.timeScale) r.timeScale = st.timeScale;
@@ -376,7 +376,7 @@ export class TourController {
 
   stop(r: SimRunner): void {
     if (!this.active) return;
-    r.engine.log('Cenário guiado encerrado pelo operador', 'Cenário guiado');
+    r.engine.log('Roteiro automático encerrado pelo operador', 'Roteiro automático');
     this.outcome[this.k] = 'pulada';
     this.active = false;
     this.summarize(r);
@@ -397,7 +397,7 @@ export class TourController {
     if (this.k >= this.tour!.steps.length) {
       this.active = false;
       this.summarize(r);
-      r.engine.log(`Cenário guiado concluído: ${this.finished!.ok}/${this.tour!.steps.length} etapas`, 'Cenário guiado');
+      r.engine.log(`Roteiro automático concluído: ${this.finished!.ok}/${this.tour!.steps.length} etapas`, 'Roteiro automático');
       r.timeScale = 1;
       r.notify();
       return;
@@ -422,7 +422,7 @@ export class TourController {
     const st = this.tour.steps[this.k];
     if (!this.conditionMet && st.done(e, this.tStep, this.ctx)) {
       this.conditionMet = true;
-      e.log(`Cenário guiado — etapa ${this.k + 1} cumprida: ${st.waitFor}`, 'Cenário guiado');
+      e.log(`Roteiro automático — etapa ${this.k + 1} cumprida: ${st.waitFor}`, 'Roteiro automático');
       r.notify();
     }
     if (this.conditionMet && this.dwell >= st.minDwell) {
@@ -430,7 +430,7 @@ export class TourController {
       this.advance(r);
     } else if (!this.conditionMet && this.tStep > st.timeout) {
       this.outcome[this.k] = 'tempo esgotado';
-      e.log(`Cenário guiado — etapa ${this.k + 1}: TEMPO ESGOTADO (${st.waitFor})`, 'Cenário guiado');
+      e.log(`Roteiro automático — etapa ${this.k + 1}: TEMPO ESGOTADO (${st.waitFor})`, 'Roteiro automático');
       this.advance(r);
     }
   }

@@ -28,6 +28,7 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtTime } from '../format';
 import { toKnots } from '../../sim/units';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { useUi } from '../uiContext';
 
 const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
@@ -197,6 +198,7 @@ function Compare({ e }: { e: SimulationEngine }) {
 export function PresentationScreen() {
   const e = useSim(8);
   const p = usePres();
+  const ui = useUi();
   const [quality, setQuality] = useQuality();
   const [presetSel, setPresetSel] = useState(PRESETS.some((x) => x.id === p.presetId) ? p.presetId! : PRESETS[0].id);
   useEffect(() => pres.ensureInitial(runner), []);
@@ -227,13 +229,20 @@ export function PresentationScreen() {
         </div>
       </div>
       <div className="pres-side">
-        <Panel title="Cenários guiados (automáticos)">
+        <Panel title="Roteiros automáticos">
           <TourList />
         </Panel>
 
-        <Panel title="Condução da apresentação">
+        <Panel
+          title="Situações de aula e condução"
+          right={
+            <button className="btn sm" onClick={() => ui.setScreen('cenarios')} title="Abre a biblioteca: condições iniciais, situações de aula e roteiros automáticos">
+              📚 Biblioteca
+            </button>
+          }
+        >
           <div className="row">
-            <select value={presetSel} onChange={(ev) => setPresetSel(ev.target.value)} style={{ flex: 1, minWidth: 0 }} aria-label="Situação pronta">
+            <select value={presetSel} onChange={(ev) => setPresetSel(ev.target.value)} style={{ flex: 1, minWidth: 0 }} aria-label="Situação de aula">
               {PRESETS.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}

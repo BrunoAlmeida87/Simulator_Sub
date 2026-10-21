@@ -16,7 +16,7 @@ Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
 ## Verificações automáticas (`npm test`)
 
 - Validação física V01…V13 (`tests/validation.test.ts`).
-- Coerência da apresentação, manobras, cenário guiado (`tests/presentation.test.ts`).
+- Coerência da apresentação, manobras, roteiro automático (`tests/presentation.test.ts`).
 - Unidades e conversões (`tests/units.test.ts`).
 - Sessão: continuação exata após salvar/carregar, números não finitos, abertura dos arquivos v1, mensagens de erro (`tests/session.test.ts`).
 - Sessão pela interface: manobra IMERGIR salva no meio retoma na mesma etapa (`tests/session-ui.test.ts`).

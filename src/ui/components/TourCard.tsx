@@ -1,4 +1,4 @@
-/** Cartão de narração do cenário guiado e lista de roteiros. */
+/** Cartão de narração do roteiro automático e lista de roteiros. */
 import { runner, useSim } from '../store';
 import { tours, TOURS, type Tour, type TourOutcome } from '../tours';
 import { useUi } from '../uiContext';
@@ -93,7 +93,7 @@ export function TourCard({ compact }: { compact?: boolean }) {
   );
 }
 
-/** Lista dos cenários guiados com botão de início. */
+/** Lista dos roteiros automáticos com botão de início. */
 export function TourList({ goTo }: { goTo?: boolean }) {
   useSim(2);
   const ui = useUi();
@@ -120,7 +120,7 @@ export function TourList({ goTo }: { goTo?: boolean }) {
           </div>
         </div>
       ))}
-      <div className="note">O simulador executa tudo sozinho, com calma: cada etapa mostra o que está acontecendo, com os valores ao vivo, e só avança quando a condição física é atingida e houve tempo de leitura. Você pode pausar, pular etapas ou encerrar a qualquer momento. Os cenários existentes não são alterados.</div>
+      <div className="note">O simulador executa tudo sozinho, com calma: cada etapa mostra o que está acontecendo, com os valores ao vivo, e só avança quando a condição física é atingida e houve tempo de leitura. Você pode pausar, pular etapas ou encerrar a qualquer momento. As condições iniciais não são alteradas.</div>
     </div>
   );
 }

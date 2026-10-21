@@ -41,7 +41,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Modelo 3D animado | ✅ Three.js com corte dos tanques (TLP em seção "D" que acompanha o casco), tubulações, válvulas, bombas e escoamentos animados pelas vazões simuladas; hélice, lemes, bolhas e fundo |
 | Vetores de força | ✅ Peso (em G), empuxo (em B) e resultante E − P com ampliação declarada; empuxo do hélice, resistência da água e forças dos lemes — valores do último passo do motor |
 | Percepção de movimento | ✅ Esteira persistente fixa no mundo, onda de proa e braços de Kelvin (∝ U²), rastro do hélice (∝ empuxo), jato de ar dos suspiros, boias e marcadores de distância, câmera fixa |
-| Cenários guiados | ✅ Roteiros automáticos e narrados, etapa por etapa (primeiro: "Submergir e descer para 50 m"), com valores ao vivo, câmera e camadas por etapa e tempo de leitura |
+| Roteiros automáticos | ✅ Roteiros narrados, etapa por etapa (primeiro: "Submergir e descer para 50 m"), com valores ao vivo, câmera e camadas por etapa e tempo de leitura |
 | Trimagem demonstrável | ✅ Peso deslocável de 5 t sobre trilho, compensação calculada pelos tanques de trim e camada própria de vetores de trim (binários e momento líquido) |
 | Central de operação | ✅ Pilotagem com a cena sempre visível, comandos essenciais fixos, 9 grupos de sistemas expansíveis com resumo, até 2 grupos fixados e controles abertos ao clicar em tanques, lemes, hélice, mastro, bateria, válvulas ou alarmes |
 | Duas janelas | ✅ "⧉ 2ª janela": a cena numa segunda janela/monitor, espelhando a mesma simulação (BroadcastChannel); cliques nela abrem os controles na janela principal |
@@ -162,7 +162,7 @@ A simulação, a cena 3D e a costa de Sepetiba (dados embutidos) funcionam offli
 6. **Visualização 3D:** câmeras lateral, perseguição, perspectiva, perfil, frente, topo, fixa, livre e os enquadramentos de apresentação; corte com níveis reais dos tanques, tubulações e escoamentos; vetores de força; boias; trajetória; bolhas proporcionais à vazão de ar.
 7. **Histórico:** gráficos sincronizados (grandezas de unidades diferentes em eixos separados, à esquerda e à direita), marcas dos comandos, comparação antes × depois e exportação em CSV.
 
-Também há as telas **Governo** (painel visual de governo com manche, alavancas e instrumentos), **Cenários** (11 cenários e condições de carga), **⚙ Configurações** (sessões salvas e arquivos, gravação e reprodução de comandos, identificação, gráficos, ambiente, fundo e costa, parâmetros), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
+Também há as telas **Governo** (painel visual de governo com manche, alavancas e instrumentos), **Cenários** (biblioteca: condições iniciais com condição de carga, situações de aula e roteiros automáticos, indicando com costa ou mar aberto), **⚙ Configurações** (sessões salvas e arquivos, gravação e reprodução de comandos, identificação, gráficos, ambiente, fundo e costa, parâmetros), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
 
 O **modo engenharia** (botão ⓘ ou tecla `I`) permite clicar em tanques, válvulas, bombas, lemes e instrumentos. O painel mostra a função do componente, as variáveis ao vivo, o estado, a influência na dinâmica, as equações, as consequências previstas e um gráfico antes × depois.
 
