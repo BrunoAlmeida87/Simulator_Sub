@@ -202,6 +202,14 @@ export class ShipsLayer {
 
   private get(c: Contact): ShipObj {
     let s = this.ships.get(c.id);
+    // o mesmo id pode passar a ser outro tipo de navio (tráfego adicional sorteado de novo ao mudar a
+    // origem ou o fundo): refaz o modelo; materiais são compartilhados, só as geometrias são descartadas
+    if (s && s.model !== modelFor(c)) {
+      s.group.removeFromParent();
+      s.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      this.ships.delete(c.id);
+      s = undefined;
+    }
     if (!s) {
       const model = modelFor(c);
       const group = buildShip(model);
