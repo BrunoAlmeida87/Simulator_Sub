@@ -5,7 +5,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { contactsAt, contactsLocal, nedToLatLon, DEFAULT_ORIGIN, OFFSHORE_ORIGIN } from '../src/sim/geo';
-import { modelFor } from '../src/render3d/Ships';
+import { modelFor, ShipsLayer } from '../src/render3d/Ships';
+import { buildScenario } from '../src/sim/scenarios';
+import type { Contact } from '../src/sim/geo';
 
 describe('Navios da mesa tática no cenário 3D', () => {
   for (const origin of [DEFAULT_ORIGIN, OFFSHORE_ORIGIN, { lat: -23.1, lon: -44.05 }]) {
@@ -30,5 +32,26 @@ describe('Navios da mesa tática no cenário 3D', () => {
   it('cada tipo de contato tem um modelo 3D', () => {
     const models = contactsAt(0).map((c) => modelFor(c));
     expect(models).toEqual(['graneleiro', 'conteineiro', 'pesqueiro', 'rebocador', 'patrulha']);
+  });
+  it('o mesmo id que passa a ser outro tipo de navio troca o modelo 3D (tráfego sorteado de novo)', () => {
+    const e = buildScenario('superficie');
+    const layer = new ShipsLayer();
+    const proj = () => ({ x: 0, y: 0, visible: true });
+    const ship = (kind: Contact['kind'], name: string): Contact => ({ id: 'T01', name, kind, n: 300, e: 300, course: 0, speed: 2 });
+    const lengthOf = () => {
+      let L = 0;
+      layer.group.traverse((o) => {
+        if (o.visible && o.userData.length && o.parent === layer.group) L = Math.max(L, o.userData.length as number);
+      });
+      return L;
+    };
+    const upd = (c: Contact) => layer.update(e, 0, 0, 0, OFFSHORE_ORIGIN, 12, true, null, proj, [c]);
+    upd(ship('mercante', 'Graneleiro 1 (fictício)'));
+    const big = lengthOf();
+    upd(ship('rebocador', 'Rebocador 1 (fictício)'));
+    const small = lengthOf();
+    expect(big).toBeGreaterThan(100);
+    expect(small).toBeLessThan(60);
+    expect(layer.group.children.filter((g) => g.userData.length).length).toBeLessThanOrEqual(contactsAt(0).length + 1);
   });
 });

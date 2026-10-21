@@ -40,7 +40,8 @@ export function ValveGlyph(props: { x: number; y: number; st: ValveState; label?
   );
 }
 
-export function PumpGlyph(props: { x: number; y: number; st: PumpState; label: string; onToggle?: () => void; inspect?: string; reverse?: boolean }) {
+/** `angle`: giro do triângulo (graus; 0 = recalque para a direita); `labelAt`: posição do rótulo relativa ao centro. */
+export function PumpGlyph(props: { x: number; y: number; st: PumpState; label: string; onToggle?: () => void; inspect?: string; reverse?: boolean; angle?: number; labelAt?: [number, number] }) {
   const ui = useUi();
   const run = props.st.speed > 0.01;
   const col = props.st.failed ? '#ff5257' : run ? '#3ddc84' : '#8399b1';
@@ -53,9 +54,9 @@ export function PumpGlyph(props: { x: number; y: number; st: PumpState; label: s
       <title>{`${props.label}: ${props.st.failed ? 'FALHA' : run ? 'OPERANDO' : 'PARADA'} — rotação ${(props.st.speed * 100).toFixed(0)} %`}</title>
       <circle r="13" fill="#0a121b" stroke={col} strokeWidth="2" />
       <g className={run ? 'spin' : ''} style={run ? { animationDuration: `${0.4 / Math.max(0.2, props.st.speed)}s` } : undefined}>
-        <polygon points={props.reverse ? '6,-8 6,8 -9,0' : '-6,-8 -6,8 9,0'} fill={col} />
+        <polygon points={props.reverse ? '6,-8 6,8 -9,0' : '-6,-8 -6,8 9,0'} fill={col} transform={props.angle ? `rotate(${props.angle})` : undefined} />
       </g>
-      <text y="26" fontSize="9" textAnchor="middle" fill="#a9bdd2">
+      <text x={props.labelAt?.[0] ?? 0} y={props.labelAt?.[1] ?? 26} fontSize="9" textAnchor="middle" fill="#a9bdd2">
         {props.label}
       </text>
     </g>

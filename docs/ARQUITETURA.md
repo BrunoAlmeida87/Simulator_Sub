@@ -55,7 +55,11 @@ Disponibilidade de energia e hidráulica: os consumidores usam o estado do barra
 - `render3d/ForceArrows.ts`: vetores de peso, empuxo, resultante e forças hidrodinâmicas, a partir de `sim/forceVectors.ts` (função pura, testada).
 - `render3d/SurfaceFx.ts`: esteira persistente (fixa no mundo), onda de proa, braços de Kelvin, rastro do hélice e jato dos suspiros.
 - `render3d/Markers.ts`: boias com cabo de fundeio marcado a cada 10 m e marcadores de distância ao longo da derrota inicial.
-- `render3d/layers.ts`: camadas visuais e a linguagem de cores comum a tanques, circuitos e forças.
+- `render3d/layers.ts`: camadas visuais, o catálogo único `LAYER_INFO` (nomes e “marcar/desmarcar todas”) e a linguagem de cores comum a tanques, circuitos e forças; `ui/components/LayerPanel.tsx` é o painel de camadas reutilizado pelas telas.
+- `sim/systems/compensationNetwork.ts`: vazão de cada trecho do circuito de compensação a partir do estado (conservação de massa no coletor) — usada pelo diagrama 2D e pelo corte 3D.
+- `sim/systems/exhaust.ts`: caminho da descarga dos diesel-geradores (mastro × dispersores) derivado do estado, sem alterar a lógica dos geradores.
+- `sim/traffic.ts`: tráfego marítimo adicional (cinemática em função do tempo, trechos validados contra o fundo simulado e entre si), comum ao mapa e à cena 3D.
+- `render3d/DepthRefs.ts`: referências discretas de profundidade (faixas de partículas e sombra no fundo).
 - `ui/presentation.ts`, `ui/checklist.ts`, `ui/maneuvers.ts`, `ui/demo.ts`: situações prontas, estado inicial, antes × agora; checklist contínuo e persistente; etapas, comandos e resultado das manobras e da demonstração.
 
 ## Como adicionar um sistema (ex.: atmosfera interna, Fase 3)

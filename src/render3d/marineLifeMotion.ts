@@ -12,7 +12,9 @@ export interface MarineLifeSettings {
   fishUnderwater: boolean;
 }
 export const DEFAULT_MARINE_LIFE: MarineLifeSettings = { fishDensity: 'discreta', fishJumps: true, fishUnderwater: true };
-export const MAX_FISH = 27;
+export const MAX_FISH = 36;
+/** chance de cada célula ter o nadador extra (aumento leve: cerca de +30 % no discreto e +10 % no moderado) */
+const EXTRA_SWIMMER = 0.3;
 const CELL = 90;
 const TAU = Math.PI * 2;
 
@@ -35,14 +37,18 @@ function random(a: number, b: number, salt: number): number {
   return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Limite fixo: até 18 peixes no modo discreto, 27 no moderado; saltos raros. */
+/**
+ * Limite fixo: por célula, 1 nadador (+1 com chance de 30 %) no discreto e 2 (+1 com 30 %) no moderado —
+ * até 27 e 36 peixes nas 9 células; saltos raros. Cada nadador tem posição e órbita próprias (sem cardumes artificiais).
+ */
 export function sampleMarineLife(env: Environment, time: number, pn: number, pe: number, settings: MarineLifeSettings, out: FishPose[] = []): FishPose[] {
   out.length = 0;
   if (settings.fishDensity === 'desligada' || (!settings.fishJumps && !settings.fishUnderwater)) return out;
   const t = Math.max(0, time);
   const cn = Math.floor(pn / CELL);
   const ce = Math.floor(pe / CELL);
-  const swimmers = settings.fishDensity === 'moderada' ? 2 : 1;
+  // o último nadador de cada célula é o "extra", presente só em parte das células
+  const swimmers = settings.fishDensity === 'moderada' ? 3 : 2;
   for (let i = cn - 1; i <= cn + 1; i++) {
     for (let j = ce - 1; j <= ce + 1; j++) {
       for (let slot = 0; slot <= swimmers; slot++) {
@@ -51,6 +57,7 @@ export function sampleMarineLife(env: Environment, time: number, pn: number, pe:
         // O saltador tem identidade própria, independente da densidade.
         const seed = jump ? 100 : slot * 20;
         const rnd = (k: number) => random(i, j, seed + k);
+        if (!jump && slot === swimmers - 1 && rnd(14) > EXTRA_SWIMMER) continue;
         let n = (i + 0.25 + rnd(1) * 0.5) * CELL;
         let e = (j + 0.25 + rnd(2) * 0.5) * CELL;
         let heading = rnd(3) * TAU;

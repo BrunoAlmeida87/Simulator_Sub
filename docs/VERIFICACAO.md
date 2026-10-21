@@ -27,6 +27,10 @@ Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
 - Rota do mapa: o rumo ordenado usa a origem geográfica da simulação, também nos cenários costeiros (`tests/route.test.ts`).
 - Iluminação da cena: padrão Clara, valores inválidos ignorados, perfis completos (`tests/graphics.test.ts`).
 - Navios: posição 3D = posição do mapa (< 1 m) para três origens; um modelo por tipo (`tests/ships.test.ts`).
+- Compensação: vazões por trecho com tudo fechado, admitindo, esgotando, VC-1 fechada, recalque bloqueado e admissão + bomba juntas; sentido e conservação (`tests/compensationNetwork.test.ts`).
+- Camadas: desmarcar/marcar todas, casco fora de marcar/desmarcar, nenhum rótulo com tudo desligado, bateria e ar comprimido com valores do modelo (inclusive durante o sopro), filtro de tanques vazio (`tests/layers.test.ts`).
+- Tráfego adicional: quantidade, estabilidade, trechos em água com calado suficiente (três origens, costa ligada), nenhum par de navios a menos de 250 m em 2 h, mesma posição em qualquer origem (`tests/traffic.test.ts`).
+- Descarga dos geradores: parados, superfície com mastro recolhido (dispersores, intensidade ∝ geradores), snorkel içado (mastro) e submerso sem ar (sem descarga) (`tests/exhaust.test.ts`).
 - Costa: terra/mar/restinga nos dados embutidos, transição contínua do fundo, costa desligada nos cenários originais e nos arquivos v1, cenários costeiros sem encalhe e com alarme antes do contato (`tests/coast.test.ts`).
 
 ## Cenários de verificação manual (navegador e Electron)

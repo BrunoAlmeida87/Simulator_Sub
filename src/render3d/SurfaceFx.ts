@@ -13,6 +13,7 @@
  *  - jato de ar dos suspiros acima da água (∝ vazão de ar) e espuma onde as
  *    bolhas chegam à superfície.
  */
+import { dieselExhaust } from '../sim/systems/exhaust';
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { WaveField } from '../sim/environment/waves';
@@ -342,7 +343,8 @@ export class SurfaceFx {
           if (st.status === 'EM CARGA') pw += st.power / g.ratedPower;
           if (st.status === 'PARTINDO') starting = true;
         }
-        if ((pw > 0.01 || starting) && s.snorkel.pos > 0.5) {
+        // mesmo critério das bolhas dos dispersores (sim/systems/exhaust.ts): mastro içado → descarga pelo mastro
+        if (dieselExhaust(v, s).route === 'mastro') {
           const m = v.hull.snorkelMast;
           const top = R0 + v.hull.sail.height - 0.5 + s.snorkel.pos * m.extension;
           const head = toW(m.x - 0.7, 0, -top - 0.3);

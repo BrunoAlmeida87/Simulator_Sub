@@ -4,7 +4,7 @@ Plataforma de **simulação de engenharia e treinamento conceitual** de um subma
 
 Não é um jogo: as respostas do submarino vêm de um **motor físico independente** com estado central compartilhado. Abrir um suspiro libera ar por um orifício compressível, a água entra pelos embornais, a massa aumenta, o empuxo líquido muda e o casco 6-GL responde.
 
-**Vida marinha decorativa:** poucos peixes de aparência e movimento variados nadam na água e perto do fundo, com saltos ocasionais na superfície. Em **Configurações → Vida marinha**, escolha a quantidade (discreta por padrão) e habilite saltos e peixes submersos separadamente. As opções ficam salvas e acompanham a segunda janela; os peixes seguem o relógio da simulação sem alterar a física.
+**Vida marinha decorativa:** alguns peixes de aparência e movimento variados nadam na água e perto do fundo, com saltos ocasionais na superfície. Em **Configurações → Vida marinha**, escolha a quantidade (discreta por padrão) e habilite saltos e peixes submersos separadamente. As opções ficam salvas e acompanham a segunda janela; os peixes seguem o relógio da simulação sem alterar a física.
 
 **▶ Simulador publicado:** https://brunoalmeida87.github.io/Simulator_Sub/
 
@@ -58,6 +58,9 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Painel de governo | ✅ Aba Governo: manche (leme + lemes de ré), alavanca dos lemes de vante, telégrafo em alavanca, piloto com botões giratórios; mouse e toque; comandado × real |
 | Celular | ✅ Página adaptada a telas de toque pequenas (em pé ou deitado): cabeçalho compacto com ☰, controles do 3D no botão ⚙ Vista, diagramas legíveis com rolagem lateral; no PC nada muda |
 | Fluxo de energia e propulsão | ✅ Equipamentos clicáveis com estados e comandos; diagrama motor → eixo → hélice com rotação, sentido, torque, potência e empuxo |
+| Camadas sob controle | ✅ Painel “Camadas” com marcar/desmarcar todas em Pilotagem, 3D, Governo, Apresentação e 2ª janela (submarino sem nenhum texto ou vetor, se desejado); camadas de **bateria (%)** e **ar comprimido** (pressão, massa e ar livre de cada grupo de garrafas); casco externo / corte / sem casco na Apresentação |
+| Compensação coerente | ✅ Diagrama e corte 3D com a bomba no coletor e cada trecho animado pela vazão calculada para ele, no sentido real (admissão, esgoto, ramais fechados, recalque bloqueado) |
+| Ambiente marítimo | ✅ Navios adicionais configuráveis (0–20) em água com calado suficiente e sem sobreposição, no 3D e no mapa; mais peixes; referências discretas de profundidade (faixas de partículas e sombra no fundo); bolhas da descarga dos diesel-geradores pelos dispersores |
 | Navios e costa no 3D | ✅ Contatos da mesa tática como navios 3D na mesma posição; costa de Sepetiba embutida (offline) com terra, orla e fundo costeiro na física; Estaleiro e Base Naval da Ilha da Madeira no lugar real (satélite Sentinel-2), com aterro, quebra-mares, shiplift e bacia dragada na física e no mapa |
 
 **Antecipados das Fases 2 e 3** (funcionais, mas simplificados): banda por tanques laterais, balanço de energia com bateria, diesel-geradores, combustível compensado e compressor; sensores com ruído, atraso e falhas; alarmes com prioridade e registro; gráficos históricos sincronizados; piloto automático PID; injeção de falhas (bombas, válvulas, sensores, energia, hidráulica, alagamento); termoclina; topografia do fundo.

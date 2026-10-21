@@ -36,15 +36,19 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
   config/defaultVessel.ts  TODOS os parâmetros do navio (casco, tanques, lemes, peso móvel…)
   physics/            hidrostática, hidrodinâmica (finForce), dinâmica (computeForces), massas
   systems/            lastro, tanques internos, ar AP, elétrica, propulsão, piloto, alarmes, sensores
+                      compensationNetwork.ts (vazão por trecho do circuito), exhaust.ts (descarga dos geradores)
   environment/        água do mar, ondas
   commands.ts         ÚNICA via para alterar a simulação (tipo Command + applyCommand)
   scenarios.ts        cenários iniciais (SCENARIOS)
   forceVectors.ts     vetores de força para exibição (peso/empuxo/resultante, hélice, lemes, trim)
   geo.ts              lat/lon ↔ NED, contatos fictícios, CPA (mapa tático)
+  traffic.ts          navios adicionais (quantidade em Gráficos), validados contra o fundo simulado
   validation/suite.ts testes de validação física V01…
 src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   SubmarineScene.ts   cena principal: casco, lemes, câmeras, pick(), modo sem água
   layers.ts           SceneLayers: flags de camadas (vetores, tanques, escoamentos, noWater, hiddenVectors…)
+                      + LAYER_INFO (catálogo/nomes) e allLayersOn/Off (marcar/desmarcar todas)
+  DepthRefs.ts        referências discretas de profundidade (faixas de partículas, sombra no fundo)
   ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, fumaça), Markers.ts, Ocean.ts
 src/ui/               INTERFACE (React)
   App.tsx             abas (TABS) e atalhos de teclado
@@ -52,7 +56,7 @@ src/ui/               INTERFACE (React)
   sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast…)
   ops/                central de operação da Pilotagem (grupos expansíveis, faixa inferior, opsBus)
-  components/         controles, seletores (TankSelector, VectorSelector), gráficos, Scene3D
+  components/         controles, seletores (TankSelector, VectorSelector, LayerPanel), gráficos, Scene3D
   inspector/          modo engenharia (registry.ts = textos e variáveis por componente)
   maneuvers.ts        manobras rápidas (Imergir/Emergir)
   tours.ts            cenários guiados automáticos passo a passo (TOURS)
@@ -69,8 +73,9 @@ docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, V
 - **Não alterar cenários existentes** (`SCENARIOS`, `TOURS`) ao criar novos — acrescentar.
 - **Duas janelas:** toda camada/flag nova do 3D precisa chegar à segunda janela
   (`VisualApp.tsx` + `sync.ts`). Já houve erro de vetores/tanques sumindo nela.
-- **Camadas novas:** adicionar em `layers.ts` (com valor padrão), tratar em `SubmarineScene.ts`
-  e expor nas telas (View3D, Pilot, Presentation `LAYER_LIST`, VisualApp `LAYER_BTNS`).
+- **Camadas novas:** adicionar em `layers.ts` (com valor padrão e entrada em `LAYER_INFO`), tratar em
+  `SubmarineScene.ts` e expor nas telas (View3D/Pilot/Helm `*_LAYER_KEYS`, Presentation `LAYER_LIST`,
+  VisualApp `LAYER_BTNS`). Toda camada precisa poder ser desligada ("Desmarcar todas").
 - **Preferências de visualização** persistem entre abas com `usePersisted`.
 - **Celular:** a interface precisa funcionar em tela estreita (sem rolagem horizontal).
 - Mapas: só fontes **gratuitas sem chave de API** (OpenStreetMap, OpenTopoMap, EOX, OpenSeaMap).
