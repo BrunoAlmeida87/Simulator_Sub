@@ -5,14 +5,21 @@
  */
 import type { Environment } from '../sim/environment/environment';
 
-export type FishDensity = 'desligada' | 'discreta' | 'moderada';
+export type FishDensity = 'desligada' | 'discreta' | 'moderada' | 'abundante';
 export interface MarineLifeSettings {
   fishDensity: FishDensity;
   fishJumps: boolean;
   fishUnderwater: boolean;
 }
 export const DEFAULT_MARINE_LIFE: MarineLifeSettings = { fishDensity: 'discreta', fishJumps: true, fishUnderwater: true };
-export const MAX_FISH = 36;
+/** nadadores soltos (até 4 por célula) + saltadores + cardumes (até 24 peixes por célula), nas 9 células */
+export const MAX_FISH = 9 * (4 + 1 + 24);
+/** chance de cada célula ter um cardume e tamanho máximo do cardume, por densidade */
+const SCHOOL: Record<Exclude<FishDensity, 'desligada'>, { chance: number; min: number; max: number }> = {
+  discreta: { chance: 0.4, min: 7, max: 12 },
+  moderada: { chance: 0.65, min: 9, max: 16 },
+  abundante: { chance: 0.9, min: 12, max: 24 },
+};
 /** chance de cada célula ter o nadador extra (aumento leve: cerca de +30 % no discreto e +10 % no moderado) */
 const EXTRA_SWIMMER = 0.3;
 const CELL = 90;
@@ -28,6 +35,8 @@ export interface FishPose {
   phase: number;
   tint: number;
   habitat: 'agua' | 'fundo' | 'salto';
+  /** peixe de cardume (pequeno, nada junto com os outros) */
+  school?: boolean;
 }
 
 /** Hash inteiro independente da ordem de amostragem e do gerador da física. */
@@ -48,7 +57,7 @@ export function sampleMarineLife(env: Environment, time: number, pn: number, pe:
   const cn = Math.floor(pn / CELL);
   const ce = Math.floor(pe / CELL);
   // o último nadador de cada célula é o "extra", presente só em parte das células
-  const swimmers = settings.fishDensity === 'moderada' ? 3 : 2;
+  const swimmers = settings.fishDensity === 'abundante' ? 4 : settings.fishDensity === 'moderada' ? 3 : 2;
   for (let i = cn - 1; i <= cn + 1; i++) {
     for (let j = ce - 1; j <= ce + 1; j++) {
       for (let slot = 0; slot <= swimmers; slot++) {
@@ -69,7 +78,7 @@ export function sampleMarineLife(env: Environment, time: number, pn: number, pe:
           // Em cada janela há uma chance de salto em um instante imprevisível.
           const epoch = Math.floor(t / 70);
           const chance = random(i, j, 300 + epoch * 3);
-          if (chance > (settings.fishDensity === 'moderada' ? 0.42 : 0.24)) continue;
+          if (chance > (settings.fishDensity === 'discreta' ? 0.24 : 0.42)) continue;
           const start = random(i, j, 301 + epoch * 3) * 64 + 2;
           const duration = 1.5 + rnd(7) * 0.7;
           const u = (t - epoch * 70 - start) / duration;
@@ -88,7 +97,7 @@ export function sampleMarineLife(env: Environment, time: number, pn: number, pe:
           const angle = heading + sign * t * (0.025 + rnd(9) * 0.035);
           n += Math.cos(angle) * radius;
           e += Math.sin(angle) * radius;
-          heading = angle + sign * Math.PI / 2;
+          heading = angle + (sign * Math.PI) / 2;
         }
         const bottom = env.bottomDepthAt(n, e);
         if (!Number.isFinite(bottom) || bottom < 5) continue;
@@ -106,7 +115,57 @@ export function sampleMarineLife(env: Environment, time: number, pn: number, pe:
         if (fade <= 0) continue;
         out.push({ n, e, y, heading, pitch, length: (0.65 + rnd(12) * 0.9) * fade, phase, tint: rnd(13), habitat });
       }
+      // cardume: peixes pequenos nadando juntos numa órbita lenta, com posições estáveis dentro do grupo
+      if (settings.fishUnderwater) sampleSchool(env, t, i, j, pn, pe, SCHOOL[settings.fishDensity], out);
     }
   }
   return out;
+}
+
+function sampleSchool(env: Environment, t: number, i: number, j: number, pn: number, pe: number, cfg: { chance: number; min: number; max: number }, out: FishPose[]): void {
+  const rnd = (k: number) => random(i, j, 500 + k);
+  if (rnd(0) > cfg.chance) return;
+  const count = cfg.min + Math.floor(rnd(1) * (cfg.max - cfg.min + 1));
+  const radius = 10 + rnd(2) * 18;
+  const sign = rnd(3) < 0.5 ? -1 : 1;
+  const angle = rnd(4) * TAU + sign * t * (0.04 + rnd(5) * 0.04);
+  const cn = (i + 0.3 + rnd(6) * 0.4) * CELL + Math.cos(angle) * radius;
+  const ce = (j + 0.3 + rnd(7) * 0.4) * CELL + Math.sin(angle) * radius;
+  const heading = angle + (sign * Math.PI) / 2;
+  const bottom = env.bottomDepthAt(cn, ce);
+  if (!Number.isFinite(bottom) || bottom < 6) return;
+  const surface = env.waves.elevation(cn, ce, t);
+  if (bottom + surface < 5) return;
+  const depth = Math.min(bottom - 3, 4 + rnd(8) * 40);
+  const tint = rnd(9);
+  const ch = Math.cos(heading);
+  const sh = Math.sin(heading);
+  for (let k = 0; k < count; k++) {
+    const r = (q: number) => random(i * 31 + k, j, 700 + q);
+    // posição no grupo (m): ao longo, ao lado e na vertical, com um vaivém lento
+    const along = (r(0) - 0.5) * 7 + Math.sin(t * 0.7 + r(3) * TAU) * 0.5;
+    const side = (r(1) - 0.5) * 5 + Math.cos(t * 0.5 + r(4) * TAU) * 0.4;
+    const up = (r(2) - 0.5) * 2.6;
+    const n = cn + ch * along - sh * side;
+    const e = ce + sh * along + ch * side;
+    const bt = env.bottomDepthAt(n, e);
+    if (!Number.isFinite(bt) || bt < 5) continue;
+    const sf = env.waves.elevation(n, e, t);
+    const y = Math.max(-bt + 1.5, Math.min(sf - 1.5, -depth + up));
+    const distance = Math.hypot(n - pn, e - pe);
+    const fade = Math.max(0, Math.min(1, (85 - distance) / 20));
+    if (fade <= 0) continue;
+    out.push({
+      n,
+      e,
+      y,
+      heading: heading + (r(5) - 0.5) * 0.25,
+      pitch: 0,
+      length: (0.28 + r(6) * 0.2) * fade,
+      phase: t * (9 + r(7) * 4) + r(8) * TAU,
+      tint: Math.min(1, tint * 0.4 + r(9) * 0.15),
+      habitat: 'agua',
+      school: true,
+    });
+  }
 }

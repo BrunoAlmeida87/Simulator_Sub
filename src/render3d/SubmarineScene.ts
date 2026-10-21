@@ -8,6 +8,7 @@
  * Z₃ = −Norte. Origem flutuante na posição horizontal do submarino.
  */
 import { dieselExhaust, disperserOutlets } from '../sim/systems/exhaust';
+import { WindFx } from './WindFx';
 import { DepthRefs } from './DepthRefs';
 import { trafficAt, trafficForEnv } from '../sim/traffic';
 import * as THREE from 'three';
@@ -56,6 +57,9 @@ interface Particle {
   d: number;
   vy: number;
   life: number;
+  /** deriva horizontal (m/s, n/e) — bolhas da descarga lançadas para ré */
+  vn?: number;
+  ve?: number;
 }
 
 export interface Label3D {
@@ -165,10 +169,12 @@ export class SubmarineScene {
   private shipyard: ShipyardModel | null = null;
   private shipyardDist = Infinity;
   private particles: Particle[] = [];
-  /** bolhas pequenas da descarga dos diesel-geradores pelos dispersores (atrás da vela) */
+  /** bolhas da descarga dos diesel-geradores (saídas atrás da vela, abaixo d'água) */
   private exParticles: Particle[] = [];
   private exBubbles: THREE.Points;
-  private static readonly EX_MAX = 450;
+  private static readonly EX_MAX = 1100;
+  /** vento aparente: linhas de vento e flâmula na vela */
+  private wind!: WindFx;
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
   private snow: THREE.Points;
   private depthRefs: DepthRefs;
@@ -192,7 +198,12 @@ export class SubmarineScene {
   private dot = dotTexture();
   private env: () => SimulationEngine;
 
-  constructor(private container: HTMLElement, runner: SimRunner, initialView: ViewMode = 'perspectiva', quality: OceanQuality = 'alta') {
+  constructor(
+    private container: HTMLElement,
+    runner: SimRunner,
+    initialView: ViewMode = 'perspectiva',
+    quality: OceanQuality = 'alta',
+  ) {
     this.quality = quality;
     this.runner = runner;
     this.env = () => this.runner.engine;
@@ -251,6 +262,12 @@ export class SubmarineScene {
     this.scene.add(this.trimVis.world);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
+    {
+      const v = this.env().vessel;
+      this.wind = new WindFx(v.hull.diameter / 2 + v.hull.sail.height, v.hull.sail.xAft + 0.9);
+      this.scene.add(this.wind.group);
+      this.sub.add(this.wind.pennant);
+    }
     this.markers = new Markers(this.env(), this.dot);
     this.scene.add(this.markers.group);
     this.scene.add(this.ships.group);
@@ -271,7 +288,7 @@ export class SubmarineScene {
     {
       const eg = new THREE.BufferGeometry();
       eg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(SubmarineScene.EX_MAX * 3), 3));
-      this.exBubbles = new THREE.Points(eg, new THREE.PointsMaterial({ color: 0xe4ecef, size: 0.45, transparent: true, opacity: 0.75, map: this.dot, depthWrite: false }));
+      this.exBubbles = new THREE.Points(eg, new THREE.PointsMaterial({ color: 0xf2f8fb, size: 0.95, transparent: true, opacity: 0.85, map: this.dot, depthWrite: false }));
       this.exBubbles.frustumCulled = false;
       this.scene.add(this.exBubbles);
     }
@@ -481,7 +498,7 @@ export class SubmarineScene {
         }
         piv.add(m);
         g.add(piv);
-        if (id) (this.fins[id + (side < 0 ? 'L' : 'R')] = piv);
+        if (id) this.fins[id + (side < 0 ? 'L' : 'R')] = piv;
       }
       this.sub.add(g);
     };
@@ -772,7 +789,10 @@ export class SubmarineScene {
     switch (v) {
       case 'superficie': {
         const k = Math.max(1, 1.3 / asp);
-        return c.add(fwd.multiplyScalar(-60 * k)).add(stbd.multiplyScalar(62 * k)).setY(Math.max(26 * k, c.y + 26 * k));
+        return c
+          .add(fwd.multiplyScalar(-60 * k))
+          .add(stbd.multiplyScalar(62 * k))
+          .setY(Math.max(26 * k, c.y + 26 * k));
       }
       case 'submerso': {
         const cam = c.add(stbd.multiplyScalar(Math.max(80, 90 / asp))).add(fwd.multiplyScalar(6));
@@ -813,7 +833,10 @@ export class SubmarineScene {
         return cam;
       }
       case 'perseguicao':
-        return c.add(fwd.multiplyScalar(-Math.max(95, 70 / Math.max(0.3, this.camera.aspect)))).add(stbd.multiplyScalar(18)).add(new THREE.Vector3(0, 16, 0));
+        return c
+          .add(fwd.multiplyScalar(-Math.max(95, 70 / Math.max(0.3, this.camera.aspect))))
+          .add(stbd.multiplyScalar(18))
+          .add(new THREE.Vector3(0, 16, 0));
       case 'perfil':
         return c.add(stbd.multiplyScalar(140)).add(new THREE.Vector3(0, 4, 0));
       case 'frente':
@@ -821,7 +844,10 @@ export class SubmarineScene {
       case 'topo':
         return c.add(new THREE.Vector3(0, 170, 0)).add(fwd.multiplyScalar(-1));
       default:
-        return c.add(fwd.multiplyScalar(-70)).add(stbd.multiplyScalar(75)).add(new THREE.Vector3(0, 32, 0));
+        return c
+          .add(fwd.multiplyScalar(-70))
+          .add(stbd.multiplyScalar(75))
+          .add(new THREE.Vector3(0, 32, 0));
     }
   }
 
@@ -933,26 +959,46 @@ export class SubmarineScene {
           }
         }
       }
-      // descarga dos diesel-geradores pelos dispersores (mastro recolhido, gerador em carga): ver sim/systems/exhaust.ts
+      // descarga dos diesel-geradores: sai atrás da vela, abaixo d'água, e sobe em bolhas (ver sim/systems/exhaust.ts)
       const ex = dieselExhaust(v, s);
-      if (ex.route === 'dispersores') {
-        const rate = (6 + 14 * ex.load + (ex.starting ? 12 : 0)) * step; // bolhas/s por saída: fluxo moderado
+      // efeito da camada "Esteira" (desligada: sem bolhas novas e as existentes ocultas)
+      if (ex.route && this.layers.wake) {
+        const psi = (e.outputs.euler.heading * Math.PI) / 180;
+        const fN = Math.cos(psi);
+        const fE = Math.sin(psi);
+        const rate = (16 + 30 * ex.load + (ex.starting ? 24 : 0)) * step; // bolhas/s por saída
         for (const o of disperserOutlets(v, e.geom.radiusAt)) {
           const src = toWorld(o.x, o.y, o.z);
           if (src.d + wv.elevation(src.n, src.e, tWave) < 0.3) continue; // saída fora d'água: sem bolhas
+          const side = o.y < 0 ? -1 : 1;
           let k = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
           while (k-- > 0 && this.exParticles.length < SubmarineScene.EX_MAX) {
-            this.exParticles.push({ n: src.n + (Math.random() - 0.5) * 0.6, e: src.e + (Math.random() - 0.5) * 0.6, d: src.d + Math.random() * 0.2, vy: 0.35 + Math.random() * 0.45, life: 40 });
+            // lançadas para ré ao longo do casco, abrindo um pouco para o bordo
+            const back = 0.8 + Math.random() * 1.2;
+            const out = side * (0.15 + Math.random() * 0.35);
+            this.exParticles.push({
+              n: src.n + (Math.random() - 0.5) * 0.8,
+              e: src.e + (Math.random() - 0.5) * 0.8,
+              d: src.d + Math.random() * 0.3,
+              vy: 0.3 + Math.random() * 0.5,
+              life: 60,
+              vn: -fN * back - fE * out,
+              ve: -fE * back + fN * out,
+            });
           }
         }
       }
       this.exParticles = this.exParticles.filter((p) => {
         p.d -= p.vy * step;
         p.life -= step;
-        p.n += (Math.random() - 0.5) * 0.12;
-        p.e += (Math.random() - 0.5) * 0.12;
+        // o jato perde velocidade na água; a bolha sobe e se espalha
+        const kk = Math.exp(-0.6 * step);
+        p.vn = (p.vn ?? 0) * kk;
+        p.ve = (p.ve ?? 0) * kk;
+        p.n += p.vn * step + (Math.random() - 0.5) * 0.14;
+        p.e += p.ve * step + (Math.random() - 0.5) * 0.14;
         const alive = p.d > -wv.elevation(p.n, p.e, tWave) && p.life > 0;
-        if (!alive && p.life > 0 && Math.random() < 0.25) this.fx.bubbleSurfaced(p.n, p.e);
+        if (!alive && p.life > 0 && Math.random() < 0.35) this.fx.exhaustFoam(p.n, p.e);
         return alive;
       });
       this.particles = this.particles.filter((p) => {
@@ -998,6 +1044,13 @@ export class SubmarineScene {
     // esteira, onda de proa, rastro do hélice, jato dos suspiros
     const pixelScale = this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
     this.fx.update(e, step, pn, pe, tWave, pixelScale, this.layers.wake);
+    {
+      // vela fora d'água: a flâmula só aparece com o submarino na superfície
+      this.sub.updateMatrixWorld();
+      const top = this.wind.pennant.getWorldPosition(new THREE.Vector3());
+      const sailOut = top.y > e.env.waves.elevation(pn - top.z, pe + top.x, tWave) + 0.3;
+      this.wind.update(e, step, dtR, pn, pe, tWave, this.layers.wind && !this.layers.noWater, this.camera.position.y < 0, sailOut && this.layers.wind && this.layers.hull);
+    }
     this.markers.update(e, pn, pe, tWave, this.layers.markers);
 
     // trajetória
@@ -1024,7 +1077,14 @@ export class SubmarineScene {
 
     // câmera: segue o submarino (vista "Calado" usa teleobjetiva)
     const sh = this.view === 'navio' ? this.ships.nearest : null;
-    const fov = this.view === 'periscopio' ? Math.max(2, Math.min(70, this.periscope.fov)) : this.view === 'calado' ? 16 : sh ? Math.max(2.5, Math.min(50, ((2 * Math.atan((sh.length * 1.8) / (2 * (sh.dist + 55)))) * 180) / Math.PI)) : 50;
+    const fov =
+      this.view === 'periscopio'
+        ? Math.max(2, Math.min(70, this.periscope.fov))
+        : this.view === 'calado'
+          ? 16
+          : sh
+            ? Math.max(2.5, Math.min(50, (2 * Math.atan((sh.length * 1.8) / (2 * (sh.dist + 55))) * 180) / Math.PI))
+            : 50;
     if (this.camera.fov !== fov) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
@@ -1040,7 +1100,10 @@ export class SubmarineScene {
       const { fwd, stbd } = this.headingVectors();
       const b = (this.periscope.bearing * Math.PI) / 180;
       const el = (Math.max(-20, Math.min(45, this.periscope.elev)) * Math.PI) / 180;
-      const dir = fwd.multiplyScalar(Math.cos(b)).add(stbd.multiplyScalar(Math.sin(b))).multiplyScalar(Math.cos(el));
+      const dir = fwd
+        .multiplyScalar(Math.cos(b))
+        .add(stbd.multiplyScalar(Math.sin(b)))
+        .multiplyScalar(Math.cos(el));
       dir.y = Math.sin(el);
       this.camera.position.copy(head);
       this.controls.target.copy(head).add(dir.multiplyScalar(100));
@@ -1091,7 +1154,7 @@ export class SubmarineScene {
     this.ocean.mesh.visible = !dry;
     this.fx.group.visible = this.fx.group.visible && !dry;
     this.bubbles.visible = !dry;
-    this.exBubbles.visible = !dry;
+    this.exBubbles.visible = !dry && this.layers.wake;
     this.snow.visible = !dry;
     // referências de profundidade: faixas e sombra (opção gráfica); a linha tracejada superfície–submarino–fundo
     // é o eixo dos rótulos de cota, por isso também segue a camada "Identificações"
@@ -1145,6 +1208,7 @@ export class SubmarineScene {
     const extra = this.trafficCount > 0 && this.layers.ships && !dry ? trafficAt(e.state.t, trafficForEnv(e.env, this.geoOrigin, this.trafficCount), this.geoOrigin) : [];
     this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj, extra);
     this.marineLife.update(e.env, tWave, pn, pe, !dry);
+    if (this.layers.labels) this.wind.label(e, lbl, proj);
     if (this.shipyard && this.layers.labels && !dry && coastOn) this.shipyard.label(lbl, proj, this.shipyardDist);
     this.renderer.render(this.scene, this.camera);
 
@@ -1203,7 +1267,11 @@ export class SubmarineScene {
     const cm = (m: number) => `${Math.round(Math.abs(m) * 100)} cm`;
     lbl.push({ id: 'drF', text: `Calado AV ${d.fwd.toFixed(2)} m`, color: '#ffe14d', small: true, prio: 0, ...proj(near.f.clone().add(up)) });
     lbl.push({ id: 'drA', text: `Calado AR ${d.aft.toFixed(2)} m`, color: '#ffe14d', small: true, prio: 0, ...proj(near.a.clone().add(up)) });
-    const mid = near.f.clone().add(near.a).multiplyScalar(0.5).add(new THREE.Vector3(0, 9, 0));
+    const mid = near.f
+      .clone()
+      .add(near.a)
+      .multiplyScalar(0.5)
+      .add(new THREE.Vector3(0, 9, 0));
     const trimTxt = Math.abs(d.trim) < 0.005 ? 'sem trim' : `trim ${cm(d.trim)} ${d.trim > 0 ? 'pela popa' : 'pela proa'}`;
     lbl.push({
       id: 'drT',
@@ -1217,6 +1285,7 @@ export class SubmarineScene {
 
   dispose(): void {
     this.marineLife.dispose();
+    this.wind.dispose();
     this.shipyard?.dispose();
     this.controls.dispose();
     this.renderer.dispose();

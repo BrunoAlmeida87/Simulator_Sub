@@ -46,10 +46,12 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
   validation/suite.ts testes de validação física V01…
 src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   SubmarineScene.ts   cena principal: casco, lemes, câmeras, pick(), modo sem água
-  layers.ts           SceneLayers: flags de camadas (vetores, tanques, escoamentos, noWater, hiddenVectors…)
-                      + LAYER_INFO (catálogo/nomes) e allLayersOn/Off (marcar/desmarcar todas)
+  layers.ts           SceneLayers: flags de camadas (vetores, tanques, escoamentos, vento, noWater, hiddenVectors…)
+                      + LAYER_INFO (catálogo/nomes), LAYER_GROUPS (grupos do painel), allLayersOn/Off,
+                      fullExternalLayers (o "3D completo" da 2ª janela)
   DepthRefs.ts        referências discretas de profundidade (faixas de partículas, sombra no fundo)
-  ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, fumaça), Markers.ts, Ocean.ts
+  ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, aspiração do snorkel),
+                      WindFx.ts (vento aparente: faixas e flâmula), Markers.ts, Ocean.ts
   controlRoom/        SALA DE COMANDO em 1ª pessoa: ControlRoomScene (sala, câmera, colisão, seleção),
                       panel.ts (canvas + regiões clicáveis), panels*.ts (telas/faces por posto), furniture/textures,
                       stations.ts (postos e enquadramentos), actions.ts (RoomActions: a cena só monta Commands),
@@ -78,9 +80,9 @@ docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, V
 - **Não alterar cenários existentes** (`SCENARIOS`, `TOURS`) ao criar novos — acrescentar.
 - **Duas janelas:** toda camada/flag nova do 3D precisa chegar à segunda janela
   (`VisualApp.tsx` + `sync.ts`). Já houve erro de vetores/tanques sumindo nela.
-- **Camadas novas:** adicionar em `layers.ts` (com valor padrão e entrada em `LAYER_INFO`), tratar em
+- **Camadas novas:** adicionar em `layers.ts` (com valor padrão, entrada em `LAYER_INFO` e num grupo de `LAYER_GROUPS`), tratar em
   `SubmarineScene.ts` e expor nas telas (View3D/Pilot/Helm `*_LAYER_KEYS`, Presentation `LAYER_LIST`,
-  VisualApp `LAYER_BTNS`). Toda camada precisa poder ser desligada ("Desmarcar todas").
+  VisualApp `LAYER_KEYS`). Toda camada precisa poder ser desligada ("Desmarcar todas").
 - **Preferências de visualização** persistem entre abas com `usePersisted`.
 - **Celular:** a interface precisa funcionar em tela estreita (sem rolagem horizontal).
 - Mapas: só fontes **gratuitas sem chave de API** (OpenStreetMap, OpenTopoMap, EOX, OpenSeaMap).

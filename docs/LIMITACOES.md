@@ -75,6 +75,11 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - A costa de 50 m vem do OpenStreetMap anterior à obra; o aterro, os quebra-mares e a dragagem do estaleiro são sobrepostos a ela.
 - A costa vem desligada nos cenários originais (feitos para mar aberto); ligue em Configurações.
 
+## Efeitos visuais do mar
+- O **vento** é só visual (não há vento na física): direção = sentido das ondas, intensidade típica do estado do mar; o vento aparente usa a velocidade do submarino sobre o fundo.
+- A **descarga dos diesel** (bolhas atrás da vela) e a **aspiração do snorkel** são efeitos derivados do estado dos geradores e do mastro; não há modelo de pluma térmica, contrapressão da descarga nem mistura do gás com água.
+- Peixes e cardumes são decorativos (sem comportamento de fuga nem interação com o submarino).
+
 ## Sala de comando e periscópio
 - O arranjo da sala, os consoles e as telas são **ilustrativos**, inspirados em salas de controle de submarinos convencionais; não reproduzem nenhum navio real.
 - O periscópio não tem arrasto nem esteira na física (nem limite de velocidade com ele içado; o aviso de esteira acima de 5 nós é só informativo). A visada usa a mesma cena 3D externa (sem distorção óptica); as ondas na ocular são um efeito de tela.

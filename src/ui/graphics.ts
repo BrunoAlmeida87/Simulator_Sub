@@ -56,7 +56,7 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     shipRange: typeof p?.shipRange === 'number' && p.shipRange >= 2 && p.shipRange <= 30 ? p.shipRange : base.shipRange,
     coastDetail: p?.coastDetail === 'baixa' || p?.coastDetail === 'media' || p?.coastDetail === 'alta' ? p.coastDetail : base.coastDetail,
     lighting: p?.lighting === 'natural' || p?.lighting === 'clara' || p?.lighting === 'estudio' ? p.lighting : base.lighting,
-    fishDensity: p?.fishDensity === 'desligada' || p?.fishDensity === 'discreta' || p?.fishDensity === 'moderada' ? p.fishDensity : base.fishDensity,
+    fishDensity: p?.fishDensity === 'desligada' || p?.fishDensity === 'discreta' || p?.fishDensity === 'moderada' || p?.fishDensity === 'abundante' ? p.fishDensity : base.fishDensity,
     fishJumps: typeof p?.fishJumps === 'boolean' ? p.fishJumps : base.fishJumps,
     fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
     traffic: typeof p?.traffic === 'number' && Number.isFinite(p.traffic) ? Math.max(0, Math.min(MAX_TRAFFIC, Math.round(p.traffic))) : base.traffic,

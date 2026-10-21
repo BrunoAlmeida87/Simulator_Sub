@@ -45,7 +45,7 @@ const FRAMES: [ViewMode, string, string][] = [
 ];
 
 /** camadas da apresentação (nomes no catálogo LAYER_INFO) */
-const LAYER_LIST: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'markers', 'trail', 'presLight', 'noWater', 'trimRef', 'ships'];
+const LAYER_LIST: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'markers', 'trail', 'presLight', 'noWater', 'trimRef', 'ships'];
 
 /** visualização do casco: externo (opaco), corte (transparente, com os tanques) ou sem o casco externo */
 type HullMode = 'externo' | 'corte' | 'oculto';
