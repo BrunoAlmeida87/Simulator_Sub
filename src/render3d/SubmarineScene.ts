@@ -34,13 +34,21 @@ import { TerrainLayer, type TerrainDetail } from './Terrain';
 import { ShipyardModel } from './Shipyard';
 import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 import { MarineLife } from './MarineLife';
+import { periscopeCfg, periscopeHeadZ } from '../sim/systems/actuation';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
  * mundo: o submarino atravessa o quadro) e enquadramentos rápidos de
  * apresentação ('superficie', 'submerso', 'tanques', 'forcas').
  */
-export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas' | 'calado' | 'navio';
+export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas' | 'calado' | 'navio' | 'periscopio';
+
+/** Linha de visada do periscópio: marcação relativa à proa (°), elevação (°) e campo de visão vertical (°). */
+export interface PeriscopeSight {
+  bearing: number;
+  elev: number;
+  fov: number;
+}
 
 interface Particle {
   n: number;
@@ -96,6 +104,11 @@ export class SubmarineScene {
   private fins: Record<string, THREE.Object3D> = {};
   private prop = new THREE.Group();
   private mast!: THREE.Group;
+  /** mastro do periscópio de ataque (posição vinda do estado) e cabeça (gira com a marcação) */
+  private periMast!: THREE.Group;
+  private periHead!: THREE.Group;
+  /** visada do periscópio usada pela vista 'periscopio' (definida pela interface) */
+  periscope: PeriscopeSight = { bearing: 0, elev: 0, fov: 32 };
   /** material das superfícies de controle (cor configurável) */
   private ctrlMat!: THREE.MeshStandardMaterial;
   private deckMat!: THREE.MeshStandardMaterial;
@@ -409,6 +422,25 @@ export class SubmarineScene {
       this.mast.add(tube, head, band, cap);
       this.mast.position.set(0, R + sv.height - ext / 2, -v.hull.snorkelMast.x);
       this.sub.add(this.mast);
+    }
+    // periscópio de ataque: tubo fino e cabeça com janela (o curso é o do estado; sem efeito na física)
+    {
+      const pc = periscopeCfg(v);
+      const ext = pc.extension;
+      const tubeMat = new THREE.MeshStandardMaterial({ color: 0x55606b, metalness: 0.6, roughness: 0.3 });
+      const headMat = new THREE.MeshStandardMaterial({ color: 0x3c4651, metalness: 0.5, roughness: 0.4 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x0b1620, metalness: 0.9, roughness: 0.08, emissive: 0x06121c });
+      this.periMast = new THREE.Group();
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, ext, 16), tubeMat);
+      this.periHead = new THREE.Group();
+      const hd = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.7, 14), headMat);
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.06), glassMat);
+      win.position.set(0, 0.05, -0.13);
+      this.periHead.add(hd, win);
+      this.periHead.position.y = ext / 2 + 0.3;
+      this.periMast.add(tube, this.periHead);
+      this.periMast.position.set(0, -periscopeHeadZ(v, 0) - ext / 2 - 0.65, -pc.x);
+      this.sub.add(this.periMast);
     }
     // convés (chapa plana sobre o casco cilíndrico)
     {
@@ -852,6 +884,13 @@ export class SubmarineScene {
     const v = e.vessel;
     const R0 = v.hull.diameter / 2;
     this.mast.position.y = R0 + v.hull.sail.height - v.hull.snorkelMast.extension / 2 - 0.5 + s.snorkel.pos * v.hull.snorkelMast.extension;
+    {
+      const pc = periscopeCfg(v);
+      this.periMast.position.y = -periscopeHeadZ(v, s.periscope?.pos ?? 0) - pc.extension / 2 - 0.65;
+      this.periHead.rotation.y = (-this.periscope.bearing * Math.PI) / 180;
+      // arriado fica fora da cena (não aparece no corte nem sem casco); na vista do periscópio a câmera está dentro da cabeça
+      this.periMast.visible = (s.periscope?.pos ?? 0) > 0.005 && this.view !== 'periscopio';
+    }
 
     // fundo e terra (reconstruídos ao afastar-se ou quando o fundo/costa mudam)
     const coastOn = !!e.env.cfg.geo?.coast;
@@ -985,14 +1024,28 @@ export class SubmarineScene {
 
     // câmera: segue o submarino (vista "Calado" usa teleobjetiva)
     const sh = this.view === 'navio' ? this.ships.nearest : null;
-    const fov = this.view === 'calado' ? 16 : sh ? Math.max(2.5, Math.min(50, ((2 * Math.atan((sh.length * 1.8) / (2 * (sh.dist + 55)))) * 180) / Math.PI)) : 50;
+    const fov = this.view === 'periscopio' ? Math.max(2, Math.min(70, this.periscope.fov)) : this.view === 'calado' ? 16 : sh ? Math.max(2.5, Math.min(50, ((2 * Math.atan((sh.length * 1.8) / (2 * (sh.dist + 55)))) * 180) / Math.PI)) : 50;
     if (this.camera.fov !== fov) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
     }
     const delta = subPos.clone().sub(this.lastSubPos);
     this.lastSubPos.copy(subPos);
-    if (this.view === 'livre') {
+    if (this.view === 'periscopio') this.controls.enabled = false;
+    else if (!this.controls.enabled) this.controls.enabled = true;
+    if (this.view === 'periscopio') {
+      // câmera na cabeça do periscópio; linha de visada estabilizada (horizonte nivelado)
+      this.sub.updateMatrixWorld();
+      const head = this.sub.localToWorld(new THREE.Vector3(0, -periscopeHeadZ(v, s.periscope?.pos ?? 0) - 0.3, -periscopeCfg(v).x));
+      const { fwd, stbd } = this.headingVectors();
+      const b = (this.periscope.bearing * Math.PI) / 180;
+      const el = (Math.max(-20, Math.min(45, this.periscope.elev)) * Math.PI) / 180;
+      const dir = fwd.multiplyScalar(Math.cos(b)).add(stbd.multiplyScalar(Math.sin(b))).multiplyScalar(Math.cos(el));
+      dir.y = Math.sin(el);
+      this.camera.position.copy(head);
+      this.controls.target.copy(head).add(dir.multiplyScalar(100));
+      this.viewFrom.copy(head);
+    } else if (this.view === 'livre') {
       this.camera.position.add(delta);
       this.controls.target.add(delta);
     } else if (this.view === 'fixa') {

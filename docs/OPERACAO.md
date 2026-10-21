@@ -45,6 +45,39 @@ Inspirado no posto de governo de um submarino, com cena 3D (perseguição, later
 
 A peça que se move mostra o **comandado**; o marcador **verde** mostra a resposta **real** (ângulo dos lemes, rotação do eixo). Funciona com mouse e toque. Os comandos são os mesmos das outras telas (aparecem no histórico, entram na gravação e ficam sincronizados com a Pilotagem); mover o manche com o piloto em AUTO desengaja o canal, como nas outras telas.
 
+## Sala de comando (primeira pessoa)
+
+A aba **Sala de comando** coloca você **dentro** do submarino, numa sala de controle em 3D inspirada nas de submarinos convencionais (posto de governo a vante e a bombordo, painel do lastro a boreste, periscópios no centro, consoles multifunção a bombordo, mesa tática à ré). Tudo o que aparece nas telas, lâmpadas, ponteiros, manches e no periscópio vem do estado da simulação; todo acionamento envia os **mesmos comandos** das outras telas (histórico, gravação, segunda janela).
+
+**Andar e olhar**
+- **W A S D** ou **setas** andam (Shift corre); **arrastar** em ponto vazio olha ao redor; a **roda do mouse** dá um passo. No celular: botões **▲ ▼ ◀ ▶** e arrastar o dedo.
+- **Postos ▾** leva direto a cada posto; **↺ Voltar à entrada** retorna ao ponto inicial (à ré da mesa tática). A posição fica guardada ao trocar de aba.
+
+**Dois jeitos de operar**
+1. **Clicar num posto de longe**: a câmera se aproxima e abre, ao lado (no celular, abaixo), o **painel 2D da estação** com todos os controles e um texto sobre como é aquele posto num submarino real (ⓘ). **Esc** ou *Sair do posto* volta a andar; *✕* fecha só o painel.
+2. **Acionar direto na cena** (de perto ou com a estação em foco): os botões das telas e dos painéis, os volantes e o anunciador respondem ao clique; os **manches** e o **telégrafo** respondem ao arrasto. A barra inferior mostra o que está sob o mouse (borda verde = clique aciona; sem borda = clique aproxima). No posto em foco, a **roda do mouse** aproxima a vista das telas (zoom).
+
+**Postos**
+| Posto | O que tem | Comandos |
+|---|---|---|
+| Posto de governo | PLANADOR (esquerda): profundidade, atitude, lemes horizontais. Centro: OFICIAL DE MANOBRA (pilotos automáticos, telégrafo, manobras, periscópio). TIMONEIRO (direita): rumo e leme de direção | **Manche do planador**: arrastar para cima = empurrar = lemes de ré DESCER; para baixo = puxar = SUBIR. **Manche do timoneiro**: para os lados = leme BB/BE; cima/baixo = lemes de vante. **Telégrafo**: arrastar para cima = avante, para baixo = a ré (encaixa nas ordens ao soltar). Botões de toque: MAN/AUTO e valores ordenados de rumo, profundidade e inclinação; ordens do telégrafo; IMERGIR/EMERGIR/CANCELAR; içar periscópio |
+| Instrumentos de mergulho | Antepara de vante: profundímetro principal e de precisão, odômetro, repetidora da giro, relógio, inclinômetro de bolha e clinômetro de pêndulo | só leitura (sensores) |
+| Anunciador de alarmes | Uma janela por alarme (vermelho = crítico/alto, âmbar = médio, branco = informativo); pisca até ser reconhecida. Um sinalizador gira no teto com alarme crítico não reconhecido | clicar numa janela reconhece; RECONHECER (todos); TESTE LÂMP. |
+| Painel do lastro | Indicador de aberturas do casco ("árvore de Natal": — verde = fechada, O vermelho = aberta; *quadro verde* = casco estanque), suspiro e sopro de cada TLP, ar AP, compressor, flutuabilidade | botões luminosos de suspiro/sopro (individuais e de todos), isolamento dos grupos AP, compressor; **SOPRO DE EMERGÊNCIA** vante e ré: 1º clique levanta a tampa, 2º puxa (fecha os suspiros, abre o sopro do grupo e os grupos AP); clicar de novo recoloca (fecha o sopro) |
+| Segurança do mergulho | Compensação (mar ⇄ TC-1/TC-2) e trim/banda (transferência interna) com diagramas animados pelas vazões | válvulas, bombas, sentido, dosagem (admitir/esgotar/transferir), interromper, **ajuste calculado** |
+| Coletor de válvulas | Manômetros (hidráulica, ar AP) e volantes das válvulas manuais | volantes: isolamento AP-1/AP-2, admissão/descarga de mar, trim vante/ré, banda BB/BE (as mesmas válvulas dos consoles) |
+| Plataforma | Bateria, disjuntor, diesel-geradores, snorkel, combustível, cargas; motor, hidráulica, compressor | disjuntor (abrir pede confirmação), partir/parar geradores, içar/arriar snorkel, compressor |
+| Periscópio de ataque | Coluna com a alavanca de içamento; a ocular sobe com o mastro | alavanca: içar/arriar; clique na ocular (ou **Periscópio**) abre a visada |
+| Consoles de sonar, tático e navegação | Cascata do sonar passivo (o ruído próprio cresce com a velocidade; zona cega a ré), contatos, MAGE (só com mastro fora d’água), quadro tático com PMA, INS/GPS (GPS só com antena fora d’água), rota | escalas do quadro tático |
+| Mesa tática | Carta horizontal com terra e águas rasas (mesmo fundo da física), derrota, rota, contatos e área de exercícios | escalas (2–50 km) |
+| Estação do instrutor | Falhas por grupo, tempo da simulação, estado do mar, cenários, peso deslocável, iluminação | injetar/remover falhas, executar/pausar, aceleração, mar, carregar cenário, mover o peso, luz |
+
+**Visada do periscópio**: mostra o mar com o retículo, a marcação verdadeira e relativa e a elevação. Arraste (ou ◀ ▶, setas) para girar; **1,5×/6×** muda o aumento; *Içar/Arriar* comanda o mastro. Com o periscópio arriado a visada fica escura; com a cabeça submersa vê-se debaixo d’água. A cabeça fica fora d’água na cota periscópica (quilha a ≈ 16 m com o periscópio todo içado). Na cena 3D externa o periscópio sobe na vela (arriado, não aparece).
+
+**Iluminação**: *Luz* (ou o interruptor junto à porta de ré, ou o instrutor) alterna normal, **vermelha** (noturna: preserva a adaptação ao escuro para o periscópio) e azul. Sem energia no barramento, ficam só as lanternas de emergência. Alagamento no compartimento central aparece como água no piso.
+
+**Vista externa e 2ª janela**: o botão *Vista externa* abre uma miniatura da cena 3D (perseguição, lateral ou topo). A **2ª janela** continua mostrando a cena externa completa enquanto você opera de dentro da sala (a sala e a visada do periscópio não mudam a câmera nem as camadas da 2ª janela).
+
 ## Mapa tático
 
 A aba **Mapa tático** mostra a posição geográfica do submarino. O ponto de partida padrão fica na Baía de Sepetiba, junto ao **Estaleiro e Base Naval da Ilha da Madeira (Itaguaí-RJ)**. O mapa mostra:
@@ -269,6 +302,7 @@ A página se adapta à tela do celular, em pé ou deitado (telas de toque pequen
 - **Cenas 3D**: os controles de vista, camadas, mar, gráfico e luz ficam no botão **⚙ Vista**, para não cobrir a cena. Com o celular deitado, a cena ocupa a altura da tela (sobra uma faixa para rolar a página).
 - **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
 - Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.
+- **Sala de comando**: botões ▲ ▼ ◀ ▶ para andar, arrastar para olhar, toque num posto para se aproximar; o painel da estação abre abaixo da cena.
 
 ## Aplicativo Windows
 

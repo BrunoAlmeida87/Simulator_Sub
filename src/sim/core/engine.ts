@@ -30,7 +30,7 @@ import { updateBallastTank } from '../systems/ballast';
 import { bankPressure, bankTempK, drawFromManifold, updateCompressor, updateHpManifold } from '../systems/hpAir';
 import { updateCompensation, updateTransfer } from '../systems/internalTanks';
 import { updatePropulsion } from '../systems/propulsion';
-import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updateSnorkel, updateSurfaces } from '../systems/actuation';
+import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updatePeriscope, updateSnorkel, updateSurfaces } from '../systems/actuation';
 import { updateElectrical, updateGenerators } from '../systems/electrical';
 import { updateAutopilot, type ApReadings } from '../systems/autopilot';
 import { updateNavigation, updateSensors, type TrueValues } from '../systems/sensors';
@@ -227,6 +227,7 @@ export class SimulationEngine {
     updateAutopilot(cfg, s, this.readings, dt);
     updateSurfaces(cfg, s, ctx);
     ctx.airIntakeAvailable = updateSnorkel(cfg, s, ctx);
+    updatePeriscope(cfg, s, ctx);
 
     // 3. ar AP e lastro principal
     let strokes = updateHpManifold(cfg.hpAir, s, ctx);

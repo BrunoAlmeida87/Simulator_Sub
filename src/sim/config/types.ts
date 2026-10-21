@@ -19,6 +19,8 @@ export interface HullConfig {
   keelRef: Vec3;
   sail: { xFwd: number; xAft: number; height: number; width: number };
   snorkelMast: { x: number; extension: number; raiseTime: number };
+  /** periscópio de ataque (na vela): posição longitudinal, curso de içamento (m) e tempo de içamento (s). Opcional (configurações antigas). */
+  periscopeMast?: { x: number; extension: number; raiseTime: number };
 }
 
 export interface PointMass {
