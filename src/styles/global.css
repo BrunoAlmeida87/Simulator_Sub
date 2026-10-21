@@ -678,3 +678,11 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .room-peri-keys { display: none; }
   .room-peri-status { font-size: 12px; max-width: 70%; }
 }
+.layergroups { display: flex; flex-direction: column; gap: 6px; }
+.layergroup { display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--line2); border-radius: 6px; padding: 4px 6px 6px; background: rgba(8, 18, 28, 0.55); }
+.layergroup-h { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 5px; padding: 1px 2px; border-radius: 4px; }
+.layergroup-h:hover { color: var(--text, #e6eef6); background: rgba(255, 255, 255, 0.05); }
+.layergroup-h.some, .layergroup-h.all { color: var(--accent); }
+.layergroup-h small { font-weight: 400; color: var(--muted); }
+.layergroup-h .lg-box { font-size: 14px; }
+.layergroup-items { display: flex; flex-wrap: wrap; gap: 4px; }

@@ -479,6 +479,7 @@ function MarineLifePanel() {
           <option value="desligada">Desligada</option>
           <option value="discreta">Discreta (padrão)</option>
           <option value="moderada">Moderada</option>
+          <option value="abundante">Abundante (muitos cardumes)</option>
         </select>
       </label>
       <div className="col mt8">
@@ -492,7 +493,7 @@ function MarineLifePanel() {
         </label>
       </div>
       <div className="note">
-        Poucos peixes, com tamanhos, cores e trajetórias variados. Os saltos aparecem em locais e intervalos aleatórios; pode levar um tempo até ver um.
+        Peixes soltos e cardumes de peixes pequenos, com tamanhos, cores e trajetórias variados (mais cardumes em “Moderada” e “Abundante”). Os saltos aparecem em locais e intervalos aleatórios; pode levar um tempo até ver um.
         As preferências ficam salvas e valem também para a segunda janela. A animação acompanha a pausa e a velocidade da simulação.
       </div>
     </Panel>

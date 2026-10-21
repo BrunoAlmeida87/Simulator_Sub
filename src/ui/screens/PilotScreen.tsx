@@ -31,8 +31,8 @@ import { LayerPanel, type LayerKey } from '../components/LayerPanel';
 import type { SceneLayers } from '../../render3d/layers';
 
 /** camadas da Pilotagem sem botão próprio (valores de antes: tudo ligado, ar comprimido desligado) */
-const PILOT_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, trail: true };
-const PILOT_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
+const PILOT_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, trail: true, wind: true };
+const PILOT_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
 
 export function useOps() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -323,17 +323,8 @@ export function PilotScreen() {
                 <button className={`btn sm ${dry ? 'on' : ''}`} onClick={() => setDry(!dry)} title="Tira (ou recoloca) o mar para ver melhor o submarino">
                   {dry ? '💧 Pôr água' : '💧 Tirar água'}
                 </button>
-                <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
-                  Boias
-                </button>
-                <button className={`btn sm ${trimRef ? 'on' : ''}`} onClick={() => setTrimRef(!trimRef)} title="Calados AV/AR, linha d'água do casco × nível do mar">
-                  Calado/trim
-                </button>
-                <button className={`btn sm ${ships ? 'on' : ''}`} onClick={() => setShips(!ships)} title="Contatos da mesa tática como navios no mar">
-                  Navios
-                </button>
-                <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Todas as camadas, com marcar/desmarcar todas">
-                  Camadas {layOpen ? '▴' : '▾'}
+                <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Todas as camadas, por grupo (vetores, interior, mar e efeitos, rótulos, ambiente), com marcar/desmarcar">
+                  Camadas ({PILOT_LAYER_KEYS.filter((k) => !!layerValue[k]).length}) {layOpen ? '▴' : '▾'}
                 </button>
               </div>
               {layOpen && (

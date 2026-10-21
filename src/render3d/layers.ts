@@ -18,6 +18,8 @@ export interface SceneLayers {
   markers: boolean;
   /** esteira, onda de proa, espuma e rastro do hélice */
   wake: boolean;
+  /** vento aparente: linhas de vento acima da água e flâmula na vela */
+  wind: boolean;
   /** trajetória */
   trail: boolean;
   /** luzes adicionais de apresentação */
@@ -56,6 +58,7 @@ export const defaultLayers = (): SceneLayers => ({
   labels: true,
   markers: false,
   wake: true,
+  wind: true,
   trail: true,
   presLight: false,
   resultantGain: 'auto',
@@ -90,6 +93,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   batteryInfo: { label: 'Bateria (%)', title: 'Carga da bateria e geradores em carga, junto aos componentes (com o corte/tanques)' },
   airInfo: { label: 'Ar comprimido', title: 'Pressão e quantidade de ar de cada grupo de garrafas, junto às garrafas (com o corte/tanques)' },
   wake: { label: 'Esteira', title: 'Esteira, onda de proa, espuma e rastro do hélice' },
+  wind: { label: 'Vento', title: 'Vento aparente: linhas de vento acima da água e flâmula na vela (na superfície)' },
   markers: { label: 'Boias/marcos', title: 'Boias e marcos de distância fixos no cenário' },
   trail: { label: 'Trajetória', title: 'Rastro do caminho percorrido' },
   trimRef: { label: 'Calado/trim', title: 'Calados AV/AR e linha d’água do casco × nível do mar' },
@@ -97,6 +101,36 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
   noWater: { label: 'Sem água', title: 'Esconde o mar para ver o submarino isolado', mode: true },
 };
+
+/**
+ * "3D completo" da segunda janela: tudo o que a cena externa mostra (vetores,
+ * esteira e bolhas, vento, navios, boias, trajetória e rótulos), sem o corte do
+ * casco — o mesmo conjunto em qualquer aba da janela de controle.
+ */
+export const fullExternalLayers = (): SceneLayers => ({
+  ...defaultLayers(),
+  vectors: true,
+  hydroVectors: true,
+  trimVectors: false,
+  wake: true,
+  wind: true,
+  ships: true,
+  markers: true,
+  trail: true,
+  labels: true,
+  trimRef: false,
+  tanks: false,
+  hiddenVectors: [],
+});
+
+/** Grupos das camadas nos painéis (ordem de exibição). */
+export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exclude<BoolLayer, 'hull'>[] }[] = [
+  { id: 'vetores', label: 'Vetores', title: 'Forças sobre o submarino', keys: ['vectors', 'hydroVectors', 'trimVectors'] },
+  { id: 'interior', label: 'Interior (corte)', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows', 'batteryInfo', 'airInfo'] },
+  { id: 'mar', label: 'Mar e efeitos', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'ships', 'markers', 'trail'] },
+  { id: 'refs', label: 'Rótulos e referências', title: 'Identificações e referências de calado/trim', keys: ['labels', 'trimRef'] },
+  { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['noWater', 'presLight'] },
+];
 
 /** “Marcar todas”: liga as camadas de informação da lista (não tira a água nem muda a luz). */
 export function allLayersOn(keys: readonly Exclude<BoolLayer, 'hull'>[]): Partial<SceneLayers> {

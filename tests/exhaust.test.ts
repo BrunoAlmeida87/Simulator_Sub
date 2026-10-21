@@ -1,12 +1,12 @@
 /**
- * DESCARGA DOS DIESEL-GERADORES: o caminho (mastro × dispersores) e a
- * existência da descarga seguem a lógica operacional do simulador, sem
- * alterá-la. Bolhas só quando há descarga pelos dispersores.
+ * DESCARGA DOS DIESEL-GERADORES: a existência da descarga segue a lógica
+ * operacional do simulador, sem alterá-la. O gás sai sempre atrás da vela,
+ * abaixo d'água (bolhas); o mastro de snorkel só aspira ar.
  */
 import { describe, it, expect } from 'vitest';
 import { buildScenario } from '../src/sim/scenarios';
 import { applyCommand } from '../src/sim/commands';
-import { dieselExhaust, disperserOutlets } from '../src/sim/systems/exhaust';
+import { dieselExhaust, disperserOutlets, snorkelIntake } from '../src/sim/systems/exhaust';
 import type { SimulationEngine } from '../src/sim/core/engine';
 
 const startGens = (e: SimulationEngine) => {
@@ -29,6 +29,8 @@ describe('Descarga dos diesel-geradores', () => {
     expect(ex.running).toBe(e.vessel.electrical.generators.length);
     expect(ex.route).toBe('dispersores');
     expect(ex.load).toBeGreaterThan(0);
+    // na superfície o mastro está recolhido: nada é aspirado pelo snorkel
+    expect(snorkelIntake(e.vessel, e.state)).toBe(0);
     // as saídas ficam logo atrás da vela, abaixo da linha d'água com o submarino na superfície
     for (const o of disperserOutlets(e.vessel, e.geom.radiusAt)) {
       expect(o.x).toBeLessThan(e.vessel.hull.sail.xAft);
@@ -48,7 +50,7 @@ describe('Descarga dos diesel-geradores', () => {
     expect(dieselExhaust(e.vessel, e.state).route).toBeNull();
   });
 
-  it('na cota periscópica com o snorkel içado: descarga pelo mastro (não pelos dispersores)', () => {
+  it('na cota periscópica com o snorkel içado: o mastro aspira ar e a descarga sai em bolhas atrás da vela', () => {
     const e = buildScenario('cota_periscopica');
     // mar calmo: com ondas, cristas cobrem a cabeça e os geradores alternam PARTINDO/SEM AR (lógica original)
     applyCommand(e, { type: 'seaState', value: 0 });
@@ -57,7 +59,14 @@ describe('Descarga dos diesel-geradores', () => {
     startGens(e);
     e.advanceSim(60);
     const ex = dieselExhaust(e.vessel, e.state);
-    expect(ex.route).toBe('mastro');
+    expect(ex.route).toBe('dispersores');
+    expect(snorkelIntake(e.vessel, e.state)).toBeGreaterThan(0);
+    // as saídas ficam abaixo d'água na cota periscópica
+    for (const o of disperserOutlets(e.vessel, e.geom.radiusAt)) expect(e.state.body.pos.z + o.z).toBeGreaterThan(3);
+    // arriando o snorkel, os geradores perdem o ar: sem aspiração nem descarga
+    applyCommand(e, { type: 'snorkel', raise: false });
+    e.advanceSim(30);
+    expect(snorkelIntake(e.vessel, e.state)).toBe(0);
   });
 
   it('submerso com o mastro recolhido: geradores "SEM AR", sem descarga (a lógica não foi alterada)', () => {

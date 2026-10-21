@@ -7,11 +7,12 @@
  * Submerso com o mastro recolhido, um gerador comandado fica "SEM AR": não
  * queima combustível, logo não há descarga (e não há bolhas).
  *
- * Caminho da descarga, conforme o mastro:
- *  - mastro içado → pelo mastro de snorkel/descarga (fumaça no topo, já
- *    desenhada na cena);
- *  - mastro recolhido (só possível na superfície) → pelos dispersores no
- *    casco, logo atrás da vela, abaixo da linha d'água → bolhas pequenas.
+ * Caminho da descarga (padrão de discrição dos submarinos convencionais): o
+ * gás sai na parte de RÉ DA VELA, ABAIXO DA LINHA D'ÁGUA, nos dois bordos ao
+ * longo da estrutura — não há fumaça no alto do mastro. O gás sobe em bolhas
+ * que ficam para trás com o avanço e chegam à superfície formando um rastro
+ * de espuma atrás da vela (é a assinatura visual que os projetos modernos
+ * tentam reduzir misturando o gás com água). O mastro de snorkel só ASPIRA ar.
  * A intensidade acompanha a carga dos geradores (Σ P/P_nominal) e a partida.
  */
 import type { VesselConfig } from '../config/types';
@@ -19,8 +20,8 @@ import type { SimState } from '../core/state';
 import type { Vec3 } from '../core/math';
 
 export interface DieselExhaust {
-  /** por onde sai a descarga agora (null = nenhum gerador queimando combustível) */
-  route: 'mastro' | 'dispersores' | null;
+  /** por onde sai a descarga agora: saídas atrás da vela, abaixo d'água (null = nenhum gerador queimando combustível) */
+  route: 'dispersores' | null;
   /** carga somada dos geradores em carga (0 … nº de geradores) */
   load: number;
   /** algum gerador em partida (descarga mais densa) */
@@ -28,9 +29,6 @@ export interface DieselExhaust {
   /** geradores em carga */
   running: number;
 }
-
-/** mastro considerado içado (o mesmo critério da fumaça no topo do mastro) */
-export const MAST_RAISED = 0.5;
 
 export function dieselExhaust(v: VesselConfig, s: SimState): DieselExhaust {
   let load = 0;
@@ -46,12 +44,23 @@ export function dieselExhaust(v: VesselConfig, s: SimState): DieselExhaust {
     if (st.status === 'PARTINDO') starting = true;
   }
   const active = running > 0 || starting;
-  return { route: !active ? null : s.snorkel.pos > MAST_RAISED ? 'mastro' : 'dispersores', load, starting, running };
+  return { route: active ? 'dispersores' : null, load, starting, running };
 }
 
 /**
- * Saídas dos dispersores (corpo, m): logo atrás da vela, nos dois bordos, na
- * altura do eixo — abaixo da linha d'água com o submarino na superfície.
+ * Aspiração de ar pelo snorkel (0 = nenhuma): mastro içado, válvula de cabeça
+ * aberta e diesel queimando — cresce com a carga e é forte na partida.
+ */
+export function snorkelIntake(v: VesselConfig, s: SimState): number {
+  if (s.snorkel.pos < 0.95 || !s.snorkel.headValveOpen) return 0;
+  const ex = dieselExhaust(v, s);
+  if (!ex.route) return 0;
+  return ex.load + (ex.starting ? 0.8 : 0);
+}
+
+/**
+ * Saídas da descarga (corpo, m): logo atrás da vela, nos dois bordos, na
+ * altura do eixo — abaixo da linha d'água também com o submarino na superfície.
  */
 export function disperserOutlets(v: VesselConfig, radiusAt: (x: number) => number): Vec3[] {
   const x = v.hull.sail.xAft - 1.2;

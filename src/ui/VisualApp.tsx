@@ -8,34 +8,16 @@ import { runner, useSim } from './store';
 import { Scene3D, defaultQuality } from './components/Scene3D';
 import { OpsStrip } from './ops/OpsStrip';
 import { link } from './link';
-import { allLayersOff, allLayersOn, defaultLayers, type SceneLayers } from '../render3d/layers';
-import type { LayerKey } from './components/LayerPanel';
+import { fullExternalLayers, type SceneLayers } from '../render3d/layers';
+import { LayerPanel, type LayerKey } from './components/LayerPanel';
 import type { ViewMode } from '../render3d/SubmarineScene';
 import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
 import { fmt } from './format';
 import { identity } from './identity';
 
-/** camadas que podem ser ligadas/desligadas nesta janela (independentes da janela de controle) */
-const LAYER_BTNS: [keyof SceneLayers, string][] = [
-  ['tanks', 'Tanques'],
-  ['vectors', 'Peso/empuxo'],
-  ['hydroVectors', 'Hélice/lemes'],
-  ['trimVectors', 'Vetores de trim'],
-  ['flows', 'Escoamentos'],
-  ['pipes', 'Tubulações'],
-  ['labels', 'Identificações'],
-  ['batteryInfo', 'Bateria (%)'],
-  ['airInfo', 'Ar comprimido'],
-  ['markers', 'Boias'],
-  ['wake', 'Esteira'],
-  ['noWater', 'Sem água'],
-  ['trimRef', 'Calado/trim'],
-  ['ships', 'Navios'],
-  ['hull', 'Casco'],
-];
-/** “Marcar/Desmarcar todas”: as camadas de informação (o casco fica fora: é o próprio submarino) */
-const ALL_KEYS = LAYER_BTNS.map(([k]) => k).filter((k): k is LayerKey => k !== 'hull');
+/** camadas desta janela (o casco tem botão próprio) */
+const LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'batteryInfo', 'airInfo', 'wake', 'wind', 'ships', 'markers', 'trail', 'labels', 'trimRef', 'noWater', 'presLight'];
 
 const VIEWS: [ViewMode | 'seguir', string][] = [
   ['seguir', 'Igual ao controle'],
@@ -59,9 +41,11 @@ export function VisualApp() {
   const [mode, setMode] = usePersisted<ViewMode | 'seguir'>('visual.view', 'seguir');
   const [hideUi, setHideUi] = useState(false);
   const view: ViewMode = mode === 'seguir' ? (v?.view ?? 'piloto') : mode;
-  // camadas: as da janela de controle, com as alterações feitas aqui por cima
+  // camadas: "3D completo" (padrão) ou as da janela de controle, com as alterações feitas aqui por cima
+  const [src, setSrc] = usePersisted<'completo' | 'controle'>('visual.layerSrc', 'completo');
   const [over, setOver] = usePersisted<Partial<SceneLayers>>('visual.layers', {});
-  const base = v?.layers ?? { ...defaultLayers(), tanks: false };
+  const [layOpen, setLayOpen] = usePersisted('visual.layersOpen', false);
+  const base = src === 'controle' && v?.layers ? v.layers : fullExternalLayers();
   const layers: SceneLayers = { ...base, ...over };
   const toggle = (k: keyof SceneLayers) => setOver({ ...over, [k]: !layers[k] });
   const pickView = (k: ViewMode | 'seguir') => {
@@ -103,21 +87,32 @@ export function VisualApp() {
           )}
           {!hideUi && (
             <div className="btngroup visual-layers">
-              {LAYER_BTNS.map(([k, l]) => (
-                <button key={k} className={`btn sm ${layers[k] ? 'on' : ''}`} onClick={() => toggle(k)} title={k in over ? 'Alterado nesta janela' : 'Igual à janela de controle'}>
-                  {layers[k] ? '☑' : '☐'} {l}
-                  {k in over ? ' •' : ''}
+              <span className="seg" title="De onde vêm as camadas desta janela">
+                <button
+                  className={src === 'completo' ? 'on' : ''}
+                  onClick={() => setSrc('completo')}
+                  title="Vetores, esteira e bolhas, vento, navios, boias, trajetória e rótulos — igual em qualquer aba da janela de controle"
+                >
+                  3D completo
                 </button>
-              ))}
-              <button className="btn sm" onClick={() => setOver({ ...over, ...allLayersOn(ALL_KEYS) })} title="Liga todas as camadas de informação nesta janela">
-                ☑ Todas
+                <button className={src === 'controle' ? 'on' : ''} onClick={() => setSrc('controle')} title="As camadas da última cena 3D aberta na janela de controle">
+                  Camadas do controle
+                </button>
+              </span>
+              <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Ligar/desligar camadas nesta janela, por grupo">
+                Camadas ({LAYER_KEYS.filter((k) => !!layers[k]).length}) {layOpen ? '▴' : '▾'}
               </button>
-              <button className="btn sm" onClick={() => setOver({ ...over, ...allLayersOff(ALL_KEYS) })} title="Desliga todas as camadas nesta janela">
-                ☐ Nenhuma
+              <button className={`btn sm ${layers.hull ? 'on' : ''}`} onClick={() => toggle('hull')} title="Casco externo (desligado mostra só os componentes internos)">
+                {layers.hull ? '☑' : '☐'} Casco{'hull' in over ? ' •' : ''}
               </button>
-              <button className="btn sm" disabled={Object.keys(over).length === 0} onClick={() => setOver({})} title="Volta a usar as camadas da janela de controle">
-                ↺ Igual ao controle
+              <button className="btn sm" disabled={Object.keys(over).length === 0} onClick={() => setOver({})} title="Desfaz as alterações feitas nesta janela">
+                ↺ Desfazer ajustes
               </button>
+            </div>
+          )}
+          {!hideUi && layOpen && (
+            <div className="tanksel-pop visual-laypop">
+              <LayerPanel keys={LAYER_KEYS} value={layers} onChange={(p) => setOver({ ...over, ...p })} marked={(k) => k in over} />
             </div>
           )}
           <div className="btngroup">
