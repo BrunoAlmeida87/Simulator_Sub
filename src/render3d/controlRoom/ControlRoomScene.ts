@@ -178,6 +178,10 @@ export class ControlRoomScene {
   private water: THREE.Mesh;
   /** marcação relativa do periscópio (°), para girar o tubo como na visada */
   periBearing = 0;
+  /** a sala inclina com o caturro e a banda do navio (quem está de pé fica na vertical) */
+  tilt = true;
+  private tiltK = 0;
+  private shipQ = new THREE.Quaternion();
   private clock = new THREE.Clock();
   private wall = 0;
   private pmrem: THREE.PMREMGenerator;
@@ -1259,6 +1263,14 @@ export class ControlRoomScene {
       this.camera.position.copy(this.pos);
       this.camera.quaternion.copy(this.lookQuat(this.yaw, this.pitch));
     }
+    // inclinação do navio: a cabeça de quem anda fica na vertical e a sala inclina em volta;
+    // sentado num posto (foco), o operador acompanha o navio
+    const o = this.runner.engine.outputs;
+    const want = this.tilt && !this.focused ? 1 : 0;
+    this.tiltK += (want - this.tiltK) * Math.min(1, dt * 2.5);
+    const D = Math.PI / 180;
+    this.shipQ.setFromEuler(new THREE.Euler(o.euler.pitch * D, 0, -o.euler.roll * D, 'XYZ'));
+    if (this.tiltK > 1e-3) this.camera.quaternion.premultiply(new THREE.Quaternion().slerp(this.shipQ.clone().invert(), this.tiltK));
   }
 
   // ------------------------------------------------------------------ interação
@@ -1434,6 +1446,8 @@ export class ControlRoomScene {
     const lvl = fl ? fl.water / 1025 / (6.0 * 14) : 0;
     this.water.visible = lvl > 0.003;
     this.water.position.y = Math.min(1.6, lvl) + 0.005;
+    // a água fica nivelada com a gravidade: inclina em relação ao piso
+    this.water.quaternion.copy(this.shipQ.clone().invert()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)));
     // telas visíveis: redesenho por prioridade (perto primeiro), com orçamento por quadro
     this.camera.updateMatrixWorld();
     const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));

@@ -18,6 +18,7 @@ import { drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, greenBo
 import { drawEnergy, drawInstructorFailures, drawInstructorSim, drawPropulsion } from '../src/render3d/controlRoom/panelsPlatform';
 import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, drawTacticalConsole, mastOut, roomContacts, signalExcess } from '../src/render3d/controlRoom/panelsCombat';
 import { STATIONS } from '../src/render3d/controlRoom/stations';
+import { roomEvents, roomSnapshot, sayOrder } from '../src/ui/screens/roomAudio';
 import { TARGET_HEIGHT, horizonRange, periHeadAbove, periVisible, stadimeter } from '../src/render3d/controlRoom/periscope';
 import { DEFAULT_ORIGIN } from '../src/sim/geo';
 import { periscopeHeadZ } from '../src/sim/systems/actuation';
@@ -327,5 +328,28 @@ describe('Periscópio: visada', () => {
     drawRegions(drawPlotTable(acts), e, newUi(), [1024, 640]);
     expect(JSON.stringify(e.state)).toBe(before);
     expect(sent).toEqual([]);
+  });
+});
+
+describe('Som e anúncios (1MC) da sala', () => {
+  it('abrir suspiros anuncia a imersão com a buzina; mudar o telégrafo toca o sino e fala a ordem', () => {
+    const e = buildScenario('superficie');
+    const a = roomSnapshot(e);
+    applyCommand(e, { type: 'mbtVent', tank: 'ALL', open: true });
+    applyCommand(e, { type: 'telegraph', rpm: 75 });
+    const ev = roomEvents(a, roomSnapshot(e));
+    expect(ev.klaxon).toBe(2);
+    expect(ev.bell).toBe(true);
+    expect(ev.say.join(' ')).toMatch(/Imergir, imergir/);
+    expect(ev.say.join(' ')).toMatch(/Máquinas, avante meia força/);
+    // sem mudança, nada a anunciar
+    const same = roomEvents(roomSnapshot(e), roomSnapshot(e));
+    expect(same).toEqual({ say: [], klaxon: 0, bell: false });
+  });
+  it('ordens do telégrafo faladas por extenso', () => {
+    expect(sayOrder('AV DEV.')).toBe('avante devagar');
+    expect(sayOrder('RÉ TODA')).toBe('a ré toda força');
+    expect(sayOrder('AV 3/4')).toBe('avante três quartos');
+    expect(sayOrder('PARAR')).toBe('parar');
   });
 });

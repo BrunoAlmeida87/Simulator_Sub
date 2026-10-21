@@ -28,6 +28,7 @@ import type { PeriscopeSight } from '../../render3d/SubmarineScene';
 import { RoomPip } from './RoomPip';
 import { RoomPeriscope, recentMarks } from './RoomPeriscope';
 import { periMarks } from './periMarks';
+import { RoomAudio } from './roomAudio';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { cpa } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
@@ -263,6 +264,13 @@ export function ControlRoomScreen() {
   const [panelOpen, setPanelOpen] = usePersisted('room.panelOpen', true);
   const [help, setHelp] = usePersisted('room.help', true);
   const [menu, setMenu] = useState(false);
+  const [optMenu, setOptMenu] = useState(false);
+  const audio = useMemo(() => new RoomAudio(), []);
+  const [sound, setSound] = useState(false);
+  const [voice, setVoice] = usePersisted('room.voice', false);
+  const [tilt, setTilt] = usePersisted('room.tilt', true);
+  const tiltRef = useRef(tilt);
+  tiltRef.current = tilt;
   const [peri, setPeri] = useState(false);
   const [sight, setSight] = usePersisted<PeriscopeSight>('room.sight', { bearing: 0, elev: 0, fov: 32 });
   const [pip, setPip] = usePersisted('room.pip', false);
@@ -339,6 +347,7 @@ export function ControlRoomScreen() {
         const loop = () => {
           if (!periRef.current) {
             sc.periBearing = sightRef.current.bearing;
+            sc.tilt = tiltRef.current;
             sc.render();
             if (sc.ui.lighting !== lightingRef.current) setLighting(sc.ui.lighting);
           }
@@ -362,6 +371,18 @@ export function ControlRoomScreen() {
     };
   }, [acts]);
 
+  // som e anúncios (1MC): leem o estado algumas vezes por segundo
+  useEffect(() => {
+    audio.setVoice(voice);
+  }, [audio, voice]);
+  useEffect(() => {
+    const id = window.setInterval(() => audio.update(runner.engine), 250);
+    return () => {
+      window.clearInterval(id);
+      audio.dispose();
+    };
+  }, [audio]);
+
   // teclado: andar (WASD/setas, Shift corre), Esc sai do foco/periscópio
   useEffect(() => {
     const isField = (t: EventTarget | null) => {
@@ -372,8 +393,10 @@ export function ControlRoomScreen() {
     const down = (ev: KeyboardEvent) => {
       if (isField(ev.target) || periRef.current) return;
       if (ev.code === 'Escape') {
-        if (menu) setMenu(false);
-        else sceneRef.current?.focus(null);
+        if (menu || optMenu) {
+          setMenu(false);
+          setOptMenu(false);
+        } else sceneRef.current?.focus(null);
         return;
       }
       // Tab / Shift+Tab: posto seguinte/anterior; ← → no posto: tela seguinte/anterior
@@ -407,7 +430,7 @@ export function ControlRoomScreen() {
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', blur);
     };
-  }, [menu]);
+  }, [menu, optMenu]);
 
   // roda do mouse: passo à frente/atrás (listener não passivo para não rolar a página)
   useEffect(() => {
@@ -512,9 +535,33 @@ export function ControlRoomScreen() {
           >
             Luz: {LIGHT_LABEL[lighting]}
           </button>
+          <button className={`btn sm ${optMenu ? 'on' : ''}`} onClick={() => setOptMenu(!optMenu)} title="Som, anúncios por voz e inclinação da sala">
+            {sound ? '🔊' : '🔈'} Opções ▾
+          </button>
           <button className={`btn sm ${help ? 'on' : ''}`} onClick={() => setHelp(!help)}>
             Ajuda
           </button>
+          {optMenu && (
+            <div className="room-menu room-opts">
+              <label className="chk">
+                <input
+                  type="checkbox"
+                  checked={sound}
+                  onChange={(ev) => {
+                    audio.setSound(ev.target.checked);
+                    setSound(ev.target.checked);
+                  }}
+                />{' '}
+                Som (máquinas, sopro, buzina de imersão, telégrafo, alarmes)
+              </label>
+              <label className="chk">
+                <input type="checkbox" checked={voice} onChange={(ev) => setVoice(ev.target.checked)} /> Voz: anúncios no fonoclama (1MC)
+              </label>
+              <label className="chk">
+                <input type="checkbox" checked={tilt} onChange={(ev) => setTilt(ev.target.checked)} /> Sala inclina com o caturro e a banda (andando)
+              </label>
+            </div>
+          )}
           {menu && (
             <div className="room-menu">
               {STATIONS.map((x) => (
