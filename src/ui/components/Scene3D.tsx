@@ -106,6 +106,8 @@ export function Scene3D(props: Scene3DProps) {
             sc.trimGain = graphics.get().trimGain;
             sc.geoOrigin = geoOriginOf(runner.engine);
             sc.shipRange = graphics.get().shipRange;
+            sc.trafficCount = graphics.get().traffic;
+            sc.depthRefsOn = graphics.get().depthRefs;
             sc.terrainDetail = graphics.get().coastDetail;
             sc.lighting = graphics.get().lighting;
             sc.marineLife.settings = graphics.get();

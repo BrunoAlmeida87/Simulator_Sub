@@ -7,6 +7,9 @@
  * Mapeamento NED → Three.js (Y para cima): X₃ = Leste, Y₃ = −profundidade,
  * Z₃ = −Norte. Origem flutuante na posição horizontal do submarino.
  */
+import { dieselExhaust, disperserOutlets } from '../sim/systems/exhaust';
+import { DepthRefs } from './DepthRefs';
+import { trafficAt, trafficForEnv } from '../sim/traffic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
@@ -116,6 +119,8 @@ export class SubmarineScene {
   geoOrigin: LatLon = DEFAULT_ORIGIN;
   /** alcance de desenho dos navios (km) */
   shipRange = 12;
+  /** navios adicionais (tráfego fictício), definidos nas Configurações */
+  trafficCount = 0;
   private appRev = -1;
   private texDetail: Appearance['textures'] | null = null;
   private tileTex: { hull: { map: THREE.Texture; bump: THREE.Texture } | null; sail: { map: THREE.Texture; bump: THREE.Texture } | null } = { hull: null, sail: null };
@@ -147,8 +152,15 @@ export class SubmarineScene {
   private shipyard: ShipyardModel | null = null;
   private shipyardDist = Infinity;
   private particles: Particle[] = [];
+  /** bolhas pequenas da descarga dos diesel-geradores pelos dispersores (atrás da vela) */
+  private exParticles: Particle[] = [];
+  private exBubbles: THREE.Points;
+  private static readonly EX_MAX = 450;
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
   private snow: THREE.Points;
+  private depthRefs: DepthRefs;
+  /** referências discretas de profundidade (Configurações → Gráficos) */
+  depthRefsOn = true;
   private snowBase: Float32Array;
   private static readonly SNOW_N = 1400;
   private static readonly SNOW_BOX = { h: 140, v: 60 };
@@ -243,6 +255,13 @@ export class SubmarineScene {
     this.bubbles = new THREE.Points(bg, new THREE.PointsMaterial({ color: 0xdff2ff, size: 0.9, transparent: true, opacity: 0.85, map: this.dot, depthWrite: false }));
     this.bubbles.frustumCulled = false;
     this.scene.add(this.bubbles);
+    {
+      const eg = new THREE.BufferGeometry();
+      eg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(SubmarineScene.EX_MAX * 3), 3));
+      this.exBubbles = new THREE.Points(eg, new THREE.PointsMaterial({ color: 0xe4ecef, size: 0.45, transparent: true, opacity: 0.75, map: this.dot, depthWrite: false }));
+      this.exBubbles.frustumCulled = false;
+      this.scene.add(this.exBubbles);
+    }
 
     // partículas em suspensão (neve marinha), fixas no referencial do mundo
     const nS = SubmarineScene.SNOW_N;
@@ -257,6 +276,9 @@ export class SubmarineScene {
     this.snow = new THREE.Points(sgeo, new THREE.PointsMaterial({ color: 0xbfe3ff, size: 0.5, transparent: true, opacity: 0.6, depthWrite: false, map: this.dot }));
     this.snow.frustumCulled = false;
     this.scene.add(this.snow);
+    // referências discretas de profundidade (faixas de partículas e sombra no fundo)
+    this.depthRefs = new DepthRefs(this.dot);
+    this.scene.add(this.depthRefs.group);
 
     // trajetória e linha de profundidade
     const tg = new THREE.BufferGeometry();
@@ -872,6 +894,28 @@ export class SubmarineScene {
           }
         }
       }
+      // descarga dos diesel-geradores pelos dispersores (mastro recolhido, gerador em carga): ver sim/systems/exhaust.ts
+      const ex = dieselExhaust(v, s);
+      if (ex.route === 'dispersores') {
+        const rate = (6 + 14 * ex.load + (ex.starting ? 12 : 0)) * step; // bolhas/s por saída: fluxo moderado
+        for (const o of disperserOutlets(v, e.geom.radiusAt)) {
+          const src = toWorld(o.x, o.y, o.z);
+          if (src.d + wv.elevation(src.n, src.e, tWave) < 0.3) continue; // saída fora d'água: sem bolhas
+          let k = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+          while (k-- > 0 && this.exParticles.length < SubmarineScene.EX_MAX) {
+            this.exParticles.push({ n: src.n + (Math.random() - 0.5) * 0.6, e: src.e + (Math.random() - 0.5) * 0.6, d: src.d + Math.random() * 0.2, vy: 0.35 + Math.random() * 0.45, life: 40 });
+          }
+        }
+      }
+      this.exParticles = this.exParticles.filter((p) => {
+        p.d -= p.vy * step;
+        p.life -= step;
+        p.n += (Math.random() - 0.5) * 0.12;
+        p.e += (Math.random() - 0.5) * 0.12;
+        const alive = p.d > -wv.elevation(p.n, p.e, tWave) && p.life > 0;
+        if (!alive && p.life > 0 && Math.random() < 0.25) this.fx.bubbleSurfaced(p.n, p.e);
+        return alive;
+      });
       this.particles = this.particles.filter((p) => {
         p.d -= p.vy * step;
         p.life -= step;
@@ -889,6 +933,13 @@ export class SubmarineScene {
       else bp.setXYZ(i, 0, -1e6, 0);
     }
     bp.needsUpdate = true;
+    const ep = this.exBubbles.geometry.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < SubmarineScene.EX_MAX; i++) {
+      const p = this.exParticles[i];
+      if (p) ep.setXYZ(i, p.e - pe, -p.d, -(p.n - pn));
+      else ep.setXYZ(i, 0, -1e6, 0);
+    }
+    ep.needsUpdate = true;
 
     // neve marinha: posições fixas no mundo, reenquadradas numa caixa em torno do submarino
     {
@@ -987,7 +1038,12 @@ export class SubmarineScene {
     this.ocean.mesh.visible = !dry;
     this.fx.group.visible = this.fx.group.visible && !dry;
     this.bubbles.visible = !dry;
+    this.exBubbles.visible = !dry;
     this.snow.visible = !dry;
+    // referências de profundidade: faixas e sombra (opção gráfica); a linha tracejada superfície–submarino–fundo
+    // é o eixo dos rótulos de cota, por isso também segue a camada "Identificações"
+    this.depthRefs.update(e.env, pn, pe, pd, (e.outputs.euler.heading * Math.PI) / 180, e.vessel.hull.length, e.vessel.hull.diameter, this.depthRefsOn && !dry);
+    this.depthLine.visible = this.depthRefsOn && this.layers.labels && !dry;
     if (dry) {
       this.underSky.mesh.visible = false;
       this.sky.visible = false;
@@ -1032,7 +1088,9 @@ export class SubmarineScene {
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
-    this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj);
+    // tráfego adicional (quantidade nas Configurações): mesmos navios do mapa tático
+    const extra = this.trafficCount > 0 && this.layers.ships && !dry ? trafficAt(e.state.t, trafficForEnv(e.env, this.geoOrigin, this.trafficCount), this.geoOrigin) : [];
+    this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj, extra);
     this.marineLife.update(e.env, tWave, pn, pe, !dry);
     if (this.shipyard && this.layers.labels && !dry && coastOn) this.shipyard.label(lbl, proj, this.shipyardDist);
     this.renderer.render(this.scene, this.camera);

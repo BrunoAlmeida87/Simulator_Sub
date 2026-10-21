@@ -16,6 +16,7 @@ import { parseSaveText, saveToText, type SaveFile } from '../../sim/persistence'
 import { identity, FIN_COLORS, DEFAULT_IDENTITY } from '../identity';
 import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS } from '../graphics';
 import type { SceneLighting } from '../../render3d/lighting';
+import { MAX_TRAFFIC } from '../../sim/traffic';
 import { currentAppearance, useIdentity } from '../appearance';
 import { drawSailDecal } from '../../render3d/sailArt';
 import { TrimGainSelect } from '../components/TrimGain';
@@ -432,6 +433,25 @@ function GraphicsPanel() {
             </button>
           ))}
         </div>
+      </div>
+      <div className="row mt8">
+        <span className="subtle" style={{ minWidth: 120 }}>
+          Navios adicionais
+        </span>
+        <input type="range" min={0} max={MAX_TRAFFIC} step={1} value={g.traffic} onChange={(ev) => graphics.set({ traffic: Number(ev.target.value) })} style={{ flex: 1, minWidth: 120 }} aria-label="Quantidade de navios adicionais" />
+        <span className="mono" style={{ minWidth: 28, textAlign: 'right' }}>
+          {g.traffic}
+        </span>
+      </div>
+      <div className="row mt8">
+        <label className="row" title="Partículas em suspensão em camadas de profundidade e marcas tênues no fundo, para perceber a cota e a distância ao fundo">
+          <input type="checkbox" checked={g.depthRefs} onChange={(ev) => graphics.set({ depthRefs: ev.target.checked })} />
+          Referências discretas de profundidade (submerso)
+        </label>
+      </div>
+      <div className="note">
+        Navios adicionais: tráfego fictício em volta da área do cenário (até {MAX_TRAFFIC}), além dos contatos fixos da mesa tática. Cada navio percorre um trecho em água com profundidade para o seu calado (segundo o fundo e a
+        costa simulados), longe da posição inicial do submarino e afastado dos trechos dos outros navios, para não se sobreporem. Aparecem também no mapa tático, com CPA. Só são desenhados até o alcance acima.
       </div>
       <div className="note">
         A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao recarregar a

@@ -8,6 +8,7 @@ import { useEffect, useReducer } from 'react';
 import type { OceanQuality } from '../render3d/Ocean';
 import type { SceneLighting } from '../render3d/lighting';
 import { DEFAULT_MARINE_LIFE, type MarineLifeSettings } from '../render3d/marineLifeMotion';
+import { MAX_TRAFFIC } from '../sim/traffic';
 
 export interface GraphicsSettings extends MarineLifeSettings {
   quality: OceanQuality;
@@ -24,6 +25,10 @@ export interface GraphicsSettings extends MarineLifeSettings {
   coastDetail: 'baixa' | 'media' | 'alta';
   /** iluminação da cena: natural (escurece com a profundidade), clara (padrão) ou estúdio */
   lighting: SceneLighting;
+  /** navios adicionais (tráfego fictício além dos contatos fixos), 0 … MAX_TRAFFIC */
+  traffic: number;
+  /** referências discretas de profundidade no ambiente submarino */
+  depthRefs: boolean;
 }
 
 const K_Q = 'sx1.quality.v1';
@@ -54,6 +59,8 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     fishDensity: p?.fishDensity === 'desligada' || p?.fishDensity === 'discreta' || p?.fishDensity === 'moderada' ? p.fishDensity : base.fishDensity,
     fishJumps: typeof p?.fishJumps === 'boolean' ? p.fishJumps : base.fishJumps,
     fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
+    traffic: typeof p?.traffic === 'number' && Number.isFinite(p.traffic) ? Math.max(0, Math.min(MAX_TRAFFIC, Math.round(p.traffic))) : base.traffic,
+    depthRefs: typeof p?.depthRefs === 'boolean' ? p.depthRefs : base.depthRefs,
   };
 }
 
@@ -64,7 +71,7 @@ class GraphicsStore {
 
   constructor() {
     const q = typeof window !== 'undefined' ? initialQuality() : 'alta';
-    const def: GraphicsSettings = { ...DEFAULT_MARINE_LIFE, quality: q, textures: q === 'baixa' ? 'normal' : 'alta', trimGain: 1, shipRange: 12, coastDetail: q === 'baixa' ? 'baixa' : 'media', lighting: 'clara' };
+    const def: GraphicsSettings = { ...DEFAULT_MARINE_LIFE, quality: q, textures: q === 'baixa' ? 'normal' : 'alta', trimGain: 1, shipRange: 12, coastDetail: q === 'baixa' ? 'baixa' : 'media', lighting: 'clara', traffic: 0, depthRefs: true };
     let saved: Partial<GraphicsSettings> | null = null;
     try {
       const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;

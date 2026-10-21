@@ -81,6 +81,11 @@ const CONTACTS: ContactDef[] = [
   { id: 'N1', name: 'Navio-patrulha (fictício)', kind: 'patrulha', a: { n: -40000, e: -14000 }, b: { n: -40000, e: 14000 }, speed: 6.0, phase: 0.8 },
 ];
 
+/** Trechos (lat/lon) percorridos pelos contatos fixos — usados para o tráfego adicional não cruzar com eles. */
+export function contactRoutes(): { a: LatLon; b: LatLon }[] {
+  return CONTACTS.map((c) => ({ a: nedToLatLon(DEFAULT_ORIGIN, c.a.n, c.a.e), b: nedToLatLon(DEFAULT_ORIGIN, c.b.n, c.b.e) }));
+}
+
 /** Área de exercícios fictícia (mar aberto a sul da Restinga da Marambaia). */
 export const EXERCISE_AREA: LatLon[] = [
   { lat: -23.25, lon: -44.0 },

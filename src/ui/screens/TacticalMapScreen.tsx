@@ -6,6 +6,8 @@
  * com marcação/distância/CPA, rota por pontos de passagem e ferramenta de
  * medição. A física continua em coordenadas locais; o mapa só converte.
  */
+import { trafficAt, trafficForEnv } from '../../sim/traffic';
+import { graphics, useGraphics } from '../graphics';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -72,6 +74,7 @@ function baseIcon(): L.DivIcon {
 export function TacticalMapScreen() {
   const e = useSim(4);
   const id = useIdentity();
+  const gfx = useGraphics();
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => route.subscribe(force), []);
   const box = useRef<HTMLDivElement>(null);
@@ -260,10 +263,11 @@ export function TacticalMapScreen() {
     L.marker(ll(pos), { icon: ownIcon(), zIndexOffset: 1000 })
       .bindTooltip(`${id.name} · ${o.depthKeel.toFixed(0)} m · ${toKnots(st.body.vel.x).toFixed(1)} nós · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
       .addTo(g);
-    // contatos
-    for (const c of contactsAt(st.t)) {
-      const cll = nedToLatLon(DEFAULT_ORIGIN, c.n, c.e);
-      const c2 = nedToLatLon(DEFAULT_ORIGIN, c.n + Math.cos((c.course * Math.PI) / 180) * c.speed * 360, c.e + Math.sin((c.course * Math.PI) / 180) * c.speed * 360);
+    // contatos fixos e tráfego adicional (os mesmos navios da cena 3D)
+    const all = [...contactsAt(st.t).map((c) => ({ c, o: DEFAULT_ORIGIN })), ...trafficAt(st.t, trafficForEnv(eng.env, origin, graphics.get().traffic), origin).map((c) => ({ c, o: origin }))];
+    for (const { c, o: co } of all) {
+      const cll = nedToLatLon(co, c.n, c.e);
+      const c2 = nedToLatLon(co, c.n + Math.cos((c.course * Math.PI) / 180) * c.speed * 360, c.e + Math.sin((c.course * Math.PI) / 180) * c.speed * 360);
       L.polyline([ll(cll), ll(c2)], { color: KIND_STYLE[c.kind].color, weight: 1.6 }).addTo(g);
       L.marker(ll(cll), { icon: contactIcon(c.kind) })
         .bindTooltip(`${c.id}`, { permanent: true, direction: 'top', className: 'tm-tip' })
@@ -299,7 +303,7 @@ export function TacticalMapScreen() {
   // ---- painel
   const o = e.outputs;
   // mesma conversão usada pela cena 3D (navios): mesma posição, rumo e velocidade
-  const contacts = contactsLocal(s.t, origin).map((cc) => {
+  const contacts = [...contactsLocal(s.t, origin), ...trafficAt(s.t, trafficForEnv(e.env, origin, gfx.traffic), origin)].map((cc) => {
     const c = cc;
     const br = bearingRange(own, cc);
     const cp = cpa({ ...own, vn: o.velNED.x, ve: o.velNED.y }, cc);

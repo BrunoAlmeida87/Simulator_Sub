@@ -229,6 +229,7 @@ export class ShipsLayer {
     enabled: boolean,
     labels: Label3D[] | null,
     proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean },
+    extra: Contact[] = [],
   ): void {
     this.group.visible = enabled;
     this.nearest = null;
@@ -236,7 +237,9 @@ export class ShipsLayer {
     const w = e.env.waves;
     const range = rangeKm * 1000;
     let best: NearestShip | null = null;
-    for (const c of contactsLocal(e.state.t, origin)) {
+    // navios que saíram da lista (tráfego reduzido) não ficam parados no mar
+    for (const s of this.ships.values()) s.group.visible = false;
+    for (const c of [...contactsLocal(e.state.t, origin), ...extra]) {
       const dn = c.n - pn;
       const de = c.e - pe;
       const dist = Math.hypot(dn, de);
