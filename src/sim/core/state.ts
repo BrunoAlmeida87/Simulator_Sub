@@ -241,6 +241,8 @@ export interface SimState {
   hydraulics: { pressure: number; failed: boolean; pumpOn: boolean; power: number };
   surfaces: Record<string, SurfaceState>;
   snorkel: { cmd: boolean; pos: number; headValveOpen: boolean };
+  /** periscópio de ataque: ordem (içar/arriar) e posição (0 = arriado, 1 = içado). Opcional em estados antigos. */
+  periscope?: { cmd: boolean; pos: number };
   flooding: Record<string, { water: number; breachArea: number; rate: number }>;
   autopilot: AutopilotState;
   sensors: Record<string, SensorState>;

@@ -55,6 +55,7 @@ export type Command =
   | { type: 'autopilot'; channel: 'heading' | 'depth' | 'pitch'; mode: 'MANUAL' | 'AUTO' }
   | { type: 'setpoint'; channel: 'heading' | 'depth' | 'pitch'; value: number }
   | { type: 'snorkel'; raise: boolean }
+  | { type: 'periscope'; raise: boolean }
   | { type: 'generator'; id: string; run: boolean }
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
@@ -263,6 +264,10 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     case 'snorkel':
       s.snorkel.cmd = c.raise;
       log(`Mastro do snorkel: ${c.raise ? 'IÇAR' : 'ARRIAR'}`, 'Energia');
+      break;
+    case 'periscope':
+      (s.periscope ??= { cmd: false, pos: 0 }).cmd = c.raise;
+      log(`Periscópio de ataque: ${c.raise ? 'IÇAR' : 'ARRIAR'}`, 'Navegação');
       break;
     case 'generator':
       s.electrical.generators[c.id].cmd = c.run;

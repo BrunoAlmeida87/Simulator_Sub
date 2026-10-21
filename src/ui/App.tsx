@@ -12,6 +12,7 @@ import { SimSpeedButtons } from './components/Controls';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
 import { HelmScreen } from './screens/HelmScreen';
+import { ControlRoomScreen } from './screens/ControlRoomScreen';
 import { PresentationScreen } from './screens/PresentationScreen';
 import { TacticalMapScreen } from './screens/TacticalMapScreen';
 import { EnergyFlowScreen } from './screens/EnergyFlowScreen';
@@ -42,6 +43,7 @@ import { openVisualWindow } from './sync';
 const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'pilotagem', n: '0', label: 'Pilotagem' },
   { id: 'governo', label: 'Governo' },
+  { id: 'sala', n: '8', label: 'Sala de comando' },
   { id: 'apresentacao', label: 'Apresentação' },
   { id: 'mapa', label: 'Mapa tático' },
   { id: 'energia', label: 'Fluxo de energia' },
@@ -287,6 +289,8 @@ export function App() {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
       const s = runner.engine.state;
       const k = ev.key.toLowerCase();
+      // na sala de comando W/A/S/D andam (e Q/E ficam livres): os lemes vão pelos manches
+      if (screen === 'sala' && 'wasdqe'.includes(k) && k.length === 1) return;
       if (k === ' ') {
         ev.preventDefault();
         runner.running = !runner.running;
@@ -297,7 +301,7 @@ export function App() {
       else if (k === '+' || k === '=') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd + 10 });
       else if (k === '-') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd - 10 });
       else if (k === 'i') setEng(!eng);
-      else if (/^[0-7]$/.test(k)) setScreen(TABS.find((x) => x.n === k)!.id);
+      else if (/^[0-8]$/.test(k)) setScreen(TABS.find((x) => x.n === k)!.id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -306,6 +310,7 @@ export function App() {
   const screens: Record<ScreenId, ReactNode> = {
     pilotagem: <PilotScreen />,
     governo: <HelmScreen />,
+    sala: <ControlRoomScreen />,
     apresentacao: <PresentationScreen />,
     mapa: <TacticalMapScreen />,
     energia: <EnergyFlowScreen />,

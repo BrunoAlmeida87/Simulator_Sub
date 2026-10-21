@@ -126,6 +126,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
     hydraulics: { pressure: v.hydraulics.nominalPressure, failed: false, pumpOn: false, power: 0 },
     surfaces,
     snorkel: { cmd: false, pos: 0, headValveOpen: false },
+    periscope: { cmd: false, pos: 0 },
     flooding,
     autopilot: {
       headingMode: 'MANUAL',

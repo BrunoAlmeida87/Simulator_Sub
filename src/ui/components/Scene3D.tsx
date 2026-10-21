@@ -1,7 +1,7 @@
 /** Componente React que hospeda a cena Three.js (lida do estado da simulação). */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { runner } from '../store';
-import type { Label3D, SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
+import type { Label3D, PeriscopeSight, SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
 import type { OceanQuality } from '../../render3d/Ocean';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 import { loadPersisted, savePersisted } from '../persist';
@@ -39,6 +39,10 @@ export interface Scene3DProps {
   persistKey?: string;
   /** clique sobre qualquer objeto selecionável da cena (ou null) */
   onPick?: (p: PickTarget | null) => void;
+  /** visada do periscópio (vista 'periscopio') */
+  periscope?: PeriscopeSight;
+  /** false: esta cena não define a vista/camadas da segunda janela (periscópio, miniatura) */
+  syncVisual?: boolean;
 }
 
 type CamPose = { pos: [number, number, number]; target: [number, number, number] };
@@ -112,7 +116,8 @@ export function Scene3D(props: Scene3DProps) {
             sc.lighting = graphics.get().lighting;
             sc.marineLife.settings = graphics.get();
             sc.layers = mergedLayers(opts.current);
-            if (!isVisualWindow) {
+            if (opts.current.periscope) sc.periscope = opts.current.periscope;
+            if (!isVisualWindow && opts.current.syncVisual !== false) {
               visualOut.layers = sc.layers;
               visualOut.view = opts.current.view;
             }

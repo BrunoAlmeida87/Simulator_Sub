@@ -64,16 +64,8 @@ export function SurfaceControl({ e, id, vertical }: { e: SimulationEngine; id: '
   );
 }
 
-export const TELEGRAPH: { label: string; rpm: number }[] = [
-  { label: 'RÉ TODA', rpm: -110 },
-  { label: 'RÉ MEIA', rpm: -60 },
-  { label: 'RÉ DEV.', rpm: -30 },
-  { label: 'PARAR', rpm: 0 },
-  { label: 'AV DEV.', rpm: 40 },
-  { label: 'AV MEIA', rpm: 75 },
-  { label: 'AV 3/4', rpm: 115 },
-  { label: 'AV TODA', rpm: 160 },
-];
+export { TELEGRAPH } from '../../sim/telegraph';
+import { TELEGRAPH } from '../../sim/telegraph';
 
 export function Telegraph({ e }: { e: SimulationEngine }) {
   const p = e.state.propulsion;

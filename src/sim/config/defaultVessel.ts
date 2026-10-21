@@ -40,6 +40,7 @@ export function defaultVessel(): VesselConfig {
       keelRef: { x: 0, y: 0, z: 3.1 },
       sail: { xFwd: 14, xAft: 4, height: 5.2, width: 1.5 },
       snorkelMast: { x: 8, extension: 4.5, raiseTime: 12 },
+      periscopeMast: { x: 12.0, extension: 5.0, raiseTime: 8 },
     },
     mass: {
       lightshipMass: 'auto',

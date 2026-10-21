@@ -1,6 +1,6 @@
 /**
- * ATUAÇÃO: planta hidráulica, lemes (superfícies de controle), mastro do
- * snorkel e alagamento de compartimentos.
+ * ATUAÇÃO: planta hidráulica, lemes (superfícies de controle), mastros do
+ * snorkel e do periscópio e alagamento de compartimentos.
  *
  * Planta hidráulica (conceitual): pressão do acumulador p_h recarregada por
  * bombas elétricas e consumida pelos movimentos de lemes e válvulas:
@@ -86,6 +86,28 @@ export function updateSnorkel(cfg: VesselConfig, s: SimState, ctx: StepContext):
   s.snorkel.headValveOpen = s.snorkel.pos > 0.98 && head < -0.3;
   const surfaced = sailTopDepth(cfg, ctx) + etaAt(0.5 * (cfg.hull.sail.xFwd + cfg.hull.sail.xAft)) < -2.0;
   return s.snorkel.headValveOpen || surfaced;
+}
+
+/** Mastro do periscópio de ataque (padrão quando a configuração não o define). */
+export function periscopeCfg(cfg: VesselConfig): { x: number; extension: number; raiseTime: number } {
+  return cfg.hull.periscopeMast ?? { x: 12.0, extension: 5.0, raiseTime: 8 };
+}
+
+/** Cota (corpo, m, + para baixo) da cabeça do periscópio para a posição atual do mastro. */
+export function periscopeHeadZ(cfg: VesselConfig, pos: number): number {
+  const h = cfg.hull;
+  return -(h.diameter / 2 + h.sail.height + 0.3 + periscopeCfg(cfg).extension * pos);
+}
+
+/**
+ * Periscópio: mastro hidráulico (mesmo consumo do snorkel por curso). Sem
+ * efeito hidrodinâmico na simulação (ver LIMITACOES); serve à vigilância.
+ */
+export function updatePeriscope(cfg: VesselConfig, s: SimState, ctx: StepContext): void {
+  const p = (s.periscope ??= { cmd: false, pos: 0 });
+  const before = p.pos;
+  p.pos = rateLimit(p.pos, p.cmd ? 1 : 0, ctx.hydraulicFactor / periscopeCfg(cfg).raiseTime, ctx.dt);
+  ctx.hydraulicDemand += (Math.abs(p.pos - before) * cfg.hydraulics.consumptionPerStroke) / 2;
 }
 
 export function updateFlooding(cfg: VesselConfig, s: SimState, ctx: StepContext): number {
