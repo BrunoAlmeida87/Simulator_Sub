@@ -16,6 +16,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 
 - [O que a Fase 1 entrega](#o-que-a-fase-1-entrega)
 - [Instalação e execução](#instalação-e-execução)
+- [Abrir com duplo clique (Windows, sem instalar)](#abrir-com-duplo-clique-windows-sem-instalar)
 - [Executável para Windows (Electron)](#executável-para-windows-electron)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Arquitetura](#arquitetura)
@@ -90,6 +91,15 @@ npm run dev        # servidor de desenvolvimento → http://localhost:5173
 | `npm run typecheck` | Somente verificação de tipos |
 
 O build usa caminho base relativo (`base: './'`), então funciona em qualquer subcaminho, como o GitHub Pages. A publicação é automática pelo workflow `.github/workflows/deploy.yml`.
+
+## Abrir com duplo clique (Windows, sem instalar)
+
+Os navegadores não rodam o simulador aberto direto do arquivo (`file://`), por isso o **Abrir-simulador.bat** liga um pequeno servidor local com o PowerShell, que já vem no Windows, e abre o navegador em `http://localhost:8765/`. Para encerrar, feche a janela preta.
+
+- **Versão pronta (recomendado):** no GitHub, troque para a branch **gh-pages**, *Code → Download ZIP*, descompacte e dê duplo clique em **Abrir-simulador.bat**. Não precisa de Node.js.
+- **Código-fonte (zip da main):** o mesmo arquivo está na raiz. Ele usa a pasta `dist` se existir; senão, com o Node.js instalado, compila uma vez (`npm install` + `npm run build`) e abre.
+
+Se a porta 8765 estiver ocupada, ele usa a seguinte livre (até 8784). As preferências do navegador ficam guardadas por endereço, então são separadas das do site.
 
 ## Executável para Windows (Electron)
 
