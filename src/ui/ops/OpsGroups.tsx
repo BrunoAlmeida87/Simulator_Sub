@@ -49,23 +49,6 @@ function NavBody({ e }: { e: SimulationEngine }) {
         </div>
       ))}
       <ApCompact e={e} />
-      <PeriscopeRow e={e} />
-    </div>
-  );
-}
-
-/** Periscópio de ataque: içar/arriar (a visada fica na aba Sala de comando). */
-export function PeriscopeRow({ e }: { e: SimulationEngine }) {
-  const pr = e.state.periscope ?? { cmd: false, pos: 0 };
-  const f = opsBus.focusTarget;
-  return (
-    <div className={`row ${f?.kind === 'mast' && f.id === 'periscope' ? 'focus' : ''}`}>
-      <b>Periscópio</b>
-      <span className="mono">{fmt(pr.pos * 100, 0)} % içado</span>
-      <button className={`btn sm ${pr.cmd ? 'on' : ''}`} onClick={() => cmd({ type: 'periscope', raise: !pr.cmd })}>
-        {pr.cmd ? 'Arriar' : 'Içar'}
-      </button>
-      <span className="subtle">visada na aba Sala de comando</span>
     </div>
   );
 }

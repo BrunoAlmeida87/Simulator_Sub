@@ -20,6 +20,7 @@ import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, d
 import { STATIONS } from '../src/render3d/controlRoom/stations';
 import { DEFAULT_ORIGIN } from '../src/sim/geo';
 import { periscopeHeadZ } from '../src/sim/systems/actuation';
+import { TELEGRAPH } from '../src/sim/telegraph';
 
 /** contexto 2D falso: aceita qualquer chamada */
 function stubCtx(): CanvasRenderingContext2D {
@@ -224,6 +225,15 @@ describe('Painéis da sala de comando', () => {
       expect(s.info.length).toBeGreaterThan(40);
       expect(s.view.pos.every(Number.isFinite) && s.view.look.every(Number.isFinite)).toBe(true);
     }
+  });
+});
+
+describe('Telégrafo', () => {
+  it('a tabela da sala de comando é a mesma das outras telas', () => {
+    const src = readFileSync(new URL('../src/ui/components/Controls.tsx', import.meta.url), 'utf8');
+    const block = src.slice(src.indexOf('export const TELEGRAPH'), src.indexOf('];', src.indexOf('export const TELEGRAPH')));
+    const rows = [...block.matchAll(/label: '([^']+)', rpm: (-?\d+)/g)].map((m) => ({ label: m[1], rpm: Number(m[2]) }));
+    expect(rows).toEqual(TELEGRAPH);
   });
 });
 

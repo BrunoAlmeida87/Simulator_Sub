@@ -18,7 +18,7 @@ import type { RoomLighting } from '../../render3d/controlRoom/panel';
 import { STATIONS, stationById } from '../../render3d/controlRoom/stations';
 import { roomContacts, mastOut } from '../../render3d/controlRoom/panelsCombat';
 import { hullOpenings } from '../../render3d/controlRoom/panelsBallast';
-import { GROUPS, loadScenario, PeriscopeRow } from '../ops/OpsGroups';
+import { GROUPS, loadScenario } from '../ops/OpsGroups';
 import { maneuver, MANEUVER_STEPS } from '../maneuvers';
 import { SCENARIOS } from '../../sim/scenarios';
 import { graphics } from '../graphics';
@@ -39,6 +39,20 @@ const PERI_POWERS: { fov: number; label: string }[] = [
 function maneuverText(): string | null {
   if (!maneuver.active) return null;
   return `${maneuver.active === 'imergir' ? `IMERGIR para ${maneuver.target} m` : 'EMERGIR'} · etapa ${maneuver.step + 1}/${MANEUVER_STEPS[maneuver.active].length}: ${maneuver.phase}`;
+}
+
+/** periscópio de ataque: içar/arriar */
+function PeriscopeRow({ e }: { e: SimulationEngine }) {
+  const pr = e.state.periscope ?? { cmd: false, pos: 0 };
+  return (
+    <div className="row">
+      <b>Periscópio</b>
+      <span className="mono">{fmt(pr.pos * 100, 0)} % içado</span>
+      <button className={`btn sm ${pr.cmd ? 'on' : ''}`} onClick={() => cmd({ type: 'periscope', raise: !pr.cmd })}>
+        {pr.cmd ? 'Arriar' : 'Içar'}
+      </button>
+    </div>
+  );
 }
 
 /** tabela de contatos (sonar, quadro tático, mesa) */
@@ -94,6 +108,7 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
     governo: (
       <>
         <G.nav.Body e={e} />
+        <PeriscopeRow e={e} />
         <div className="row">
           <button className="btn sm" onClick={() => maneuver.start(runner, 'imergir', Math.max(20, Math.round(e.state.autopilot.depthSet / 10) * 10 || 50))}>
             Manobra: imergir

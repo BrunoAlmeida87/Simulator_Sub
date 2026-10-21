@@ -72,7 +72,7 @@ A aba **Sala de comando** coloca você **dentro** do submarino, numa sala de con
 | Mesa tática | Carta horizontal com terra e águas rasas (mesmo fundo da física), derrota, rota, contatos e área de exercícios | escalas (2–50 km) |
 | Estação do instrutor | Falhas por grupo, tempo da simulação, estado do mar, cenários, peso deslocável, iluminação | injetar/remover falhas, executar/pausar, aceleração, mar, carregar cenário, mover o peso, luz |
 
-**Visada do periscópio**: mostra o mar com o retículo, a marcação verdadeira e relativa e a elevação. Arraste (ou ◀ ▶, setas) para girar; **1,5×/6×** muda o aumento; *Içar/Arriar* comanda o mastro. Com o periscópio arriado a visada fica escura; com a cabeça submersa vê-se debaixo d’água. A cabeça fica fora d’água na cota periscópica (quilha a ≈ 16 m com o periscópio todo içado). Na cena 3D externa o periscópio sobe na vela, e o alarme informativo avisa se ele estiver içado acima de 8 nós.
+**Visada do periscópio**: mostra o mar com o retículo, a marcação verdadeira e relativa e a elevação. Arraste (ou ◀ ▶, setas) para girar; **1,5×/6×** muda o aumento; *Içar/Arriar* comanda o mastro. Com o periscópio arriado a visada fica escura; com a cabeça submersa vê-se debaixo d’água. A cabeça fica fora d’água na cota periscópica (quilha a ≈ 16 m com o periscópio todo içado). Na cena 3D externa o periscópio sobe na vela (arriado, não aparece).
 
 **Iluminação**: *Luz* (ou o interruptor junto à porta de ré, ou o instrutor) alterna normal, **vermelha** (noturna: preserva a adaptação ao escuro para o periscópio) e azul. Sem energia no barramento, ficam só as lanternas de emergência. Alagamento no compartimento central aparece como água no piso.
 

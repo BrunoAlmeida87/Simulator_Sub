@@ -440,7 +440,6 @@ export class SubmarineScene {
       this.periHead.position.y = ext / 2 + 0.3;
       this.periMast.add(tube, this.periHead);
       this.periMast.position.set(0, -periscopeHeadZ(v, 0) - ext / 2 - 0.65, -pc.x);
-      this.periMast.userData.pick = { kind: 'mast', id: 'periscope' };
       this.sub.add(this.periMast);
     }
     // convés (chapa plana sobre o casco cilíndrico)
@@ -889,8 +888,8 @@ export class SubmarineScene {
       const pc = periscopeCfg(v);
       this.periMast.position.y = -periscopeHeadZ(v, s.periscope?.pos ?? 0) - pc.extension / 2 - 0.65;
       this.periHead.rotation.y = (-this.periscope.bearing * Math.PI) / 180;
-      // na vista do periscópio a câmera está dentro da cabeça
-      this.periMast.visible = this.view !== 'periscopio';
+      // arriado fica fora da cena (não aparece no corte nem sem casco); na vista do periscópio a câmera está dentro da cabeça
+      this.periMast.visible = (s.periscope?.pos ?? 0) > 0.005 && this.view !== 'periscopio';
     }
 
     // fundo e terra (reconstruídos ao afastar-se ou quando o fundo/costa mudam)
@@ -1032,7 +1031,8 @@ export class SubmarineScene {
     }
     const delta = subPos.clone().sub(this.lastSubPos);
     this.lastSubPos.copy(subPos);
-    this.controls.enabled = this.view !== 'periscopio';
+    if (this.view === 'periscopio') this.controls.enabled = false;
+    else if (!this.controls.enabled) this.controls.enabled = true;
     if (this.view === 'periscopio') {
       // câmera na cabeça do periscópio; linha de visada estabilizada (horizonte nivelado)
       this.sub.updateMatrixWorld();

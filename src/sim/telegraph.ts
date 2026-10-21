@@ -1,4 +1,8 @@
-/** Ordens do telégrafo de máquinas (rótulo → rpm ordenado), usadas pelas telas e pela sala de comando. */
+/**
+ * Ordens do telégrafo de máquinas (rótulo → rpm ordenado) usadas pela sala de
+ * comando. Mesma tabela de `TELEGRAPH` em ui/components/Controls.tsx (o teste
+ * tests/controlRoom.test.ts confere que as duas continuam iguais).
+ */
 export const TELEGRAPH: { label: string; rpm: number }[] = [
   { label: 'RÉ TODA', rpm: -110 },
   { label: 'RÉ MEIA', rpm: -60 },

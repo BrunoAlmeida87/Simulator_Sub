@@ -77,7 +77,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 
 ## Sala de comando e periscópio
 - O arranjo da sala, os consoles e as telas são **ilustrativos**, inspirados em salas de controle de submarinos convencionais; não reproduzem nenhum navio real.
-- O periscópio não tem arrasto nem esteira na física; içado acima de 8 nós gera apenas um alarme informativo. A visada usa a mesma cena 3D externa (sem distorção óptica, sem embaçamento por ondas).
+- O periscópio não tem arrasto nem esteira na física (nem limite de velocidade com ele içado). A visada usa a mesma cena 3D externa (sem distorção óptica, sem embaçamento por ondas).
 - Escotilhas (torre, vante e ré) não são modeladas: o indicador de aberturas do casco as mostra sempre fechadas.
 - Sonar passivo e MAGE são **modelos ilustrativos** (perdas esféricas, ruído próprio crescendo com a velocidade, zona cega a ré, emissores por tipo de navio); não há propagação acústica real, camadas de sombra nem classificação por assinatura.
 - O sistema de combate é fictício e não tem armamento.

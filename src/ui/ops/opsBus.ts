@@ -123,7 +123,6 @@ class OpsBus {
       case 'prop':
         return 'nav';
       case 'mast':
-        return p.id === 'periscope' ? 'nav' : 'energia';
       case 'battery':
       case 'generator':
         return 'energia';
