@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import { tankVolume } from '../sim/systems/internalTanks';
+import { clean, compensationFlows, compensationNodes, manifoldSegments } from '../sim/systems/compensationNetwork';
 import type { ValveState } from '../sim/core/state';
 import { TANK_STYLE, type SceneLayers, type TankCategory } from './layers';
 import type { Label3D } from './SubmarineScene';
@@ -418,36 +419,62 @@ export class SystemsVis {
       this.port(flood[0], new THREE.Vector3(0, -1, 0), (en) => sq(en.state.ballast[t.id].qWater / 2.5), [t.id], 0x7fd8ff);
     }
 
-    // --- compensação: admissão do mar → V-AM → coletor → VC → TC ; TC → BC → V-DM → mar
+    // --- compensação: mar → V-AM → coletor ⇄ VC-n → TC-n ; coletor → BC → V-DM → mar
+    // A bomba fica na ponta do coletor (fora do caminho entre a admissão e os
+    // tanques). Cada trecho anima com a vazão calculada para ele (compensationNetwork).
     const cmp = v.compensation;
     const zc = 2.72;
     const yc = 0.75;
     const sc = cmp.seaConnection;
     const seaIn = b2l(sc.x, -0.5, geom.radiusAt(sc.x) + 0.8);
     const vam = b2l(sc.x, -0.5, zc);
-    const xd = sc.x + 1.8;
+    const ctx = cmp.tanks.map((t) => t.center.x);
+    const xd = Math.max(...ctx) + 1.8;
     const seaOut = b2l(xd + 0.9, yc, geom.radiusAt(xd) + 0.8);
     const pumpP = b2l(xd, yc, zc);
     const vdm = b2l(xd + 0.9, yc, zc);
-    const ctx = cmp.tanks.map((t) => t.center.x);
-    const lineC = [b2l(Math.min(...ctx), yc, zc), b2l(Math.max(...ctx), yc, zc)];
-    this.pipe(lineC, 0x168a52, ['compensacao']);
+    const xTank = Object.fromEntries(cmp.tanks.map((t) => [t.id, t.center.x]));
+    const flows = (en: SimulationEngine) => compensationFlows(en.vessel.compensation, en.state.compensation);
+    const segsOf = (en: SimulationEngine) => {
+      const f = flows(en);
+      return manifoldSegments(compensationNodes(f, sc.x, xd, xTank), f.tol);
+    };
+    const qRef = cmp.pump.ratedFlow;
+    this.pipe([b2l(Math.min(...ctx), yc, zc), pumpP], 0x168a52, ['compensacao']);
     this.pipe([seaIn, vam, b2l(sc.x, yc, zc)], 0x168a52, ['compensacao']);
     this.pipe([pumpP, vdm, seaOut], 0x168a52, ['compensacao']);
     this.valve(vam, cmp.inletValve.name, (en) => en.state.compensation.inlet, ['compensacao']);
     this.valve(vdm, cmp.dischargeValve.name, (en) => en.state.compensation.discharge, ['compensacao']);
-    this.pump(pumpP.clone().add(new THREE.Vector3(0.0, 0.0, 0)), cmp.pump.name, (en) => en.state.compensation.pump, ['compensacao']);
-    this.port(seaIn, new THREE.Vector3(0, -1, 0), (en) => sq(en.state.compensation.qIn / 0.012), ['compensacao'], 0x7fffc0);
-    this.port(seaOut, new THREE.Vector3(0, -1, 0), (en) => -sq(en.state.compensation.qOut / 0.012), ['compensacao'], 0x7fffc0);
+    this.pump(pumpP, cmp.pump.name, (en) => en.state.compensation.pump, ['compensacao']);
+    const C_COMP = new THREE.Color(0x9dffc8);
+    const qInOf = (en: SimulationEngine) => {
+      const f = flows(en);
+      return clean(f.qIn, f.tol);
+    };
+    const qOutOf = (en: SimulationEngine) => {
+      const f = flows(en);
+      return clean(f.qOut, f.tol);
+    };
+    this.port(seaIn, new THREE.Vector3(0, -1, 0), (en) => sq(qInOf(en) / qRef), ['compensacao'], 0x7fffc0);
+    this.port(seaOut, new THREE.Vector3(0, -1, 0), (en) => -sq(qOutOf(en) / qRef), ['compensacao'], 0x7fffc0);
+    this.stream([seaIn, vam, b2l(sc.x, yc, zc)], C_COMP, ['compensacao'], (en) => sq(qInOf(en) / qRef));
+    this.stream([pumpP, vdm, seaOut], C_COMP, ['compensacao'], (en) => sq(qOutOf(en) / qRef));
+    // trechos do coletor (entre nós vizinhos: tanques, admissão e bomba)
+    const nodes0 = compensationNodes(flows(this.e0), sc.x, xd, xTank);
+    manifoldSegments(nodes0, 1).forEach((g0, k) => {
+      const owners = ['compensacao', ...[g0.from.id, g0.to.id].filter((id) => id in xTank)];
+      this.stream([b2l(g0.from.x, yc, zc), b2l(g0.to.x, yc, zc)], C_COMP, owners, (en) => sq((segsOf(en)[k]?.q ?? 0) / qRef));
+    });
     cmp.tanks.forEach((t, i) => {
       const vc = b2l(t.center.x, yc, zc);
       const tankB = b2l(t.center.x, 0.2, t.center.z + t.height / 2 - 0.2);
       this.pipe([vc, b2l(t.center.x, 0.2, zc), tankB], 0x168a52, [t.id, 'compensacao']);
       this.valve(b2l(t.center.x, yc * 0.6, zc), cmp.tankValves[i].name, (en) => en.state.compensation.tankValves[cmp.tankValves[i].id], [t.id, 'compensacao']);
-      const toTank = [seaIn, vam, b2l(sc.x, yc, zc), vc, b2l(t.center.x, 0.2, zc), tankB];
-      this.stream(toTank, new THREE.Color(0x9dffc8), [t.id, 'compensacao'], (en) => sq(Math.max(0, en.state.compensation.tanks[t.id].flow ?? 0) / 0.012));
-      const fromTank = [tankB, b2l(t.center.x, 0.2, zc), vc, pumpP, vdm, seaOut];
-      this.stream(fromTank, new THREE.Color(0x9dffc8), [t.id, 'compensacao'], (en) => sq(Math.max(0, -(en.state.compensation.tanks[t.id].flow ?? 0)) / 0.012));
+      // ramal: coletor → tanque (positiva = enchendo)
+      this.stream([vc, b2l(t.center.x, 0.2, zc), tankB], C_COMP, [t.id, 'compensacao'], (en) => {
+        const f = flows(en);
+        return sq(clean(f.tanks[t.id] ?? 0, f.tol) / qRef);
+      });
     });
 
     // --- trim e banda: tanque A ↔ bomba ↔ tanque B (sentido pelo seletor)

@@ -8,6 +8,7 @@ import { valveStatus, pumpStatus } from '../../sim/systems/components';
 import { ballastFillStatus } from '../../sim/systems/ballast';
 import { bankPressure } from '../../sim/systems/hpAir';
 import { tankVolume } from '../../sim/systems/internalTanks';
+import { clean, compensationFlows, compensationNodes, manifoldSegments } from '../../sim/systems/compensationNetwork';
 import { solveNeutralCompensation } from '../../sim/equilibrium';
 import { R_AIR } from '../../sim/core/context';
 import type { SimulationEngine } from '../../sim/core/engine';
@@ -46,18 +47,27 @@ export function Diagram({ e }: { e: SimulationEngine }) {
     { ids: ['TLP2BB', 'TLP2BE'], xc: -23.5, w: 4.0 },
   ];
   const comp = v.compensation;
-  const seaY = 268;
   const wl = Y(-s.body.pos.z);
-  const manY = Y(R) + 26;
+  // compensação (esquemático): coletor abaixo do casco; à esquerda a sucção da
+  // bomba BC → V-DM → mar, à direita a admissão mar → V-AM; ramais VC-n → TC-n
+  const manY = Y(R) + 24;
+  const seaY = manY + 92;
   const tcPos = comp.tanks.map((t) => X(t.center.x));
-  const conX = X(comp.seaConnection.x);
+  const xPump = Math.min(...tcPos) - 70;
+  const xInlet = Math.max(...tcPos) + 70;
+  const cf = compensationFlows(comp, s.compensation);
+  const segs = manifoldSegments(compensationNodes(cf, xInlet, xPump, Object.fromEntries(comp.tanks.map((t, i) => [t.id, tcPos[i]]))), cf.tol);
+  const qIn = clean(cf.qIn, cf.tol);
+  const qOut = clean(cf.qOut, cf.tol);
+  const pumpSt = s.compensation.pump;
+  const pumpNote = pumpSt.deadhead ? 'descarga fechada' : pumpSt.noSuction ? 'sem sucção' : '';
   return (
     <WideDiagram minWidth={720}>
-      <svg viewBox="0 -30 860 330" className="svgbox">
+      <svg viewBox="0 -30 860 380" className="svgbox">
         {wl > -30 ? (
           <>
             <rect x="0" y="-30" width="860" height={wl + 30} fill="#0e1a26" />
-            <rect x="0" y={wl} width="860" height={330} fill="#08192a" />
+            <rect x="0" y={wl} width="860" height={380} fill="#08192a" />
             <line x1="0" x2="860" y1={wl} y2={wl} stroke="#57a8ff" strokeWidth="1.2" />
             <text x="8" y={wl - 4} fontSize="10" fill="#57a8ff">
               superfície do mar (posição real, sem trim)
@@ -65,7 +75,7 @@ export function Diagram({ e }: { e: SimulationEngine }) {
           </>
         ) : (
           <>
-            <rect x="0" y="-30" width="860" height={360} fill="#08192a" />
+            <rect x="0" y="-30" width="860" height={410} fill="#08192a" />
             <text x="8" y="-16" fontSize="10" fill="#57a8ff">
               ▲ superfície {fmt(s.body.pos.z, 0)} m acima do eixo
             </text>
@@ -135,29 +145,48 @@ export function Diagram({ e }: { e: SimulationEngine }) {
             );
           }),
         )}
-        {/* compensação */}
+        {/* compensação: cada trecho anima com a sua própria vazão, no sentido do escoamento */}
+        {segs.map((g) => (
+          <Pipe key={g.from.id + g.to.id} d={`M${g.from.x},${manY} L${g.to.x},${manY}`} flow={g.q} width={3} />
+        ))}
         {comp.tanks.map((t, i) => {
           const st = s.compensation.tanks[t.id];
           const w = 60;
           const h = 30;
           const x0 = tcPos[i] - w / 2;
           const y0 = Y(R) - h - 10;
+          const vid = comp.tankValves[i].id;
           return (
             <g key={t.id}>
               <TankGlyph x={x0} y={y0} w={w} h={h} fill={tankVolume(st) / t.capacity} label={t.id} sub={`${tankVolume(st).toFixed(2)} m³`} color="#2a7fd4" inspect={'comp:' + t.id} />
-              <Pipe d={`M${tcPos[i]},${y0 + h} L${tcPos[i]},${manY}`} flow={s.compensation.tankValves[comp.tankValves[i].id].pos > 0.02 ? s.compensation.qIn - s.compensation.qOut : 0} width={2.5} />
-              <ValveGlyph x={tcPos[i]} y={y0 + h + 12} st={s.compensation.tankValves[comp.tankValves[i].id]} vertical size={5} label={comp.tankValves[i].id} onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: comp.tankValves[i].id, open: s.compensation.tankValves[comp.tankValves[i].id].cmd < 0.5 })} inspect={'comp:' + t.id} />
+              {/* sentido do desenho: coletor → tanque (vazão positiva = enchendo) */}
+              <Pipe d={`M${tcPos[i]},${manY} L${tcPos[i]},${y0 + h}`} flow={clean(cf.tanks[t.id], cf.tol)} width={2.5} />
+              <ValveGlyph x={tcPos[i]} y={y0 + h + 12} st={s.compensation.tankValves[vid]} vertical size={5} label={vid} onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: vid, open: s.compensation.tankValves[vid].cmd < 0.5 })} inspect={'comp:' + t.id} />
             </g>
           );
         })}
-        <Pipe d={`M${Math.min(...tcPos)},${manY} L${X(12)},${manY}`} flow={s.compensation.qIn - s.compensation.qOut} width={3} />
-        {/* admissão */}
-        <Pipe d={`M${X(12)},${manY} L${X(12)},${seaY}`} flow={-s.compensation.qIn} width={3} />
-        <ValveGlyph x={X(12)} y={manY + 22} st={s.compensation.inlet} vertical label="V-AM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'inlet', open: s.compensation.inlet.cmd < 0.5 })} inspect="comp:inlet" />
-        {/* descarga por bomba */}
-        <Pipe d={`M${conX - 70},${manY} L${conX - 70},${manY + 40} L${conX - 10},${manY + 40} L${conX - 10},${seaY}`} flow={s.compensation.qOut} width={3} />
-        <PumpGlyph x={conX - 70} y={manY + 22} st={s.compensation.pump} label="BC" onToggle={() => cmd({ type: 'pump', system: 'compensation', run: !s.compensation.pump.cmd })} inspect="comp:pump" />
-        <ValveGlyph x={conX - 10} y={manY + 55} st={s.compensation.discharge} vertical label="V-DM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'discharge', open: s.compensation.discharge.cmd < 0.5 })} inspect="comp:discharge" />
+        {/* admissão: mar → V-AM → coletor */}
+        <Pipe d={`M${xInlet},${seaY} L${xInlet},${manY}`} flow={qIn} width={3} />
+        <ValveGlyph x={xInlet} y={manY + 46} st={s.compensation.inlet} vertical label="V-AM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'inlet', open: s.compensation.inlet.cmd < 0.5 })} inspect="comp:inlet" />
+        {qIn > 0 && (
+          <text x={xInlet + 10} y={seaY - 8} fontSize="9" fill="#57a8ff">
+            ▲ {fmt(qIn * 1000, 1)} L/s
+          </text>
+        )}
+        {/* descarga: coletor → BC → V-DM → mar */}
+        <Pipe d={`M${xPump},${manY} L${xPump},${seaY}`} flow={qOut} width={3} />
+        <PumpGlyph x={xPump} y={manY + 28} st={pumpSt} label="BC" labelAt={[-22, 4]} angle={90} onToggle={() => cmd({ type: 'pump', system: 'compensation', run: !pumpSt.cmd })} inspect="comp:pump" />
+        <ValveGlyph x={xPump} y={manY + 64} st={s.compensation.discharge} vertical label="V-DM" onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: 'discharge', open: s.compensation.discharge.cmd < 0.5 })} inspect="comp:discharge" />
+        {qOut > 0 && (
+          <text x={xPump - 10} y={seaY - 8} fontSize="9" textAnchor="end" fill="#57a8ff">
+            ▼ {fmt(qOut * 1000, 1)} L/s
+          </text>
+        )}
+        {pumpNote && (
+          <text x={xPump + 18} y={manY + 31} fontSize="9" fill="#f5b041">
+            {pumpNote}
+          </text>
+        )}
         <line x1="0" x2="860" y1={seaY} y2={seaY} stroke="#2a7fd4" strokeWidth="2" opacity="0.6" />
         <text x="8" y={seaY + 14} fontSize="9.5" fill="#57a8ff">
           MAR — pressão na tomada {fmt(e.env.pressureAt(e.outputs.depthKeel) / 1e5, 2)} bar
