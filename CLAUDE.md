@@ -50,11 +50,14 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       + LAYER_INFO (catálogo/nomes) e allLayersOn/Off (marcar/desmarcar todas)
   DepthRefs.ts        referências discretas de profundidade (faixas de partículas, sombra no fundo)
   ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, fumaça), Markers.ts, Ocean.ts
+  controlRoom/        SALA DE COMANDO em 1ª pessoa: ControlRoomScene (sala, câmera, colisão, seleção),
+                      panel.ts (canvas + regiões clicáveis), panels*.ts (telas/faces por posto), furniture/textures,
+                      stations.ts (postos e enquadramentos), actions.ts (RoomActions: a cena só monta Commands)
 src/ui/               INTERFACE (React)
   App.tsx             abas (TABS) e atalhos de teclado
   VisualApp.tsx       segunda janela (só visual) — modo dois monitores
   sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz)
-  screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast…)
+  screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
   ops/                central de operação da Pilotagem (grupos expansíveis, faixa inferior, opsBus)
   components/         controles, seletores (TankSelector, VectorSelector, LayerPanel), gráficos, Scene3D
   inspector/          modo engenharia (registry.ts = textos e variáveis por componente)
@@ -79,6 +82,9 @@ docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, V
 - **Preferências de visualização** persistem entre abas com `usePersisted`.
 - **Celular:** a interface precisa funcionar em tela estreita (sem rolagem horizontal).
 - Mapas: só fontes **gratuitas sem chave de API** (OpenStreetMap, OpenTopoMap, EOX, OpenSeaMap).
+- **Sala de comando:** botão novo num painel = região registrada no desenho (`button`/`lampButton` em `draw.ts`) que chama
+  `act.cmd(...)`; o teste `tests/controlRoom.test.ts` executa todas as regiões e confere os comandos. Telas pesadas: manter
+  o redesenho por `hz` e o orçamento por quadro do `ControlRoomScene.render()`.
 - Ao mudar parâmetros físicos, conferir `npm test` e atualizar `docs/PARAMETROS.md`.
 - Ao criar funções visíveis ao usuário, atualizar `docs/OPERACAO.md` (e o README se for recurso novo).
 

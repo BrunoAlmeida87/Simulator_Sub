@@ -172,7 +172,10 @@ describe('Painéis da sala de comando', () => {
         if (!r.action) continue;
         r.action();
         // ações com confirmação (disjuntor): segundo clique no estado armado
-        if (r.id === 'brk') drawRegions(draw, e, ui, px).find((x) => x.id === 'brk')?.action?.();
+        if (r.id === 'brk')
+          drawRegions(draw, e, ui, px)
+            .find((x) => x.id === 'brk')
+            ?.action?.();
       }
       for (const c of sent) {
         types.add(c.type);
@@ -180,7 +183,27 @@ describe('Painéis da sala de comando', () => {
       }
       expect(() => run(e, 1), name).not.toThrow();
     }
-    for (const t of ['mbtVent', 'mbtBlow', 'hpBankValve', 'compressor', 'valve', 'pump', 'direction', 'dosing', 'telegraph', 'autopilot', 'setpoint', 'snorkel', 'periscope', 'generator', 'breaker', 'ack', 'seaState', 'failure', 'demoWeight']) {
+    for (const t of [
+      'mbtVent',
+      'mbtBlow',
+      'hpBankValve',
+      'compressor',
+      'valve',
+      'pump',
+      'direction',
+      'dosing',
+      'telegraph',
+      'autopilot',
+      'setpoint',
+      'snorkel',
+      'periscope',
+      'generator',
+      'breaker',
+      'ack',
+      'seaState',
+      'failure',
+      'demoWeight',
+    ]) {
       expect(types.has(t), `nenhum botão envia '${t}'`).toBe(true);
     }
   });

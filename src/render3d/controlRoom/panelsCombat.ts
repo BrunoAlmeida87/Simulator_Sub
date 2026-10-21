@@ -167,7 +167,9 @@ export function drawSonarContacts(act: RoomActions) {
       text(g, 'ANTENA SUBMERSA — içar o periscópio ou o snorkel na cota periscópica', W / 2, my + (H - my) / 2, 18, C.warn, 'center', 'bold', false, W - 60);
       return;
     }
-    const em = roomContacts(e, act).filter((ct) => (ct.kind === 'patrulha' || ct.kind === 'mercante') && ct.rng < 40000).slice(0, 4);
+    const em = roomContacts(e, act)
+      .filter((ct) => (ct.kind === 'patrulha' || ct.kind === 'mercante') && ct.rng < 40000)
+      .slice(0, 4);
     if (!em.length) text(g, 'nenhum emissor interceptado', W / 2, my + 90, 18, C.dim, 'center');
     em.forEach((ct, i) => {
       const y = my + 50 + i * 34;
@@ -368,7 +370,21 @@ export function drawTacticalConsole(act: RoomActions) {
     const ph = H - y0 - 10;
     const cts = plot(c, act, 10, y0, ph, ph, scale);
     const x1 = ph + 22;
-    SCALES_KM.forEach((km, i) => button(c, { id: `tc-sc-${km}`, x: x1 + i * ((W - x1 - 14) / 5), y: y0, w: (W - x1 - 14) / 5 - 6, h: 40, label: `${km} km`, on: i === si, tone: 'cmd', tip: `Escala do quadro: ${km} km`, action: () => (c.ui.page.tacScale = i), size: 14 }));
+    SCALES_KM.forEach((km, i) =>
+      button(c, {
+        id: `tc-sc-${km}`,
+        x: x1 + i * ((W - x1 - 14) / 5),
+        y: y0,
+        w: (W - x1 - 14) / 5 - 6,
+        h: 40,
+        label: `${km} km`,
+        on: i === si,
+        tone: 'cmd',
+        tip: `Escala do quadro: ${km} km`,
+        action: () => (c.ui.page.tacScale = i),
+        size: 14,
+      }),
+    );
     const own = { n: e.state.body.pos.x, e: e.state.body.pos.y, vn: e.outputs.velNED.x, ve: e.outputs.velNED.y };
     text(g, 'CONTATO', x1, y0 + 64, 13, C.dim, 'left', 'bold');
     text(g, 'MARC.', x1 + 90, y0 + 64, 13, C.dim, 'left', 'bold');
@@ -448,7 +464,21 @@ export function drawPlotTable(act: RoomActions) {
     g.fillStyle = 'rgba(3,15,25,0.8)';
     rrect(g, 10, H - 64, 580, 54, 8);
     g.fill();
-    SCALES_KM.forEach((km, i) => button(c, { id: `tb-sc-${km}`, x: 18 + i * 92, y: H - 58, w: 86, h: 42, label: `${km} km`, on: i === si, tone: 'cmd', tip: `Escala da mesa tática: ${km} km (raio vertical)`, action: () => (c.ui.page.tableScale = i), size: 15 }));
+    SCALES_KM.forEach((km, i) =>
+      button(c, {
+        id: `tb-sc-${km}`,
+        x: 18 + i * 92,
+        y: H - 58,
+        w: 86,
+        h: 42,
+        label: `${km} km`,
+        on: i === si,
+        tone: 'cmd',
+        tip: `Escala da mesa tática: ${km} km (raio vertical)`,
+        action: () => (c.ui.page.tableScale = i),
+        size: 15,
+      }),
+    );
     text(g, 'MESA TÁTICA', W - 20, 24, 22, '#9fd0ff', 'right', 'bold');
     const origin = act.geoOrigin();
     const ll = nedToLatLon(origin, e.state.body.pos.x, e.state.body.pos.y);

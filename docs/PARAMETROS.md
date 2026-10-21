@@ -20,6 +20,8 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Raios de giração (peso leve) | k_xx 2,4 m · k_yy = k_zz 17 m | |
 | Compressibilidade do casco | 4,6 × 10⁻¹⁰ Pa⁻¹ | sobre o volume não TLP |
 | Calado na superfície (quilha) | ≈ 5,05 m | 88 % do envelope imerso |
+| Mastro do snorkel | x = +8 m, curso 4,5 m, 12 s | hidráulico |
+| Periscópio de ataque | x = +12 m, curso 5,0 m, 8 s | hidráulico (mesmo consumo por curso do snorkel); sem efeito hidrodinâmico; cabeça fora d’água com a quilha a ≈ 16 m |
 
 ### Cargas variáveis (padrão)
 

@@ -65,7 +65,19 @@ export function drawEnergy(act: RoomActions) {
       const col = st.status === 'EM CARGA' ? C.real : st.status === 'PARTINDO' || st.status === 'PARANDO' ? C.warn : st.status === 'FALHA' || st.status === 'SEM AR' ? C.alarm : C.dim;
       text(g, st.status, 560, y + 24, 18, col, 'left', 'bold');
       text(g, `${(st.power / 1000).toFixed(0)} kW / ${(gen.ratedPower / 1000).toFixed(0)}`, 560, y + 54, 16, C.dim, 'left', 'normal', true);
-      button(c, { id: `gen-${gen.id}`, x: W - 180, y: y + 4, w: 150, h: 60, label: st.cmd ? 'PARAR' : 'PARTIR', sub: gen.name.replace('Grupo diesel-gerador', 'GD'), on: st.cmd, tone: st.failed ? 'danger' : 'ok', tip: `${gen.name}: ${st.status} — clique para ${st.cmd ? 'PARAR' : 'PARTIR'} (precisa de ar: superfície ou snorkel)`, action: () => act.cmd({ type: 'generator', id: gen.id, run: !st.cmd }) });
+      button(c, {
+        id: `gen-${gen.id}`,
+        x: W - 180,
+        y: y + 4,
+        w: 150,
+        h: 60,
+        label: st.cmd ? 'PARAR' : 'PARTIR',
+        sub: gen.name.replace('Grupo diesel-gerador', 'GD'),
+        on: st.cmd,
+        tone: st.failed ? 'danger' : 'ok',
+        tip: `${gen.name}: ${st.status} — clique para ${st.cmd ? 'PARAR' : 'PARTIR'} (precisa de ar: superfície ou snorkel)`,
+        action: () => act.cmd({ type: 'generator', id: gen.id, run: !st.cmd }),
+      });
     });
     // snorkel
     const sy = y0 + 262;
@@ -75,14 +87,28 @@ export function drawEnergy(act: RoomActions) {
     text(g, `${Math.round(sn.pos * 100)} % içado`, 340, sy + 57, 18, C.text, 'left', 'bold');
     text(g, `válvula de cabeça ${sn.headValveOpen ? 'ABERTA' : 'FECHADA'}`, 30, sy + 100, 18, sn.headValveOpen ? C.real : C.dim, 'left', 'bold');
     text(g, e.outputs.airIntake ? 'tomada de ar disponível' : 'sem tomada de ar externo', 30, sy + 128, 15, C.dim, 'left');
-    button(c, { id: 'snk', x: 30, y: sy + 150, w: 200, h: 56, label: sn.cmd ? 'ARRIAR' : 'IÇAR', sub: 'snorkel', on: sn.cmd, tone: 'cmd', tip: sn.cmd ? 'Arriar o mastro do snorkel' : 'Içar o mastro do snorkel (cota periscópica)', action: () => act.cmd({ type: 'snorkel', raise: !sn.cmd }) });
+    button(c, {
+      id: 'snk',
+      x: 30,
+      y: sy + 150,
+      w: 200,
+      h: 56,
+      label: sn.cmd ? 'ARRIAR' : 'IÇAR',
+      sub: 'snorkel',
+      on: sn.cmd,
+      tone: 'cmd',
+      tip: sn.cmd ? 'Arriar o mastro do snorkel' : 'Içar o mastro do snorkel (cota periscópica)',
+      action: () => act.cmd({ type: 'snorkel', raise: !sn.cmd }),
+    });
     // combustível e cargas
     box(g, 476, sy, W - 490, H - sy - 12, 'COMBUSTÍVEL E CARGAS');
     const fuelCap = v.electrical.fuel.tankVolume;
     text(g, 'Combustível', 492, sy + 40, 16, C.dim, 'left', 'bold');
     hbar(g, 600, sy + 30, W - 650, 20, el.fuel / fuelCap, '#d9a441');
     text(g, `${el.fuel.toFixed(1)} m³`, W - 40, sy + 66, 15, C.text, 'right', 'normal', true);
-    const loads = Object.entries(el.loads).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const loads = Object.entries(el.loads)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
     loads.forEach(([k, w], i) => {
       text(g, k, 492, sy + 96 + i * 24, 15, C.text, 'left');
       text(g, `${(w / 1000).toFixed(0)} kW`, W - 40, sy + 96 + i * 24, 15, C.text, 'right', 'normal', true);
@@ -128,7 +154,19 @@ export function drawPropulsion(act: RoomActions) {
     box(g, x2, hy, (W - 38) / 2, H - hy - 12, 'COMPRESSOR DE AR AP');
     text(g, s.hpAir.compressorRunning ? 'EM CARGA' : s.hpAir.compressorCmd ? 'SEM AR/ENERGIA' : 'PARADO', x2 + 16, hy + 50, 20, s.hpAir.compressorRunning ? C.real : C.dim, 'left', 'bold');
     text(g, `coletor ${e.outputs.hpManifoldBar.toFixed(0)} bar`, x2 + 16, hy + 82, 17, C.text, 'left', 'normal', true);
-    button(c, { id: 'p-comp', x: x2 + 16, y: hy + 104, w: 200, h: 54, label: s.hpAir.compressorCmd ? 'PARAR' : 'PARTIR', sub: 'compressor', on: s.hpAir.compressorCmd, tone: 'ok', tip: 'Compressor de ar AP (precisa de ar externo e energia)', action: () => act.cmd({ type: 'compressor', run: !s.hpAir.compressorCmd }) });
+    button(c, {
+      id: 'p-comp',
+      x: x2 + 16,
+      y: hy + 104,
+      w: 200,
+      h: 54,
+      label: s.hpAir.compressorCmd ? 'PARAR' : 'PARTIR',
+      sub: 'compressor',
+      on: s.hpAir.compressorCmd,
+      tone: 'ok',
+      tip: 'Compressor de ar AP (precisa de ar externo e energia)',
+      action: () => act.cmd({ type: 'compressor', run: !s.hpAir.compressorCmd }),
+    });
   };
 }
 
@@ -145,7 +183,20 @@ export function drawInstructorFailures(act: RoomActions) {
     const bw = (W - 28 - (groups.length - 1) * 6) / groups.length;
     groups.forEach((gr, i) => {
       const n = cat.filter((f) => f.group === gr && isFailureActive(e, f.target)).length;
-      button(c, { id: `fg-${gr}`, x: 14 + i * (bw + 6), y: y0, w: bw, h: 46, label: gr, sub: n ? `${n} ativa(s)` : undefined, on: i === gi, tone: n ? 'danger' : 'neutral', tip: `Falhas do grupo ${gr}`, action: () => (c.ui.page.instrGroup = i), size: 13 });
+      button(c, {
+        id: `fg-${gr}`,
+        x: 14 + i * (bw + 6),
+        y: y0,
+        w: bw,
+        h: 46,
+        label: gr,
+        sub: n ? `${n} ativa(s)` : undefined,
+        on: i === gi,
+        tone: n ? 'danger' : 'neutral',
+        tip: `Falhas do grupo ${gr}`,
+        action: () => (c.ui.page.instrGroup = i),
+        size: 13,
+      });
     });
     const list = cat.filter((f) => f.group === groups[gi]);
     const pg = c.ui.page.instrPage ?? 0;
@@ -190,14 +241,40 @@ export function drawInstructorSim(act: RoomActions) {
     button(c, { id: 'i-run', x: 26, y: y0 + 34, w: 200, h: 80, label: run ? '❚❚ PAUSAR' : '▶ EXECUTAR', on: run, tone: 'ok', tip: 'Executar/pausar a simulação', action: () => act.sim.toggleRun(), size: 22 });
     const ts = act.sim.timeScale();
     const bw = (W - 290 - 5 * 6) / 6;
-    SCALES.forEach((k, i) => button(c, { id: `i-ts-${k}`, x: 240 + i * (bw + 6), y: y0 + 34, w: bw, h: 80, label: `×${k}`, on: ts === k, tone: 'cmd', tip: `Aceleração do tempo ×${k} (a física usa sempre o mesmo passo)`, action: () => act.sim.setTimeScale(k), size: 22 }));
+    SCALES.forEach((k, i) =>
+      button(c, {
+        id: `i-ts-${k}`,
+        x: 240 + i * (bw + 6),
+        y: y0 + 34,
+        w: bw,
+        h: 80,
+        label: `×${k}`,
+        on: ts === k,
+        tone: 'cmd',
+        tip: `Aceleração do tempo ×${k} (a física usa sempre o mesmo passo)`,
+        action: () => act.sim.setTimeScale(k),
+        size: 22,
+      }),
+    );
     // mar
     const my = y0 + 140;
     box(g, 14, my, W - 28, 100, 'ESTADO DO MAR');
     const ss = Math.round(e.env.cfg.waves?.seaState ?? 0);
     button(c, { id: 'i-sea-', x: 26, y: my + 34, w: 70, h: 54, label: '−', tone: 'neutral', disabled: ss <= 0, tip: 'Mar mais calmo', action: () => act.cmd({ type: 'seaState', value: ss - 1 }), size: 28 });
     text(g, SEA_STATES[ss]?.label ?? String(ss), 110, my + 61, 20, C.text, 'left', 'bold', false, W - 260);
-    button(c, { id: 'i-sea+', x: W - 96, y: my + 34, w: 70, h: 54, label: '+', tone: 'neutral', disabled: ss >= SEA_STATES.length - 1, tip: 'Mar mais agitado', action: () => act.cmd({ type: 'seaState', value: ss + 1 }), size: 28 });
+    button(c, {
+      id: 'i-sea+',
+      x: W - 96,
+      y: my + 34,
+      w: 70,
+      h: 54,
+      label: '+',
+      tone: 'neutral',
+      disabled: ss >= SEA_STATES.length - 1,
+      tip: 'Mar mais agitado',
+      action: () => act.cmd({ type: 'seaState', value: ss + 1 }),
+      size: 28,
+    });
     // cenário
     const cy = my + 110;
     box(g, 14, cy, W - 28, 100, 'CENÁRIO');
@@ -206,7 +283,18 @@ export function drawInstructorSim(act: RoomActions) {
     button(c, { id: 'i-sc-', x: 26, y: cy + 34, w: 60, h: 54, label: '◀', tone: 'neutral', tip: 'Cenário anterior', action: () => (c.ui.scenario = k - 1), size: 22 });
     text(g, list[k]?.name ?? '—', 100, cy + 61, 19, list[k]?.id === e.state.scenarioId ? C.real : C.text, 'left', 'bold', false, W - 360);
     button(c, { id: 'i-sc+', x: W - 266, y: cy + 34, w: 60, h: 54, label: '▶', tone: 'neutral', tip: 'Próximo cenário', action: () => (c.ui.scenario = k + 1), size: 22 });
-    button(c, { id: 'i-sc-load', x: W - 196, y: cy + 34, w: 170, h: 54, label: 'CARREGAR', sub: 'pausado', tone: 'warn', tip: `Carregar o cenário "${list[k]?.name}" (a simulação atual é substituída)`, action: () => list[k] && act.sim.loadScenario(list[k].id) });
+    button(c, {
+      id: 'i-sc-load',
+      x: W - 196,
+      y: cy + 34,
+      w: 170,
+      h: 54,
+      label: 'CARREGAR',
+      sub: 'pausado',
+      tone: 'warn',
+      tip: `Carregar o cenário "${list[k]?.name}" (a simulação atual é substituída)`,
+      action: () => list[k] && act.sim.loadScenario(list[k].id),
+    });
     // peso deslocável e iluminação
     const py = cy + 110;
     const dw = e.state.demoWeight;
@@ -226,6 +314,20 @@ export function drawInstructorSim(act: RoomActions) {
         ['vermelha', 'VERMELHA'],
         ['azul', 'AZUL'],
       ] as const
-    ).forEach(([m, l], i) => button(c, { id: `i-light-${m}`, x: lx + 14 + i * 140, y: py + 66, w: 132, h: 50, label: l, on: c.ui.lighting === m, tone: m === 'vermelha' ? 'danger' : 'cmd', tip: m === 'vermelha' ? 'Iluminação vermelha (noturna: preserva a adaptação ao escuro para o periscópio)' : m === 'azul' ? 'Iluminação azul (preferida por operadores de sonar)' : 'Iluminação normal (branca)', action: () => (c.ui.lighting = m), size: 16 }));
+    ).forEach(([m, l], i) =>
+      button(c, {
+        id: `i-light-${m}`,
+        x: lx + 14 + i * 140,
+        y: py + 66,
+        w: 132,
+        h: 50,
+        label: l,
+        on: c.ui.lighting === m,
+        tone: m === 'vermelha' ? 'danger' : 'cmd',
+        tip: m === 'vermelha' ? 'Iluminação vermelha (noturna: preserva a adaptação ao escuro para o periscópio)' : m === 'azul' ? 'Iluminação azul (preferida por operadores de sonar)' : 'Iluminação normal (branca)',
+        action: () => (c.ui.lighting = m),
+        size: 16,
+      }),
+    );
   };
 }

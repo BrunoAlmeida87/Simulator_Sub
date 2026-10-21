@@ -19,6 +19,9 @@ export function HelpScreen() {
           <li>
             Para conduzir uma apresentação, use a aba <b>Apresentação</b>: escolha uma situação pronta, pressione <b>Preparar</b> e mostre ao mesmo tempo os tanques, os vetores de peso, empuxo e resultante e o movimento do submarino.
           </li>
+          <li>
+            Para operar <b>de dentro do submarino</b>, use a aba <b>Sala de comando</b>: ande pela sala (WASD/setas ou ▲▼◀▶ no celular, arraste para olhar), clique num posto para se aproximar e abrir o painel dele, ou acione direto os botões, manches, telégrafo, volantes e o periscópio na própria cena.
+          </li>
           <li>Escolha outros cenários em <b>Cenários</b> (começam pausados) e pressione <b>▶</b> na barra superior.</li>
           <li>
             Na <b>Central de comando</b>: telégrafo (rpm), lemes de vante/ré e de direção, piloto automático e comandos rápidos de lastro.

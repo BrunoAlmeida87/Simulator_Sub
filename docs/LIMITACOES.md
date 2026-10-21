@@ -74,3 +74,11 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Estaleiro da Ilha da Madeira: contornos traçados em imagem Sentinel-2 de 10 m (precisão ≈ ±10 m). Galpões, tanques e guindastes têm posição, tamanho e altura **estimados** (não há medidas oficiais publicadas) e são só visuais, assim como o submarino no shiplift e o píer do Porto Sudeste. A profundidade dragada da bacia (16 m) é estimada. O contato do casco com os cais é o mesmo modelo de contato com o fundo (pontos da quilha), sem impacto lateral.
 - A costa de 50 m vem do OpenStreetMap anterior à obra; o aterro, os quebra-mares e a dragagem do estaleiro são sobrepostos a ela.
 - A costa vem desligada nos cenários originais (feitos para mar aberto); ligue em Configurações.
+
+## Sala de comando e periscópio
+- O arranjo da sala, os consoles e as telas são **ilustrativos**, inspirados em salas de controle de submarinos convencionais; não reproduzem nenhum navio real.
+- O periscópio não tem arrasto nem esteira na física; içado acima de 8 nós gera apenas um alarme informativo. A visada usa a mesma cena 3D externa (sem distorção óptica, sem embaçamento por ondas).
+- Escotilhas (torre, vante e ré) não são modeladas: o indicador de aberturas do casco as mostra sempre fechadas.
+- Sonar passivo e MAGE são **modelos ilustrativos** (perdas esféricas, ruído próprio crescendo com a velocidade, zona cega a ré, emissores por tipo de navio); não há propagação acústica real, camadas de sombra nem classificação por assinatura.
+- O sistema de combate é fictício e não tem armamento.
+- O piso da sala não inclina com o caturro/banda (a câmera é solidária ao navio, como o observador a bordo); a atitude aparece nos instrumentos, na bolha e no pêndulo.

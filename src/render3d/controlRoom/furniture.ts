@@ -18,7 +18,9 @@ export class RoomMaterials {
   bezel = new THREE.MeshStandardMaterial({ color: 0x17191c, roughness: 0.35, metalness: 0.3 });
   desk = new THREE.MeshStandardMaterial({ color: 0x2c3136, roughness: 0.7, metalness: 0.1 });
   panelFace = new THREE.MeshStandardMaterial({ color: 0xffffff, map: paintTexture('#c7c4b6', 6), roughness: 0.6, metalness: 0.05 });
-  rack: THREE.MeshStandardMaterial[] = [5, 8, 13].map((sd) => new THREE.MeshStandardMaterial({ color: 0xffffff, map: rackTexture(sd), emissiveMap: rackGlowTexture(sd), emissive: 0xffffff, emissiveIntensity: 1.3, roughness: 0.55, metalness: 0.3 }));
+  rack: THREE.MeshStandardMaterial[] = [5, 8, 13].map(
+    (sd) => new THREE.MeshStandardMaterial({ color: 0xffffff, map: rackTexture(sd), emissiveMap: rackGlowTexture(sd), emissive: 0xffffff, emissiveIntensity: 1.3, roughness: 0.55, metalness: 0.3 }),
+  );
   rackSide = new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.6, metalness: 0.3 });
   lining = new THREE.MeshStandardMaterial({ color: 0xffffff, map: hullLiningTexture(), roughness: 0.75, metalness: 0.02, side: THREE.BackSide });
   frame = new THREE.MeshStandardMaterial({ color: 0xb4b8b2, roughness: 0.6, metalness: 0.15 });

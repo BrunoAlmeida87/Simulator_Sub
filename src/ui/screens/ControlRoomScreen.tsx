@@ -135,7 +135,8 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
       <>
         <G.ar.Body e={e} />
         <div className="subtle">
-          Hidráulica: <b className="mono">{fmt(e.state.hydraulics.pressure / 1e5, 0)} bar</b> {e.state.hydraulics.failed ? '· PLANTA EM FALHA' : e.state.hydraulics.pumpOn ? '· bomba em carga' : ''}. Os volantes do coletor abrem/fecham as mesmas válvulas da compensação, do trim/banda e do ar AP.
+          Hidráulica: <b className="mono">{fmt(e.state.hydraulics.pressure / 1e5, 0)} bar</b> {e.state.hydraulics.failed ? '· PLANTA EM FALHA' : e.state.hydraulics.pumpOn ? '· bomba em carga' : ''}. Os volantes do
+          coletor abrem/fecham as mesmas válvulas da compensação, do trim/banda e do ar AP.
         </div>
       </>
     ),
@@ -143,7 +144,8 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
       <>
         <G.energia.Body e={e} />
         <div className="subtle">
-          Motor: ordem <b className="mono">{nearestOrder(e.state.propulsion.rpmCmd).label}</b> ({fmt(e.state.propulsion.rpmCmd, 0)} rpm) · eixo {fmt(e.outputs.rpm, 0)} rpm · {fmt(e.state.propulsion.shaftPower / 1e6, 2)} MW
+          Motor: ordem <b className="mono">{nearestOrder(e.state.propulsion.rpmCmd).label}</b> ({fmt(e.state.propulsion.rpmCmd, 0)} rpm) · eixo {fmt(e.outputs.rpm, 0)} rpm · {fmt(e.state.propulsion.shaftPower / 1e6, 2)}{' '}
+          MW
         </div>
       </>
     ),
@@ -153,7 +155,10 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
         <button className="btn ok" onClick={onPeri}>
           Olhar pelo periscópio
         </button>
-        <div className="subtle">Na cota periscópica (≈ {fmt(e.vessel.hull.diameter + e.vessel.hull.sail.height + 5.3, 0)} m de quilha) e com o periscópio içado, a cabeça fica fora d’água. {mastOut(e) ? 'Agora há mastro/antena fora d’água.' : ''}</div>
+        <div className="subtle">
+          Na cota periscópica (≈ {fmt(e.vessel.hull.diameter + e.vessel.hull.sail.height + 5.3, 0)} m de quilha) e com o periscópio içado, a cabeça fica fora d’água.{' '}
+          {mastOut(e) ? 'Agora há mastro/antena fora d’água.' : ''}
+        </div>
       </>
     ),
     sonar: (
@@ -171,7 +176,8 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
     navegacao: (
       <>
         <div className="subtle">
-          GPS: <b>{mastOut(e) ? 'fixo válido' : 'sem sinal (antena submersa)'}</b> · rumo {fmt(e.state.sensors.GIRO.value, 0)}° · {fmt(toKnots(e.state.sensors.DVLU.value), 1)} nós · fundo {fmt(e.outputs.bottomDepth, 0)} m
+          GPS: <b>{mastOut(e) ? 'fixo válido' : 'sem sinal (antena submersa)'}</b> · rumo {fmt(e.state.sensors.GIRO.value, 0)}° · {fmt(toKnots(e.state.sensors.DVLU.value), 1)} nós · fundo {fmt(e.outputs.bottomDepth, 0)}{' '}
+          m
         </div>
         <ContactsTable e={e} acts={acts} />
         {mapBtn}
@@ -255,7 +261,31 @@ function PeriscopeView({ sight, setSight, onExit }: { sight: PeriscopeSight; set
       }}
       onPointerUp={() => (drag.current = null)}
     >
-      <Scene3D view="periscopio" periscope={sight} quality={defaultQuality()} labels={false} syncVisual={false} layers={{ vectors: false, hydroVectors: false, trimVectors: false, tanks: false, flows: false, pipes: false, labels: false, batteryInfo: false, airInfo: false, trail: false, trimRef: false, noWater: false, markers: false, wake: true, ships: true, hull: true }} />
+      <Scene3D
+        view="periscopio"
+        periscope={sight}
+        quality={defaultQuality()}
+        labels={false}
+        syncVisual={false}
+        layers={{
+          vectors: false,
+          hydroVectors: false,
+          trimVectors: false,
+          tanks: false,
+          flows: false,
+          pipes: false,
+          labels: false,
+          batteryInfo: false,
+          airInfo: false,
+          trail: false,
+          trimRef: false,
+          noWater: false,
+          markers: false,
+          wake: true,
+          ships: true,
+          hull: true,
+        }}
+      />
       <svg className="room-reticle" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
         <defs>
           <mask id="peri-mask">
@@ -319,7 +349,9 @@ function PeriscopeView({ sight, setSight, onExit }: { sight: PeriscopeSight; set
             Sair (Esc)
           </button>
         </div>
-        <div className="subtle">Arraste para girar o periscópio · cota {fmt(e.outputs.depthKeel, 1)} m · {fmt(toKnots(e.outputs.speed), 1)} nós</div>
+        <div className="subtle">
+          Arraste para girar o periscópio · cota {fmt(e.outputs.depthKeel, 1)} m · {fmt(toKnots(e.outputs.speed), 1)} nós
+        </div>
       </div>
     </div>
   );
@@ -607,7 +639,9 @@ export function ControlRoomScreen() {
                 <li>
                   <b>De perto:</b> toque nos botões das telas e do painel do lastro, nos volantes e no anunciador; arraste os <b>manches</b> e o <b>telégrafo</b>.
                 </li>
-                <li>“Postos ▾” leva direto a cada posto; “Sair do posto” volta a andar. O <b>periscópio</b> abre a visada externa.</li>
+                <li>
+                  “Postos ▾” leva direto a cada posto; “Sair do posto” volta a andar. O <b>periscópio</b> abre a visada externa.
+                </li>
               </ul>
             ) : (
               <ul>
@@ -650,7 +684,17 @@ export function ControlRoomScreen() {
             )}
           </div>
         )}
-        <div className={`room-hint ${hover?.direct ? 'direct' : ''}`}>{hover ? hover.text : focus ? (coarse ? 'Toque nos controles da estação ou use o painel abaixo.' : 'Clique nos controles da estação ou use o painel ao lado.') : coarse ? 'Arraste para olhar · ▲▼◀▶ para andar · toque num posto' : 'Arraste para olhar · WASD para andar · clique num posto para se aproximar'}</div>
+        <div className={`room-hint ${hover?.direct ? 'direct' : ''}`}>
+          {hover
+            ? hover.text
+            : focus
+              ? coarse
+                ? 'Toque nos controles da estação ou use o painel abaixo.'
+                : 'Clique nos controles da estação ou use o painel ao lado.'
+              : coarse
+                ? 'Arraste para olhar · ▲▼◀▶ para andar · toque num posto'
+                : 'Arraste para olhar · WASD para andar · clique num posto para se aproximar'}
+        </div>
         {coarse && !focus && (
           <div className="room-pad" onPointerDown={(ev) => ev.stopPropagation()}>
             <span />
@@ -663,7 +707,14 @@ export function ControlRoomScreen() {
         )}
         {pip && !peri && (
           <div className="room-pip" onPointerDown={(ev) => ev.stopPropagation()}>
-            <Scene3D view={pipView} quality="baixa" labels={false} syncVisual={false} persistKey="roompip" layers={{ markers: true, wake: true, ships: true, labels: false, vectors: false, hydroVectors: false, tanks: false, trimRef: false }}>
+            <Scene3D
+              view={pipView}
+              quality="baixa"
+              labels={false}
+              syncVisual={false}
+              persistKey="roompip"
+              layers={{ markers: true, wake: true, ships: true, labels: false, vectors: false, hydroVectors: false, tanks: false, trimRef: false }}
+            >
               <div className="room-pip-ctl">
                 <span className="seg">
                   {PIP_VIEWS.map(([k, l]) => (

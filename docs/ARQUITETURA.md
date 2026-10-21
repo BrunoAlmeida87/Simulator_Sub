@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | Controle automático | `systems/autopilot.ts` | leituras de sensores | comandos dos lemes |
 | 2 | Atuadores dos lemes | `systems/actuation.ts` | comandos, hidráulica | ângulos reais, consumo hidráulico |
-| 3 | Mastro do snorkel | `systems/actuation.ts` | atitude, profundidade | tomada de ar disponível |
+| 3 | Mastros do snorkel e do periscópio | `systems/actuation.ts` | atitude, profundidade, hidráulica | tomada de ar disponível, posição do periscópio |
 | 4 | Coletor de ar AP | `systems/hpAir.ts` | válvulas dos grupos | pressão do coletor |
 | 5 | Tanques de lastro | `systems/ballast.ts` | pose, pressões, coletor | água/ar dos TLP, vazões |
 | 6 | Compressor | `systems/hpAir.ts` | tomada de ar, energia | massa nas garrafas |
@@ -60,6 +60,7 @@ Disponibilidade de energia e hidráulica: os consumidores usam o estado do barra
 - `sim/systems/exhaust.ts`: caminho da descarga dos diesel-geradores (mastro × dispersores) derivado do estado, sem alterar a lógica dos geradores.
 - `sim/traffic.ts`: tráfego marítimo adicional (cinemática em função do tempo, trechos validados contra o fundo simulado e entre si), comum ao mapa e à cena 3D.
 - `render3d/DepthRefs.ts`: referências discretas de profundidade (faixas de partículas e sombra no fundo).
+- `render3d/controlRoom/`: **sala de comando em primeira pessoa** (aba Sala de comando). `ControlRoomScene.ts` monta a sala (casco, consoles, periscópios, tubulações), a câmera em primeira pessoa, as colisões, a seleção pelo mouse e o agendamento de redesenho das telas; `panel.ts` é o painel em canvas com **regiões clicáveis**; `panels*.ts` desenham cada tela/face lendo o estado; `furniture.ts` e `textures.ts` são os modelos e as texturas procedurais; `stations.ts` descreve os postos. A cena **não** importa o executor nem aplica comandos: botões e controles montam `Command`s e os entregam a `RoomActions` (`actions.ts`), fornecidas por `ui/screens/ControlRoomScreen.tsx`, que os envia ao executor (histórico, gravação e sincronismo iguais aos das outras telas). Os testes desenham cada painel num contexto 2D falso e conferem que todo botão gera um comando válido.
 - `ui/presentation.ts`, `ui/checklist.ts`, `ui/maneuvers.ts`, `ui/demo.ts`: situações prontas, estado inicial, antes × agora; checklist contínuo e persistente; etapas, comandos e resultado das manobras e da demonstração.
 
 ## Como adicionar um sistema (ex.: atmosfera interna, Fase 3)

@@ -19,7 +19,28 @@ import type { SimRunner } from '../../sim/core/runner';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { RoomActions } from './actions';
 import { CanvasPanel, type HitRegion, type RoomLighting, type RoomUiState } from './panel';
-import { RoomMaterials, cableTray, emergencyHandle, extinguisher, handwheel, ladder, lightFixture, periscope, phone, pipeRun, rack, seat, sitConsole, stackConsole, standPanel, telegraphLever, wtDoor, yoke, geomUtil, type Slot } from './furniture';
+import {
+  RoomMaterials,
+  cableTray,
+  emergencyHandle,
+  extinguisher,
+  handwheel,
+  ladder,
+  lightFixture,
+  periscope,
+  phone,
+  pipeRun,
+  rack,
+  seat,
+  sitConsole,
+  stackConsole,
+  standPanel,
+  telegraphLever,
+  wtDoor,
+  yoke,
+  geomUtil,
+  type Slot,
+} from './furniture';
 import { STATIONS, START_POSE, stationById } from './stations';
 import { drawAnnunciator, drawConningOfficer, drawDivingGauges, drawHelmsman, drawPlanesman } from './panelsShip';
 import { MANIFOLD_VALVES, drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, manifoldValveCmd } from './panelsBallast';
@@ -665,7 +686,8 @@ export class ControlRoomScene {
         id: 'yoke-planesman',
         station: 'governo',
         obj: y.group,
-        label: (en) => `Manche do PLANADOR — lemes de ré: ordem ${en.state.surfaces.stern.cmd.toFixed(0)}° · real ${en.state.surfaces.stern.actual.toFixed(1)}°. Arraste: para cima = empurrar = DESCER; para baixo = puxar = SUBIR.`,
+        label: (en) =>
+          `Manche do PLANADOR — lemes de ré: ordem ${en.state.surfaces.stern.cmd.toFixed(0)}° · real ${en.state.surfaces.stern.actual.toFixed(1)}°. Arraste: para cima = empurrar = DESCER; para baixo = puxar = SUBIR.`,
         drag: {
           begin: () => {
             base = e().state.surfaces.stern.cmd;
@@ -701,7 +723,8 @@ export class ControlRoomScene {
         id: 'yoke-helmsman',
         station: 'governo',
         obj: y.group,
-        label: (en) => `Manche do TIMONEIRO — leme ${Math.abs(en.state.surfaces.rudder.cmd).toFixed(0)}° ${en.state.surfaces.rudder.cmd > 0.5 ? 'BE' : en.state.surfaces.rudder.cmd < -0.5 ? 'BB' : 'a meio'}, lemes de vante ${en.state.surfaces.bow.cmd.toFixed(0)}°. Arraste: lados = leme de direção (BB/BE); cima/baixo = lemes de vante (descer/subir).`,
+        label: (en) =>
+          `Manche do TIMONEIRO — leme ${Math.abs(en.state.surfaces.rudder.cmd).toFixed(0)}° ${en.state.surfaces.rudder.cmd > 0.5 ? 'BE' : en.state.surfaces.rudder.cmd < -0.5 ? 'BB' : 'a meio'}, lemes de vante ${en.state.surfaces.bow.cmd.toFixed(0)}°. Arraste: lados = leme de direção (BB/BE); cima/baixo = lemes de vante (descer/subir).`,
         drag: {
           begin: () => {
             base = { r: e().state.surfaces.rudder.cmd, b: e().state.surfaces.bow.cmd };
@@ -711,8 +734,8 @@ export class ControlRoomScene {
             const rm = fin('rudder').maxDeflection;
             const bm = fin('bow').maxDeflection;
             // movimento dominante: evita mexer sem querer no outro leme
-            const r = Math.abs(dx) > Math.abs(dy) * 0.5 ? Math.round(clamp(base.r + dx * 0.15, -rm, rm)) : prev?.r ?? base.r;
-            const b = Math.abs(dy) > Math.abs(dx) * 0.5 ? Math.round(clamp(base.b + dy * 0.12, -bm, bm)) : prev?.b ?? base.b;
+            const r = Math.abs(dx) > Math.abs(dy) * 0.5 ? Math.round(clamp(base.r + dx * 0.15, -rm, rm)) : (prev?.r ?? base.r);
+            const b = Math.abs(dy) > Math.abs(dx) * 0.5 ? Math.round(clamp(base.b + dy * 0.12, -bm, bm)) : (prev?.b ?? base.b);
             if (prev && r !== prev.r) sendR.push(r, String(r));
             if (prev && b !== prev.b) sendB.push(b, String(b));
             prev = { r, b };
@@ -745,7 +768,8 @@ export class ControlRoomScene {
       id: 'telegraph',
       station: 'governo',
       obj: t.group,
-      label: (en) => `Telégrafo de máquinas: ${nearestOrder(prev ?? en.state.propulsion.rpmCmd).label} (${(prev ?? en.state.propulsion.rpmCmd).toFixed(0)} rpm; eixo ${en.outputs.rpm.toFixed(0)} rpm). Arraste para cima = avante, para baixo = a ré; encaixa nas ordens ao soltar.`,
+      label: (en) =>
+        `Telégrafo de máquinas: ${nearestOrder(prev ?? en.state.propulsion.rpmCmd).label} (${(prev ?? en.state.propulsion.rpmCmd).toFixed(0)} rpm; eixo ${en.outputs.rpm.toFixed(0)} rpm). Arraste para cima = avante, para baixo = a ré; encaixa nas ordens ao soltar.`,
       drag: {
         begin: () => {
           base = e().state.propulsion.rpmCmd;
@@ -778,7 +802,12 @@ export class ControlRoomScene {
       id,
       station: 'lastro',
       obj: h.group,
-      label: (en) => (pulled(en) ? `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: PUXADO (soprando ${tanks.join(', ')}). Clique para recolocar (fechar o sopro).` : this.ui.guards[id] ? `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: tampa aberta — clique para PUXAR (fecha os suspiros, abre o sopro e os grupos de ar AP)` : `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: clique para levantar a tampa de proteção`),
+      label: (en) =>
+        pulled(en)
+          ? `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: PUXADO (soprando ${tanks.join(', ')}). Clique para recolocar (fechar o sopro).`
+          : this.ui.guards[id]
+            ? `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: tampa aberta — clique para PUXAR (fecha os suspiros, abre o sopro e os grupos de ar AP)`
+            : `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: clique para levantar a tampa de proteção`,
       click: () => {
         const en = this.runner.engine;
         if (pulled(en)) {

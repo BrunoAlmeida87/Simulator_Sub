@@ -165,8 +165,30 @@ export function drawConningOfficer(act: RoomActions) {
     rows.forEach((r, i) => {
       const y = y0 + 34 + i * 66;
       text(g, r.name, 28, y + 22, 18, C.text, 'left', 'bold');
-      button(c, { id: `ap-${r.ch}-man`, x: 178, y, w: 74, h: 44, label: 'MAN', on: r.mode === 'MANUAL', tone: 'neutral', tip: `${r.name}: modo MANUAL`, action: () => act.cmd({ type: 'autopilot', channel: r.ch, mode: 'MANUAL' }) });
-      button(c, { id: `ap-${r.ch}-auto`, x: 258, y, w: 74, h: 44, label: 'AUTO', on: r.mode === 'AUTO', tone: 'cmd', tip: `${r.name}: modo AUTOMÁTICO (assume a leitura atual sem solavanco)`, action: () => act.cmd({ type: 'autopilot', channel: r.ch, mode: 'AUTO' }) });
+      button(c, {
+        id: `ap-${r.ch}-man`,
+        x: 178,
+        y,
+        w: 74,
+        h: 44,
+        label: 'MAN',
+        on: r.mode === 'MANUAL',
+        tone: 'neutral',
+        tip: `${r.name}: modo MANUAL`,
+        action: () => act.cmd({ type: 'autopilot', channel: r.ch, mode: 'MANUAL' }),
+      });
+      button(c, {
+        id: `ap-${r.ch}-auto`,
+        x: 258,
+        y,
+        w: 74,
+        h: 44,
+        label: 'AUTO',
+        on: r.mode === 'AUTO',
+        tone: 'cmd',
+        tip: `${r.name}: modo AUTOMÁTICO (assume a leitura atual sem solavanco)`,
+        action: () => act.cmd({ type: 'autopilot', channel: r.ch, mode: 'AUTO' }),
+      });
       const fmtV = (v: number) => (r.ch === 'heading' ? `${String(Math.round(((v % 360) + 360) % 360)).padStart(3, '0')}°` : `${v.toFixed(r.ch === 'pitch' ? 0 : 0)}${r.unit}`);
       const xe = stepper(c, `ap-${r.ch}-set`, 346, y, 44, r.steps, r.set, fmtV, (v) => act.cmd({ type: 'setpoint', channel: r.ch, value: Math.max(r.lim[0], Math.min(r.lim[1], v)) }), `${r.name} ordenado`, 50);
       const tel = r.ch === 'heading' ? ap.tHeading : r.ch === 'depth' ? ap.tDepth : ap.tPitch;
@@ -178,7 +200,20 @@ export function drawConningOfficer(act: RoomActions) {
     const p = s.propulsion;
     const bw = (W - 28 - 20 - 7 * 6) / 8;
     TELEGRAPH.forEach((t, i) => {
-      button(c, { id: `tel-${t.rpm}`, x: 24 + i * (bw + 6), y: ty + 32, w: bw, h: 52, label: t.label, sub: `${t.rpm} rpm`, on: Math.round(p.rpmCmd) === t.rpm, tone: t.rpm < 0 ? 'warn' : t.rpm === 0 ? 'neutral' : 'ok', tip: `Telégrafo: ${t.label} (${t.rpm} rpm)`, action: () => act.cmd({ type: 'telegraph', rpm: t.rpm }), size: 15 });
+      button(c, {
+        id: `tel-${t.rpm}`,
+        x: 24 + i * (bw + 6),
+        y: ty + 32,
+        w: bw,
+        h: 52,
+        label: t.label,
+        sub: `${t.rpm} rpm`,
+        on: Math.round(p.rpmCmd) === t.rpm,
+        tone: t.rpm < 0 ? 'warn' : t.rpm === 0 ? 'neutral' : 'ok',
+        tip: `Telégrafo: ${t.label} (${t.rpm} rpm)`,
+        action: () => act.cmd({ type: 'telegraph', rpm: t.rpm }),
+        size: 15,
+      });
     });
     digital(g, 24, ty + 94, 210, 46, `${p.rpmCmd.toFixed(0)}`, C.cmd, 'ORDEM rpm');
     digital(g, 244, ty + 94, 210, 46, `${e.outputs.rpm.toFixed(0)}`, C.real, 'EIXO rpm');
@@ -188,13 +223,58 @@ export function drawConningOfficer(act: RoomActions) {
     const my = ty + 160;
     box(g, 14, my, 600, 640 - my - 12, 'MANOBRAS RÁPIDAS');
     const ms = act.maneuverStatus();
-    button(c, { id: 'man-dive', x: 26, y: my + 32, w: 180, h: 52, label: 'IMERGIR', sub: `para ${Math.max(20, Math.round(ap.depthSet / 10) * 10 || 50)} m`, tone: 'cmd', tip: 'Manobra automática: abrir suspiros, alagar os TLP e descer à profundidade ordenada (mín. 20 m)', action: () => act.maneuver('imergir', Math.max(20, Math.round(ap.depthSet / 10) * 10 || 50)) });
-    button(c, { id: 'man-surf', x: 214, y: my + 32, w: 180, h: 52, label: 'EMERGIR', sub: 'soprar os TLP', tone: 'ok', tip: 'Manobra automática: subir à cota periscópica e soprar os TLP', action: () => act.maneuver('emergir') });
-    button(c, { id: 'man-cancel', x: 402, y: my + 32, w: 200, h: 52, label: 'CANCELAR', tone: 'warn', disabled: !ms, tip: 'Cancelar a manobra em andamento (os comandos já enviados permanecem)', action: () => act.maneuver('cancelar') });
+    button(c, {
+      id: 'man-dive',
+      x: 26,
+      y: my + 32,
+      w: 180,
+      h: 52,
+      label: 'IMERGIR',
+      sub: `para ${Math.max(20, Math.round(ap.depthSet / 10) * 10 || 50)} m`,
+      tone: 'cmd',
+      tip: 'Manobra automática: abrir suspiros, alagar os TLP e descer à profundidade ordenada (mín. 20 m)',
+      action: () => act.maneuver('imergir', Math.max(20, Math.round(ap.depthSet / 10) * 10 || 50)),
+    });
+    button(c, {
+      id: 'man-surf',
+      x: 214,
+      y: my + 32,
+      w: 180,
+      h: 52,
+      label: 'EMERGIR',
+      sub: 'soprar os TLP',
+      tone: 'ok',
+      tip: 'Manobra automática: subir à cota periscópica e soprar os TLP',
+      action: () => act.maneuver('emergir'),
+    });
+    button(c, {
+      id: 'man-cancel',
+      x: 402,
+      y: my + 32,
+      w: 200,
+      h: 52,
+      label: 'CANCELAR',
+      tone: 'warn',
+      disabled: !ms,
+      tip: 'Cancelar a manobra em andamento (os comandos já enviados permanecem)',
+      action: () => act.maneuver('cancelar'),
+    });
     text(g, ms ?? 'nenhuma manobra em andamento', 30, my + 104, 16, ms ? C.cmd : C.dim, 'left', 'bold', false, 570);
     const pr = s.periscope ?? { cmd: false, pos: 0 };
     box(g, 624, my, W - 638, 640 - my - 12, 'PERISCÓPIO');
-    button(c, { id: 'peri-raise', x: 636, y: my + 32, w: 140, h: 52, label: pr.cmd ? 'ARRIAR' : 'IÇAR', sub: `${Math.round(pr.pos * 100)} % içado`, on: pr.cmd, tone: 'cmd', tip: pr.cmd ? 'Arriar o periscópio de ataque' : 'Içar o periscópio de ataque (curso hidráulico)', action: () => act.cmd({ type: 'periscope', raise: !pr.cmd }) });
+    button(c, {
+      id: 'peri-raise',
+      x: 636,
+      y: my + 32,
+      w: 140,
+      h: 52,
+      label: pr.cmd ? 'ARRIAR' : 'IÇAR',
+      sub: `${Math.round(pr.pos * 100)} % içado`,
+      on: pr.cmd,
+      tone: 'cmd',
+      tip: pr.cmd ? 'Arriar o periscópio de ataque' : 'Içar o periscópio de ataque (curso hidráulico)',
+      action: () => act.cmd({ type: 'periscope', raise: !pr.cmd }),
+    });
     button(c, { id: 'peri-view', x: 784, y: my + 32, w: 150, h: 52, label: 'OLHAR', sub: 'visada', tone: 'neutral', tip: 'Abrir a visada do periscópio', action: () => act.periscopeView() });
   };
 }
@@ -234,7 +314,19 @@ export function drawDivingGauges() {
     const r = H * 0.34;
     const cy = H * 0.5;
     const ap = s.autopilot;
-    dial(g, r + 40, cy, r, { value: d, min: 0, max: 300, major: 50, minor: 10, label: 'PROFUNDÍMETRO', unit: 'metros', ordered: ap.depthMode === 'AUTO' ? ap.depthSet : null, amberFrom: e.vessel.limits.operatingDepth, redFrom: e.vessel.limits.testDepth, digits: 1 });
+    dial(g, r + 40, cy, r, {
+      value: d,
+      min: 0,
+      max: 300,
+      major: 50,
+      minor: 10,
+      label: 'PROFUNDÍMETRO',
+      unit: 'metros',
+      ordered: ap.depthMode === 'AUTO' ? ap.depthSet : null,
+      amberFrom: e.vessel.limits.operatingDepth,
+      redFrom: e.vessel.limits.testDepth,
+      digits: 1,
+    });
     plate(g, 'PROFUNDIDADE (QUILHA)', 40, H - 46, 2 * r, 30, 17);
     const x2 = 2 * r + 80 + r * 0.8;
     dial(g, x2, cy, r * 0.8, { value: Math.min(40, d), min: 0, max: 40, major: 10, minor: 1, label: 'PRECISÃO', unit: 'm (cota periscópica)', ordered: ap.depthMode === 'AUTO' && ap.depthSet <= 40 ? ap.depthSet : null });
@@ -387,13 +479,44 @@ export function drawAnnunciator(act: RoomActions) {
         c.glow.fillStyle = col;
         c.glow.fillRect(x + 7, y + 7, tw - 14, th - 14);
       }
-      c.hit({ id: `al-${d.id}`, x, y, w: tw, h: th, label: `${d.text} (${PRIORITY_LABEL[d.priority]}) — ${active ? 'ATIVO' : vis ? 'normalizado' : 'normal'}${r && !r.acked ? ', não reconhecido. Clique para reconhecer' : ''}`, action: () => act.cmd({ type: 'ack', id: d.id }) });
+      c.hit({
+        id: `al-${d.id}`,
+        x,
+        y,
+        w: tw,
+        h: th,
+        label: `${d.text} (${PRIORITY_LABEL[d.priority]}) — ${active ? 'ATIVO' : vis ? 'normalizado' : 'normal'}${r && !r.acked ? ', não reconhecido. Clique para reconhecer' : ''}`,
+        action: () => act.cmd({ type: 'ack', id: d.id }),
+      });
     });
-    lampButton(c, { id: 'al-ack', x: W - 310, y: 8, w: 150, h: 46, label: 'RECONHECER', lit: Object.values(rt).some((r) => r.active && !r.acked), blink: true, color: 'amber', tip: 'Reconhecer todos os alarmes', action: () => act.cmd({ type: 'ack', id: 'ALL' }) });
-    lampButton(c, { id: 'al-test', x: W - 152, y: 8, w: 132, h: 46, label: 'TESTE LÂMP.', lit: c.ui.lampTest, color: 'white', tip: 'Teste de lâmpadas: acende todas as lâmpadas dos painéis por 3 s', action: () => {
-      c.ui.lampTest = true;
-      window.setTimeout(() => (c.ui.lampTest = false), 3000);
-    } });
+    lampButton(c, {
+      id: 'al-ack',
+      x: W - 310,
+      y: 8,
+      w: 150,
+      h: 46,
+      label: 'RECONHECER',
+      lit: Object.values(rt).some((r) => r.active && !r.acked),
+      blink: true,
+      color: 'amber',
+      tip: 'Reconhecer todos os alarmes',
+      action: () => act.cmd({ type: 'ack', id: 'ALL' }),
+    });
+    lampButton(c, {
+      id: 'al-test',
+      x: W - 152,
+      y: 8,
+      w: 132,
+      h: 46,
+      label: 'TESTE LÂMP.',
+      lit: c.ui.lampTest,
+      color: 'white',
+      tip: 'Teste de lâmpadas: acende todas as lâmpadas dos painéis por 3 s',
+      action: () => {
+        c.ui.lampTest = true;
+        window.setTimeout(() => (c.ui.lampTest = false), 3000);
+      },
+    });
     void lamp;
   };
 }
