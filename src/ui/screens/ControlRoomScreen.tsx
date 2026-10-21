@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cmd, runner, useSim } from '../store';
 import { usePersisted, loadPersisted, savePersisted } from '../persist';
 import { useUi } from '../uiContext';
-import type { ControlRoomScene, HoverInfo } from '../../render3d/controlRoom/ControlRoomScene';
+import type { ControlRoomScene, FrameInfo, HoverInfo } from '../../render3d/controlRoom/ControlRoomScene';
 import type { RoomActions } from '../../render3d/controlRoom/actions';
 import type { RoomLighting } from '../../render3d/controlRoom/panel';
 import { STATIONS, stationById } from '../../render3d/controlRoom/stations';
@@ -23,18 +23,17 @@ import { maneuver, MANEUVER_STEPS } from '../maneuvers';
 import { SCENARIOS } from '../../sim/scenarios';
 import { graphics } from '../graphics';
 import { geoOriginOf, route } from '../routeNav';
-import { Scene3D, defaultQuality } from '../components/Scene3D';
-import type { PeriscopeSight, ViewMode } from '../../render3d/SubmarineScene';
+import { defaultQuality } from '../components/Scene3D';
+import type { PeriscopeSight } from '../../render3d/SubmarineScene';
+import { RoomPip } from './RoomPip';
+import { RoomPeriscope, recentMarks } from './RoomPeriscope';
+import { periMarks } from './periMarks';
+import { RoomAudio } from './roomAudio';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { cpa } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
 import { nearestOrder } from '../../sim/telegraph';
 import { fmt } from '../format';
-
-const PERI_POWERS: { fov: number; label: string }[] = [
-  { fov: 32, label: '1,5×' },
-  { fov: 8, label: '6×' },
-];
 
 function maneuverText(): string | null {
   if (!maneuver.active) return null;
@@ -170,6 +169,14 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
         <button className="btn ok" onClick={onPeri}>
           Olhar pelo periscópio
         </button>
+        {recentMarks().length > 0 && (
+          <div className="subtle">
+            Marcações: <span className="mono">{recentMarks().slice(-6).join(' · ')}</span>{' '}
+            <button className="btn sm" onClick={() => periMarks.clear()}>
+              Apagar marcações
+            </button>
+          </div>
+        )}
         <div className="subtle">
           Na cota periscópica (≈ {fmt(e.vessel.hull.diameter + e.vessel.hull.sail.height + 5.3, 0)} m de quilha) e com o periscópio içado, a cabeça fica fora d’água.{' '}
           {mastOut(e) ? 'Agora há mastro/antena fora d’água.' : ''}
@@ -243,141 +250,6 @@ function StationPanel({ id, acts, onClose, onPeri }: { id: string; acts: RoomAct
   );
 }
 
-/** visada do periscópio: cena externa com a câmera na cabeça do periscópio, retículo e escala de marcação */
-function PeriscopeView({ sight, setSight, onExit }: { sight: PeriscopeSight; setSight: (s: PeriscopeSight) => void; onExit: () => void }) {
-  const e = useSim(10);
-  const pr = e.state.periscope ?? { cmd: false, pos: 0 };
-  const raised = pr.pos > 0.97;
-  const drag = useRef<{ x: number; y: number; b: number; el: number } | null>(null);
-  const hdg = e.outputs.euler.heading;
-  const trueBrg = (((hdg + sight.bearing) % 360) + 360) % 360;
-  const wrap = (b: number) => ((((b + 180) % 360) + 360) % 360) - 180;
-  const k = sight.fov / 600;
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') onExit();
-      else if (ev.key === 'ArrowLeft' || ev.key === 'a') setSight({ ...sight, bearing: wrap(sight.bearing - 2) });
-      else if (ev.key === 'ArrowRight' || ev.key === 'd') setSight({ ...sight, bearing: wrap(sight.bearing + 2) });
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
-  return (
-    <div
-      className="room-peri"
-      onPointerDown={(ev) => {
-        (ev.currentTarget as Element).setPointerCapture(ev.pointerId);
-        drag.current = { x: ev.clientX, y: ev.clientY, b: sight.bearing, el: sight.elev };
-      }}
-      onPointerMove={(ev) => {
-        const d = drag.current;
-        if (!d) return;
-        setSight({ ...sight, bearing: wrap(d.b - (ev.clientX - d.x) * k), elev: Math.max(-10, Math.min(30, d.el + (ev.clientY - d.y) * k)) });
-      }}
-      onPointerUp={() => (drag.current = null)}
-    >
-      <Scene3D
-        view="periscopio"
-        periscope={sight}
-        quality={defaultQuality()}
-        labels={false}
-        syncVisual={false}
-        layers={{
-          vectors: false,
-          hydroVectors: false,
-          trimVectors: false,
-          tanks: false,
-          flows: false,
-          pipes: false,
-          labels: false,
-          batteryInfo: false,
-          airInfo: false,
-          trail: false,
-          trimRef: false,
-          noWater: false,
-          markers: false,
-          wake: true,
-          ships: true,
-          hull: true,
-        }}
-      />
-      <svg className="room-reticle" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <mask id="peri-mask">
-            <rect x="-1000" y="-1000" width="2000" height="2000" fill="white" />
-            <circle r="92" fill="black" />
-          </mask>
-        </defs>
-        <rect x="-1000" y="-1000" width="2000" height="2000" fill="#000" mask="url(#peri-mask)" />
-        <circle r="92" fill="none" stroke="#000" strokeWidth="3" />
-        <line x1="-92" y1="0" x2="-8" y2="0" stroke="#111" strokeWidth="0.8" />
-        <line x1="8" y1="0" x2="92" y2="0" stroke="#111" strokeWidth="0.8" />
-        <line x1="0" y1="-92" x2="0" y2="-8" stroke="#111" strokeWidth="0.8" />
-        <line x1="0" y1="8" x2="0" y2="40" stroke="#111" strokeWidth="0.8" />
-        {Array.from({ length: 9 }, (_, i) => i - 4)
-          .filter((i) => i)
-          .map((i) => (
-            <line key={i} x1={i * 10} y1="-3" x2={i * 10} y2="3" stroke="#111" strokeWidth="0.7" />
-          ))}
-        {Array.from({ length: 4 }, (_, i) => i + 1).map((i) => (
-          <line key={i} x1="-3" y1={i * 8} x2="3" y2={i * 8} stroke="#111" strokeWidth="0.7" />
-        ))}
-      </svg>
-      {!raised && <div className="room-peri-dark" style={{ opacity: Math.min(1, 1.15 - pr.pos) }} />}
-      {!raised && (
-        <div className="room-peri-off">
-          <b>PERISCÓPIO {pr.cmd ? `IÇANDO… ${Math.round(pr.pos * 100)} %` : 'ARRIADO'}</b>
-          <span>{pr.cmd ? 'Aguarde o fim do curso.' : 'Ice o periscópio para olhar.'}</span>
-        </div>
-      )}
-      <div className="room-peri-bar" onPointerDown={(ev) => ev.stopPropagation()}>
-        <div className="room-peri-brg mono">
-          <span>
-            MARCAÇÃO <b>{String(Math.round(trueBrg)).padStart(3, '0')}°</b>
-          </span>
-          <span>
-            relativa {sight.bearing >= 0 ? 'BE' : 'BB'} {Math.abs(Math.round(sight.bearing))}°
-          </span>
-          <span>elevação {fmt(sight.elev, 0)}°</span>
-        </div>
-        <div className="row" style={{ gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button className="btn sm" onClick={() => setSight({ ...sight, bearing: wrap(sight.bearing - 10) })}>
-            ◀ 10°
-          </button>
-          <button className="btn sm" onClick={() => setSight({ ...sight, bearing: 0, elev: 0 })}>
-            Proa
-          </button>
-          <button className="btn sm" onClick={() => setSight({ ...sight, bearing: wrap(sight.bearing + 10) })}>
-            10° ▶
-          </button>
-          <span className="seg">
-            {PERI_POWERS.map((p) => (
-              <button key={p.label} className={Math.abs(sight.fov - p.fov) < 0.1 ? 'on' : ''} onClick={() => setSight({ ...sight, fov: p.fov })}>
-                {p.label}
-              </button>
-            ))}
-          </span>
-          <button className={`btn sm ${pr.cmd ? 'on' : ''}`} onClick={() => cmd({ type: 'periscope', raise: !pr.cmd })}>
-            {pr.cmd ? 'Arriar' : 'Içar'} periscópio
-          </button>
-          <button className="btn sm warn" onClick={onExit}>
-            Sair (Esc)
-          </button>
-        </div>
-        <div className="subtle">
-          Arraste para girar o periscópio · cota {fmt(e.outputs.depthKeel, 1)} m · {fmt(toKnots(e.outputs.speed), 1)} nós
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const PIP_VIEWS: [ViewMode, string][] = [
-  ['perseguicao', 'Perseguição'],
-  ['piloto', 'Lateral'],
-  ['topo', 'Topo'],
-];
-
 const LIGHT_LABEL: Record<RoomLighting, string> = { normal: 'Normal', vermelha: 'Vermelha', azul: 'Azul' };
 
 export function ControlRoomScreen() {
@@ -387,15 +259,24 @@ export function ControlRoomScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
+  const [frame, setFrame] = useState<FrameInfo | null>(null);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [panelOpen, setPanelOpen] = usePersisted('room.panelOpen', true);
   const [help, setHelp] = usePersisted('room.help', true);
   const [menu, setMenu] = useState(false);
+  const [optMenu, setOptMenu] = useState(false);
+  const audio = useMemo(() => new RoomAudio(), []);
+  const [sound, setSound] = useState(false);
+  const [voice, setVoice] = usePersisted('room.voice', false);
+  const [tilt, setTilt] = usePersisted('room.tilt', true);
+  const tiltRef = useRef(tilt);
+  tiltRef.current = tilt;
   const [peri, setPeri] = useState(false);
   const [sight, setSight] = usePersisted<PeriscopeSight>('room.sight', { bearing: 0, elev: 0, fov: 32 });
   const [pip, setPip] = usePersisted('room.pip', false);
-  const [pipView, setPipView] = usePersisted<ViewMode>('room.pipView', 'perseguicao');
   const [lighting, setLighting] = useState<RoomLighting>('normal');
+  const pipRef = useRef(pip);
+  pipRef.current = pip;
   const periRef = useRef(peri);
   periRef.current = peri;
   const lightingRef = useRef(lighting);
@@ -428,6 +309,7 @@ export function ControlRoomScreen() {
       traffic: () => graphics.get().traffic,
       geoOrigin: () => geoOriginOf(runner.engine),
       route: () => ({ points: route.points, idx: route.idx, active: route.active }),
+      periMarks: () => periMarks.list(runner.engine.state.t),
     }),
     [],
   );
@@ -454,6 +336,7 @@ export function ControlRoomScreen() {
         const scen = SCENARIOS.findIndex((s) => s.id === runner.engine.state.scenarioId);
         sc.ui.scenario = Math.max(0, scen);
         sc.onHover = setHover;
+        sc.onFrame = setFrame;
         sc.onFocus = (id) => {
           setFocus(id);
           if (id) setMenu(false);
@@ -464,6 +347,7 @@ export function ControlRoomScreen() {
         const loop = () => {
           if (!periRef.current) {
             sc.periBearing = sightRef.current.bearing;
+            sc.tilt = tiltRef.current;
             sc.render();
             if (sc.ui.lighting !== lightingRef.current) setLighting(sc.ui.lighting);
           }
@@ -487,6 +371,18 @@ export function ControlRoomScreen() {
     };
   }, [acts]);
 
+  // som e anúncios (1MC): leem o estado algumas vezes por segundo
+  useEffect(() => {
+    audio.setVoice(voice);
+  }, [audio, voice]);
+  useEffect(() => {
+    const id = window.setInterval(() => audio.update(runner.engine), 250);
+    return () => {
+      window.clearInterval(id);
+      audio.dispose();
+    };
+  }, [audio]);
+
   // teclado: andar (WASD/setas, Shift corre), Esc sai do foco/periscópio
   useEffect(() => {
     const isField = (t: EventTarget | null) => {
@@ -497,8 +393,26 @@ export function ControlRoomScreen() {
     const down = (ev: KeyboardEvent) => {
       if (isField(ev.target) || periRef.current) return;
       if (ev.code === 'Escape') {
-        if (menu) setMenu(false);
-        else sceneRef.current?.focus(null);
+        if (menu || optMenu) {
+          setMenu(false);
+          setOptMenu(false);
+        } else sceneRef.current?.focus(null);
+        return;
+      }
+      // Tab / Shift+Tab: posto seguinte/anterior; ← → no posto: tela seguinte/anterior
+      if (ev.code === 'Tab' && !ev.ctrlKey && !ev.altKey) {
+        ev.preventDefault();
+        sceneRef.current?.stationStep(ev.shiftKey ? -1 : 1);
+        setPanelOpen(true);
+        return;
+      }
+      if (sceneRef.current?.focused && (ev.code === 'ArrowLeft' || ev.code === 'ArrowRight')) {
+        ev.preventDefault();
+        if (!ev.repeat) sceneRef.current.frameStep(ev.code === 'ArrowLeft' ? -1 : 1);
+        return;
+      }
+      if (ev.code === 'KeyP' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        setPip(!pipRef.current);
         return;
       }
       if (MOVE.has(ev.code)) {
@@ -516,7 +430,7 @@ export function ControlRoomScreen() {
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', blur);
     };
-  }, [menu]);
+  }, [menu, optMenu]);
 
   // roda do mouse: passo à frente/atrás (listener não passivo para não rolar a página)
   useEffect(() => {
@@ -605,8 +519,8 @@ export function ControlRoomScreen() {
           <button className="btn sm" onClick={() => setPeri(true)} title="Olhar pelo periscópio de ataque">
             Periscópio
           </button>
-          <button className={`btn sm ${pip ? 'on' : ''}`} onClick={() => setPip(!pip)} title="Miniatura da vista 3D externa (a 2ª janela continua com a cena completa)">
-            Vista externa
+          <button className={`btn sm ${pip ? 'on' : ''}`} onClick={() => setPip(!pip)} title="Submarino 3D numa janela sobre a sala (picture-in-picture; tecla P). A 2ª janela continua com a cena completa.">
+            ⧉ Submarino 3D
           </button>
           <button
             className="btn sm"
@@ -621,9 +535,33 @@ export function ControlRoomScreen() {
           >
             Luz: {LIGHT_LABEL[lighting]}
           </button>
+          <button className={`btn sm ${optMenu ? 'on' : ''}`} onClick={() => setOptMenu(!optMenu)} title="Som, anúncios por voz e inclinação da sala">
+            {sound ? '🔊' : '🔈'} Opções ▾
+          </button>
           <button className={`btn sm ${help ? 'on' : ''}`} onClick={() => setHelp(!help)}>
             Ajuda
           </button>
+          {optMenu && (
+            <div className="room-menu room-opts">
+              <label className="chk">
+                <input
+                  type="checkbox"
+                  checked={sound}
+                  onChange={(ev) => {
+                    audio.setSound(ev.target.checked);
+                    setSound(ev.target.checked);
+                  }}
+                />{' '}
+                Som (máquinas, sopro, buzina de imersão, telégrafo, alarmes)
+              </label>
+              <label className="chk">
+                <input type="checkbox" checked={voice} onChange={(ev) => setVoice(ev.target.checked)} /> Voz: anúncios no fonoclama (1MC)
+              </label>
+              <label className="chk">
+                <input type="checkbox" checked={tilt} onChange={(ev) => setTilt(ev.target.checked)} /> Sala inclina com o caturro e a banda (andando)
+              </label>
+            </div>
+          )}
           {menu && (
             <div className="room-menu">
               {STATIONS.map((x) => (
@@ -649,7 +587,7 @@ export function ControlRoomScreen() {
                   <b>Olhar:</b> arraste o dedo na cena.
                 </li>
                 <li>
-                  <b>Toque num posto:</b> a câmera se aproxima e o painel com todos os controles abre abaixo da cena.
+                  <b>Toque num posto:</b> a câmera se aproxima e o painel com todos os controles abre abaixo da cena. Tocar numa tela fora dos botões centraliza a câmera nela; ◀ ▶ passam de tela em tela.
                 </li>
                 <li>
                   <b>De perto:</b> toque nos botões das telas e do painel do lastro, nos volantes e no anunciador; arraste os <b>manches</b> e o <b>telégrafo</b>.
@@ -667,7 +605,10 @@ export function ControlRoomScreen() {
                   <b>Olhar:</b> arraste em qualquer ponto vazio.
                 </li>
                 <li>
-                  <b>Clique num posto de longe:</b> a câmera se aproxima e o painel com todos os controles abre ao lado.
+                  <b>Clique num posto de longe:</b> a câmera se aproxima e o painel com todos os controles abre ao lado. Clicar numa tela fora dos botões centraliza a câmera nela.
+                </li>
+                <li>
+                  <b>No posto:</b> ← → (ou ◀ ▶) passam de tela em tela; <b>Tab</b> / Shift+Tab vão ao posto seguinte/anterior; a roda do mouse aproxima a vista.
                 </li>
                 <li>
                   <b>De perto:</b> os botões das telas, as lâmpadas do painel do lastro, os volantes e o anunciador funcionam com o clique; arraste os <b>manches</b> e o <b>telégrafo</b>.
@@ -685,8 +626,21 @@ export function ControlRoomScreen() {
         {focus && (
           <div className="room-focusbar" onPointerDown={(ev) => ev.stopPropagation()}>
             <button className="btn sm" onClick={leave}>
-              ◀ Sair do posto (Esc)
+              ✕ Sair do posto (Esc)
             </button>
+            {frame && frame.n > 1 && (
+              <span className="room-frames">
+                <button className="btn sm" onClick={() => sceneRef.current?.frameStep(-1)} title="Enquadramento anterior (←)">
+                  ◀
+                </button>
+                <span className="room-frame-name">
+                  {frame.name} <small>{`${frame.i + 1}/${frame.n}`}</small>
+                </span>
+                <button className="btn sm" onClick={() => sceneRef.current?.frameStep(1)} title="Próximo enquadramento (→)">
+                  ▶
+                </button>
+              </span>
+            )}
             {!panelOpen && (
               <button className="btn sm on" onClick={() => setPanelOpen(true)}>
                 Abrir painel
@@ -699,13 +653,13 @@ export function ControlRoomScreen() {
             )}
           </div>
         )}
-        <div className={`room-hint ${hover?.direct ? 'direct' : ''}`}>
+        <div className={`room-hint ${hover?.direct ? 'direct' : ''} ${hover ? '' : 'idle'}`}>
           {hover
             ? hover.text
             : focus
               ? coarse
-                ? 'Toque nos controles da estação ou use o painel abaixo.'
-                : 'Clique nos controles da estação ou use o painel ao lado.'
+                ? 'Toque nos controles · ◀ ▶ trocam de tela · painel abaixo'
+                : 'Clique nos controles · ← → trocam de tela · Tab = próximo posto'
               : coarse
                 ? 'Arraste para olhar · ▲▼◀▶ para andar · toque num posto'
                 : 'Arraste para olhar · WASD para andar · clique num posto para se aproximar'}
@@ -720,32 +674,8 @@ export function ControlRoomScreen() {
             {holdBtn('▶', 0, 1, 'Passo para a direita')}
           </div>
         )}
-        {pip && !peri && (
-          <div className="room-pip" onPointerDown={(ev) => ev.stopPropagation()}>
-            <Scene3D
-              view={pipView}
-              quality="baixa"
-              labels={false}
-              syncVisual={false}
-              persistKey="roompip"
-              layers={{ markers: true, wake: true, ships: true, labels: false, vectors: false, hydroVectors: false, tanks: false, trimRef: false }}
-            >
-              <div className="room-pip-ctl">
-                <span className="seg">
-                  {PIP_VIEWS.map(([k, l]) => (
-                    <button key={k} className={pipView === k ? 'on' : ''} onClick={() => setPipView(k)}>
-                      {l}
-                    </button>
-                  ))}
-                </span>
-                <button className="btn sm" onClick={() => setPip(false)}>
-                  ✕
-                </button>
-              </div>
-            </Scene3D>
-          </div>
-        )}
-        {peri && <PeriscopeView sight={sight} setSight={setSight} onExit={() => setPeri(false)} />}
+        {pip && !peri && <RoomPip onClose={() => setPip(false)} />}
+        {peri && <RoomPeriscope sight={sight} setSight={setSight} onExit={() => setPeri(false)} acts={acts} />}
       </div>
       {focus && panelOpen && <StationPanel id={focus} acts={acts} onClose={() => setPanelOpen(false)} onPeri={() => setPeri(true)} />}
     </div>

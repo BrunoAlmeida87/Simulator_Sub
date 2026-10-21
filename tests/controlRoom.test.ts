@@ -18,6 +18,8 @@ import { drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, greenBo
 import { drawEnergy, drawInstructorFailures, drawInstructorSim, drawPropulsion } from '../src/render3d/controlRoom/panelsPlatform';
 import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, drawTacticalConsole, mastOut, roomContacts, signalExcess } from '../src/render3d/controlRoom/panelsCombat';
 import { STATIONS } from '../src/render3d/controlRoom/stations';
+import { roomEvents, roomSnapshot, sayOrder } from '../src/ui/screens/roomAudio';
+import { TARGET_HEIGHT, horizonRange, periHeadAbove, periVisible, stadimeter } from '../src/render3d/controlRoom/periscope';
 import { DEFAULT_ORIGIN } from '../src/sim/geo';
 import { periscopeHeadZ } from '../src/sim/systems/actuation';
 import { TELEGRAPH } from '../src/sim/telegraph';
@@ -272,5 +274,82 @@ describe('Sonar (modelo ilustrativo)', () => {
     const slow = signalExcess(e, c);
     e.outputs.speed = 8;
     expect(signalExcess(e, c)).toBeLessThan(slow);
+  });
+});
+
+describe('Periscópio: visada', () => {
+  it('arriado ou com a cabeça submersa não vê nada; içado na superfície vê os contatos dentro do horizonte', () => {
+    const e = buildScenario('superficie');
+    const acts = mockActs([]);
+    expect(periHeadAbove(e)).toBeNull();
+    expect(periVisible(e, acts, 0)).toEqual([]);
+    e.state.periscope = { cmd: true, pos: 1 };
+    const h = periHeadAbove(e)!;
+    expect(h).toBeGreaterThan(3);
+    const vis = periVisible(e, acts, 0);
+    const all = roomContacts(e, acts);
+    expect(vis.length).toBeGreaterThan(0);
+    for (const c of vis) {
+      expect(c.rng).toBeLessThan(horizonRange(h, TARGET_HEIGHT[c.kind]));
+      // marcação relativa à linha de visada = marcação verdadeira − (rumo + giro do periscópio)
+      const off = ((((c.brg - e.outputs.euler.heading + 180) % 360) + 360) % 360) - 180;
+      expect(c.off).toBeCloseTo(off, 6);
+    }
+    expect(vis.length).toBeLessThanOrEqual(all.length);
+    // a 50 m o periscópio içado continua submerso
+    const sub = buildScenario('submerso_50');
+    sub.state.periscope = { cmd: true, pos: 1 };
+    expect(periHeadAbove(sub)!).toBeLessThan(0);
+    expect(periVisible(sub, acts, 0)).toEqual([]);
+  });
+  it('o estadímetro erra pouco no alto aumento e é repetível', () => {
+    for (const id of ['S1', 'T02', 'R1', 'navio-17']) {
+      for (const rng of [800, 4000, 15000]) {
+        const hi = stadimeter({ id, rng }, 300, true);
+        const lo = stadimeter({ id, rng }, 300, false);
+        expect(Math.abs(hi / rng - 1)).toBeLessThanOrEqual(0.04 + 1e-9);
+        expect(Math.abs(lo / rng - 1)).toBeLessThanOrEqual(0.09 + 1e-9);
+        expect(stadimeter({ id, rng }, 310, true)).toBe(hi);
+      }
+    }
+  });
+  it('as marcações do periscópio aparecem no quadro tático e na mesa sem alterar o estado', () => {
+    const e = buildScenario('superficie');
+    const sent: Command[] = [];
+    const acts: RoomActions = {
+      ...mockActs(sent),
+      periMarks: () => [
+        { label: 'P1', t: 0, n: 0, e: 0, brg: 45, rng: 3000, id: 'S1' },
+        { label: 'P2', t: 0, n: 100, e: 0, brg: 200, rng: null, id: null },
+      ],
+    };
+    const before = JSON.stringify(e.state);
+    drawRegions(drawTacticalConsole(acts), e, newUi());
+    drawRegions(drawPlotTable(acts), e, newUi(), [1024, 640]);
+    expect(JSON.stringify(e.state)).toBe(before);
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('Som e anúncios (1MC) da sala', () => {
+  it('abrir suspiros anuncia a imersão com a buzina; mudar o telégrafo toca o sino e fala a ordem', () => {
+    const e = buildScenario('superficie');
+    const a = roomSnapshot(e);
+    applyCommand(e, { type: 'mbtVent', tank: 'ALL', open: true });
+    applyCommand(e, { type: 'telegraph', rpm: 75 });
+    const ev = roomEvents(a, roomSnapshot(e));
+    expect(ev.klaxon).toBe(2);
+    expect(ev.bell).toBe(true);
+    expect(ev.say.join(' ')).toMatch(/Imergir, imergir/);
+    expect(ev.say.join(' ')).toMatch(/Máquinas, avante meia força/);
+    // sem mudança, nada a anunciar
+    const same = roomEvents(roomSnapshot(e), roomSnapshot(e));
+    expect(same).toEqual({ say: [], klaxon: 0, bell: false });
+  });
+  it('ordens do telégrafo faladas por extenso', () => {
+    expect(sayOrder('AV DEV.')).toBe('avante devagar');
+    expect(sayOrder('RÉ TODA')).toBe('a ré toda força');
+    expect(sayOrder('AV 3/4')).toBe('avante três quartos');
+    expect(sayOrder('PARAR')).toBe('parar');
   });
 });

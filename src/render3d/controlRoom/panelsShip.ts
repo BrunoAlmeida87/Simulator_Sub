@@ -56,7 +56,7 @@ function depthTape(c: DrawCtx, x: number, y: number, w: number, h: number): void
     const mid = z % 5 === 0;
     g.fillStyle = maj ? '#e9f6ff' : '#6f8da5';
     g.fillRect(x + w - (maj ? 34 : mid ? 22 : 12), Y(z) - (maj ? 1.5 : 0.75), maj ? 34 : mid ? 22 : 12, maj ? 3 : 1.5);
-    if (maj) text(g, String(z), x + w - 42, Y(z), 22, '#e9f6ff', 'right', 'bold', true);
+    if (maj) text(g, String(z), x + w - 44, Y(z), 28, '#e9f6ff', 'right', 'bold', true);
   }
   if (ap.depthMode === 'AUTO') {
     const yo = Y(ap.depthSet);
@@ -73,10 +73,10 @@ function depthTape(c: DrawCtx, x: number, y: number, w: number, h: number): void
   g.fillStyle = '#000';
   g.strokeStyle = C.real;
   g.lineWidth = 3;
-  rrect(g, x + 4, y + h / 2 - 24, w - 8, 48, 6);
+  rrect(g, x + 4, y + h / 2 - 30, w - 8, 60, 6);
   g.fill();
   g.stroke();
-  text(g, d.toFixed(1), x + w / 2, y + h / 2 + 2, 34, C.real, 'center', 'bold', true);
+  text(g, d.toFixed(1), x + w / 2, y + h / 2 + 2, 44, C.real, 'center', 'bold', true);
   g.strokeStyle = C.line;
   g.lineWidth = 2;
   g.strokeRect(x, y, w, h);
@@ -88,62 +88,73 @@ export function drawPlanesman(act: RoomActions) {
     const { g, e, W, H } = c;
     const s = e.state;
     const ap = s.autopilot;
-    const y0 = screenBg(c, 'PLANADOR — PROFUNDIDADE E ATITUDE', 'lemes horizontais de ré e de vante');
-    depthTape(c, 18, y0 + 6, 250, H - y0 - 70);
+    const y0 = screenBg(c, 'PLANADOR', 'profundidade e atitude');
+    depthTape(c, 12, y0, 230, H - y0 - 84);
     // velocidade vertical
     const vz = e.outputs.verticalSpeed;
-    text(g, 'VEL. VERTICAL', 143, H - 48, 16, C.dim, 'center', 'bold');
-    text(g, `${vz >= 0 ? '▼' : '▲'} ${Math.abs(vz).toFixed(2)} m/s`, 143, H - 22, 22, Math.abs(vz) > e.vessel.limits.maxVerticalSpeed ? C.alarm : C.text, 'center', 'bold', true);
-    // atitude
-    box(g, 285, y0 + 6, 330, 250, 'CATURRO (PITCH)');
+    text(g, 'VEL. VERTICAL', 127, H - 62, 18, '#a9c3d6', 'center', 'bold');
+    text(g, `${vz >= 0 ? '▼' : '▲'} ${Math.abs(vz).toFixed(2)} m/s`, 127, H - 30, 28, Math.abs(vz) > e.vessel.limits.maxVerticalSpeed ? C.alarm : C.text, 'center', 'bold', true);
+    // caturro
+    const bx = 254;
+    const bw = 380;
+    box(g, bx, y0, bw, 290, 'CATURRO (PITCH)');
     const pitch = s.sensors.INSP.value;
-    const cx = 450;
-    const cy = y0 + 140;
+    const cx = bx + bw / 2;
+    const cy = y0 + 148;
     g.strokeStyle = '#2a4a63';
     g.lineWidth = 2;
     for (const a of [-20, -10, 0, 10, 20]) {
       const r = (a * Math.PI) / 180;
       for (const side of [1, -1]) {
         g.beginPath();
-        g.moveTo(cx + side * Math.cos(r) * 122, cy - side * Math.sin(r) * 122);
-        g.lineTo(cx + side * Math.cos(r) * 138, cy - side * Math.sin(r) * 138);
+        g.moveTo(cx + side * Math.cos(r) * 128, cy - side * Math.sin(r) * 128);
+        g.lineTo(cx + side * Math.cos(r) * 146, cy - side * Math.sin(r) * 146);
         g.stroke();
       }
-      text(g, `${a > 0 ? '+' : ''}${a}`, cx + Math.cos(r) * 152, cy - Math.sin(r) * 152, 13, C.dim, 'center');
+      text(g, `${a > 0 ? '+' : ''}${a}`, cx + Math.cos(r) * 166, cy - Math.sin(r) * 166, 18, '#a9c3d6', 'center', 'bold');
     }
     g.strokeStyle = '#335a78';
     g.setLineDash([6, 6]);
     g.beginPath();
-    g.moveTo(cx - 140, cy);
-    g.lineTo(cx + 140, cy);
+    g.moveTo(cx - 146, cy);
+    g.lineTo(cx + 146, cy);
     g.stroke();
     g.setLineDash([]);
-    subSilhouette(g, cx, cy, 210, pitch, Math.abs(pitch) > e.vessel.limits.maxPitch ? C.alarm : '#cfe6f5');
-    text(g, `θ ${pitch >= 0 ? '+' : ''}${pitch.toFixed(1)}°`, cx, y0 + 220, 30, Math.abs(pitch) > e.vessel.limits.maxPitch ? C.alarm : C.real, 'center', 'bold', true);
-    text(g, `equilíbrio estático ${e.outputs.staticPitchEq.toFixed(1)}°`, cx, y0 + 246, 15, C.dim, 'center');
+    const over = Math.abs(pitch) > e.vessel.limits.maxPitch;
+    subSilhouette(g, cx, cy, 230, pitch, over ? C.alarm : '#cfe6f5');
+    text(g, `θ ${pitch >= 0 ? '+' : ''}${pitch.toFixed(1)}°`, cx, y0 + 238, 44, over ? C.alarm : C.real, 'center', 'bold', true);
+    text(g, `equilíbrio ${e.outputs.staticPitchEq.toFixed(1)}°`, cx, y0 + 274, 20, '#a9c3d6', 'center');
     // banda
-    box(g, 285, y0 + 266, 330, H - y0 - 340, 'BANDA (ROLL)');
+    const ry = y0 + 300;
+    const rh = H - ry - 84;
+    box(g, bx, ry, bw, rh, 'BANDA (ROLL)');
     const roll = s.sensors.INSR.value;
-    subSilhouette(g, 380, y0 + 266 + (H - y0 - 340) / 2 + 12, 120, -roll, Math.abs(roll) > e.vessel.limits.maxRoll ? C.alarm : '#cfe6f5', true);
-    text(g, `φ ${roll >= 0 ? '+' : ''}${roll.toFixed(1)}°`, 530, y0 + 266 + (H - y0 - 340) / 2, 28, C.real, 'center', 'bold', true);
-    text(g, roll > 0.3 ? 'adernado BE' : roll < -0.3 ? 'adernado BB' : 'aprumado', 530, y0 + 266 + (H - y0 - 340) / 2 + 30, 15, C.dim, 'center');
+    subSilhouette(g, bx + 90, ry + rh / 2 + 16, 130, -roll, Math.abs(roll) > e.vessel.limits.maxRoll ? C.alarm : '#cfe6f5', true);
+    text(g, `φ ${roll >= 0 ? '+' : ''}${roll.toFixed(1)}°`, bx + 262, ry + rh / 2 + 4, 40, C.real, 'center', 'bold', true);
+    text(g, roll > 0.3 ? 'adernado BE' : roll < -0.3 ? 'adernado BB' : 'aprumado', bx + 262, ry + rh / 2 + 42, 20, '#a9c3d6', 'center');
     // lemes horizontais
     const fin = (k: string) => e.vessel.fins.find((f) => f.id === k)!;
-    box(g, 630, y0 + 6, 312, H - y0 - 80, 'LEMES HORIZONTAIS');
-    angleArc(g, 720, y0 + 150, 72, s.surfaces.stern.cmd, s.surfaces.stern.actual, fin('stern').maxDeflection, 'SUBIR', 'DESCER', 'DE RÉ', true);
-    angleArc(g, 720, y0 + 370, 72, s.surfaces.bow.cmd, s.surfaces.bow.actual, fin('bow').maxDeflection, 'SUBIR', 'DESCER', 'DE VANTE', true);
-    text(g, `ord. ${s.surfaces.stern.cmd.toFixed(0)}°`, 860, y0 + 186, 16, C.cmd, 'center', 'bold', true);
-    text(g, `ord. ${s.surfaces.bow.cmd.toFixed(0)}°`, 860, y0 + 406, 16, C.cmd, 'center', 'bold', true);
-    if (s.surfaces.stern.jammed) text(g, 'TRAVADO', 860, y0 + 210, 16, C.alarm, 'center', 'bold');
-    if (s.surfaces.bow.jammed) text(g, 'TRAVADO', 860, y0 + 430, 16, C.alarm, 'center', 'bold');
+    const px = 646;
+    box(g, px, y0, W - px - 12, H - y0 - 84, 'LEMES HORIZONTAIS');
+    const ph = H - y0 - 84;
+    for (const [k, frac, name] of [
+      ['stern', 0.33, 'DE RÉ'],
+      ['bow', 0.79, 'DE VANTE'],
+    ] as const) {
+      const cy2 = y0 + ph * frac;
+      const sf = s.surfaces[k];
+      angleArc(g, px + 118, cy2, 70, sf.cmd, sf.actual, fin(k).maxDeflection, 'SOBE', 'DESCE', '', true);
+      text(g, name, W - 26, cy2 - 46, 22, C.text, 'right', 'bold');
+      text(g, `ord ${sf.cmd.toFixed(0)}°`, W - 26, cy2 + 40, 22, C.cmd, 'right', 'bold', true);
+      if (sf.jammed) text(g, 'TRAVADO', W - 26, cy2 + 70, 22, C.alarm, 'right', 'bold');
+    }
     // rodapé: modo de profundidade e flutuabilidade
-    const fy = H - 62;
-    box(g, 285, fy, 657, 50);
-    const mode = ap.depthMode === 'AUTO' ? `PROF. AUTO ${ap.depthSet.toFixed(0)} m` : ap.pitchMode === 'AUTO' ? `PITCH AUTO ${ap.pitchSet.toFixed(1)}°` : 'PROF. MANUAL (manche)';
-    text(g, mode, 300, fy + 25, 20, ap.depthMode === 'AUTO' || ap.pitchMode === 'AUTO' ? C.cmd : C.text, 'left', 'bold');
+    const fy = H - 72;
+    box(g, bx, fy, W - bx - 12, 60);
+    const mode = ap.depthMode === 'AUTO' ? `AUTO ${ap.depthSet.toFixed(0)} m` : ap.pitchMode === 'AUTO' ? `PITCH AUTO ${ap.pitchSet.toFixed(1)}°` : 'MANUAL (manche)';
+    text(g, mode, bx + 16, fy + 30, 26, ap.depthMode === 'AUTO' || ap.pitchMode === 'AUTO' ? C.cmd : C.text, 'left', 'bold', false, 340);
     const nb = e.outputs.surfaced ? `reserva ${(e.outputs.reserveKg / 1000).toFixed(1)} t` : `flutuab. ${(e.outputs.netBuoyancyKg / 1000).toFixed(2)} t`;
-    text(g, nb, 930, fy + 25, 18, Math.abs(e.outputs.netBuoyancyKg) > 2000 && !e.outputs.surfaced ? C.warn : C.dim, 'right', 'bold', true);
-    void W;
+    text(g, nb, W - 28, fy + 30, 24, Math.abs(e.outputs.netBuoyancyKg) > 2000 && !e.outputs.surfaced ? C.warn : '#a9c3d6', 'right', 'bold', true);
     void act;
   };
 }
@@ -154,23 +165,23 @@ export function drawConningOfficer(act: RoomActions) {
     const { g, e, W } = c;
     const s = e.state;
     const ap = s.autopilot;
-    const y0 = screenBg(c, 'OFICIAL DE MANOBRA', 'pilotos automáticos · máquinas · manobras');
+    const y0 = screenBg(c, 'OFICIAL DE MANOBRA');
     // pilotos automáticos
-    box(g, 14, y0, W - 28, 238, 'PILOTOS AUTOMÁTICOS');
+    box(g, 12, y0, W - 24, 228, 'PILOTOS AUTOMÁTICOS');
     const rows: { ch: 'heading' | 'depth' | 'pitch'; name: string; mode: 'MANUAL' | 'AUTO'; set: number; steps: number[]; unit: string; meas: number; lim: [number, number] }[] = [
       { ch: 'heading', name: 'RUMO', mode: ap.headingMode, set: ap.headingSet, steps: [-10, -1, 1, 10], unit: '°', meas: s.sensors.GIRO.value, lim: [-1e9, 1e9] },
-      { ch: 'depth', name: 'PROFUNDIDADE', mode: ap.depthMode, set: ap.depthSet, steps: [-10, -5, 5, 10], unit: ' m', meas: indDepth(c), lim: [0, 400] },
-      { ch: 'pitch', name: 'INCLINAÇÃO', mode: ap.pitchMode, set: ap.pitchSet, steps: [-1, 1], unit: '°', meas: s.sensors.INSP.value, lim: [-15, 15] },
+      { ch: 'depth', name: 'PROF.', mode: ap.depthMode, set: ap.depthSet, steps: [-10, -5, 5, 10], unit: ' m', meas: indDepth(c), lim: [0, 400] },
+      { ch: 'pitch', name: 'INCLIN.', mode: ap.pitchMode, set: ap.pitchSet, steps: [-1, 1], unit: '°', meas: s.sensors.INSP.value, lim: [-15, 15] },
     ];
     rows.forEach((r, i) => {
-      const y = y0 + 34 + i * 66;
-      text(g, r.name, 28, y + 22, 18, C.text, 'left', 'bold');
+      const y = y0 + 38 + i * 62;
+      text(g, r.name, 26, y + 26, 24, C.text, 'left', 'bold');
       button(c, {
         id: `ap-${r.ch}-man`,
-        x: 178,
+        x: 146,
         y,
-        w: 74,
-        h: 44,
+        w: 82,
+        h: 52,
         label: 'MAN',
         on: r.mode === 'MANUAL',
         tone: 'neutral',
@@ -179,103 +190,109 @@ export function drawConningOfficer(act: RoomActions) {
       });
       button(c, {
         id: `ap-${r.ch}-auto`,
-        x: 258,
+        x: 232,
         y,
-        w: 74,
-        h: 44,
+        w: 86,
+        h: 52,
         label: 'AUTO',
         on: r.mode === 'AUTO',
         tone: 'cmd',
         tip: `${r.name}: modo AUTOMÁTICO (assume a leitura atual sem solavanco)`,
         action: () => act.cmd({ type: 'autopilot', channel: r.ch, mode: 'AUTO' }),
       });
-      const fmtV = (v: number) => (r.ch === 'heading' ? `${String(Math.round(((v % 360) + 360) % 360)).padStart(3, '0')}°` : `${v.toFixed(r.ch === 'pitch' ? 0 : 0)}${r.unit}`);
-      const xe = stepper(c, `ap-${r.ch}-set`, 346, y, 44, r.steps, r.set, fmtV, (v) => act.cmd({ type: 'setpoint', channel: r.ch, value: Math.max(r.lim[0], Math.min(r.lim[1], v)) }), `${r.name} ordenado`, 50);
+      const fmtV = (v: number) => (r.ch === 'heading' ? `${String(Math.round(((v % 360) + 360) % 360)).padStart(3, '0')}°` : `${v.toFixed(0)}${r.unit}`);
+      const xe = stepper(c, `ap-${r.ch}-set`, 330, y, 52, r.steps, r.set, fmtV, (v) => act.cmd({ type: 'setpoint', channel: r.ch, value: Math.max(r.lim[0], Math.min(r.lim[1], v)) }), `${r.name} ordenado`, 56);
       const tel = r.ch === 'heading' ? ap.tHeading : r.ch === 'depth' ? ap.tDepth : ap.tPitch;
-      text(g, r.mode === 'AUTO' ? `erro ${tel.error.toFixed(1)}${tel.saturated ? ' SAT' : ''}` : `lido ${fmtV(r.meas)}`, Math.min(W - 24, xe + 10), y + 22, 16, r.mode === 'AUTO' ? C.cmd : C.dim, 'left', 'bold', true);
+      text(g, r.mode === 'AUTO' ? `erro ${tel.error.toFixed(1)}${tel.saturated ? ' SAT' : ''}` : `lido ${fmtV(r.meas)}`, xe + 6, y + 26, 21, r.mode === 'AUTO' ? C.cmd : '#a9c3d6', 'left', 'bold', true, W - xe - 30);
     });
     // telégrafo
-    const ty = y0 + 248;
-    box(g, 14, ty, W - 28, 150, 'TELÉGRAFO DE MÁQUINAS');
+    const ty = y0 + 236;
+    box(g, 12, ty, W - 24, 172, 'TELÉGRAFO DE MÁQUINAS');
     const p = s.propulsion;
-    const bw = (W - 28 - 20 - 7 * 6) / 8;
+    const bw = (W - 24 - 20 - 7 * 6) / 8;
     TELEGRAPH.forEach((t, i) => {
       button(c, {
         id: `tel-${t.rpm}`,
-        x: 24 + i * (bw + 6),
-        y: ty + 32,
+        x: 22 + i * (bw + 6),
+        y: ty + 38,
         w: bw,
-        h: 52,
+        h: 62,
         label: t.label,
         sub: `${t.rpm} rpm`,
         on: Math.round(p.rpmCmd) === t.rpm,
         tone: t.rpm < 0 ? 'warn' : t.rpm === 0 ? 'neutral' : 'ok',
         tip: `Telégrafo: ${t.label} (${t.rpm} rpm)`,
         action: () => act.cmd({ type: 'telegraph', rpm: t.rpm }),
-        size: 15,
+        size: 20,
       });
     });
-    digital(g, 24, ty + 94, 210, 46, `${p.rpmCmd.toFixed(0)}`, C.cmd, 'ORDEM rpm');
-    digital(g, 244, ty + 94, 210, 46, `${e.outputs.rpm.toFixed(0)}`, C.real, 'EIXO rpm');
-    digital(g, 464, ty + 94, 210, 46, `${toKnots(s.sensors.DVLU.value).toFixed(1)}`, '#7dff9c', 'VELOCIDADE nós');
-    text(g, nearestOrder(p.rpmCmd).label, 820, ty + 117, 26, p.rpmCmd < 0 ? C.warn : C.real, 'center', 'bold');
+    digital(g, 22, ty + 108, 200, 56, `${p.rpmCmd.toFixed(0)}`, C.cmd, 'ORDEM rpm');
+    digital(g, 230, ty + 108, 200, 56, `${e.outputs.rpm.toFixed(0)}`, C.real, 'EIXO rpm');
+    digital(g, 438, ty + 108, 200, 56, `${toKnots(s.sensors.DVLU.value).toFixed(1)}`, '#7dff9c', 'VELOCIDADE nós');
+    text(g, nearestOrder(p.rpmCmd).label, 790, ty + 136, 34, p.rpmCmd < 0 ? C.warn : C.real, 'center', 'bold');
     // manobras e periscópio
-    const my = ty + 160;
-    box(g, 14, my, 600, 640 - my - 12, 'MANOBRAS RÁPIDAS');
+    const my = ty + 180;
+    const mh = 640 - my - 10;
+    box(g, 12, my, 590, mh, 'MANOBRAS RÁPIDAS');
     const ms = act.maneuverStatus();
+    const tgt = Math.max(20, Math.round(ap.depthSet / 10) * 10 || 50);
     button(c, {
       id: 'man-dive',
-      x: 26,
-      y: my + 32,
+      x: 22,
+      y: my + 38,
       w: 180,
-      h: 52,
+      h: 64,
       label: 'IMERGIR',
-      sub: `para ${Math.max(20, Math.round(ap.depthSet / 10) * 10 || 50)} m`,
+      sub: `para ${tgt} m`,
       tone: 'cmd',
       tip: 'Manobra automática: abrir suspiros, alagar os TLP e descer à profundidade ordenada (mín. 20 m)',
-      action: () => act.maneuver('imergir', Math.max(20, Math.round(ap.depthSet / 10) * 10 || 50)),
+      action: () => act.maneuver('imergir', tgt),
+      size: 26,
     });
     button(c, {
       id: 'man-surf',
-      x: 214,
-      y: my + 32,
+      x: 210,
+      y: my + 38,
       w: 180,
-      h: 52,
+      h: 64,
       label: 'EMERGIR',
       sub: 'soprar os TLP',
       tone: 'ok',
       tip: 'Manobra automática: subir à cota periscópica e soprar os TLP',
       action: () => act.maneuver('emergir'),
+      size: 26,
     });
     button(c, {
       id: 'man-cancel',
-      x: 402,
-      y: my + 32,
-      w: 200,
-      h: 52,
+      x: 398,
+      y: my + 38,
+      w: 194,
+      h: 64,
       label: 'CANCELAR',
       tone: 'warn',
       disabled: !ms,
       tip: 'Cancelar a manobra em andamento (os comandos já enviados permanecem)',
       action: () => act.maneuver('cancelar'),
+      size: 24,
     });
-    text(g, ms ?? 'nenhuma manobra em andamento', 30, my + 104, 16, ms ? C.cmd : C.dim, 'left', 'bold', false, 570);
+    text(g, ms ?? 'nenhuma manobra em andamento', 24, my + 124, 20, ms ? C.cmd : '#a9c3d6', 'left', 'bold', false, 566);
     const pr = s.periscope ?? { cmd: false, pos: 0 };
-    box(g, 624, my, W - 638, 640 - my - 12, 'PERISCÓPIO');
+    box(g, 612, my, W - 624, mh, 'PERISCÓPIO');
     button(c, {
       id: 'peri-raise',
-      x: 636,
-      y: my + 32,
-      w: 140,
-      h: 52,
+      x: 622,
+      y: my + 38,
+      w: 150,
+      h: 64,
       label: pr.cmd ? 'ARRIAR' : 'IÇAR',
       sub: `${Math.round(pr.pos * 100)} % içado`,
       on: pr.cmd,
       tone: 'cmd',
       tip: pr.cmd ? 'Arriar o periscópio de ataque' : 'Içar o periscópio de ataque (curso hidráulico)',
       action: () => act.cmd({ type: 'periscope', raise: !pr.cmd }),
+      size: 24,
     });
-    button(c, { id: 'peri-view', x: 784, y: my + 32, w: 150, h: 52, label: 'OLHAR', sub: 'visada', tone: 'neutral', tip: 'Abrir a visada do periscópio', action: () => act.periscopeView() });
+    button(c, { id: 'peri-view', x: 780, y: my + 38, w: 156, h: 64, label: 'OLHAR', sub: 'visada', tone: 'neutral', tip: 'Abrir a visada do periscópio', action: () => act.periscopeView(), size: 24 });
   };
 }
 
@@ -285,21 +302,34 @@ export function drawHelmsman(act: RoomActions) {
     const { g, e, W, H } = c;
     const s = e.state;
     const ap = s.autopilot;
-    const y0 = screenBg(c, 'TIMONEIRO — RUMO E GOVERNO', 'leme de direção');
+    const y0 = screenBg(c, 'TIMONEIRO', 'rumo e leme de direção');
     const hdg = s.sensors.GIRO.value;
-    compass(g, 250, y0 + 250, 220, hdg, ap.headingMode === 'AUTO' ? ap.headingSet : null, s.sensors.INSW.value);
-    box(g, 500, y0 + 6, W - 514, 200, 'RUMO');
-    digital(g, 514, y0 + 34, 200, 70, `${String(Math.round(((hdg % 360) + 360) % 360)).padStart(3, '0')}°`, '#7dff9c', 'GIRO (verdadeiro)');
-    digital(g, 724, y0 + 34, 210, 70, `${String(Math.round(((s.sensors.AGM.value % 360) + 360) % 360)).padStart(3, '0')}°`, '#c8ff7d', 'AGULHA (magnético)');
-    text(g, ap.headingMode === 'AUTO' ? `AUTO · ordenado ${String(Math.round(ap.headingSet)).padStart(3, '0')}°` : 'MANUAL (manche)', 514, y0 + 130, 22, ap.headingMode === 'AUTO' ? C.cmd : C.text, 'left', 'bold');
-    text(g, `guinada ${s.sensors.INSW.value >= 0 ? '+' : ''}${s.sensors.INSW.value.toFixed(2)} °/s`, 514, y0 + 170, 18, C.dim, 'left', 'normal', true);
-    box(g, 500, y0 + 216, W - 514, H - y0 - 230, 'LEME DE DIREÇÃO');
+    compass(g, 246, y0 + 256, 222, hdg, ap.headingMode === 'AUTO' ? ap.headingSet : null, s.sensors.INSW.value);
+    text(g, `vel. ${toKnots(s.sensors.DVLU.value).toFixed(1)} nós`, 246, H - 30, 28, C.text, 'center', 'bold', true);
+    const rx = 494;
+    box(g, rx, y0, W - rx - 12, 232, 'RUMO');
+    digital(g, rx + 12, y0 + 40, 210, 84, `${String(Math.round(((hdg % 360) + 360) % 360)).padStart(3, '0')}°`, '#7dff9c', 'GIRO (verdadeiro)');
+    digital(g, rx + 230, y0 + 40, 210, 84, `${String(Math.round(((s.sensors.AGM.value % 360) + 360) % 360)).padStart(3, '0')}°`, '#c8ff7d', 'AGULHA (magnético)');
+    text(
+      g,
+      ap.headingMode === 'AUTO' ? `AUTO · ordenado ${String(Math.round(ap.headingSet)).padStart(3, '0')}°` : 'MANUAL (manche)',
+      rx + 14,
+      y0 + 154,
+      26,
+      ap.headingMode === 'AUTO' ? C.cmd : C.text,
+      'left',
+      'bold',
+      false,
+      W - rx - 40,
+    );
+    text(g, `guinada ${s.sensors.INSW.value >= 0 ? '+' : ''}${s.sensors.INSW.value.toFixed(2)} °/s`, rx + 14, y0 + 198, 22, '#a9c3d6', 'left', 'normal', true);
+    const ly = y0 + 242;
+    box(g, rx, ly, W - rx - 12, H - ly - 10, 'LEME DE DIREÇÃO');
     const rud = s.surfaces.rudder;
     const max = e.vessel.fins.find((f) => f.id === 'rudder')!.maxDeflection;
-    angleArc(g, 720, y0 + 420, 120, rud.cmd, rud.actual, max, 'BB', 'BE', '', false);
-    text(g, `ordenado ${Math.abs(rud.cmd).toFixed(0)}° ${rud.cmd > 0.5 ? 'BE' : rud.cmd < -0.5 ? 'BB' : 'a meio'}`, 720, y0 + 470, 18, C.cmd, 'center', 'bold');
-    if (rud.jammed) text(g, 'LEME TRAVADO', 720, y0 + 500, 18, C.alarm, 'center', 'bold');
-    text(g, `vel. ${toKnots(s.sensors.DVLU.value).toFixed(1)} nós`, 250, H - 24, 20, C.text, 'center', 'bold', true);
+    angleArc(g, rx + (W - rx - 12) / 2, ly + 222, 118, rud.cmd, rud.actual, max, 'BB', 'BE', '', false);
+    text(g, `ordenado ${Math.abs(rud.cmd).toFixed(0)}° ${rud.cmd > 0.5 ? 'BE' : rud.cmd < -0.5 ? 'BB' : 'a meio'}`, rx + (W - rx - 12) / 2, ly + 300, 24, C.cmd, 'center', 'bold');
+    if (rud.jammed) text(g, 'LEME TRAVADO', rx + (W - rx - 12) / 2, ly + 52, 24, C.alarm, 'center', 'bold');
     void act;
   };
 }
@@ -327,17 +357,17 @@ export function drawDivingGauges() {
       redFrom: e.vessel.limits.testDepth,
       digits: 1,
     });
-    plate(g, 'PROFUNDIDADE (QUILHA)', 40, H - 46, 2 * r, 30, 17);
+    plate(g, 'PROFUNDIDADE', 40, H - 46, 2 * r, 36, 22);
     const x2 = 2 * r + 80 + r * 0.8;
     dial(g, x2, cy, r * 0.8, { value: Math.min(40, d), min: 0, max: 40, major: 10, minor: 1, label: 'PRECISÃO', unit: 'm (cota periscópica)', ordered: ap.depthMode === 'AUTO' && ap.depthSet <= 40 ? ap.depthSet : null });
-    plate(g, 'PROFUNDÍMETRO FINO', x2 - r * 0.8, H - 46, 1.6 * r, 30, 16);
+    plate(g, 'PRECISÃO 0–40 m', x2 - r * 0.8, H - 46, 1.6 * r, 36, 21);
     const x3 = x2 + r * 0.8 + 40 + r * 0.7;
     dial(g, x3, cy, r * 0.7, { value: toKnots(s.sensors.DVLU.value), min: -6, max: 20, major: 4, minor: 1, label: 'VELOCIDADE', unit: 'nós', digits: 1 });
-    plate(g, 'ODÔMETRO', x3 - r * 0.7, H - 46, 1.4 * r, 30, 16);
+    plate(g, 'VELOCIDADE', x3 - r * 0.7, H - 46, 1.4 * r, 36, 21);
     // rumo (repetidora)
     const x4 = x3 + r * 0.7 + 40 + r * 0.7;
     compass(g, x4, cy, r * 0.7, s.sensors.GIRO.value, ap.headingMode === 'AUTO' ? ap.headingSet : null);
-    plate(g, 'REPETIDORA DA GIRO', x4 - r * 0.7, H - 46, 1.4 * r, 30, 15);
+    plate(g, 'RUMO (GIRO)', x4 - r * 0.7, H - 46, 1.4 * r, 36, 21);
     // relógio
     const x5 = x4 + r * 0.7 + 30 + r * 0.55;
     const t = s.t;
@@ -383,7 +413,7 @@ export function drawDivingGauges() {
       const x = xi + wi / 2 + (a / 15) * (wi / 2 - 30);
       g.fillStyle = '#222';
       g.fillRect(x - 1, cy - 84, 2, a === 0 ? 38 : 12);
-      if (a % 10 === 0 || a === 15 || a === -15) text(g, String(Math.abs(a)), x, cy - 30, 14, '#222', 'center', 'bold');
+      if (a % 10 === 0) text(g, String(Math.abs(a)), x, cy - 30, 16, '#222', 'center', 'bold');
     }
     // a bolha sobe para o lado mais alto: proa para cima ⇒ bolha para vante (direita = vante)
     const bx = xi + wi / 2 + (Math.max(-15, Math.min(15, pitch)) / 15) * (wi / 2 - 30);
@@ -394,7 +424,7 @@ export function drawDivingGauges() {
     g.beginPath();
     g.ellipse(bx, cy - 65, 24, 14, 0, 0, Math.PI * 2);
     g.fill();
-    plate(g, 'INCLINÔMETRO (CATURRO) — VANTE ▶', xi, cy - 130, wi, 30, 14);
+    plate(g, 'CATURRO — VANTE ▶', xi, cy - 134, wi, 36, 20);
     // pendular
     const roll = s.sensors.INSR.value;
     const pcx = xi + wi / 2;
@@ -425,20 +455,28 @@ export function drawDivingGauges() {
     g.beginPath();
     g.arc(pcx + Math.sin(pr) * wi * 0.4, pcy + Math.cos(pr) * wi * 0.4, 7, 0, Math.PI * 2);
     g.fill();
-    plate(g, `CLINÔMETRO (BANDA) ${roll >= 0 ? '+' : ''}${roll.toFixed(1)}°`, xi, H - 46, wi, 30, 14);
+    plate(g, `BANDA ${roll >= 0 ? '+' : ''}${roll.toFixed(1)}°`, xi, H - 46, wi, 36, 21);
   };
 }
 
-/** quebra um texto em até duas linhas */
-function wrap2(s: string, maxChars: number): [string, string] {
-  if (s.length <= maxChars) return [s, ''];
+/** quebra um texto em até três linhas */
+function wrapLines(s: string, maxChars: number, maxLines = 3): string[] {
   const words = s.split(' ');
-  let a = '';
-  let i = 0;
-  while (i < words.length && (a + ' ' + words[i]).trim().length <= maxChars) a = (a + ' ' + words[i++]).trim();
-  let b = words.slice(i).join(' ');
-  if (b.length > maxChars) b = b.slice(0, maxChars - 1) + '…';
-  return [a, b];
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    if ((cur + ' ' + w).trim().length <= maxChars) cur = (cur + ' ' + w).trim();
+    else {
+      if (cur) lines.push(cur);
+      cur = w;
+    }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+    lines[maxLines - 1] = lines[maxLines - 1].slice(0, maxChars - 1) + '…';
+  }
+  return lines;
 }
 
 /** ANUNCIADOR DE ALARMES: uma janela por alarme (acende quando ativo, pisca até ser reconhecida) */
@@ -446,7 +484,7 @@ export function drawAnnunciator(act: RoomActions) {
   return (c: DrawCtx) => {
     const { g, e, W, H } = c;
     faceBg(c, '#b9bcb6');
-    plate(g, 'PAINEL ANUNCIADOR DE ALARMES', 20, 14, W - 340, 34, 20);
+    plate(g, 'ANUNCIADOR DE ALARMES', 20, 10, W - 340, 40, 26);
     const rt = e.state.alarms.runtime;
     const cols = 7;
     const defs = ALARM_DEFS;
@@ -470,11 +508,10 @@ export function drawAnnunciator(act: RoomActions) {
       g.fillRect(x + 3, y + 3, tw - 6, th - 6);
       g.fillStyle = on ? col : '#4a4a44';
       g.fillRect(x + 7, y + 7, tw - 14, th - 14);
-      const [l1, l2] = wrap2(d.text, 22);
-      const ink = on ? '#111' : '#bdbdb0';
-      text(g, l1, x + tw / 2, y + th * (l2 ? 0.36 : 0.45), Math.min(15, th * 0.22), ink, 'center', 'bold', false, tw - 18);
-      if (l2) text(g, l2, x + tw / 2, y + th * 0.6, Math.min(15, th * 0.22), ink, 'center', 'bold', false, tw - 18);
-      text(g, PRIORITY_LABEL[d.priority], x + tw / 2, y + th * 0.82, Math.min(11, th * 0.16), on ? '#222' : '#8a8a80', 'center');
+      const lines = wrapLines(d.text, 16);
+      const ink = on ? '#111' : '#c9c9bd';
+      const fs = Math.min(20, th * 0.24);
+      lines.forEach((l, k) => text(g, l, x + tw / 2, y + th / 2 + (k - (lines.length - 1) / 2) * fs * 1.08, fs, ink, 'center', 'bold', false, tw - 16));
       if (on && c.glow) {
         c.glow.fillStyle = col;
         c.glow.fillRect(x + 7, y + 7, tw - 14, th - 14);

@@ -28,7 +28,7 @@ export const C = {
 export type G = CanvasRenderingContext2D;
 
 export function font(g: G, size: number, weight: 'normal' | 'bold' = 'normal', mono = false): void {
-  g.font = `${weight} ${Math.round(size)}px ${mono ? 'Consolas, "DejaVu Sans Mono", monospace' : 'Arial, Helvetica, sans-serif'}`;
+  g.font = `${weight} ${Math.round(size)}px ${mono ? 'Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace' : 'Arial, "Liberation Sans", Helvetica, "DejaVu Sans", sans-serif'}`;
 }
 
 export function text(g: G, s: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = 'left', weight: 'normal' | 'bold' = 'normal', mono = false, maxW?: number): void {
@@ -53,7 +53,10 @@ export function rrect(g: G, x: number, y: number, w: number, h: number, r: numbe
 const pad2 = (n: number) => String(Math.floor(n)).padStart(2, '0');
 export const clockText = (t: number) => `${pad2(t / 3600)}:${pad2((t / 60) % 60)}:${pad2(t % 60)}`;
 
-/** fundo de tela multifunção: cabeçalho com título, relógio da simulação e moldura */
+/** altura do cabeçalho das telas (px do canvas nominal) */
+export const HEAD = 60;
+
+/** fundo de tela multifunção: cabeçalho com título, relógio da simulação e moldura (letras grandes: legíveis de longe) */
 export function screenBg(c: DrawCtx, title: string, sub?: string): number {
   const { g, W, H } = c;
   const grd = g.createLinearGradient(0, 0, 0, H);
@@ -61,19 +64,19 @@ export function screenBg(c: DrawCtx, title: string, sub?: string): number {
   grd.addColorStop(1, C.bg);
   g.fillStyle = grd;
   g.fillRect(0, 0, W, H);
-  const hh = Math.round(H * 0.075);
+  const hh = HEAD;
   g.fillStyle = '#0d2537';
   g.fillRect(0, 0, W, hh);
   g.fillStyle = C.cmd;
-  g.fillRect(0, hh - 2, W, 2);
-  text(g, title, 14, hh / 2, hh * 0.55, '#e9f6ff', 'left', 'bold');
+  g.fillRect(0, hh - 3, W, 3);
+  text(g, title, 14, hh / 2, 30, '#e9f6ff', 'left', 'bold', false, W - 190);
   if (sub) {
     const tw = g.measureText(title).width;
-    const x = 14 + tw + 18;
-    const room = W - x - 170;
-    if (room > 80) text(g, sub, x, hh / 2 + 1, hh * 0.4, C.dim, 'left', 'normal', false, room);
+    const x = 14 + tw + 16;
+    const room = W - x - 180;
+    if (room > 120) text(g, sub, x, hh / 2 + 1, 19, C.dim, 'left', 'normal', false, room);
   }
-  text(g, clockText(c.e.state.t), W - 14, hh / 2, hh * 0.5, C.real, 'right', 'bold', true);
+  text(g, clockText(c.e.state.t), W - 12, hh / 2, 26, C.real, 'right', 'bold', true);
   g.strokeStyle = C.line;
   g.lineWidth = 3;
   g.strokeRect(1.5, 1.5, W - 3, H - 3);
@@ -87,8 +90,11 @@ export function box(g: G, x: number, y: number, w: number, h: number, title?: st
   g.strokeStyle = C.line;
   g.lineWidth = 1.5;
   g.stroke();
-  if (title) text(g, title, x + 10, y + 14, 15, C.dim, 'left', 'bold');
+  if (title) text(g, title, x + 12, y + 17, 20, '#9fbcd4', 'left', 'bold', false, w - 24);
 }
+
+/** altura ocupada pelo título de um box */
+export const BOX_T = 34;
 
 export type Tone = 'cmd' | 'ok' | 'warn' | 'danger' | 'neutral';
 const TONE: Record<Tone, string> = { cmd: C.cmd, ok: C.real, warn: C.warn, danger: C.alarm, neutral: '#9fb4c6' };
@@ -120,11 +126,11 @@ export function button(c: DrawCtx, b: BtnOpts): void {
   g.lineWidth = hov ? 3 : 2;
   g.strokeStyle = b.disabled ? '#22333f' : hov ? '#ffffff' : col;
   g.stroke();
-  const fs = b.size ?? Math.min(b.h * 0.42, 20);
+  const fs = b.size ?? Math.min(b.h * 0.44, 26);
   const fg = b.disabled ? '#3d5262' : b.on ? '#03121c' : '#e6f4ff';
   if (b.sub) {
     text(g, b.label, b.x + b.w / 2, b.y + b.h * 0.36, fs, fg, 'center', 'bold', false, b.w - 6);
-    text(g, b.sub, b.x + b.w / 2, b.y + b.h * 0.72, fs * 0.72, b.on ? '#06212f' : C.dim, 'center', 'normal', false, b.w - 6);
+    text(g, b.sub, b.x + b.w / 2, b.y + b.h * 0.73, Math.max(14, fs * 0.68), b.on ? '#06212f' : '#a9c3d6', 'center', 'normal', false, b.w - 6);
   } else text(g, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, fs, fg, 'center', 'bold', false, b.w - 6);
   c.hit({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h, label: b.tip, action: b.disabled ? undefined : b.action, disabled: b.disabled });
 }
@@ -206,7 +212,7 @@ export function lampButton(c: DrawCtx, b: LampBtnOpts): void {
   grd.addColorStop(1, on ? onc : '#151515');
   g.fillStyle = grd;
   g.fillRect(lx, ly, lw, lh);
-  const fs = Math.min(lh * 0.32, 17);
+  const fs = b.sub ? Math.min(lh * 0.34, 22) : Math.min(lh * 0.46, 24);
   const ink = on ? '#101010' : '#d8d8d0';
   if (b.sub) {
     text(g, b.label, b.x + b.w / 2, ly + lh * 0.36, fs, ink, 'center', 'bold', false, lw - 4);
@@ -344,7 +350,7 @@ export function dial(g: G, cx: number, cy: number, r: number, o: DialOpts): void
       text(g, String(Math.round(lv * 10) / 10), cx + Math.cos(a) * r * 0.6, cy + Math.sin(a) * r * 0.6, r * 0.13, ink, 'center', 'bold');
     }
   }
-  text(g, o.label, cx, cy - r * 0.32, r * 0.12, dark ? C.dim : '#333', 'center', 'bold', false, r * 1.3);
+  text(g, o.label, cx, cy - r * 0.22, r * 0.12, dark ? C.dim : '#333', 'center', 'bold', false, r * 0.85);
   text(g, o.unit, cx, cy + r * 0.3, r * 0.11, dark ? C.dim : '#444', 'center');
   const needle = (v: number, col: string, wd: number, len: number) => {
     const a = ang(v);
@@ -378,8 +384,10 @@ export function digital(g: G, x: number, y: number, w: number, h: number, s: str
   g.strokeStyle = '#2a3a33';
   g.lineWidth = 2;
   g.stroke();
-  text(g, s, x + w - 10, y + h / 2 + 1, h * 0.62, color, 'right', 'bold', true);
-  if (label) text(g, label, x + 8, y + h * 0.25, h * 0.22, '#5f7d70', 'left');
+  if (label) {
+    text(g, label, x + 8, y + 12, Math.max(13, Math.min(16, h * 0.22)), '#7fa293', 'left', 'bold', false, w - 16);
+    text(g, s, x + w - 10, y + h * 0.6, h * 0.56, color, 'right', 'bold', true, w - 16);
+  } else text(g, s, x + w - 10, y + h / 2 + 1, h * 0.62, color, 'right', 'bold', true, w - 16);
 }
 
 /** barra horizontal com fração */
@@ -480,9 +488,9 @@ export function tankSym(g: G, x: number, y: number, w: number, h: number, frac: 
   g.lineWidth = 2;
   rrect(g, x, y, w, h, 6);
   g.stroke();
-  text(g, label, x + w / 2, y - 12, Math.min(16, w * 0.22), C.text, 'center', 'bold');
-  text(g, `${Math.round(f * 100)}%`, x + w / 2, y + h / 2, Math.min(18, w * 0.24), '#ffffff', 'center', 'bold', true);
-  if (sub) text(g, sub, x + w / 2, y + h + 13, Math.min(13, w * 0.19), C.dim, 'center');
+  text(g, label, x + w / 2, y - 14, Math.min(22, w * 0.2), C.text, 'center', 'bold');
+  text(g, `${Math.round(f * 100)}%`, x + w / 2, y + h / 2, Math.min(24, w * 0.22, h * 0.45), '#ffffff', 'center', 'bold', true);
+  if (sub) text(g, sub, x + w / 2, y + h + 15, Math.min(17, w * 0.16), '#a9c3d6', 'center');
 }
 
 /** rosa dos ventos com rumo atual (proa para cima) e marca do rumo ordenado */
@@ -586,15 +594,15 @@ export function angleArc(g: G, cx: number, cy: number, r: number, cmdA: number, 
   g.fill();
   g.restore();
   if (vertical) {
-    text(g, left, cx - r * 0.55, cy - r * 0.95, r * 0.17, C.dim, 'center', 'bold');
-    text(g, right, cx - r * 0.55, cy + r * 0.95, r * 0.17, C.dim, 'center', 'bold');
-    text(g, title, cx - r * 0.2, cy - r * 1.3, r * 0.18, C.text, 'center', 'bold');
-    text(g, `${Math.abs(real).toFixed(1)}°`, cx + r * 0.25, cy + r * 0.0, r * 0.22, C.real, 'left', 'bold', true);
+    text(g, left, cx - r * 0.25, cy - r * 1.32, Math.max(18, r * 0.22), '#a9c3d6', 'center', 'bold');
+    text(g, right, cx - r * 0.25, cy + r * 1.32, Math.max(18, r * 0.22), '#a9c3d6', 'center', 'bold');
+    if (title) text(g, title, cx - r * 0.2, cy - r * 1.32, Math.max(20, r * 0.24), C.text, 'center', 'bold');
+    text(g, `${Math.abs(real).toFixed(1)}°`, cx + r * 0.22, cy + r * 0.0, Math.max(26, r * 0.32), C.real, 'left', 'bold', true);
   } else {
-    text(g, left, cx - r * 1.08, cy - r * 0.25, r * 0.17, C.dim, 'center', 'bold');
-    text(g, right, cx + r * 1.08, cy - r * 0.25, r * 0.17, C.dim, 'center', 'bold');
-    text(g, title, cx, cy - r * 1.55, r * 0.19, C.text, 'center', 'bold');
-    text(g, `${Math.abs(real).toFixed(1)}°`, cx, cy + r * 0.3, r * 0.24, C.real, 'center', 'bold', true);
+    text(g, left, cx - r * 1.08, cy - r * 0.2, Math.max(20, r * 0.2), '#a9c3d6', 'center', 'bold');
+    text(g, right, cx + r * 1.08, cy - r * 0.2, Math.max(20, r * 0.2), '#a9c3d6', 'center', 'bold');
+    if (title) text(g, title, cx, cy - r * 1.55, Math.max(20, r * 0.2), C.text, 'center', 'bold');
+    text(g, `${Math.abs(real).toFixed(1)}°`, cx, cy + r * 0.32, Math.max(28, r * 0.28), C.real, 'center', 'bold', true);
   }
 }
 
@@ -625,13 +633,13 @@ export function subSilhouette(g: G, cx: number, cy: number, len: number, angDeg:
 export function stepper(c: DrawCtx, id: string, x: number, y: number, h: number, steps: number[], cur: number, fmtV: (v: number) => string, set: (v: number) => void, what: string, bw = 54): number {
   let xx = x;
   for (const s of steps.filter((v) => v < 0)) {
-    button(c, { id: `${id}${s}`, x: xx, y, w: bw, h, label: String(s), tip: `${what}: ${s > 0 ? '+' : ''}${s} → ${fmtV(cur + s)}`, action: () => set(cur + s), tone: 'neutral' });
+    button(c, { id: `${id}${s}`, x: xx, y, w: bw, h, label: String(s), tip: `${what}: ${s > 0 ? '+' : ''}${s} → ${fmtV(cur + s)}`, action: () => set(cur + s), tone: 'neutral', size: Math.min(24, h * 0.46) });
     xx += bw + 6;
   }
-  digital(c.g, xx, y, 120, h, fmtV(cur));
-  xx += 126;
+  digital(c.g, xx, y, 132, h, fmtV(cur));
+  xx += 138;
   for (const s of steps.filter((v) => v > 0)) {
-    button(c, { id: `${id}+${s}`, x: xx, y, w: bw, h, label: `+${s}`, tip: `${what}: +${s} → ${fmtV(cur + s)}`, action: () => set(cur + s), tone: 'neutral' });
+    button(c, { id: `${id}+${s}`, x: xx, y, w: bw, h, label: `+${s}`, tip: `${what}: +${s} → ${fmtV(cur + s)}`, action: () => set(cur + s), tone: 'neutral', size: Math.min(24, h * 0.46) });
     xx += bw + 6;
   }
   return xx;

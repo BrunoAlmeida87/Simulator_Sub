@@ -59,8 +59,8 @@ export function drawBallastPanel(act: RoomActions) {
     const oy = 64;
     g.fillStyle = '#26292b';
     g.fillRect(24, oy, W - 290, 196);
-    text(g, 'INDICADOR DE ABERTURAS DO CASCO', 36, oy + 16, 15, '#e8e4d0', 'left', 'bold');
-    text(g, '— fechada (verde)   O aberta (vermelho)', W - 280, oy + 16, 13, '#b8b4a2', 'right');
+    text(g, 'INDICADOR DE ABERTURAS DO CASCO', 36, oy + 17, 20, '#e8e4d0', 'left', 'bold');
+    text(g, '— fechada   O aberta', W - 280, oy + 17, 18, '#d0ccb8', 'right');
     const cols = 6;
     const cw = (W - 300) / cols;
     ops.forEach((o, i) => {
@@ -78,7 +78,7 @@ export function drawBallastPanel(act: RoomActions) {
         c.glow.fillStyle = o.open ? '#ff3b30' : '#38f06a';
         c.glow.fillRect(x + cw / 2 - 26, y + 6, 52, 30);
       }
-      text(g, o.name, x + cw / 2, y + 52, 13, '#e8e4d0', 'center', 'bold', false, cw - 14);
+      text(g, o.name, x + cw / 2, y + 54, 17, '#e8e4d0', 'center', 'bold', false, cw - 12);
       c.hit({ id: `op-${o.id}`, x: x + 4, y, w: cw - 8, h: 70, label: `${o.name}: ${o.open ? 'ABERTA' : 'FECHADA'}${o.fixed ? ' (não modelada: sempre fechada)' : ''}` });
       void col;
     });
@@ -123,15 +123,15 @@ export function drawBallastPanel(act: RoomActions) {
     });
     // --- TLP
     const ty = 278;
-    plate(g, 'LASTRO PRINCIPAL — TANQUES DE LASTRO (TLP)', 24, ty, W - 290, 30, 16);
+    plate(g, 'TANQUES DE LASTRO (TLP)', 24, ty, W - 290, 34, 22);
     const tw = (W - 290) / 4;
     v.ballast.tanks.forEach((t, i) => {
       const st = s.ballast[t.id];
       const x = 24 + i * tw;
       g.fillStyle = '#2a2d2f';
       g.fillRect(x + 6, ty + 40, tw - 12, 300);
-      text(g, tid(t.id), x + tw / 2, ty + 58, 18, '#f1efe6', 'center', 'bold');
-      text(g, t.center.x > 0 ? 'vante' : 'ré', x + tw / 2, ty + 78, 13, '#b8b4a2', 'center');
+      text(g, tid(t.id), x + tw / 2, ty + 58, 24, '#f1efe6', 'center', 'bold');
+      text(g, t.center.x > 0 ? 'vante' : 'ré', x + tw / 2, ty + 80, 17, '#d0ccb8', 'center');
       // nível
       const f = st.water / t.volume;
       g.fillStyle = '#e8e2b0';
@@ -141,8 +141,8 @@ export function drawBallastPanel(act: RoomActions) {
       g.strokeStyle = '#111';
       g.lineWidth = 2;
       g.strokeRect(x + 30, ty + 90, tw - 60, 100);
-      text(g, `${Math.round(f * 100)} %`, x + tw / 2, ty + 140, 22, '#111', 'center', 'bold', true);
-      text(g, st.pAir > 0.5e5 ? `ar ${(st.pAir / 1e5).toFixed(2)} bar` : '—', x + tw / 2, ty + 202, 13, '#d8d4c2', 'center');
+      text(g, `${Math.round(f * 100)} %`, x + tw / 2, ty + 140, 28, '#111', 'center', 'bold', true);
+      text(g, st.pAir > 0.5e5 ? `ar ${(st.pAir / 1e5).toFixed(2)} bar` : '—', x + tw / 2, ty + 203, 18, '#e0dccb', 'center');
       const vOpen = st.vent.cmd > 0.5;
       lampButton(c, {
         id: `vent-${t.id}`,
@@ -173,9 +173,9 @@ export function drawBallastPanel(act: RoomActions) {
         tip: `Sopro ${tid(t.id)}: ${valveStatus(st.blow)} — clique para ${bOpen ? 'FECHAR' : 'ABRIR (ar AP para o tanque)'}`,
         action: () => act.cmd({ type: 'mbtBlow', tank: t.id, open: !bOpen }),
       });
-      text(g, st.qWater > 0.01 ? '▲ alagando' : st.qWater < -0.01 ? '▼ esgotando' : '', x + tw / 2, ty + 298, 14, '#f1efe6', 'center', 'bold');
-      if (st.mdotVent > 0.05) text(g, 'ar saindo pelo suspiro', x + tw / 2, ty + 320, 12, '#ffb3a8', 'center');
-      if (st.mdotBlow > 0.05) text(g, `sopro ${st.mdotBlow.toFixed(1)} kg/s`, x + tw / 2, ty + 320, 12, '#ffe08a', 'center');
+      text(g, st.qWater > 0.01 ? '▲ alagando' : st.qWater < -0.01 ? '▼ esgotando' : '', x + tw / 2, ty + 298, 19, '#f1efe6', 'center', 'bold');
+      if (st.mdotVent > 0.05) text(g, 'ar saindo pelo suspiro', x + tw / 2, ty + 322, 16, '#ffb3a8', 'center');
+      if (st.mdotBlow > 0.05) text(g, `sopro ${st.mdotBlow.toFixed(1)} kg/s`, x + tw / 2, ty + 322, 16, '#ffe08a', 'center');
     });
     lampButton(c, {
       id: 'blowall',
@@ -208,14 +208,14 @@ export function drawBallastPanel(act: RoomActions) {
     g.fillRect(W - 256, ty + 134, 232, 206);
     g.fillStyle = '#f5d33b';
     for (let k = 0; k < 9; k++) g.fillRect(W - 256 + k * 28, ty + 134, 14, 10);
-    text(g, 'SOPRO DE', W - 140, ty + 162, 20, '#fff', 'center', 'bold');
-    text(g, 'EMERGÊNCIA', W - 140, ty + 184, 20, '#fff', 'center', 'bold');
-    text(g, 'VANTE', W - 196, ty + 326, 16, '#fff', 'center', 'bold');
-    text(g, 'RÉ', W - 84, ty + 326, 16, '#fff', 'center', 'bold');
-    text(g, 'levantar a tampa e puxar', W - 140, ty + 204, 12, '#ffd9d4', 'center');
+    text(g, 'SOPRO DE', W - 140, ty + 162, 24, '#fff', 'center', 'bold');
+    text(g, 'EMERGÊNCIA', W - 140, ty + 188, 24, '#fff', 'center', 'bold');
+    text(g, 'VANTE', W - 196, ty + 326, 20, '#fff', 'center', 'bold');
+    text(g, 'RÉ', W - 84, ty + 326, 20, '#fff', 'center', 'bold');
+    text(g, 'levantar a tampa e puxar', W - 140, ty + 210, 15, '#ffd9d4', 'center');
     // --- ar de alta pressão
     const ay = ty + 352;
-    plate(g, 'AR DE ALTA PRESSÃO (AP)', 24, ay, W - 48, 30, 16);
+    plate(g, 'AR DE ALTA PRESSÃO (AP)', 24, ay, W - 48, 34, 22);
     const r = 64;
     v.hpAir.banks.forEach((b, i) => {
       const st = s.hpAir.banks[b.id];
@@ -242,10 +242,10 @@ export function drawBallastPanel(act: RoomActions) {
     const cx0 = 720;
     g.fillStyle = '#2a2d2f';
     g.fillRect(cx0, ay + 44, 300, 222);
-    text(g, 'COMPRESSOR DE AR AP', cx0 + 150, ay + 66, 16, '#f1efe6', 'center', 'bold');
+    text(g, 'COMPRESSOR AP', cx0 + 150, ay + 66, 22, '#f1efe6', 'center', 'bold');
     const run = s.hpAir.compressorRunning;
     lamp(c, cx0 + 40, ay + 110, 16, run, 'green');
-    text(g, run ? 'EM CARGA' : s.hpAir.compressorCmd ? 'SEM AR/ENERGIA' : 'PARADO', cx0 + 70, ay + 110, 16, '#f1efe6', 'left', 'bold');
+    text(g, run ? 'EM CARGA' : s.hpAir.compressorCmd ? 'SEM AR/ENERGIA' : 'PARADO', cx0 + 70, ay + 110, 21, '#f1efe6', 'left', 'bold');
     lampButton(c, {
       id: 'comp-start',
       x: cx0 + 16,
@@ -270,16 +270,16 @@ export function drawBallastPanel(act: RoomActions) {
       tip: 'Parar o compressor',
       action: () => act.cmd({ type: 'compressor', run: false }),
     });
-    text(g, 'tomada de ar: ' + (e.outputs.airIntake ? 'disponível' : 'indisponível'), cx0 + 150, ay + 236, 13, '#d8d4c2', 'center');
+    text(g, 'tomada de ar: ' + (e.outputs.airIntake ? 'disponível' : 'indisponível'), cx0 + 150, ay + 236, 17, '#e0dccb', 'center');
     // flutuabilidade
     const fx = 1040;
     g.fillStyle = '#2a2d2f';
     g.fillRect(fx, ay + 44, W - fx - 24, 222);
-    text(g, e.outputs.surfaced ? 'RESERVA DE FLUTUAB.' : 'FLUTUAB. LÍQUIDA', fx + (W - fx - 24) / 2, ay + 66, 15, '#f1efe6', 'center', 'bold');
+    text(g, e.outputs.surfaced ? 'RESERVA' : 'FLUTUABILIDADE', fx + (W - fx - 24) / 2, ay + 66, 21, '#f1efe6', 'center', 'bold');
     digital(g, fx + 16, ay + 90, W - fx - 56, 60, `${((e.outputs.surfaced ? e.outputs.reserveKg : e.outputs.netBuoyancyKg) / 1000).toFixed(2)} t`);
     const fill = v.ballast.tanks.reduce((a, t) => a + s.ballast[t.id].water, 0) / v.ballast.tanks.reduce((a, t) => a + t.volume, 0);
-    text(g, `TLP ${Math.round(fill * 100)} % cheios`, fx + (W - fx - 24) / 2, ay + 180, 18, '#f1efe6', 'center', 'bold');
-    text(g, e.outputs.surfaced ? 'na superfície' : 'submerso', fx + (W - fx - 24) / 2, ay + 210, 15, '#d8d4c2', 'center');
+    text(g, `TLP ${Math.round(fill * 100)} % cheios`, fx + (W - fx - 24) / 2, ay + 180, 23, '#f1efe6', 'center', 'bold');
+    text(g, e.outputs.surfaced ? 'na superfície' : 'submerso', fx + (W - fx - 24) / 2, ay + 212, 19, '#e0dccb', 'center');
     void H;
   };
 }
@@ -296,200 +296,195 @@ export function drawCompensation(act: RoomActions) {
     const s = e.state;
     const v = e.vessel;
     const cs = s.compensation;
-    const y0 = screenBg(c, 'COMPENSAÇÃO', 'ajuste fino do peso — mar ⇄ TC-1/TC-2');
-    // diagrama
-    const seaX = 40;
-    const manY = y0 + 150;
+    const y0 = screenBg(c, 'COMPENSAÇÃO', 'mar ⇄ TC-1 / TC-2');
+    // diagrama: mar → V-AM → coletor → TC; coletor → bomba → V-DM → mar
+    const inY = y0 + 58;
+    const outY = y0 + 214;
+    const manX = 330;
+    const manY = y0 + 136;
     g.fillStyle = '#0c3355';
-    g.fillRect(14, y0 + 10, 70, 260);
-    text(g, 'MAR', 49, y0 + 30, 16, '#9fd0ff', 'center', 'bold');
+    g.fillRect(12, y0 + 6, 74, 290);
+    text(g, 'MAR', 49, y0 + 28, 22, '#9fd0ff', 'center', 'bold');
     const qIn = cs.qIn;
     const qOut = cs.qOut;
     pipe(
       g,
       [
-        [seaX + 40, y0 + 80],
-        [300, y0 + 80],
-        [300, manY],
+        [86, inY],
+        [manX, inY],
+        [manX, manY],
       ],
       C.water,
-      9,
+      10,
       qIn > 1e-5 ? 1 : 0,
       now,
     );
     pipe(
       g,
       [
-        [300, manY],
-        [300, y0 + 220],
-        [seaX + 40, y0 + 220],
+        [manX, manY],
+        [manX, outY],
+        [86, outY],
       ],
       C.water,
-      9,
+      10,
       qOut > 1e-5 ? 1 : 0,
       now,
     );
     pipe(
       g,
       [
-        [300, manY],
-        [880, manY],
+        [manX, manY],
+        [W - 40, manY],
       ],
       C.water,
-      9,
+      10,
       Math.abs(qIn - qOut) > 1e-5 ? 1 : 0,
       now,
     );
-    // admissão
+    // admissão (pressão do mar)
     const vam = valveStatus(cs.inlet);
-    valveSym(g, 170, y0 + 80, 18, vam);
+    valveSym(g, 150, inY, 20, vam);
     button(c, {
       id: 'c-vam',
-      x: 120,
-      y: y0 + 100,
-      w: 100,
-      h: 38,
+      x: 96,
+      y: inY + 18,
+      w: 126,
+      h: 54,
       label: 'V-AM',
       sub: vam,
       on: cs.inlet.cmd > 0.5,
       tone: 'ok',
       tip: `${v.compensation.inletValve.name}: ${vam} — clique para ${cs.inlet.cmd > 0.5 ? 'FECHAR' : 'ABRIR'} (o mar entra pela pressão externa)`,
       action: () => act.cmd({ type: 'valve', system: 'compensation', valve: 'inlet', open: cs.inlet.cmd < 0.5 }),
-      size: 15,
+      size: 22,
     });
-    text(g, `${(qIn * 1000).toFixed(1)} L/s`, 250, y0 + 66, 14, C.dim, 'center', 'normal', true);
-    // descarga + bomba
+    text(g, `${(qIn * 1000).toFixed(1)} L/s`, 270, inY - 22, 20, '#a9c3d6', 'center', 'bold', true);
+    // descarga com bomba
     const vdm = valveStatus(cs.discharge);
-    valveSym(g, 130, y0 + 220, 18, vdm);
+    valveSym(g, 130, outY, 20, vdm);
+    pumpSym(g, 254, outY, 28, cs.pump.speed, cs.pump.failed, now);
     button(c, {
       id: 'c-vdm',
-      x: 84,
-      y: y0 + 240,
-      w: 100,
-      h: 38,
+      x: 92,
+      y: outY + 30,
+      w: 116,
+      h: 54,
       label: 'V-DM',
       sub: vdm,
       on: cs.discharge.cmd > 0.5,
       tone: 'ok',
       tip: `${v.compensation.dischargeValve.name}: ${vdm} — clique para ${cs.discharge.cmd > 0.5 ? 'FECHAR' : 'ABRIR'}`,
       action: () => act.cmd({ type: 'valve', system: 'compensation', valve: 'discharge', open: cs.discharge.cmd < 0.5 }),
-      size: 15,
+      size: 22,
     });
-    pumpSym(g, 230, y0 + 220, 24, cs.pump.speed, cs.pump.failed, now);
     const ps = pumpStatus(cs.pump, s.electrical.energized);
     button(c, {
       id: 'c-pump',
-      x: 196,
-      y: y0 + 252,
-      w: 104,
-      h: 38,
-      label: 'BOMBA BC',
+      x: 214,
+      y: outY + 30,
+      w: 140,
+      h: 54,
+      label: 'BOMBA',
       sub: ps,
       on: cs.pump.cmd,
       tone: cs.pump.failed ? 'danger' : 'ok',
       tip: `${v.compensation.pump.name}: ${ps} — clique para ${cs.pump.cmd ? 'PARAR' : 'PARTIR'} (esgota ao mar)`,
       action: () => act.cmd({ type: 'pump', system: 'compensation', run: !cs.pump.cmd }),
-      size: 14,
+      size: 22,
     });
-    text(g, `${(qOut * 1000).toFixed(1)} L/s`, 230, y0 + 186, 14, C.dim, 'center', 'normal', true);
-    // tanques
+    text(g, `${(qOut * 1000).toFixed(1)} L/s`, 254, outY - 44, 20, '#a9c3d6', 'center', 'bold', true);
+    // tanques de compensação
     v.compensation.tanks.forEach((t, i) => {
-      const x = 430 + i * 250;
+      const x = 430 + i * 262;
       const vcfg = v.compensation.tankValves[i];
       const vs = cs.tankValves[vcfg.id];
       const st = valveStatus(vs);
       pipe(
         g,
         [
-          [x + 60, manY],
-          [x + 60, manY - 34],
+          [x + 70, manY],
+          [x + 70, y0 + 102],
         ],
         C.water,
-        8,
+        9,
         Math.abs(cs.tanks[t.id].flow ?? 0) > 1e-5 ? 1 : 0,
         now,
       );
-      valveSym(g, x + 60, manY - 50, 15, st, true);
-      tankSym(g, x, y0 + 30, 120, 50, cs.tanks[t.id].mass / tankCapacityMass(t), t.id.replace('TC', 'TC-'), `${tankVolume(cs.tanks[t.id]).toFixed(2)}/${t.capacity} m³`);
+      tankSym(g, x, y0 + 36, 140, 64, cs.tanks[t.id].mass / tankCapacityMass(t), t.id.replace('TC', 'TC-'));
+      valveSym(g, x + 70, manY - 18, 15, st, true);
+      text(g, `${tankVolume(cs.tanks[t.id]).toFixed(2)} / ${t.capacity} m³`, x + 70, manY + 30, 19, '#a9c3d6', 'center', 'bold', true);
       button(c, {
         id: `c-${vcfg.id}`,
         x: x + 4,
-        y: manY + 16,
-        w: 112,
-        h: 38,
+        y: manY + 52,
+        w: 132,
+        h: 54,
         label: vcfg.id,
         sub: st,
         on: vs.cmd > 0.5,
         tone: 'ok',
         tip: `${vcfg.name}: ${st} — clique para ${vs.cmd > 0.5 ? 'FECHAR' : 'ABRIR'}`,
         action: () => act.cmd({ type: 'valve', system: 'compensation', valve: vcfg.id, open: vs.cmd < 0.5 }),
-        size: 15,
+        size: 22,
       });
     });
     // dosagem
-    const dy = y0 + 300;
-    box(g, 14, dy, W - 28, H - dy - 12, 'SEQUÊNCIA AUTOMÁTICA (DOSAGEM)');
+    const dy = y0 + 304;
+    box(g, 12, dy, W - 24, H - dy - 10, 'SEQUÊNCIA AUTOMÁTICA');
     const kg = dose(c, 'comp', 500);
     stepper(
       c,
       'c-dose',
-      24,
-      dy + 30,
-      44,
+      22,
+      dy + 40,
+      52,
       [-500, -100, 100, 500],
       kg,
       (x) => `${x} kg`,
       (x) => (c.ui.dose.comp = Math.max(50, Math.min(10000, x))),
       'Quantidade a dosar',
-      64,
+      66,
     );
     const d = cs.dosing;
     button(c, {
       id: 'c-adm',
-      x: 520,
-      y: dy + 30,
-      w: 130,
-      h: 44,
+      x: 584,
+      y: dy + 40,
+      w: 168,
+      h: 52,
       label: 'ADMITIR',
       tone: 'cmd',
       tip: `Admitir ${kg} kg do mar (fica mais pesado)`,
       action: () => act.cmd({ type: 'dosing', system: 'compensation', mode: 'admitir', kg }),
+      size: 23,
     });
     button(c, {
       id: 'c-esg',
-      x: 658,
-      y: dy + 30,
-      w: 130,
-      h: 44,
+      x: 758,
+      y: dy + 40,
+      w: 180,
+      h: 52,
       label: 'ESGOTAR',
       tone: 'cmd',
       tip: `Esgotar ${kg} kg ao mar (fica mais leve)`,
       action: () => act.cmd({ type: 'dosing', system: 'compensation', mode: 'esgotar', kg }),
+      size: 23,
     });
+    text(g, d ? `${d.mode.toUpperCase()} · ${d.phase} · ${d.moved.toFixed(0)}/${d.target.toFixed(0)} kg` : 'sem sequência em andamento', 24, dy + 116, 21, d?.active ? C.cmd : '#a9c3d6', 'left', 'bold', false, 690);
     button(c, {
       id: 'c-abort',
-      x: 796,
-      y: dy + 30,
-      w: 140,
-      h: 44,
+      x: 758,
+      y: dy + 98,
+      w: 180,
+      h: 40,
       label: 'INTERROMPER',
       tone: 'warn',
       disabled: !d?.active,
       tip: 'Interromper a sequência automática',
       action: () => act.cmd({ type: 'dosingAbort', system: 'compensation' }),
+      size: 20,
     });
-    text(
-      g,
-      d ? `${d.mode.toUpperCase()} · ${d.phase} · ${d.moved.toFixed(0)}/${d.target.toFixed(0)} kg ${d.message ? '· ' + d.message : ''}` : 'sem sequência',
-      24,
-      dy + 96,
-      16,
-      d?.active ? C.cmd : C.dim,
-      'left',
-      'bold',
-      false,
-      W - 60,
-    );
     // ajuste calculado (equilíbrio neutro) — recalculado a cada 5 s de simulação
     const calcDepth = e.outputs.surfaced ? 40 : Math.max(0, s.body.pos.z);
     if (!compCache || compCache.e !== e || Math.abs(s.t - compCache.t) > 5 || Math.abs(calcDepth - compCache.depth) > 3) {
@@ -504,21 +499,22 @@ export function drawCompensation(act: RoomActions) {
     const dm = compCache.need - cur;
     button(c, {
       id: 'c-calc',
-      x: 24,
-      y: dy + 120,
+      x: 22,
+      y: dy + 146,
       w: 420,
-      h: 50,
+      h: 64,
       label: 'AJUSTE CALCULADO',
       sub: Number.isFinite(dm) ? `${dm >= 0 ? 'admitir' : 'esgotar'} ${(Math.abs(dm) / 1000).toFixed(2)} t para ${calcDepth.toFixed(0)} m` : 'indisponível',
       tone: 'ok',
       disabled: !Number.isFinite(dm) || Math.abs(dm) < 10,
       tip: 'Sequência automática com a quantidade que deixa o submarino neutro na cota (cálculo de equilíbrio)',
       action: () => act.cmd({ type: 'dosing', system: 'compensation', mode: dm > 0 ? 'admitir' : 'esgotar', kg: Math.abs(dm) }),
+      size: 24,
     });
     const nb = e.outputs.surfaced ? e.outputs.reserveKg : e.outputs.netBuoyancyKg;
-    text(g, e.outputs.surfaced ? 'RESERVA (superfície)' : 'FLUTUABILIDADE LÍQUIDA', 470, dy + 134, 15, C.dim, 'left', 'bold');
-    hbar(g, 470, dy + 150, 340, 18, 0.5 + Math.max(-1, Math.min(1, nb / 10000)) / 2, nb >= 0 ? C.real : C.warn, 0.5);
-    text(g, `${(nb / 1000).toFixed(2)} t`, W - 28, dy + 159, 20, nb >= 0 ? C.real : C.warn, 'right', 'bold', true);
+    text(g, e.outputs.surfaced ? 'RESERVA' : 'FLUTUABILIDADE', 460, dy + 160, 21, '#a9c3d6', 'left', 'bold');
+    text(g, `${(nb / 1000).toFixed(2)} t`, W - 24, dy + 160, 28, nb >= 0 ? C.real : C.warn, 'right', 'bold', true);
+    hbar(g, 460, dy + 186, W - 484, 22, 0.5 + Math.max(-1, Math.min(1, nb / 10000)) / 2, nb >= 0 ? C.real : C.warn, 0.5);
   };
 }
 
@@ -527,99 +523,105 @@ function transferBlock(c: DrawCtx, act: RoomActions, sys: Exclude<FluidSystem, '
   const s = e.state;
   const cfg = e.vessel[sys];
   const st = s[sys];
-  const name = sys === 'trim' ? 'TRIM (vante ⇄ ré)' : 'BANDA (BB ⇄ BE)';
-  box(g, x, y, w, h, name);
+  const ang = sys === 'trim' ? `θ ${s.sensors.INSP.value.toFixed(1)}° (eq. ${e.outputs.staticPitchEq.toFixed(1)}°)` : `φ ${s.sensors.INSR.value.toFixed(1)}° (eq. ${e.outputs.staticRollEq.toFixed(1)}°)`;
+  box(g, x, y, w, h, sys === 'trim' ? 'TRIM (vante ⇄ ré)' : 'BANDA (BB ⇄ BE)');
+  text(g, ang, x + w - 14, y + 17, 20, C.real, 'right', 'bold', true);
   const ta = cfg.tankA;
   const tb = cfg.tankB;
   const aLbl = sys === 'trim' ? 'TT-AV' : 'TB-BB';
   const bLbl = sys === 'trim' ? 'TT-AR' : 'TB-BE';
-  tankSym(g, x + 20, y + 50, 110, 70, st.tankA.mass / tankCapacityMass(ta), aLbl, `${tankVolume(st.tankA).toFixed(2)} m³`);
-  tankSym(g, x + w - 130, y + 50, 110, 70, st.tankB.mass / tankCapacityMass(tb), bLbl, `${tankVolume(st.tankB).toFixed(2)} m³`);
+  const ty = y + 60;
+  tankSym(g, x + 16, ty, 124, 58, st.tankA.mass / tankCapacityMass(ta), aLbl);
+  tankSym(g, x + w - 140, ty, 124, 58, st.tankB.mass / tankCapacityMass(tb), bLbl);
+  text(g, `${tankVolume(st.tankA).toFixed(2)} m³`, x + 78, ty + 74, 18, '#a9c3d6', 'center', 'bold', true);
+  text(g, `${tankVolume(st.tankB).toFixed(2)} m³`, x + w - 78, ty + 74, 18, '#a9c3d6', 'center', 'bold', true);
   const mid = x + w / 2;
+  const py = ty + 29;
   const flowing = Math.abs(st.flow) > 1e-5;
   pipe(
     g,
     [
-      [x + 130, y + 86],
-      [x + w - 130, y + 86],
+      [x + 140, py],
+      [x + w - 140, py],
     ],
     C.water,
-    8,
+    9,
     flowing ? Math.sign(st.flow) : 0,
     now,
   );
   const va = valveStatus(st.valveA);
   const vb = valveStatus(st.valveB);
-  valveSym(g, x + 168, y + 86, 13, va);
-  valveSym(g, x + w - 168, y + 86, 13, vb);
-  pumpSym(g, mid, y + 86, 20, st.pump.speed, st.pump.failed, now);
+  valveSym(g, x + 186, py, 15, va);
+  valveSym(g, x + w - 186, py, 15, vb);
+  pumpSym(g, mid, py, 24, st.pump.speed, st.pump.failed, now);
   const dirAB = st.direction.cmd < 0.5;
-  text(g, dirAB ? `${aLbl} → ${bLbl}` : `${bLbl} → ${aLbl}`, mid, y + 56, 15, C.cmd, 'center', 'bold');
-  const bw = (w - 40) / 5;
-  const by = y + 140;
+  text(g, dirAB ? `${aLbl} → ${bLbl}` : `${bLbl} → ${aLbl}`, mid, py - 40, 21, C.cmd, 'center', 'bold');
+  const bw = (w - 20 - 4 * 6) / 5;
+  const by = y + h - 120;
+  const B = (i: number) => x + 10 + i * (bw + 6);
   button(c, {
     id: `${sys}-va`,
-    x: x + 14,
+    x: B(0),
     y: by,
     w: bw,
-    h: 44,
+    h: 54,
     label: cfg.valveA.id,
     sub: va,
     on: st.valveA.cmd > 0.5,
     tone: 'ok',
     tip: `${cfg.valveA.name}: ${va}`,
     action: () => act.cmd({ type: 'valve', system: sys, valve: 'A', open: st.valveA.cmd < 0.5 }),
-    size: 14,
+    size: 21,
   });
   button(c, {
     id: `${sys}-dir`,
-    x: x + 20 + bw,
+    x: B(1),
     y: by,
     w: bw,
-    h: 44,
+    h: 54,
     label: 'SENTIDO',
     sub: dirAB ? 'A→B' : 'B→A',
     tone: 'neutral',
     tip: `Seletor de sentido: inverter para ${dirAB ? `${bLbl} → ${aLbl}` : `${aLbl} → ${bLbl}`}`,
     action: () => act.cmd({ type: 'direction', system: sys, dir: dirAB ? 'BtoA' : 'AtoB' }),
-    size: 14,
+    size: 21,
   });
   const ps = pumpStatus(st.pump, s.electrical.energized);
   button(c, {
     id: `${sys}-pump`,
-    x: x + 26 + 2 * bw,
+    x: B(2),
     y: by,
     w: bw,
-    h: 44,
+    h: 54,
     label: 'BOMBA',
     sub: ps,
     on: st.pump.cmd,
     tone: st.pump.failed ? 'danger' : 'ok',
     tip: `${cfg.pump.name}: ${ps}`,
     action: () => act.cmd({ type: 'pump', system: sys, run: !st.pump.cmd }),
-    size: 14,
+    size: 21,
   });
   button(c, {
     id: `${sys}-vb`,
-    x: x + 32 + 3 * bw,
+    x: B(3),
     y: by,
     w: bw,
-    h: 44,
+    h: 54,
     label: cfg.valveB.id,
     sub: vb,
     on: st.valveB.cmd > 0.5,
     tone: 'ok',
     tip: `${cfg.valveB.name}: ${vb}`,
     action: () => act.cmd({ type: 'valve', system: sys, valve: 'B', open: st.valveB.cmd < 0.5 }),
-    size: 14,
+    size: 21,
   });
   const kg = dose(c, sys, sys === 'trim' ? 500 : 200);
   button(c, {
     id: `${sys}-dose`,
-    x: x + 38 + 4 * bw,
+    x: B(4),
     y: by,
     w: bw,
-    h: 44,
+    h: 54,
     label: `${kg} kg`,
     sub: 'quantidade',
     tone: 'neutral',
@@ -628,72 +630,60 @@ function transferBlock(c: DrawCtx, act: RoomActions, sys: Exclude<FluidSystem, '
       const opts = [100, 200, 500, 1000, 2000];
       c.ui.dose[sys] = opts[(opts.indexOf(kg) + 1) % opts.length];
     },
-    size: 14,
+    size: 21,
   });
   const d = st.dosing;
-  const ay = by + 54;
+  const ay = by + 60;
+  const tw = (w - 20 - 2 * 6) / 3;
   button(c, {
     id: `${sys}-ab`,
-    x: x + 14,
+    x: x + 10,
     y: ay,
-    w: (w - 40) / 3,
-    h: 44,
+    w: tw,
+    h: 52,
     label: `${aLbl} → ${bLbl}`,
-    sub: `transferir ${kg} kg`,
+    sub: d?.active ? `${d.moved.toFixed(0)}/${d.target.toFixed(0)} kg` : `transferir ${kg} kg`,
     tone: 'cmd',
     tip: `Sequência automática: transferir ${kg} kg de ${aLbl} para ${bLbl}`,
     action: () => act.cmd({ type: 'dosing', system: sys, mode: 'transferir', kg, dir: 'AtoB' }),
-    size: 15,
+    size: 21,
   });
   button(c, {
     id: `${sys}-ba`,
-    x: x + 20 + (w - 40) / 3,
+    x: x + 16 + tw,
     y: ay,
-    w: (w - 40) / 3,
-    h: 44,
+    w: tw,
+    h: 52,
     label: `${bLbl} → ${aLbl}`,
-    sub: `transferir ${kg} kg`,
+    sub: d ? d.phase : `transferir ${kg} kg`,
     tone: 'cmd',
     tip: `Sequência automática: transferir ${kg} kg de ${bLbl} para ${aLbl}`,
     action: () => act.cmd({ type: 'dosing', system: sys, mode: 'transferir', kg, dir: 'BtoA' }),
-    size: 15,
+    size: 21,
   });
   button(c, {
     id: `${sys}-abort`,
-    x: x + 26 + (2 * (w - 40)) / 3,
+    x: x + 22 + 2 * tw,
     y: ay,
-    w: (w - 40) / 3,
-    h: 44,
+    w: tw,
+    h: 52,
     label: 'INTERROMPER',
     tone: 'warn',
     disabled: !d?.active,
     tip: 'Interromper a sequência',
     action: () => act.cmd({ type: 'dosingAbort', system: sys }),
-    size: 15,
+    size: 21,
   });
-  if (d) text(g, `${d.phase} · ${d.moved.toFixed(0)}/${d.target.toFixed(0)} kg ${d.message ? '· ' + d.message : ''}`, x + 14, ay + 60, 14, d.active ? C.cmd : C.dim, 'left', 'bold', false, w - 28);
 }
 
 /** tela de TRIM E BANDA (console de segurança do mergulho) */
 export function drawTrimHeel(act: RoomActions) {
   return (c: DrawCtx) => {
-    const { g, e, W, H } = c;
+    const { W, H } = c;
     const y0 = screenBg(c, 'TRIM E BANDA', 'transferência interna de água');
-    const hh = (H - y0 - 70) / 2;
-    transferBlock(c, act, 'trim', 14, y0, W - 28, hh);
-    transferBlock(c, act, 'heel', 14, y0 + hh + 8, W - 28, hh);
-    const o = e.outputs;
-    text(
-      g,
-      `θ ${e.state.sensors.INSP.value.toFixed(1)}° (equilíbrio ${o.staticPitchEq.toFixed(1)}°)   ·   φ ${e.state.sensors.INSR.value.toFixed(1)}° (equilíbrio ${o.staticRollEq.toFixed(1)}°)`,
-      W / 2,
-      H - 30,
-      19,
-      C.text,
-      'center',
-      'bold',
-      true,
-    );
+    const hh = (H - y0 - 16) / 2;
+    transferBlock(c, act, 'trim', 12, y0, W - 24, hh);
+    transferBlock(c, act, 'heel', 12, y0 + hh + 6, W - 24, hh);
   };
 }
 
@@ -742,12 +732,12 @@ export function drawManifold() {
     const s = e.state;
     const v = e.vessel;
     faceBg(c, '#bfc3bb');
-    plate(g, 'COLETOR DE VÁLVULAS · HIDRÁULICA', 20, 14, W - 40, 34, 19);
+    plate(g, 'COLETOR DE VÁLVULAS · HIDRÁULICA', 20, 12, W - 40, 40, 24);
     const hp = s.hydraulics.pressure / 1e5;
     dial(g, 130, 160, 95, { value: hp, min: 0, max: 250, major: 50, minor: 10, label: 'HIDRÁULICA', unit: 'bar', ordered: null, digits: 0 });
     lamp(c, 60, 290, 13, s.hydraulics.pumpOn, 'green');
-    text(g, s.hydraulics.failed ? 'PLANTA EM FALHA' : s.hydraulics.pumpOn ? 'bomba em carga' : 'bomba em espera', 82, 290, 15, '#1a1a1a', 'left', 'bold');
-    text(g, `mínimo ${(v.hydraulics.minPressure / 1e5).toFixed(0)} bar`, 60, 316, 13, '#333', 'left');
+    text(g, s.hydraulics.failed ? 'PLANTA EM FALHA' : s.hydraulics.pumpOn ? 'bomba em carga' : 'bomba em espera', 82, 290, 20, '#1a1a1a', 'left', 'bold');
+    text(g, `mínimo ${(v.hydraulics.minPressure / 1e5).toFixed(0)} bar`, 60, 318, 18, '#333', 'left');
     v.hpAir.banks.forEach((b, i) => {
       const p = bankPressure(v.hpAir, b.id, s.hpAir.banks[b.id].mass) / 1e5;
       dial(g, 330 + i * 170, 140, 70, { value: p, min: 0, max: 300, major: 100, minor: 20, label: b.id, unit: 'bar', digits: 0 });
@@ -760,10 +750,10 @@ export function drawManifold() {
       const cx = W * (0.125 + col * 0.25);
       const cy = H * (0.57 + row * 0.24);
       const open = manifoldValveCmd(e, m) > 0.5;
-      plate(g, m.label, cx - 95, cy + 62, 190, 28, 14);
+      plate(g, m.label, cx - 110, cy + 60, 220, 34, 19);
       lamp(c, cx + 78, cy - 60, 10, open, 'green');
       lamp(c, cx - 78, cy - 60, 10, !open, 'white');
     });
-    text(g, 'volantes: clique para abrir/fechar (mesmas válvulas dos consoles)', W / 2, H - 16, 13, '#2a2a2a', 'center');
+    text(g, 'clique nos volantes para abrir/fechar', W / 2, H - 18, 18, '#2a2a2a', 'center');
   };
 }
