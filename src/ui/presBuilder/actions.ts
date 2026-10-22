@@ -300,10 +300,10 @@ export const ACTION_TYPES: ActionType[] = [
   {
     id: 'pesoMassa',
     group: 'Compensação, trim e banda',
-    label: 'Peso deslocável: massa',
-    fields: [{ key: 't', label: 'Massa', type: 'number', unit: 't', min: 0, max: 20, step: 0.5 }],
+    label: 'Peso deslocável: toneladas deslocadas',
+    fields: [{ key: 't', label: 'Deslocar', type: 'number', unit: 't', min: 0, max: 30, step: 0.5 }],
     defaults: { t: 5 },
-    describe: (p) => `Peso deslocável: massa ${f(num(p, 't'), 1)} t`,
+    describe: (p) => `Peso deslocável: deslocar ${f(num(p, 't'), 1)} t (carga existente)`,
     run: (p, c) => c.send({ type: 'demoWeight', mass: num(p, 't') * 1000 }),
   },
   // ---------------- governo e piloto

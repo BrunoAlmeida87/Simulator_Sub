@@ -13,6 +13,7 @@
  */
 import type { SimulationEngine } from './core/engine';
 import { mulMat3Vec, qToMat3, type Vec3 } from './core/math';
+import { demoMovedMass } from './physics/massProperties';
 
 export interface VerticalBalance {
   g: number;
@@ -141,10 +142,7 @@ export function trimBalance(e: SimulationEngine): TrimBalance {
   const g = e.env.cfg.gravity;
   const dwc = v.mass.demoWeight;
   const d = s.demoWeight;
-  const demo =
-    dwc && d
-      ? { mass: d.mass, x: d.x, xCmd: d.xCmd, xNeutral: dwc.xNeutral, z: dwc.z, momentTm: (-d.mass * (d.x - dwc.xNeutral)) / 1000 }
-      : null;
+  const demo = dwc && d ? { mass: demoMovedMass(dwc, d), x: d.x, xCmd: d.xCmd, xNeutral: dwc.xNeutral, z: dwc.z, momentTm: (-demoMovedMass(dwc, d) * (d.x - dwc.xNeutral)) / 1000 } : null;
   const ref = s.trimRef ?? { a: s.trim.tankA.mass, b: s.trim.tankB.mass };
   const tA = v.trim.tankA;
   const tB = v.trim.tankB;

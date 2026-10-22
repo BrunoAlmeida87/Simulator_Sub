@@ -50,7 +50,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - O alagamento não pode ser esgotado (sistema de esgoto previsto para a Fase 3); o rombo pode ser "reparado" pela tela de falhas.
 
 ## Peso deslocável
-- A carga de 5 t sobre trilho é um recurso didático da embarcação fictícia (massa pontual; o carro não tem dinâmica própria além da velocidade limitada).
+- A carga de 30 t sobre trilho (da qual se escolhe quanto deslocar, sem mudar a massa total) é um recurso didático da embarcação fictícia (massa pontual; o carro não tem dinâmica própria além da velocidade limitada).
 - A compensação sugerida anula o binário das cargas deslocadas (peso + tanques de trim). Outros desequilíbrios de trim, como os de compensação e alagamento, aparecem no pitch de equilíbrio estático.
 
 ## Representações visuais

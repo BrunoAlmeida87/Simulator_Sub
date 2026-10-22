@@ -369,9 +369,9 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
         log(`Peso deslocável: mover para x = ${d.xCmd.toFixed(1)} m (${d.xCmd > dwc.xNeutral ? 'para vante' : d.xCmd < dwc.xNeutral ? 'para ré' : 'posição neutra'})`, 'Trim');
       }
       if (c.mass !== undefined) {
-        const m = Math.max(0, Math.min(20000, c.mass));
-        s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) + (m - d.mass);
-        log(`Peso deslocável: massa ${(d.mass / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (${m > d.mass ? 'embarcada' : 'desembarcada'} ${(Math.abs(m - d.mass) / 1000).toFixed(1)} t)`, 'Trim');
+        // a carga já está a bordo: muda só quanto dela anda no trilho (massa total do navio inalterada)
+        const m = Math.max(0, Math.min(dwc.mass, c.mass));
+        log(`Peso deslocável: parcela deslocada ${(Math.min(d.mass, dwc.mass) / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (de ${(dwc.mass / 1000).toFixed(0)} t a bordo; massa total inalterada)`, 'Trim');
         d.mass = m;
       }
       break;
