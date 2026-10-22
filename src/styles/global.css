@@ -244,6 +244,33 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .layer-setting input[type='range'] { flex: 1; min-width: 90px; }
 .layer-setting .seg { flex-wrap: wrap; }
 .vecsel .tsel-g { flex-basis: 100%; }
+/* filtros da cena 3D recolhíveis (OverlayMenu): fileira de botões, um painel aberto por vez */
+.overlay-ctl, .visual-ctl { max-height: calc(100% - 16px); }
+.ovl-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex: none; }
+.ovl-bar .ovl-chip { background: rgba(10, 16, 23, 0.86); white-space: nowrap; }
+.ovl-bar .ovl-chip.on { background: rgba(22, 58, 80, 0.94); }
+.ovl-chip .car, .panel-fold .car, .lp-fold-h .car { color: var(--muted); font-size: 9px; }
+.tanksel-pop.ovl-panel { width: min(360px, calc(100vw - 48px)); max-width: 100%; min-height: 0; flex: 0 1 auto; overflow-y: auto; overscroll-behavior: contain; align-items: stretch; }
+.tanksel-pop.ovl-panel.scene-layer-pop { width: min(370px, calc(100vw - 48px)); max-height: none; }
+.ovl-views { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 4px; }
+.ovl-views .btn { white-space: normal; line-height: 1.2; }
+.ovl-form { display: flex; flex-direction: column; gap: 6px; }
+.ovl-form label { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 6px; font-size: 11.5px; color: #9fb7cf; }
+.ovl-form select { width: 100%; font-size: 11.5px; }
+.visual-laypop .visual-layers { max-width: none; justify-content: flex-start; background: none; padding: 0; }
+/* blocos que abrem e fecham dentro de "Sol e luzes" */
+.lightpanel.foldable { min-width: 0; gap: 4px; }
+.lp-fold { border-top: 1px solid var(--line2); padding-top: 3px; }
+.lp-fold-h { display: flex; align-items: baseline; gap: 5px; width: 100%; background: none; border: 0; padding: 3px 0; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; text-align: left; }
+.lp-fold-h .lp-fold-v { margin-left: auto; color: #9fb7cf; font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+.lp-fold-body { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
+/* o valor já aparece no título do bloco: o controle deslizante ocupa a linha toda */
+.lightpanel .lp-fold-body .lp-slider { grid-template-columns: minmax(0, 1fr); }
+.lightpanel .lp-fold-body .lp-slider > span { display: none; }
+/* painéis laterais recolhíveis (Panel fold) */
+.panel-fold { background: none; border: 0; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; text-align: left; }
+.panel > header .panel-val { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.panel.folded > header { border-bottom: none; border-radius: var(--radius); }
 
 /* ---------- diversos ---------- */
 .svgbox { width: 100%; height: auto; display: block; }
@@ -625,6 +652,9 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .overlay-ctl.ph-open .seg, .overlay-ctl.ph-open .btngroup, .overlay-ctl.ph-open .row { flex-wrap: wrap; justify-content: flex-start; }
   .overlay-ctl.ph-open select { max-width: 100%; }
   .overlay-ctl .seg button { padding: 6px 9px; }
+  .overlay-ctl.ph-open .ovl-bar { justify-content: flex-start; }
+  .overlay-ctl.ph-open .tanksel-pop.ovl-panel { width: auto; max-width: none; flex: none; overflow: visible; }
+  .ovl-views .btn { padding: 7px 8px; }
   /* diagramas largos: largura mínima e rolagem lateral, texto legível */
   .wide-diagram { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
   .wide-diagram > svg { min-width: var(--dmin); }
