@@ -10,6 +10,7 @@ import type { OceanQuality } from '../../render3d/Ocean';
 import type { SceneLighting } from '../../render3d/lighting';
 import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS } from '../graphics';
 import type { OverlaySection } from './OverlayMenu';
+import { DEEP_FOVS, DEEP_LABELS, type DeepLevel } from '../../render3d/deepPerspective';
 
 /** botão do filtro: "Mar 3 · Hs 1.0 m" */
 function SeaLabel() {
@@ -46,6 +47,21 @@ function SeaPanel({ quality, setQuality }: { quality: OceanQuality; setQuality: 
           <option value="alta">Alto</option>
         </select>
       </label>
+      <label title="Perspectiva profunda (botão “Perspectiva” na fileira): quanto a lente abre e a câmera se aproxima">
+        <span>Perspectiva</span>
+        <select
+          value={g.deepPersp ? g.deepLevel : 'normal'}
+          onChange={(ev) => graphics.set(ev.target.value === 'normal' ? { deepPersp: false } : { deepPersp: true, deepLevel: ev.target.value as DeepLevel })}
+          aria-label="Perspectiva"
+        >
+          <option value="normal">Normal</option>
+          {(Object.keys(DEEP_FOVS) as DeepLevel[]).map((k) => (
+            <option key={k} value={k}>
+              Profunda — {DEEP_LABELS[k].toLowerCase()} ({DEEP_FOVS[k]}°)
+            </option>
+          ))}
+        </select>
+      </label>
       <label title="Iluminação da cena (só visual): Natural escurece com a profundidade; Clara destaca o submarino; Estúdio para projetor">
         <span>Luz</span>
         <select value={g.lighting} onChange={(ev) => graphics.set({ lighting: ev.target.value as SceneLighting })} aria-label="Iluminação da cena">
@@ -72,9 +88,33 @@ function SunLabel() {
   );
 }
 
-/** seções "Mar e gráfico" e "Sol e luzes" das cenas 3D */
+/**
+ * Botão "Perspectiva: normal / profunda" — liga em todas as vistas de 3ª pessoa
+ * o efeito da vista Perspectiva (grande-angular de perto, mesmo enquadramento).
+ * Só visual; vale para todas as cenas e chega à 2ª janela com as preferências gráficas.
+ */
+export function PerspChip() {
+  const g = useGraphics();
+  const on = g.deepPersp;
+  return (
+    <button
+      className={`btn sm ovl-chip persp-chip${on ? ' on' : ''}`}
+      aria-pressed={on}
+      onClick={() => graphics.set({ deepPersp: !on })}
+      title={`Perspectiva ${on ? 'PROFUNDA (clique para voltar ao normal)' : 'normal (clique para a profunda)'} — em todas as vistas, a lente abre e a câmera se aproxima na mesma proporção: o submarino fica do mesmo tamanho, mas a proa e a popa ganham profundidade, como na vista Perspectiva. Intensidade em “Mar e gráfico”. Só visual.`}
+    >
+      ◢ Perspectiva: {on ? `profunda${g.deepLevel !== 'media' ? ` (${DEEP_LABELS[g.deepLevel].toLowerCase()})` : ''}` : 'normal'}
+    </button>
+  );
+}
+
+/** seção da fileira de filtros com o botão da perspectiva profunda */
+export const perspSection = (): OverlaySection => ({ id: 'perspectiva', label: 'Perspectiva', button: <PerspChip /> });
+
+/** seções "Perspectiva", "Mar e gráfico" e "Sol e luzes" das cenas 3D */
 export function seaSections(quality: OceanQuality, setQuality: (q: OceanQuality) => void): OverlaySection[] {
   return [
+    perspSection(),
     { id: 'mar', label: <SeaLabel />, title: 'Mar e gráfico: estado do mar, qualidade gráfica e iluminação', content: <SeaPanel quality={quality} setQuality={setQuality} /> },
     { id: 'sol', label: <SunLabel />, title: 'Sol e luzes: hora do dia, direção do sol, luar, luzes de navegação, faróis e água escura (só visual)', content: <LightPanel foldable /> },
   ];

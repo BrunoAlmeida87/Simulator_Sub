@@ -16,6 +16,7 @@ import { demo, type DemoSnapshot } from './demo';
 import { tours, type TourSnapshot } from './tours';
 import { route, mapOrigin, type RouteSnapshot } from './routeNav';
 import { checklist } from './checklist';
+import { presPlayer, type PlayerSnapshot } from './presBuilder/player';
 import { identity, type Identity } from './identity';
 import type { LatLon } from '../sim/geo';
 import { link } from './link';
@@ -26,6 +27,8 @@ export interface SessionAutomation {
   tour?: TourSnapshot | null;
   route?: RouteSnapshot;
   checklist?: unknown;
+  /** apresentação do Estúdio em andamento */
+  studio?: PlayerSnapshot | null;
 }
 
 /**
@@ -39,6 +42,7 @@ export function captureSession(name: string, forFile = false): SaveFile {
     tour: tours.snapshot(),
     route: route.snapshot(),
     checklist: checklist.snapshot(),
+    studio: presPlayer.snapshot(),
   };
   return serializeEngine(runner.engine, name, {
     timeScale: runner.timeScale,
@@ -61,6 +65,7 @@ function silenceAutomations(): void {
   maneuver.restore(null);
   demo.restore(null);
   tours.restore(runner, null);
+  presPlayer.restore(runner, null);
   route.active = false;
 }
 
@@ -89,6 +94,8 @@ export function restoreSession(raw: unknown, opts: { automations?: boolean } = {
   if (demo.active) resumed.push(`demonstração automática (etapa ${demo.k + 1}/${demo.steps.length})`);
   tours.restore(runner, a.tour);
   if (tours.active && tours.tour) resumed.push(`roteiro automático “${tours.tour.name}” (etapa ${tours.k + 1}/${tours.tour.steps.length})`);
+  presPlayer.restore(runner, a.studio);
+  if (presPlayer.active && presPlayer.pres) resumed.push(`apresentação “${presPlayer.pres.name}” (etapa ${presPlayer.k + 1}/${presPlayer.pres.steps.length})`);
   if (a.route) {
     route.restore(a.route);
     if (route.active) resumed.push(`seguimento de rota (ponto ${route.idx + 1}/${route.points.length})`);

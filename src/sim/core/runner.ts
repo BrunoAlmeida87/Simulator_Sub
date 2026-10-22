@@ -101,6 +101,16 @@ export class SimRunner {
     this.notify();
   }
 
+  /** n passos fixos sem avisar a interface (avanço acelerado); devolve quantos foram executados. */
+  stepBatch(n: number): number {
+    let done = 0;
+    for (let i = 0; i < n; i++) {
+      if (!this.doStep()) break;
+      done++;
+    }
+    return done;
+  }
+
   command(c: Command): void {
     applyCommand(this.engine, c);
     this.engine.computeOutputs();

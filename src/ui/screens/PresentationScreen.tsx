@@ -30,7 +30,7 @@ import { useUi } from '../uiContext';
 import type { LayerKey } from '../components/LayerPanel';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 
-const FRAMES: [ViewMode, string, string][] = [
+export const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
   ['perspectiva', 'Perspectiva', 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa'],
   ['submerso', 'Submerso', 'Operação submersa, ao nível do casco'],
@@ -47,7 +47,7 @@ const FRAMES: [ViewMode, string, string][] = [
 ];
 
 /** camadas da apresentação (nomes no catálogo LAYER_INFO) */
-const LAYER_LIST: LayerKey[] = [
+export const LAYER_LIST: LayerKey[] = [
   'vectors',
   'hydroVectors',
   'trimVectors',

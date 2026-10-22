@@ -11,6 +11,9 @@ import { SCENARIOS, LOAD_LABELS, buildScenario, type LoadCondition } from '../..
 import { pres, PRESETS } from '../presentation';
 import { useUi } from '../uiContext';
 import { usePersisted } from '../persist';
+import { presLibrary } from '../presBuilder/library';
+import { presPlayer } from '../presBuilder/player';
+import { isPanelWindow } from '../sync';
 
 /** condição de carga escolhida (também usada ao reiniciar pelas Configurações) */
 export function useScenarioOptions() {
@@ -73,6 +76,10 @@ export function ScenarioScreen() {
           <div>
             <span className="badge info">executa sozinho</span> <b>Roteiro automático</b>
             <div className="subtle">O simulador conduz a operação etapa por etapa, com narração e valores ao vivo.</div>
+          </div>
+          <div>
+            <span className="badge info">você cria</span> <b>Apresentação do Estúdio</b>
+            <div className="subtle">Etapas montadas por você: texto formatado, câmera e camadas, ações e gatilhos para avançar. Criadas e editadas em Apresentação › Estúdio.</div>
           </div>
         </div>
       </Panel>
@@ -144,6 +151,43 @@ export function ScenarioScreen() {
 
       <Panel title="Roteiros automáticos" className="span-all">
         <TourList goTo extra={(tr) => <Badges kind="executa sozinho" coast={coast[tr.scenario] ?? false} />} />
+      </Panel>
+
+      <Panel
+        title="Apresentações do Estúdio"
+        className="span-all"
+        right={
+          <button className="btn sm" onClick={() => ui.setScreen('estudio')} title="Criar e editar apresentações">
+            ✎ Abrir o Estúdio
+          </button>
+        }
+      >
+        <div className="grid">
+          {[...presLibrary.mine(), ...presLibrary.builtins()].map((p) => (
+            <div className="panel" key={p.id}>
+              <header>
+                <h3>{p.name}</h3>
+              </header>
+              <div className="body col">
+                <Badges kind={p.builtin ? 'modelo' : 'você cria'} coast={p.start.mode === 'cenario' ? (coast[p.start.scenario] ?? false) : false} />
+                {p.description && <div className="subtle">{p.description}</div>}
+                <div className="subtle">
+                  {p.steps.length} etapas · parte de: {p.start.mode === 'cenario' ? scenarioName(p.start.scenario) : p.start.mode === 'estado' ? 'estado guardado' : 'situação atual'}
+                </div>
+                <button
+                  className="btn"
+                  disabled={isPanelWindow}
+                  title={isPanelWindow ? 'Apresente pela janela principal' : undefined}
+                  onClick={() => {
+                    if (presPlayer.start(runner, p)) ui.setScreen('estudio');
+                  }}
+                >
+                  ▶ Apresentar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </Panel>
     </div>
   );

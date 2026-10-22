@@ -11,6 +11,7 @@ import type { SceneLighting } from '../render3d/lighting';
 import { DEFAULT_DAYLIGHT, type DaylightSettings } from '../render3d/daylight';
 import { DEFAULT_MARINE_LIFE, type MarineLifeSettings } from '../render3d/marineLifeMotion';
 import { MAX_TRAFFIC } from '../sim/traffic';
+import type { DeepLevel } from '../render3d/deepPerspective';
 
 export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings {
   quality: OceanQuality;
@@ -31,6 +32,10 @@ export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings {
   traffic: number;
   /** referências discretas de profundidade no ambiente submarino */
   depthRefs: boolean;
+  /** perspectiva profunda em todas as vistas de 3ª pessoa (grande-angular de perto, mesmo enquadramento) */
+  deepPersp: boolean;
+  /** intensidade da perspectiva profunda */
+  deepLevel: DeepLevel;
   /** espaçamento das linhas de profundidade (m; camada “Linhas de profundidade”) */
   depthLineSpacing: number;
 }
@@ -69,6 +74,8 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
     traffic: typeof p?.traffic === 'number' && Number.isFinite(p.traffic) ? Math.max(0, Math.min(MAX_TRAFFIC, Math.round(p.traffic))) : base.traffic,
     depthRefs: typeof p?.depthRefs === 'boolean' ? p.depthRefs : base.depthRefs,
+    deepPersp: typeof p?.deepPersp === 'boolean' ? p.deepPersp : base.deepPersp,
+    deepLevel: p?.deepLevel === 'leve' || p?.deepLevel === 'media' || p?.deepLevel === 'forte' ? p.deepLevel : base.deepLevel,
     depthLineSpacing: typeof p?.depthLineSpacing === 'number' && DEPTH_LINE_SPACINGS.includes(p.depthLineSpacing) ? p.depthLineSpacing : base.depthLineSpacing,
     sunHour: num(p?.sunHour, 0, 24, base.sunHour),
     sunTurn: num(p?.sunTurn, -180, 180, base.sunTurn),
@@ -96,6 +103,8 @@ class GraphicsStore {
       lighting: 'clara',
       traffic: 0,
       depthRefs: true,
+      deepPersp: false,
+      deepLevel: 'media',
       depthLineSpacing: 25,
       ...DEFAULT_DAYLIGHT,
     };

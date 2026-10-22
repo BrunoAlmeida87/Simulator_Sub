@@ -55,6 +55,8 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   Terrain.ts          fundo e terra (mesma função da física) + imagem de satélite e luzes da cidade (terrainAssets.ts)
   RioLandmarks.ts     Cristo Redentor, Ponte Rio–Niterói e nomes dos lugares do Rio
   Shipyard.ts         estaleiro de Itaguaí (aterro, molhes, shiplift, galpões, submarinos atracados)
+  deepPerspective.ts  perspectiva profunda (botão nas cenas 3D): grande-angular + câmera aproximada na mesma proporção
+                      (dolly-zoom) nas vistas de 3ª pessoa; graphics.deepPersp/deepLevel; seção na fileira (SeaControls)
   daylight.ts         sol pela hora do dia, cores do céu/névoa/água, noite (cúpula, estrelas, lua, luar)
   NavLights.ts        luzes de navegação (setores do RIPEAM) do submarino e dos navios; faróis do submarino
   ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, aspiração do snorkel),
@@ -81,6 +83,10 @@ src/ui/               INTERFACE (React)
   inspector/          modo engenharia (registry.ts = textos e variáveis por componente)
   maneuvers.ts        manobras rápidas (Imergir/Emergir)
   tours.ts            cenários guiados automáticos passo a passo (TOURS)
+  presBuilder/        ESTÚDIO DE APRESENTAÇÕES (aba Apresentação › Estúdio): model.ts (etapas em JSON), variables.ts
+                      (valores ao vivo/condições), actions.ts (catálogo de ações → Commands), player.ts (execução, voltar,
+                      avanço acelerado), library.ts (localStorage, importar/exportar), templates.ts (modelos), richText.ts
+                      tela: screens/StudioScreen.tsx; cartão: components/PresCard.tsx (palco, PresFloating e 2ª janela)
   demo.ts, presentation.ts, checklist.ts, routeNav.ts
   persist.ts          usePersisted: preferências de UI no localStorage (prefixo 'sx1.ui.')
 scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível
