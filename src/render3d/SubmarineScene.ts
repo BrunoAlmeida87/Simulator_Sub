@@ -933,6 +933,7 @@ export class SubmarineScene {
         this.scene.add(this.shipyard.group);
       }
       this.shipyardDist = this.shipyard.place(e.env.cfg.geo.origin, pn, pe, this.camera.position);
+      this.shipyard.float(e.env.waves, tWave);
     } else if (this.shipyard) this.shipyard.group.visible = false;
 
     // bolhas dos suspiros/embornais (taxa proporcional à vazão de ar simulada)
