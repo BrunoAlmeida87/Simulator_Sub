@@ -43,7 +43,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 ## Instrumentação e controle
 - Sensores com ruído gaussiano, atraso de 1ª ordem e falhas típicas (congelado, deriva, zero, ruído). Sem modelos detalhados de giroscópio e INS.
 - O Doppler usa velocidade em relação à água, que é igual à velocidade sobre o fundo porque não há correntes.
-- Piloto automático PID com ganhos fixos escalonados por U². Não é um controlador de navio real.
+- Piloto automático PID com ganhos fixos escalonados por U². Não é um controlador de navio real. Não há filtro de ondas: na cota periscópica com mar, os lemes de ré acompanham o caturro de cada onda (ângulo pequeno, mas em movimento contínuo).
 
 ## Segurança
 - Limites, alarmes e respostas são **exclusivamente educacionais** e não correspondem a procedimentos ou valores de embarcação real.

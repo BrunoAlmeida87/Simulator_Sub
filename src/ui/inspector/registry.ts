@@ -340,8 +340,18 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
         ],
         state: ap.tPitch.lowEffectiveness || ap.tHeading.lowEffectiveness ? 'BAIXA EFETIVIDADE (velocidade insuficiente)' : 'Normal',
         influence: 'Em baixa velocidade os lemes saturam sem efeito; a profundidade passa a depender do equilíbrio estático — use a compensação.',
-        equations: ['δ_r = K·[Kp·e_ψ + Ki·∫e_ψ − Kd·r]', 'θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż)', 'δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q];  δ_vante = K·[Kb·e_z + Kbd·ż]', 'K = min(4, (U₀/U)²)'],
-        predictions: ['Comutar para AUTO inicializa o integrador com a posição atual (sem salto).', 'Mover manualmente um leme desengaja o canal.'],
+        equations: [
+          'δ_r = K·[Kp·e_ψ + Ki·∫e_ψ − Kd·r]',
+          'θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)  — lemes de ré fazem a mudança de cota',
+          'δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q]',
+          'δ_vante = K·[Kb·sat(e_z, ±3 m)·max(w, a) + Kbd·ż·w], ±10°  — só ajuste fino perto da cota',
+          'K = min(4, (U₀/U)²); abaixo de ~4 nós a cota passa aos lemes de vela',
+        ],
+        predictions: [
+          'Comutar para AUTO inicializa o integrador com a posição atual (sem salto).',
+          'Mover manualmente um leme desengaja o canal.',
+          'Numa mudança de cota acima de ~4 nós, os lemes de ré dão o ângulo; os de vela ficam em poucos graus e só trabalham perto da cota.',
+        ],
         channels: ['depth', 'depthSet', 'heading', 'headingSet', 'stern', 'bow', 'rudder'],
       };
     }

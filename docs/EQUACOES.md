@@ -243,10 +243,19 @@ Navegação estimada:  ṗ_DR = R(φ_med, θ_med, ψ_med)·v_Doppler
 
 ```
 δ_r = K·[Kp·e_ψ + Ki·∫e_ψ − Kd·r]
-θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)
-δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q] ;   δ_vante = K·[Kb·e_z + Kbd·ż]
-K = min(4, (U₀/U)²)   (escalonamento pela efetividade ∝ U²);   autoridade limitada a ±20° (abaixo do estol)
+θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)          (∫e_z só com |e_z| < 3 m)
+δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q]                 (|δ_ré| ≤ 20°)
+δ_vante = K·[Kb·(1 + L)·sat(e_z, ±b)·max(w, a) + Kbd·ż·w]   (|δ_vante| ≤ 10° + L·10°)
+w = 1 para |e_z| ≤ b, → 0 linearmente até |e_z| = b + f ;   a = a₀ + L·(1 − a₀)
+θ_max = 10,5° − L·(10,5° − 4°) ;   L = sat((U_alto − U)/(U_alto − U_baixo), 0, 1)
+K = min(4, (U₀/U)²)   (escalonamento pela efetividade ∝ U²)
 ```
+
+**Divisão do trabalho entre os lemes.** A mudança de cota é feita pela cascata dos **lemes de ré**: o erro de profundidade vira um pitch ordenado (até ±10,5°) e é o ângulo — a sustentação do casco inclinado — que leva o submarino à nova cota. Os lemes de ré têm momento de caturro ~6× maior que os de vela (21 m² a 31,5 m × 11 m² a 10,5 m). Os **lemes de vela** (vante) fazem só o **ajuste fino**: perto da cota (|e_z| ≤ b = 3 m, desaparecendo até 8 m) corrigem pequenos erros e freiam a chegada com força vertical direta; na travessia ficam numa pequena ajuda constante (a₀ = 0,7 de K·Kb·b, ≈ 3,5° a 6 nós), com autoridade de ±10° acima de ~4 nós.
+
+**Baixa velocidade.** Perto da velocidade crítica dos lemes de ré (~3 nós neste modelo) a força direta do leme de ré anula a sustentação que o ângulo produz no casco, e eles deixam de mudar a cota. Entre U_alto = 2,0 m/s (~3,9 nós) e U_baixo = 1,6 m/s (~3,1 nós) a fração L passa de 0 a 1 e transfere a cota para os lemes de vela (ganho dobrado, ajuda total e autoridade de 20°), reduzindo o pitch ordenado para 4°.
+
+Por que a versão anterior usava demais os lemes de vela: o termo direto δ_vante = K·[Kb·e_z + Kbd·ż] recebia o erro de profundidade inteiro, sem limite (1°/m × K, com K ≈ 1,7–2,2 a 5–6 nós), e saturava em 20° em qualquer mudança acima de ~10 m, enquanto os lemes de ré só executavam um pitch limitado a 8°. Como os lemes de vela saturados já davam boa parte do momento de proa, a malha de pitch chegava a θ_max com os lemes de ré a 4–5° — eles só limitavam o ângulo. Além disso, o integral de profundidade acumulava durante toda a aproximação (|e_z| < 15 m), deixando um sobrepasso de ~1 m que levava mais de 5 min para sumir.
 
 Os controladores usam as leituras dos sensores. A transferência é sem salto (bumpless) e o anti-windup usa integração condicional.
 
