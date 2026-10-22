@@ -21,22 +21,21 @@ import type { CompensationConfig, InternalTankConfig, TransferSystemConfig } fro
 import type { CompensationState, DosingState, InternalTankState, TransferState, ValveState } from '../core/state';
 import { RHO_NOMINAL, type StepContext } from '../core/context';
 import type { Vec3 } from '../core/math';
+import { tankFill } from './tankShape';
 import { pumpFlow, pumpFlowWithLine, pumpPower, updatePumpSpeed, updateValve } from './components';
 
 export const tankVolume = (st: InternalTankState) => st.mass / RHO_NOMINAL;
 export const tankCapacityMass = (cfg: InternalTankConfig) => cfg.capacity * RHO_NOMINAL;
 
-/** Centroide da água (corpo): o tanque enche a partir do fundo. */
+/** Centroide da água (corpo): o tanque enche a partir do fundo, com a seção que acompanha o casco (tankShape). */
 export function tankWaterCentroid(cfg: InternalTankConfig, st: InternalTankState): Vec3 {
-  const A = cfg.capacity / cfg.height;
-  const h = Math.min(cfg.height, tankVolume(st) / A);
-  return { x: cfg.center.x, y: cfg.center.y, z: cfg.center.z + cfg.height / 2 - h / 2 };
+  const f = tankFill(cfg, tankVolume(st));
+  return { x: cfg.center.x, y: f.y, z: f.z };
 }
 
 function levelDepth(cfg: InternalTankConfig, st: InternalTankState, ctx: StepContext): number {
-  const A = cfg.capacity / cfg.height;
-  const h = Math.min(cfg.height, tankVolume(st) / A);
-  return ctx.depthOf({ x: cfg.center.x, y: cfg.center.y, z: cfg.center.z + cfg.height / 2 - h });
+  const f = tankFill(cfg, tankVolume(st));
+  return ctx.depthOf({ x: cfg.center.x, y: (f.ya + f.yb) / 2, z: f.levelZ });
 }
 
 function topDepth(cfg: InternalTankConfig, ctx: StepContext): number {

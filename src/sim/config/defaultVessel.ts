@@ -221,7 +221,7 @@ export function defaultVessel(): VesselConfig {
     },
     compensation: {
       // tanque central de compensação, sob o centro de gravidade; os tanques de banda (ao lado) ligam-se ao mesmo coletor
-      tanks: [{ id: 'TC', name: 'TC Compensação central', capacity: 22, height: 1.4, center: { x: 2.6, y: 0, z: 2.3 }, initialVolume: 11 }],
+      tanks: [{ id: 'TC', name: 'TC Compensação central', capacity: 22, height: 1.5, width: 2.6, hullRadius: 2.9, center: { x: 2.6, y: 0, z: 2.25 }, initialVolume: 11 }],
       tankValves: [valve('VC', 'Válvula TC (central)', 4)],
       heelBranches: [
         { tank: 'A', valve: valve('VCBB', 'Ramal de compensação TB-BB', 4) },
@@ -237,8 +237,8 @@ export function defaultVessel(): VesselConfig {
     trim: {
       id: 'trim',
       name: 'Sistema de trim longitudinal',
-      tankA: { id: 'TTAV', name: 'TT-AV Trim vante', capacity: 8, height: 1.4, center: { x: 21.5, y: 0, z: 2.2 }, initialVolume: 4 },
-      tankB: { id: 'TTAR', name: 'TT-AR Trim ré', capacity: 8, height: 1.4, center: { x: -13.0, y: 0, z: 2.2 }, initialVolume: 4 },
+      tankA: { id: 'TTAV', name: 'TT-AV Trim vante', capacity: 8, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: 21.5, y: 0, z: 2.2 }, initialVolume: 4 },
+      tankB: { id: 'TTAR', name: 'TT-AR Trim ré', capacity: 8, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: -13.0, y: 0, z: 2.2 }, initialVolume: 4 },
       valveA: valve('VTAV', 'Isolamento TT-AV', 3),
       valveB: valve('VTAR', 'Isolamento TT-AR', 3),
       directionValve: valve('VDT', 'Seletor de sentido (trim)', 3),
@@ -249,8 +249,8 @@ export function defaultVessel(): VesselConfig {
       id: 'heel',
       name: 'Sistema de banda (tanques laterais do conjunto de compensação)',
       // ao lado do tanque central (mesma posição longitudinal); transferência BB ↔ BE pela bomba BB através do coletor central
-      tankA: { id: 'TBBB', name: 'TB-BB Banda bombordo', capacity: 5, height: 1.3, center: { x: 2.6, y: -2.4, z: 1.0 }, initialVolume: 2.5 },
-      tankB: { id: 'TBBE', name: 'TB-BE Banda boreste', capacity: 5, height: 1.3, center: { x: 2.6, y: 2.4, z: 1.0 }, initialVolume: 2.5 },
+      tankA: { id: 'TBBB', name: 'TB-BB Banda bombordo', capacity: 5, height: 2.5, width: 1.3, hullRadius: 2.9, center: { x: 2.6, y: -2.25, z: 1.05 }, initialVolume: 2.5 },
+      tankB: { id: 'TBBE', name: 'TB-BE Banda boreste', capacity: 5, height: 2.5, width: 1.3, hullRadius: 2.9, center: { x: 2.6, y: 2.25, z: 1.05 }, initialVolume: 2.5 },
       valveA: valve('VBBB', 'Isolamento TB-BB', 3),
       valveB: valve('VBBE', 'Isolamento TB-BE', 3),
       directionValve: valve('VDB', 'Seletor de sentido (banda)', 3),

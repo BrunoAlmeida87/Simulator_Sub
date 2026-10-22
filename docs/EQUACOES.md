@@ -202,6 +202,8 @@ Previsão estática:  Δθ ≈ atan(Δm·g·Δx / (W·BG)) ,  Δφ ≈ atan(Δm�
 
 Válvulas: dx/dt = sinal(x_cmd − x)/t_curso, com atuação hidráulica disponível. Bombas: rotação em rampa (t_partida).
 
+Forma dos tanques internos (`systems/tankShape.ts`): a seção é o retângulo largura × altura recortado pelo círculo do casco resistente (raio R), prismática ao longo de x com L = V_tanque / A_seção. Nível e centroide da água por faixas horizontais: A(h) = Σ w(z)·dz do fundo ao nível, ȳ = Σ w·y_m·dz / A, z̄ = Σ w·z·dz / A. Nos tanques de banda o centroide se desloca para o costado ao encher.
+
 Compensação com três tanques num coletor único (TC central + TB-BB e TB-BE, que também são os tanques de banda): a vazão líquida do coletor (admissão − descarga) divide-se pelos ramais abertos na proporção aᵢ·Vᵢ (abertura × capacidade); a parte que um tanque cheio (ou vazio) não aceita passa aos demais. Como os três tanques estão na posição longitudinal de G, a compensação não altera o trim; os ramais laterais abertos por igual não alteram a banda.
 
 ## 9. Propulsão (`systems/propulsion.ts`)

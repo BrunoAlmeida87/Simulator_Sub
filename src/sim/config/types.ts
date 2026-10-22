@@ -170,6 +170,13 @@ export interface InternalTankConfig {
   height: number; // m
   center: Vec3;
   initialVolume: number; // m³
+  /** largura transversal da seção (m); com hullRadius, a seção é este retângulo recortado pelo casco */
+  width?: number;
+  /**
+   * Raio interno do casco resistente (m) na posição do tanque: a seção do
+   * tanque segue o casco (fundo/costado abaulados). Ausente = tanque prismático.
+   */
+  hullRadius?: number;
 }
 
 export interface CompensationConfig {

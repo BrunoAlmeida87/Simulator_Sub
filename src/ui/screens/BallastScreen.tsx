@@ -176,7 +176,8 @@ export function Diagram({ e }: { e: SimulationEngine }) {
         {branches.map((b, i) => {
           const st = b.st;
           const vid = b.valveId;
-          const w = b.heel ? 64 : 92;
+          // largura proporcional ao volume: o TC (um só, maior) se destaca dos tanques de banda
+          const w = b.heel ? 60 : 124;
           const insp = b.heel ? 'heel' : 'comp:' + b.id;
           return (
             <g key={b.id}>

@@ -14,6 +14,8 @@
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import { tankVolume } from '../sim/systems/internalTanks';
+import { tankFill, tankOutline, tankSection } from '../sim/systems/tankShape';
+import type { InternalTankConfig } from '../sim/config/types';
 import { bankPressure } from '../sim/systems/hpAir';
 import { valveStatus } from '../sim/systems/components';
 import { clean, compensationFlows, compensationNodes, manifoldSegments } from '../sim/systems/compensationNetwork';
@@ -241,13 +243,49 @@ export class SystemsVis {
       };
       this.tanks.push({ id, cat, name, short, top: { x: c.x, y: c.y, z: c.z - H / 2 }, meshes: [water, air, edges, surf], ...mats, surf, pick: water, getVol, cap, getFlow, setLevel });
     };
+    // tanques com seção que acompanha o casco resistente (mesma forma da física: tankShape)
+    const shaped = (t: InternalTankConfig, short: string, cat: TankCategory, Wdef: number, getVol: (en: SimulationEngine) => number, getFlow: (en: SimulationEngine) => number) => {
+      if (t.hullRadius === undefined) return box(t.id, t.name, short, cat, t.center, t.height, Wdef, t.capacity, getVol, getFlow);
+      const sec = tankSection(t);
+      const shape = new THREE.Shape();
+      tankOutline(t).forEach(([y, z], i) => (i === 0 ? shape.moveTo(y, -z) : shape.lineTo(y, -z)));
+      shape.closePath();
+      const Lt = sec.length;
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: Lt, bevelEnabled: false, curveSegments: 4 });
+      geo.translate(0, 0, -Lt / 2);
+      const mats = this.tankMats(cat);
+      const water = new THREE.Mesh(geo, mats.waterMat);
+      const air = new THREE.Mesh(geo, mats.airMat);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), mats.edgeMat);
+      const surf = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false }));
+      surf.rotation.x = -Math.PI / 2;
+      const grp = new THREE.Group();
+      grp.position.copy(b2l(t.center.x, 0, 0));
+      grp.add(water, air, edges, surf);
+      this.tankGroup.add(grp);
+      const waterPlane = new THREE.Plane();
+      const airPlane = new THREE.Plane();
+      mats.waterMat.clippingPlanes = [waterPlane];
+      mats.airMat.clippingPlanes = [airPlane];
+      this.clipPlanes.set(t.id, { water: waterPlane, air: airPlane, levelLocal: 0, center: grp.position.clone() });
+      const setLevel = (fill: number) => {
+        const f = tankFill(t, Math.max(0, Math.min(1, fill)) * t.capacity);
+        const cp = this.clipPlanes.get(t.id)!;
+        cp.levelLocal = -f.levelZ;
+        const width = Math.max(0.01, f.yb - f.ya);
+        surf.scale.set(width, Lt, 1);
+        surf.position.set((f.ya + f.yb) / 2, -f.levelZ, 0);
+        surf.visible = fill > 0.005 && fill < 0.995;
+      };
+      this.tanks.push({ id: t.id, cat, name: t.name, short, top: { x: t.center.x, y: (sec.y0 + sec.y1) / 2, z: sec.zTop }, meshes: [water, air, edges, surf], ...mats, surf, pick: water, getVol, cap: t.capacity, getFlow, setLevel });
+    };
     v.compensation.tanks.forEach((t) =>
-      box(t.id, t.name, t.id.replace(/^TC(\d)$/, 'TC-$1'), 'compensacao', t.center, t.height, 2.6, t.capacity, (en) => tankVolume(en.state.compensation.tanks[t.id]), (en) => en.state.compensation.tanks[t.id].flow ?? 0),
+      shaped(t, t.id.replace(/^TC(\d)$/, 'TC-$1'), 'compensacao', 2.6, (en) => tankVolume(en.state.compensation.tanks[t.id]), (en) => en.state.compensation.tanks[t.id].flow ?? 0),
     );
-    box(v.trim.tankA.id, v.trim.tankA.name, 'TT-AV', 'trim', v.trim.tankA.center, v.trim.tankA.height, 2.2, v.trim.tankA.capacity, (en) => tankVolume(en.state.trim.tankA), (en) => -en.state.trim.flow);
-    box(v.trim.tankB.id, v.trim.tankB.name, 'TT-AR', 'trim', v.trim.tankB.center, v.trim.tankB.height, 2.2, v.trim.tankB.capacity, (en) => tankVolume(en.state.trim.tankB), (en) => en.state.trim.flow);
-    box(v.heel.tankA.id, v.heel.tankA.name, 'TB-BB', 'banda', v.heel.tankA.center, v.heel.tankA.height, 1.0, v.heel.tankA.capacity, (en) => tankVolume(en.state.heel.tankA), (en) => (en.state.heel.tankA.flow ?? 0) - en.state.heel.flow);
-    box(v.heel.tankB.id, v.heel.tankB.name, 'TB-BE', 'banda', v.heel.tankB.center, v.heel.tankB.height, 1.0, v.heel.tankB.capacity, (en) => tankVolume(en.state.heel.tankB), (en) => (en.state.heel.tankB.flow ?? 0) + en.state.heel.flow);
+    shaped(v.trim.tankA, 'TT-AV', 'trim', 2.2, (en) => tankVolume(en.state.trim.tankA), (en) => -en.state.trim.flow);
+    shaped(v.trim.tankB, 'TT-AR', 'trim', 2.2, (en) => tankVolume(en.state.trim.tankB), (en) => en.state.trim.flow);
+    shaped(v.heel.tankA, 'TB-BB', 'banda', 1.0, (en) => tankVolume(en.state.heel.tankA), (en) => (en.state.heel.tankA.flow ?? 0) - en.state.heel.flow);
+    shaped(v.heel.tankB, 'TB-BE', 'banda', 1.0, (en) => tankVolume(en.state.heel.tankB), (en) => (en.state.heel.tankB.flow ?? 0) + en.state.heel.flow);
   }
 
   // ------------------------------------------------------- energia (corte)
@@ -531,7 +569,8 @@ export class SystemsVis {
     const zH = 2.3;
     const yL = 1.5;
     const mainT = cmp.tanks[0];
-    const lenOf = (t: { capacity: number; height: number }, w: number) => t.capacity / (t.height * w);
+    // comprimento do tanque (seção do casco) ou da caixa antiga (largura padrão w)
+    const lenOf = (t: InternalTankConfig, w: number) => (t.hullRadius !== undefined ? tankSection(t).length : t.capacity / (t.height * w));
     // tanques centrais podem ser mais de um (configurações antigas): a travessa fica a ré do mais a ré
     const xAftMain = Math.min(...cmp.tanks.map((t) => t.center.x - lenOf(t, 2.6) / 2));
     const xH = xAftMain - 0.6;
@@ -600,8 +639,10 @@ export class SystemsVis {
       const t = b.t;
       const w = b.heelSide ? 1.0 : 2.6;
       const xEnd = t.center.x - lenOf(t, w) / 2 + 0.35;
-      const yEnd = b.heelSide ? t.center.y * 0.92 : t.center.y;
-      const zEnd = b.heelSide ? t.center.z + t.height / 2 - 0.2 : t.center.z + t.height / 2 - 0.25;
+      // entrada pela face de ré, perto do fundo (dentro da seção)
+      const sc = t.hullRadius !== undefined ? tankSection(t) : null;
+      const yEnd = sc ? (sc.y0 + sc.y1) / 2 : b.heelSide ? t.center.y * 0.92 : t.center.y;
+      const zEnd = sc ? sc.zTop + 0.6 * (sc.zBot - sc.zTop) : t.center.z + t.height / 2 - 0.25;
       const path = [node3d[b.id], b2l(xEnd, b.y, zH), b2l(xEnd, yEnd, zEnd)];
       const owners = [t.id, 'compensacao', ...(b.heelSide ? ['heel'] : [])];
       this.pipe(path, 0x168a52, owners);
@@ -640,7 +681,16 @@ export class SystemsVis {
       const xb = B.x + lenOf(heel.tankB, 1.0) / 2 - 0.35;
       const zT = 1.35;
       const pp = b2l(xF, 0, zT);
-      const path = [b2l(xa, A.y * 0.92, A.z + heel.tankA.height / 2 - 0.2), b2l(xF, A.y * 0.7, zT), pp, b2l(xF, B.y * 0.7, zT), b2l(xb, B.y * 0.92, B.z + heel.tankB.height / 2 - 0.2)];
+      // aspiração junto ao fundo de cada tanque lateral (o ponto mais baixo fica do lado de dentro, onde o casco curva)
+      const sump = (t: InternalTankConfig): [number, number] => {
+        if (t.hullRadius === undefined) return [t.center.y * 0.92, t.center.z + t.height / 2 - 0.2];
+        const sc = tankSection(t);
+        const yi = t.center.y < 0 ? sc.y1 - 0.15 : sc.y0 + 0.15;
+        return [yi, Math.min(sc.zBot, Math.sqrt(Math.max(0, (t.hullRadius ?? 3) ** 2 - yi * yi))) - 0.2];
+      };
+      const [ya0, za0] = sump(heel.tankA);
+      const [yb0, zb0] = sump(heel.tankB);
+      const path = [b2l(xa, ya0, za0), b2l(xF, ya0, zT), pp, b2l(xF, yb0, zT), b2l(xb, yb0, zb0)];
       transfer('heel', path, pp, 0x7a3fb0, 0xe6c2ff, 0.006);
     }
   }

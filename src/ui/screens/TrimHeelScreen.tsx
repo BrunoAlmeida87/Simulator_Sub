@@ -1,5 +1,6 @@
 /** Tela 3 — Trim longitudinal e banda. */
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { useUi } from '../uiContext';
 import { cmd, useSim } from '../store';
 import { Panel } from '../components/Panel';
 import { Readout } from '../components/Readout';
@@ -8,8 +9,9 @@ import { MomentExplain } from '../components/Explain';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
 import { tankVolume } from '../../sim/systems/internalTanks';
+import { tankFill, tankOutline, tankSection } from '../../sim/systems/tankShape';
 import type { SimulationEngine } from '../../sim/core/engine';
-import type { TransferSystemConfig } from '../../sim/config/types';
+import type { InternalTankConfig, TransferSystemConfig } from '../../sim/config/types';
 import type { TransferState } from '../../sim/core/state';
 import { RAD } from '../../sim/core/math';
 import { fmt, fmtMass, fmtMoment } from '../format';
@@ -182,6 +184,30 @@ function TrimDiagram({ e }: { e: SimulationEngine }) {
   );
 }
 
+/** Tanque desenhado com a seção real (acompanha o casco) e o nível da água. Vista de vante: x = y·k, y = z·k. */
+function SectionTank({ t, vol, cx, cy, k, color, label, inspect }: { t: InternalTankConfig; vol: number; cx: number; cy: number; k: number; color: string; label: string; inspect: string }) {
+  const id = useId().replace(/:/g, '');
+  const ui = useUi();
+  const pts = tankOutline(t, 24).map(([y, z]) => `${(cx + y * k).toFixed(1)},${(cy + z * k).toFixed(1)}`);
+  const sec = tankSection(t);
+  const f = tankFill(t, vol);
+  const d = `M${pts.join(' L')} Z`;
+  const yMid = cy + ((sec.zTop + sec.zBot) / 2) * k;
+  return (
+    <g onClick={() => ui.eng && ui.setInspect(inspect)} style={{ cursor: ui.eng ? 'help' : 'default' }}>
+      <clipPath id={`tk${id}`}>
+        <path d={d} />
+      </clipPath>
+      <path d={d} fill="#0b1724" stroke={color} strokeWidth="1.2" />
+      <rect x={cx + sec.y0 * k - 1} y={cy + f.levelZ * k} width={(sec.y1 - sec.y0) * k + 2} height={Math.max(0, (sec.zBot - f.levelZ) * k + 1)} fill={color} opacity="0.55" clipPath={`url(#tk${id})`} />
+      <text x={cx + ((sec.y0 + sec.y1) / 2) * k} y={yMid + 3} fontSize="8" textAnchor="middle" fill="#e8f1fa" fontFamily="var(--mono)">
+        {label}
+      </text>
+      <title>{`${t.name}: ${vol.toFixed(2)} / ${t.capacity} m³`}</title>
+    </g>
+  );
+}
+
 function FrontView({ e }: { e: SimulationEngine }) {
   const o = e.outputs;
   const s = e.state;
@@ -199,11 +225,16 @@ function FrontView({ e }: { e: SimulationEngine }) {
       <g transform={`rotate(${o.euler.roll} ${cx} ${cy})`}>
         <circle cx={cx} cy={cy} r={R * k} fill="#1a2838" stroke="#9fb7cf" strokeWidth="1.5" />
         <rect x={cx - 0.75 * k} y={cy - (R + 5.2) * k * 0.55} width={1.5 * k} height={5.2 * k * 0.55 - R * k * 0.55 + R * k * 0.55} fill="#1a2838" stroke="#9fb7cf" />
-        {/* tanque central de compensação (sob o CG) e ramais do coletor para os tanques de banda */}
-        {e.vessel.compensation.tanks.slice(0, 1).map((t) => (
-          <g key={t.id}>
+        {/* conjunto de compensação: TC central (sob o CG) e os tanques de banda ao lado, seções que seguem o casco; coletor ligando os três */}
+        {e.vessel.compensation.tanks.slice(0, 1).map((t) => {
+          const ya = tankSection(c.tankA);
+          const yb = tankSection(c.tankB);
+          const tc = tankSection(t);
+          const zH = tc.zTop - 0.12;
+          return (
             <path
-              d={`M${cx + c.tankA.center.y * k} ${cy + c.tankA.center.z * k + 12} V${cy + t.center.z * k - 10} H${cx + c.tankB.center.y * k} V${cy + c.tankB.center.z * k + 12}`}
+              key={t.id}
+              d={`M${cx + ((ya.y0 + ya.y1) / 2) * k} ${cy + ya.zTop * k} V${cy + zH * k} H${cx + ((yb.y0 + yb.y1) / 2) * k} V${cy + yb.zTop * k} M${cx} ${cy + zH * k} V${cy + tc.zTop * k}`}
               fill="none"
               stroke="#3ddc84"
               strokeWidth="2"
@@ -211,11 +242,13 @@ function FrontView({ e }: { e: SimulationEngine }) {
             >
               <title>Coletor de compensação: os tanques de banda ligam-se ao tanque central</title>
             </path>
-            <TankGlyph x={cx - 24} y={cy + t.center.z * k - 13} w={48} h={20} fill={tankVolume(s.compensation.tanks[t.id]) / t.capacity} label="TC" color="#2a7fd4" inspect={'comp:' + t.id} />
-          </g>
+          );
+        })}
+        {e.vessel.compensation.tanks.slice(0, 1).map((t) => (
+          <SectionTank key={t.id} t={t} vol={tankVolume(s.compensation.tanks[t.id])} cx={cx} cy={cy} k={k} color="#3ddc84" label="TC" inspect={'comp:' + t.id} />
         ))}
-        <TankGlyph x={cx + c.tankA.center.y * k - 14} y={cy + c.tankA.center.z * k - 12} w={28} h={24} fill={tankVolume(s.heel.tankA) / c.tankA.capacity} label="BB" inspect="heel" />
-        <TankGlyph x={cx + c.tankB.center.y * k - 14} y={cy + c.tankB.center.z * k - 12} w={28} h={24} fill={tankVolume(s.heel.tankB) / c.tankB.capacity} label="BE" inspect="heel" />
+        <SectionTank t={c.tankA} vol={tankVolume(s.heel.tankA)} cx={cx} cy={cy} k={k} color="#b07cff" label="BB" inspect="heel" />
+        <SectionTank t={c.tankB} vol={tankVolume(s.heel.tankB)} cx={cx} cy={cy} k={k} color="#b07cff" label="BE" inspect="heel" />
         <circle cx={cx + o.mp.cg.y * k * 20} cy={cy + o.mp.cg.z * k} r="4" fill="#ffb347">
           <title>G (deslocamento lateral ampliado 20×)</title>
         </circle>

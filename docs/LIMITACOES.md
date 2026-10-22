@@ -13,7 +13,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Casco como corpo de revolução; a vela não desloca água (alagamento livre) e não há casco externo separado.
 - Lemes de vante na vela e superfícies de ré totalmente móveis (sem estabilizadores fixos). Na superfície os lemes de vela ficam fora d'água e não produzem força; a interação esteira da vela × lemes de ré não é modelada.
 - A compressibilidade do casco é linear e uniforme. A estrutura não falha: os limites são apenas alarmes.
-- Tanques representados como prismas com água a partir do fundo. **Não há efeito de superfície livre** (a água não se desloca com a atitude).
+- Tanques internos representados como prismas ao longo do comprimento, com seção que acompanha o casco resistente (fundo/costado abaulados), e água a partir do fundo. **Não há efeito de superfície livre** (a água não se desloca com a atitude).
 
 ## Dinâmica
 - CG tratado na origem para os termos inerciais (o desvio de G entra pelos momentos do peso); produtos de inércia desprezados.
