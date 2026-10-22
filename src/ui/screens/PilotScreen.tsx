@@ -255,10 +255,13 @@ export function PilotScreen() {
                   [
                     ['piloto', 'Lateral'],
                     ['perseguicao', 'Perseguição'],
+                    ['perspectiva', 'Perspectiva'],
                     ['tanques', 'Vista tanques'],
                     ['forcas', 'Vista forças'],
                     ['calado', 'Calado'],
                     ['fixa', 'Fixa'],
+                    ['passadico', 'Passadiço'],
+                    ['drone', 'Drone'],
                     ['livre', 'Livre'],
                   ] as [ViewMode, string][]
                 ).map(([v, l]) => (
@@ -272,7 +275,19 @@ export function PilotScreen() {
                       if (v === 'forcas') setVec(true);
                       if (v === 'calado') setTrimRef(true);
                     }}
-                    title={v === 'tanques' ? 'Câmera de perto no corte (liga os tanques)' : v === 'forcas' ? 'Câmera lateral para os vetores (liga peso/empuxo)' : undefined}
+                    title={
+                      v === 'tanques'
+                        ? 'Câmera de perto no corte (liga os tanques)'
+                        : v === 'forcas'
+                          ? 'Câmera lateral para os vetores (liga peso/empuxo)'
+                          : v === 'perspectiva'
+                            ? 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa'
+                            : v === 'drone'
+                              ? 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade'
+                              : v === 'passadico'
+                                ? 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50'
+                                : undefined
+                    }
                   >
                     {l}
                   </button>

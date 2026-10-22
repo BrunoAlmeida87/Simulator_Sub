@@ -1,7 +1,7 @@
 /** Componente React que hospeda a cena Three.js (lida do estado da simulação). */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { runner } from '../store';
-import type { Label3D, PeriscopeSight, SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
+import type { BridgeSight, Label3D, PeriscopeSight, SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
 import type { OceanQuality } from '../../render3d/Ocean';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 import { loadPersisted, savePersisted } from '../persist';
@@ -11,6 +11,11 @@ import { graphics } from '../graphics';
 import { appearanceRev, currentAppearance } from '../appearance';
 import { TrimGainBanner } from './TrimGain';
 import { geoOriginOf } from '../routeNav';
+import { BridgeHud } from './BridgeHud';
+import { bridgeSight, useBridgeSight } from '../bridgeSight';
+import { DroneHud } from './DroneHud';
+import { droneCtl } from '../droneCtl';
+import type { DronePose } from '../../render3d/drone';
 import { layoutLabels, type LabelRect } from '../../render3d/labelLayout';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
@@ -44,6 +49,22 @@ export interface Scene3DProps {
   periscope?: PeriscopeSight;
   /** false: esta cena não define a vista/camadas da segunda janela (periscópio, miniatura) */
   syncVisual?: boolean;
+  /** visada do passadiço (vista 'passadico'); omitida: a visada desta janela (arrastar, setas, binóculo) */
+  bridge?: BridgeSight;
+  /** pose do drone recebida de outra janela (vista 'drone', só leitura); omitida: o drone desta janela */
+  drone?: DronePose;
+  /** painel das vistas em 1ª pessoa (passadiço e drone): completo (padrão), compacto (miniatura) ou nenhum */
+  hud?: 'full' | 'compact' | 'none';
+  /** teclado do passadiço (setas, B) e do drone (WASD, Q/E, setas) — padrão: sim */
+  hudKeys?: boolean;
+  /** botão "Descer" no painel do passadiço */
+  onBridgeExit?: () => void;
+}
+
+/** painel do passadiço com a visada compartilhada desta janela (ou a recebida pela prop, só leitura) */
+function BridgeLayer({ p }: { p: Scene3DProps }) {
+  const [s, set] = useBridgeSight();
+  return <BridgeHud sight={p.bridge ?? s} setSight={p.bridge ? undefined : set} compact={p.hud === 'compact'} keyboard={p.hudKeys !== false} onExit={p.onBridgeExit} />;
 }
 
 type CamPose = { pos: [number, number, number]; target: [number, number, number] };
@@ -101,6 +122,7 @@ export function Scene3D(props: Scene3DProps) {
           sceneRef.current = create();
         });
         let lastSave = 0;
+        let lastDroneSave = 0;
         const loop = () => {
           const sc = sceneRef.current;
           if (sc && opts.current.persistKey && sc.viewMode === 'livre' && performance.now() - lastSave > 1000) {
@@ -120,12 +142,29 @@ export function Scene3D(props: Scene3DProps) {
             sc.marineLife.settings = graphics.get();
             sc.layers = mergedLayers(opts.current);
             if (opts.current.periscope) sc.periscope = opts.current.periscope;
+            sc.bridge = opts.current.bridge ?? bridgeSight.get();
+            // drone: pose compartilhada desta janela (a cena voa com os comandos) ou a recebida de outra janela
+            const droneOn = opts.current.view === 'drone';
+            if (droneOn) {
+              sc.drone = droneCtl.pose;
+              sc.droneInput = droneCtl.input;
+              sc.droneTarget = opts.current.drone ?? null;
+            }
             if (!isVisualWindow && opts.current.syncVisual !== false) {
               visualOut.layers = sc.layers;
               visualOut.view = opts.current.view;
+              visualOut.bridge = opts.current.view === 'passadico' ? sc.bridge : null;
+              visualOut.drone = droneOn ? sc.drone : null;
             }
             sc.realisticFog = opts.current.fog ?? true;
             drawLabels(sc.render(), sc.labelBounds);
+            if (droneOn) {
+              droneCtl.pose = sc.drone;
+              if (performance.now() - lastDroneSave > 1000) {
+                lastDroneSave = performance.now();
+                droneCtl.save();
+              }
+            }
           }
           raf = requestAnimationFrame(loop);
         };
@@ -262,6 +301,8 @@ export function Scene3D(props: Scene3DProps) {
       {err && <div style={{ padding: 20 }}>{err}</div>}
       <div className="lbl3d-host" ref={lblBox} />
       <TrimGainBanner />
+      {props.view === 'passadico' && props.hud !== 'none' && <BridgeLayer p={props} />}
+      {props.view === 'drone' && props.hud !== 'none' && <DroneHud compact={props.hud === 'compact'} keyboard={props.hudKeys !== false} follow={!!props.drone} />}
       {props.children}
     </div>
   );
