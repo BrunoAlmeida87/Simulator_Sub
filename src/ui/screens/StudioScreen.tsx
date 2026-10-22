@@ -34,7 +34,9 @@ import { NAV_GROUPS } from '../nav';
 import { baseConfig } from '../store';
 import { RichText, PresCardView, PresHudView, hudSide } from '../components/PresCard';
 import { isPanelWindow } from '../sync';
-import { presPlayer, type CardData, type HudItem, type StepOutcome } from '../presBuilder/player';
+import { droneCtl } from '../droneCtl';
+import { bridgeSight } from '../bridgeSight';
+import { presPlayer, applyViewPose, subRef, type CardData, type HudItem, type StepOutcome } from '../presBuilder/player';
 import { presLibrary, exportText, presFileName, presSizeKB, scriptMarkdown } from '../presBuilder/library';
 import {
   newPresentation,
@@ -43,6 +45,9 @@ import {
   cloneStep,
   clonePresentation,
   presentationProblems,
+  droneToStep,
+  droneFromStep,
+  type DroneFrame,
   defaultAdvance,
   NEXT_END,
   type UserPresentation,
@@ -244,6 +249,7 @@ function Editor({ onStage, onPlay }: { onStage: (() => void) | null; onPlay: () 
     if (v.layers) pres.setLayers({ ...v.layers });
     if (v.view) pres.setView(v.view);
     if (v.camPose && (v.view ?? pres.view) === 'livre') setPose({ key: ++poseKey.current, pose: v.camPose });
+    applyViewPose(v, v.view ?? pres.view, runner.engine);
   };
   useEffect(() => {
     if (autoApply && step && !presPlayer.active) applyVisual(step);
@@ -254,6 +260,8 @@ function Editor({ onStage, onPlay }: { onStage: (() => void) | null; onPlay: () 
       s.visual.view = pres.view;
       s.visual.layers = { ...pres.layers };
       s.visual.camPose = pres.view === 'livre' ? loadPersisted<CamPose | null>('cam.studio', null) : null;
+      s.visual.drone = pres.view === 'drone' && droneCtl.pose ? droneToStep(droneCtl.pose, subRef(runner.engine), s.visual.droneFrame) : null;
+      s.visual.bridge = pres.view === 'passadico' ? { ...bridgeSight.get() } : null;
       ui.toast(`Etapa ${k + 1}: câmera “${VIEW_OPTIONS.find((x) => x[0] === pres.view)?.[1] ?? pres.view}” e camadas atuais guardadas.`);
     });
 
@@ -476,7 +484,12 @@ function Editor({ onStage, onPlay }: { onStage: (() => void) | null; onPlay: () 
             <button className="btn sm" disabled={!step} onClick={() => step && applyVisual(step)} title="Coloca no palco a câmera e as camadas desta etapa">
               👁 Ver visualização da etapa
             </button>
-            <button className="btn sm ok" disabled={!step} onClick={captureVisual} title="Guarda na etapa a câmera (e a posição, na vista Livre) e as camadas que estão no palco agora">
+            <button
+              className="btn sm ok"
+              disabled={!step}
+              onClick={captureVisual}
+              title="Guarda na etapa a câmera (com a posição da câmera livre, do drone ou a visada do passadiço) e as camadas que estão no palco agora"
+            >
               📷 Usar a visualização atual
             </button>
             <label className="chk subtle" title="Ao selecionar uma etapa, o palco mostra a câmera e as camadas dela">
@@ -551,7 +564,7 @@ function EditorStage({ e, cur, step, k, pose }: { e: SimulationEngine; cur: User
   const card = step ? previewCard(cur, step, k, e) : null;
   return (
     <div className="st-preview">
-      <Scene3D quality={quality} view={pres.view} layers={pres.layers} labels={false} persistKey="studio" camPose={pose}>
+      <Scene3D quality={quality} view={pres.view} layers={pres.layers} labels={false} persistKey="studio" camPose={pose} hud="compact">
         {step && <PresHudView items={previewHud(step, e)} side={hudSide(card)} />}
         {card && (
           <div className="st-in">
@@ -834,7 +847,7 @@ function VisualTab({ e, step, updStep, capture }: { e: SimulationEngine; step: P
       <div className="field">
         <span>Câmera ao entrar</span>
         <span className="btngroup">
-          <button className={`btn sm ${v.view === null ? 'on' : ''}`} onClick={() => upV({ view: null, camPose: null })} title="Não muda a câmera">
+          <button className={`btn sm ${v.view === null ? 'on' : ''}`} onClick={() => upV({ view: null, camPose: null, drone: null, bridge: null })} title="Não muda a câmera">
             Manter
           </button>
           {VIEW_OPTIONS.map(([id, l]) => (
@@ -842,7 +855,8 @@ function VisualTab({ e, step, updStep, capture }: { e: SimulationEngine; step: P
               key={id}
               className={`btn sm ${v.view === id ? 'on' : ''}`}
               onClick={() => {
-                upV({ view: id, camPose: id === 'livre' ? v.camPose : null });
+                // posições guardadas (livre, drone, passadiço) ficam: só valem quando a vista é a delas
+                upV({ view: id });
                 pres.setView(id);
               }}
             >
@@ -851,19 +865,7 @@ function VisualTab({ e, step, updStep, capture }: { e: SimulationEngine; step: P
           ))}
         </span>
       </div>
-      {v.view === 'livre' && (
-        <div className="row">
-          <span className={v.camPose ? 'ok-text' : 'subtle'}>{v.camPose ? '✓ posição da câmera guardada' : 'Posição livre: a que estiver na hora'}</span>
-          <button className="btn sm" onClick={() => upV({ camPose: loadPersisted<CamPose | null>('cam.studio', null) })} title="Arraste a cena do palco até o enquadramento desejado e clique aqui">
-            Guardar a posição atual
-          </button>
-          {v.camPose && (
-            <button className="btn sm" onClick={() => upV({ camPose: null })}>
-              Esquecer
-            </button>
-          )}
-        </div>
-      )}
+      <CameraPose v={v} upV={upV} />
       <div className="field">
         <span>Camadas ao entrar</span>
         <Seg
@@ -929,6 +931,87 @@ function VisualTab({ e, step, updStep, capture }: { e: SimulationEngine; step: P
       </div>
     </div>
   );
+}
+
+/** posição guardada da câmera na etapa: livre (relativa ao submarino), drone (no mundo) ou passadiço (visada) */
+function CameraPose({ v, upV }: { v: PresStep['visual']; upV: (p: Partial<PresStep['visual']>) => void }) {
+  if (v.view === 'livre')
+    return (
+      <div className="st-campose">
+        <span className={v.camPose ? 'ok-text' : 'subtle'}>{v.camPose ? '✓ posição da câmera livre guardada (acompanha o submarino)' : 'Posição: a que estiver na hora'}</span>
+        <span className="btngroup">
+          <button className="btn sm" onClick={() => upV({ camPose: loadPersisted<CamPose | null>('cam.studio', null) })} title="Arraste a cena do palco até o enquadramento desejado e clique aqui">
+            Guardar a posição atual
+          </button>
+          {v.camPose && (
+            <button className="btn sm" onClick={() => upV({ camPose: null })}>
+              Esquecer
+            </button>
+          )}
+        </span>
+        <span className="subtle">No palco: arraste para girar, roda para aproximar, botão direito para deslocar.</span>
+      </div>
+    );
+  if (v.view === 'drone') {
+    const d = v.drone;
+    const rel = v.droneFrame === 'submarino';
+    const save = () => droneCtl.pose && upV({ drone: droneToStep(droneCtl.pose, subRef(runner.engine), v.droneFrame) });
+    // trocar a referência converte a posição guardada (pela posição atual do submarino)
+    const setFrame = (f: DroneFrame) => upV({ droneFrame: f, drone: d ? droneToStep(droneFromStep(d, subRef(runner.engine), v.droneFrame), subRef(runner.engine), f) : null });
+    const where = d
+      ? rel
+        ? `${fmt(Math.abs(d.n), 0)} m ${d.n >= 0 ? 'à vante' : 'à ré'} e ${fmt(Math.abs(d.e), 0)} m ${d.e >= 0 ? 'a boreste' : 'a bombordo'} do submarino`
+        : `ponto fixo do mapa (N ${fmt(d.n, 0)} m, L ${fmt(d.e, 0)} m)`
+      : '';
+    return (
+      <div className="st-campose">
+        <Seg
+          value={v.droneFrame}
+          options={[
+            ['submarino', 'Em relação ao submarino', 'O drone aparece sempre no mesmo enquadramento do submarino, esteja ele onde estiver'],
+            ['mapa', 'Ponto fixo no mapa', 'O drone vai sempre ao mesmo lugar do cenário (ex.: sobre a orla)'],
+          ]}
+          onChange={setFrame}
+        />
+        <span className={d ? 'ok-text' : 'subtle'}>{d ? `✓ drone guardado: ${where}, ${fmt(d.up, 0)} m de altura, inclinação ${fmt(d.pitch, 0)}°` : 'Posição do drone: a que estiver na hora'}</span>
+        <span className="btngroup">
+          <button className="btn sm" disabled={!droneCtl.pose} onClick={save} title="Voe com o drone no palco até o ponto desejado e clique aqui">
+            Guardar a posição atual do drone
+          </button>
+          {d && (
+            <button className="btn sm" onClick={() => upV({ drone: null })}>
+              Esquecer
+            </button>
+          )}
+        </span>
+        <span className="subtle">
+          No palco: W A S D move, Q/E sobe e desce, arrastar olha em volta, Shift acelera, roda muda a velocidade. Ao entrar na etapa o drone é posicionado e fica parado no cenário (o submarino passa por ele).
+        </span>
+      </div>
+    );
+  }
+  if (v.view === 'passadico') {
+    const b = v.bridge;
+    return (
+      <div className="st-campose">
+        <span className={b ? 'ok-text' : 'subtle'}>
+          {b ? `✓ visada guardada: ${fmt(b.bearing, 0)}° em relação à proa, elevação ${fmt(b.elev, 0)}°${bridgeSight.binoculars(b) ? ', com binóculo' : ''}` : 'Visada: a que estiver na hora'}
+        </span>
+        <span className="btngroup">
+          <button className="btn sm" onClick={() => upV({ bridge: { ...bridgeSight.get() } })} title="Olhe para a direção desejada no palco e clique aqui">
+            Guardar a visada atual
+          </button>
+          {b && (
+            <button className="btn sm" onClick={() => upV({ bridge: null })}>
+              Esquecer
+            </button>
+          )}
+        </span>
+        <span className="subtle">No palco: arraste para olhar em volta; B ou a roda do mouse = binóculo.</span>
+      </div>
+    );
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------- aba Ações
@@ -1424,7 +1507,7 @@ function PlayerStage({ onEditor }: { onEditor: () => void }) {
   return (
     <div className={`st-play ${panel && !fs ? 'with-panel' : ''}`}>
       <div className="st-stage" ref={stageRef}>
-        <Scene3D quality={quality} view={pres.view} layers={pres.layers} labels={false} persistKey="studio" camPose={pl.cam}>
+        <Scene3D quality={quality} view={pres.view} layers={pres.layers} labels={false} persistKey="studio" camPose={pl.cam} hud="compact">
           <PresHudView items={hud} side={hudSide(card)} />
           {card && (
             <div className="st-in">

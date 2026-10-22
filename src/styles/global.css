@@ -952,6 +952,11 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .st-adv-grid { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 .st-adv-grid label { display: inline-flex; gap: 4px; align-items: center; }
 .st-indent { padding-left: 10px; border-left: 2px solid var(--line2); }
+/* passadiço e drone no Estúdio: painel compacto acima da barra do apresentador; o cartão sobe para não cobri-lo */
+.st-stage .bridge-hud.compact .bridge-bar, .st-stage .drone-hud.compact .drone-box, .st-stage .drone-hud.compact .drone-pad { bottom: 60px; }
+.st-stage .view3d:has(.bridge-hud, .drone-hud) .pc-wrap.pos-baixo { bottom: 100px; }
+.st-preview .view3d:has(.bridge-hud, .drone-hud) .pc-wrap.pos-baixo { bottom: 40px; }
+.st-campose { display: flex; flex-direction: column; gap: 4px; padding-left: 8px; border-left: 2px solid var(--line2); }
 
 /* palco (apresentando) */
 .st-play { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }

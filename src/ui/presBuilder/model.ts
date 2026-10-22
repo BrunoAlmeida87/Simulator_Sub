@@ -14,7 +14,8 @@
 import type { SaveFile } from '../../sim/persistence';
 import type { LoadCondition } from '../../sim/scenarios';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
-import type { ViewMode } from '../../render3d/SubmarineScene';
+import type { BridgeSight, ViewMode } from '../../render3d/SubmarineScene';
+import type { DronePose } from '../../render3d/drone';
 import { isScreenId, type ScreenId } from '../nav';
 import { actionType, type StepAction, type Params } from './actions';
 import { COND_OPS, presVar, type Condition, type CondOp } from './variables';
@@ -36,6 +37,31 @@ export interface CamPose {
   target: [number, number, number];
 }
 
+export type DroneFrame = 'submarino' | 'mapa';
+
+/** posição e proa do submarino (referência do drone) */
+export interface SubRef {
+  n: number;
+  e: number;
+  heading: number;
+}
+
+/** pose do drone no mundo → como é guardada na etapa */
+export function droneToStep(p: DronePose, sub: SubRef, frame: DroneFrame): DronePose {
+  if (frame === 'mapa') return { ...p };
+  const psi = (sub.heading * Math.PI) / 180;
+  const dn = p.n - sub.n;
+  const de = p.e - sub.e;
+  return { n: Math.cos(psi) * dn + Math.sin(psi) * de, e: -Math.sin(psi) * dn + Math.cos(psi) * de, up: p.up, yaw: (((p.yaw - sub.heading) % 360) + 360) % 360, pitch: p.pitch };
+}
+
+/** pose guardada na etapa → pose do drone no mundo (na posição atual do submarino) */
+export function droneFromStep(d: DronePose, sub: SubRef, frame: DroneFrame): DronePose {
+  if (frame === 'mapa') return { ...d };
+  const psi = (sub.heading * Math.PI) / 180;
+  return { n: sub.n + Math.cos(psi) * d.n - Math.sin(psi) * d.e, e: sub.e + Math.sin(psi) * d.n + Math.cos(psi) * d.e, up: d.up, yaw: (((d.yaw + sub.heading) % 360) + 360) % 360, pitch: d.pitch };
+}
+
 export interface StepFormat {
   style: CardStyle;
   position: CardPosition;
@@ -54,6 +80,17 @@ export interface StepVisual {
   view: ViewMode | null;
   /** posição exata da câmera livre (relativa ao submarino) */
   camPose: CamPose | null;
+  /**
+   * posição do drone (vista Drone). Com droneFrame 'submarino': n = metros à
+   * vante, e = metros a boreste e yaw = visada em relação à proa (o drone
+   * aparece sempre no mesmo enquadramento do submarino). Com 'mapa': Norte,
+   * Leste e rumo verdadeiro (um ponto fixo do cenário). Ao entrar na etapa o
+   * drone é posicionado e fica parado no cenário.
+   */
+  drone: DronePose | null;
+  droneFrame: DroneFrame;
+  /** visada do passadiço (vista Passadiço): marcação, elevação e binóculo */
+  bridge: BridgeSight | null;
   /** null = manter as camadas atuais */
   layers: SceneLayers | null;
   /** mostradores ao vivo sobre a cena (ids de variáveis) */
@@ -135,7 +172,7 @@ export function uid(prefix = 'x'): string {
 }
 
 export const defaultFormat = (): StepFormat => ({ style: 'cartao', position: 'baixo', size: 'M', accent: 'ciano', showProgress: true, showStatus: true });
-export const defaultVisual = (): StepVisual => ({ screen: 'palco', view: null, camPose: null, layers: null, hud: [], timeScale: null, run: 'executar' });
+export const defaultVisual = (): StepVisual => ({ screen: 'palco', view: null, camPose: null, drone: null, droneFrame: 'submarino', bridge: null, layers: null, hud: [], timeScale: null, run: 'executar' });
 export const defaultAdvance = (): StepAdvance => ({ mode: 'manual', seconds: 10, conditions: [], logic: 'todas', hold: 0, minDwell: 5, timeout: 0, onTimeout: 'avancar', waitText: '', next: '' });
 
 export function newStep(p: Partial<PresStep> = {}): PresStep {
@@ -247,6 +284,18 @@ function normLayers(x: unknown): SceneLayers | null {
   return out as unknown as SceneLayers;
 }
 
+const finite = (r: Record<string, unknown>, keys: string[]): boolean => keys.every((k) => r[k] !== null && r[k] !== '' && Number.isFinite(Number(r[k])));
+
+function normDrone(x: unknown): DronePose | null {
+  const r = obj(x);
+  return finite(r, ['n', 'e', 'up', 'yaw', 'pitch']) ? { n: Number(r.n), e: Number(r.e), up: Number(r.up), yaw: Number(r.yaw), pitch: Number(r.pitch) } : null;
+}
+
+function normBridge(x: unknown): BridgeSight | null {
+  const r = obj(x);
+  return finite(r, ['bearing', 'elev', 'fov']) ? { bearing: Number(r.bearing), elev: Number(r.elev), fov: Math.max(1, Math.min(120, Number(r.fov))) } : null;
+}
+
 function normCondition(x: unknown): Condition | null {
   const r = obj(x);
   const v = s(r.v);
@@ -302,6 +351,9 @@ export function normalizeStep(x: unknown): PresStep {
       screen,
       view: vi.view === null || vi.view === undefined ? null : pick<ViewMode | null>(vi.view, VIEWS, null),
       camPose: pos && target ? { pos, target } : null,
+      drone: normDrone(vi.drone),
+      droneFrame: vi.droneFrame === 'mapa' ? 'mapa' : 'submarino',
+      bridge: normBridge(vi.bridge),
       layers: normLayers(vi.layers),
       hud: Array.isArray(vi.hud) ? vi.hud.filter((h): h is string => typeof h === 'string' && !!presVar(h)).slice(0, 12) : [],
       timeScale: vi.timeScale === null || vi.timeScale === undefined ? null : n(vi.timeScale, 1, 0.05, 64),

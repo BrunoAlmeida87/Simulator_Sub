@@ -8,7 +8,7 @@ import { SimRunner } from '../src/sim/core/runner';
 import { parseRich, plainText } from '../src/ui/presBuilder/richText';
 import { fillTemplate, testCondition, describeCondition, unknownPlaceholders, PRES_VARS, readVar, evalConditions } from '../src/ui/presBuilder/variables';
 import { ACTION_TYPES, describeAction, runAction, actionProblem, type ActionCtx } from '../src/ui/presBuilder/actions';
-import { normalizePresentation, newPresentation, newStep, newAction, clonePresentation, presentationProblems, NEXT_END } from '../src/ui/presBuilder/model';
+import { normalizePresentation, newPresentation, newStep, newAction, clonePresentation, presentationProblems, NEXT_END, droneToStep, droneFromStep } from '../src/ui/presBuilder/model';
 import { PresPlayer } from '../src/ui/presBuilder/player';
 import { submergir50Template, recursosTemplate, BUILTIN_PRESENTATIONS } from '../src/ui/presBuilder/templates';
 import { scriptMarkdown, exportText } from '../src/ui/presBuilder/library';
@@ -316,5 +316,61 @@ describe('Sessão completa com apresentação do Estúdio em andamento', () => {
     expect(presPlayer.sent.length).toBe(nSent);
     expect(runner.engine.state.ballast.TLP1BB.vent.cmd).toBe(1);
     presPlayer.stop(runner);
+  });
+});
+
+import { droneCtl } from '../src/ui/droneCtl';
+
+describe('Câmeras com posição guardada e ponto de partida', () => {
+  it('drone e passadiço guardados na etapa sobrevivem ao arquivo; o drone é aplicado ao entrar na etapa', () => {
+    const p = newPresentation('câmeras');
+    const drone = { n: 120, e: -340, up: 45, yaw: 210, pitch: -12 };
+    p.steps = [
+      newStep({ title: 'drone', visual: { ...newStep().visual, view: 'drone', drone, droneFrame: 'mapa' } }),
+      newStep({ title: 'passadiço', visual: { ...newStep().visual, view: 'passadico', bridge: { bearing: 30, elev: 0, fov: 8.7 } } }),
+    ];
+    const back = normalizePresentation(JSON.parse(exportText(p)));
+    expect(back.steps[0].visual.drone).toEqual(drone);
+    expect(back.steps[1].visual.bridge).toEqual({ bearing: 30, elev: 0, fov: 8.7 });
+    expect(normalizePresentation({ steps: [{ visual: { view: 'drone', drone: { n: 'x' } } }] }).steps[0].visual.drone).toBeNull();
+    droneCtl.pose = null;
+    const r = new SimRunner(buildScenario('superficie'));
+    const pl = new PresPlayer();
+    pl.start(r, back);
+    expect(droneCtl.pose).toEqual(drone);
+    pl.stop(r);
+  });
+
+  it('drone “em relação ao submarino”: mesmo enquadramento com o submarino em outro lugar e outro rumo', () => {
+    // guardado com o submarino na origem aproado a 90° (Leste): drone 100 m à ré, 20 m a boreste, olhando para a proa
+    const world = { n: -20, e: -100, up: 40, yaw: 90, pitch: -15 };
+    const stored = droneToStep(world, { n: 0, e: 0, heading: 90 }, 'submarino');
+    expect(stored.n).toBeCloseTo(-100, 6);
+    expect(stored.e).toBeCloseTo(20, 6);
+    expect(stored.yaw).toBeCloseTo(0, 6);
+    // depois: submarino em (1000, 500) aproado ao Norte (0°) → drone 100 m ao Sul e 20 m a Leste dele, olhando para o Norte
+    const back = droneFromStep(stored, { n: 1000, e: 500, heading: 0 }, 'submarino');
+    expect(back.n).toBeCloseTo(900, 6);
+    expect(back.e).toBeCloseTo(520, 6);
+    expect(back.yaw).toBeCloseTo(0, 6);
+    expect(back.up).toBe(40);
+    expect(droneFromStep(droneToStep(world, { n: 7, e: 9, heading: 33 }, 'mapa'), { n: 0, e: 0, heading: 0 }, 'mapa')).toEqual(world);
+  });
+
+  it('“Apresentar” sempre volta ao cenário escolhido no ponto de partida (com o mar escolhido)', () => {
+    const r = new SimRunner(buildScenario('submerso_50'));
+    r.engine.advanceSim(30);
+    const p = newPresentation('início');
+    p.start = { ...p.start, mode: 'cenario', scenario: 'pairando', sea: 4 };
+    const pl = new PresPlayer();
+    for (let rep = 0; rep < 2; rep++) {
+      pl.start(r, p);
+      expect(r.engine.state.scenarioId).toBe('pairando');
+      expect(r.engine.state.t).toBe(0);
+      expect(Math.abs(r.engine.outputs.depthKeel - 80)).toBeLessThan(6);
+      expect(r.engine.config.environment.waves?.seaState).toBe(4);
+      r.engine.advanceSim(20);
+      pl.stop(r);
+    }
   });
 });

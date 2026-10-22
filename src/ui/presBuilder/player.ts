@@ -26,7 +26,23 @@ import { tours } from '../tours';
 import { runAction, type ActionCtx } from './actions';
 import { describeCondition, evalConditions, fillTemplate, fmtVarUnit, presVar, readVar, takeVars, type VarCtx } from './variables';
 import { presLibrary } from './library';
-import { NEXT_END, normalizePresentation, type CamPose, type PresStep, type StepFormat, type StepScreen, type UserPresentation } from './model';
+import { droneCtl } from '../droneCtl';
+import { bridgeSight } from '../bridgeSight';
+import type { ViewMode } from '../../render3d/SubmarineScene';
+import { NEXT_END, normalizePresentation, droneFromStep, type CamPose, type PresStep, type StepFormat, type StepScreen, type StepVisual, type SubRef, type UserPresentation } from './model';
+
+/**
+ * Câmeras com posição guardada na etapa: drone (fixo no mundo) e passadiço
+ * (para onde o observador olha, com ou sem binóculo). A câmera livre é
+ * aplicada pela própria cena (prop camPose). Só visual.
+ */
+export function applyViewPose(v: StepVisual, view: ViewMode, e: SimulationEngine): void {
+  if (view === 'drone' && v.drone) droneCtl.pose = droneFromStep(v.drone, subRef(e), v.droneFrame);
+  if (view === 'passadico' && v.bridge && typeof window !== 'undefined') bridgeSight.set({ ...v.bridge });
+}
+
+/** posição e proa atuais do submarino (referência do drone) */
+export const subRef = (e: SimulationEngine): SubRef => ({ n: e.state.body.pos.x, e: e.state.body.pos.y, heading: e.outputs.euler.heading });
 
 export type StepOutcome = 'pendente' | 'em curso' | 'concluída' | 'tempo esgotado' | 'pulada';
 
@@ -270,6 +286,7 @@ export class PresPlayer {
     if (v.layers) pres.setLayers({ ...v.layers });
     if (v.view) pres.setView(v.view);
     if (v.camPose && (v.view ?? pres.view) === 'livre') this.cam = { key: ++this.camKey, pose: v.camPose };
+    applyViewPose(v, v.view ?? pres.view, e);
     if (v.timeScale !== null) r.timeScale = v.timeScale;
     if (v.run === 'executar') r.running = true;
     else if (v.run === 'pausar') r.running = false;
@@ -735,6 +752,7 @@ export class PresPlayer {
       if (v.layers) pres.setLayers({ ...v.layers });
       if (v.view) pres.setView(v.view);
       if (v.camPose && (v.view ?? pres.view) === 'livre') this.cam = { key: ++this.camKey, pose: v.camPose };
+      applyViewPose(v, v.view ?? pres.view, r.engine);
     }
   }
 }

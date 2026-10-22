@@ -16,6 +16,7 @@ import { BINO_FOV, BINO_MAG, BRIDGE_ELEV0, NAKED_FOV, bridgeFelt, bridgeState, b
 import { bridgeSight } from '../bridgeSight';
 import { BearingTape, CARD, deg3, km, relTxt, wrap180, wrap360 } from './OpticsHud';
 import { fmt } from '../format';
+import { presPlayer } from '../presBuilder/player';
 
 const ACTS = { geoOrigin: () => geoOriginOf(runner.engine), traffic: () => graphics.get().traffic };
 
@@ -196,6 +197,8 @@ export function BridgeHud({ sight, setSight, compact, keyboard = true, onExit }:
       const b = bridgeSight.binoculars(sightRef.current);
       const big = ev.shiftKey;
       const k = ev.key;
+      // durante uma apresentação do Estúdio, ← e → passam as etapas (a visada continua no arrastar e em ↑ ↓)
+      if (presPlayer.active && (k === 'ArrowLeft' || k === 'ArrowRight')) return;
       if (k === 'ArrowLeft') turn(big ? -10 : b ? -0.5 : -2);
       else if (k === 'ArrowRight') turn(big ? 10 : b ? 0.5 : 2);
       else if (k === 'ArrowUp') elev(big ? 5 : b ? 0.25 : 1);

@@ -11,6 +11,10 @@ import { droneCtl } from '../droneCtl';
 import { droneClearance, droneSpeed } from '../../render3d/drone';
 import { deg3, km } from './OpticsHud';
 import { fmt } from '../format';
+import { presPlayer } from '../presBuilder/player';
+
+/** durante uma apresentação do Estúdio, ← → Page Up e Page Down passam as etapas (controle remoto de slides) */
+const PRES_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown']);
 
 const MOVE: Record<string, [number, number, number]> = {
   KeyW: [1, 0, 0],
@@ -66,6 +70,7 @@ export function DroneHud({ compact, keyboard = true, follow }: { compact?: boole
     };
     const down = (ev: KeyboardEvent) => {
       if (isField(ev.target) || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (presPlayer.active && PRES_KEYS.has(ev.code)) return;
       if (MOVE[ev.code] || ev.code.startsWith('Shift')) {
         keys.current.add(ev.code);
         apply();
