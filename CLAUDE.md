@@ -51,6 +51,7 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       + LAYER_INFO (catálogo/nomes), LAYER_GROUPS (grupos do painel), allLayersOn/Off,
                       fullExternalLayers (o "3D completo" da 2ª janela)
   DepthRefs.ts        referências discretas de profundidade (faixas de partículas, sombra no fundo)
+  DepthLines.ts       linhas de profundidade a cada 25 m com a cota (camada depthLines), até o fundo
   Terrain.ts          fundo e terra (mesma função da física) + imagem de satélite e luzes da cidade (terrainAssets.ts)
   RioLandmarks.ts     Cristo Redentor, Ponte Rio–Niterói e nomes dos lugares do Rio
   Shipyard.ts         estaleiro de Itaguaí (aterro, molhes, shiplift, galpões, submarinos atracados)

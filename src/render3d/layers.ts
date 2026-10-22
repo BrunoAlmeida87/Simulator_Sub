@@ -48,6 +48,8 @@ export interface SceneLayers {
   airInfo: boolean;
   /** casco externo (casco, vela e convés); desligado mostra só os componentes internos */
   hull: boolean;
+  /** linhas de profundidade: anel leve a cada 25 m, com a cota, da superfície até o fundo */
+  depthLines: boolean;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -75,6 +77,7 @@ export const defaultLayers = (): SceneLayers => ({
   batteryInfo: true,
   airInfo: false,
   hull: true,
+  depthLines: true,
 });
 
 /** camadas liga/desliga (as demais chaves de SceneLayers são ajustes, não camadas) */
@@ -101,6 +104,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   markers: { label: 'Boias/marcos', title: 'Boias e marcos de distância fixos no cenário' },
   trail: { label: 'Trajetória', title: 'Rastro do caminho percorrido' },
   trimRef: { label: 'Calado/trim', title: 'Calados AV/AR e linha d’água do casco × nível do mar' },
+  depthLines: { label: 'Linhas de profundidade', title: 'Linha leve a cada 25 m, com a profundidade, da superfície até o fundo' },
   ships: { label: 'Navios', title: 'Contatos da mesa tática como navios no mar' },
   presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
   noWater: { label: 'Sem água', title: 'Esconde o mar para ver o submarino isolado', mode: true },
@@ -131,7 +135,7 @@ export const fullExternalLayers = (): SceneLayers => ({
 export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exclude<BoolLayer, 'hull'>[] }[] = [
   { id: 'interior', label: 'Tanques e sistemas', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows'] },
   { id: 'vetores', label: 'Forças e vetores', title: 'Forças sobre o submarino', keys: ['vectors', 'hydroVectors', 'trimVectors'] },
-  { id: 'refs', label: 'Identificações e referências', title: 'Nomes, bateria, ar comprimido e referências de calado/trim', keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef'] },
+  { id: 'refs', label: 'Identificações e referências', title: 'Nomes, bateria, ar comprimido, referências de calado/trim e linhas de profundidade', keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef', 'depthLines'] },
   { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'ships', 'markers', 'trail'] },
   { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['noWater', 'presLight'] },
 ];

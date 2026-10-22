@@ -64,6 +64,7 @@ const LAYER_LIST: LayerKey[] = [
   'presLight',
   'noWater',
   'trimRef',
+  'depthLines',
   'ships',
 ];
 
