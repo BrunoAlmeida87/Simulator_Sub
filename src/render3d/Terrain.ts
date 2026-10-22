@@ -11,8 +11,10 @@
  *    submarino; é o único visível debaixo d'água;
  *  - MÉDIO e LONGE (só com costa): terra com resolução menor; a água vira
  *    um plano escuro logo abaixo do nível do mar; vistos só de cima d'água.
- * Os níveis mais grosseiros ficam alguns metros abaixo para não brigarem
- * com o nível fino onde se sobrepõem.
+ * Cada nível grosseiro tem um recorte na área coberta pelo nível mais fino.
+ * Sem esse recorte, o mar achatado virava um falso fundo opaco a poucos
+ * metros da superfície e encobria o interior do submarino visto de cima.
+ * Nas bordas, uma pequena sobreposição rebaixada evita frestas entre níveis.
  */
 import * as THREE from 'three';
 import type { Environment } from '../sim/environment/environment';
@@ -119,6 +121,8 @@ class Ring {
   mesh: THREE.Mesh | null = null;
   center = { n: 1e12, e: 1e12 };
   hasLand = false;
+  private sourceIndex: Uint32Array | null = null;
+  private coverKey = '';
   constructor(
     private spec: RingSpec,
     private mat: THREE.Material,
@@ -166,6 +170,8 @@ class Ring {
     }
     g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     g.computeVertexNormals();
+    this.sourceIndex = flatSea ? Uint32Array.from(g.index!.array) : null;
+    this.coverKey = '';
     if (this.mesh) {
       parent.remove(this.mesh);
       this.mesh.geometry.dispose();
@@ -181,6 +187,37 @@ class Ring {
     if (this.mesh) this.mesh.position.set(this.center.e - pe, 0, -(this.center.n - pn));
   }
 
+  /** Remove os triângulos inteiros cobertos pelo nível fino, sem perder a borda de transição. */
+  excludeCoveredBy(finer: Ring): void {
+    if (!this.mesh || !finer.mesh || !this.sourceIndex) return;
+    const key = [this.center.n, this.center.e, finer.center.n, finer.center.e, finer.spec.size].join(',');
+    if (key === this.coverKey) return;
+    this.coverKey = key;
+    const g = this.mesh.geometry;
+    const pos = g.getAttribute('position');
+    const covered = new Uint8Array(pos.count);
+    const half = finer.spec.size / 2;
+    const dn = this.center.n - finer.center.n;
+    const de = this.center.e - finer.center.e;
+    for (let i = 0; i < pos.count; i++) {
+      covered[i] = Math.abs(dn - pos.getZ(i)) <= half && Math.abs(de + pos.getX(i)) <= half ? 1 : 0;
+    }
+    // Reutiliza o mesmo buffer: recortes só mudam quando algum nível se recentra.
+    const index = g.index!;
+    let count = 0;
+    for (let i = 0; i < this.sourceIndex.length; i += 3) {
+      const a = this.sourceIndex[i],
+        b = this.sourceIndex[i + 1],
+        c = this.sourceIndex[i + 2];
+      if (covered[a] && covered[b] && covered[c]) continue;
+      index.array[count++] = a;
+      index.array[count++] = b;
+      index.array[count++] = c;
+    }
+    g.setDrawRange(0, count);
+    index.needsUpdate = true;
+  }
+
   dispose(parent: THREE.Object3D): void {
     if (this.mesh) {
       parent.remove(this.mesh);
@@ -188,6 +225,8 @@ class Ring {
       this.mesh = null;
     }
     this.center = { n: 1e12, e: 1e12 };
+    this.sourceIndex = null;
+    this.coverKey = '';
   }
 }
 
@@ -230,6 +269,7 @@ export class TerrainLayer {
     const snap = (v: number, k: number) => Math.round(v / k) * k;
     if (force || this.near.needs(pn, pe)) this.near.build(env, snap(pn, 100), snap(pe, 100), this.group);
     this.near.place(pn, pe);
+    let finer = this.near;
     for (const r of [this.mid, this.far]) {
       if (!r) continue;
       if (!coast) {
@@ -238,6 +278,8 @@ export class TerrainLayer {
       }
       if (force || r.needs(pn, pe)) r.build(env, snap(pn, 500), snap(pe, 500), this.group);
       r.place(pn, pe);
+      r.excludeCoveredBy(finer);
+      finer = r;
     }
   }
 
