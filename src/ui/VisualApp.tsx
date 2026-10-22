@@ -17,7 +17,26 @@ import { fmt } from './format';
 import { identity } from './identity';
 
 /** camadas desta janela (o casco tem botão próprio) */
-const LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'batteryInfo', 'airInfo', 'wake', 'wind', 'ships', 'markers', 'trail', 'labels', 'trimRef', 'noWater', 'presLight'];
+const LAYER_KEYS: LayerKey[] = [
+  'vectors',
+  'hydroVectors',
+  'trimVectors',
+  'tanks',
+  'pipes',
+  'flows',
+  'batteryInfo',
+  'airInfo',
+  'wake',
+  'wind',
+  'pennant',
+  'ships',
+  'markers',
+  'trail',
+  'labels',
+  'trimRef',
+  'noWater',
+  'presLight',
+];
 
 const VIEWS: [ViewMode | 'seguir', string][] = [
   ['seguir', 'Igual ao controle'],

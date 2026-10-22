@@ -16,7 +16,7 @@ import type { SceneLayers } from '../../render3d/layers';
 
 /** camadas sem botão próprio nesta tela (valores de antes: tudo ligado, ar comprimido desligado) */
 const V3D_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, wind: true };
-const V3D_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
+const V3D_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'pennant', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
 
 const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'piloto', label: 'Lateral' },

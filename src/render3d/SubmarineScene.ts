@@ -175,7 +175,7 @@ export class SubmarineScene {
   /** bolhas da descarga dos diesel-geradores (saídas atrás da vela, abaixo d'água) */
   private exParticles: Particle[] = [];
   private exBubbles: THREE.Points;
-  private static readonly EX_MAX = 1100;
+  private static readonly EX_MAX = 1400;
   /** vento aparente: linhas de vento e flâmula na vela */
   private wind!: WindFx;
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
@@ -971,7 +971,7 @@ export class SubmarineScene {
         const psi = (e.outputs.euler.heading * Math.PI) / 180;
         const fN = Math.cos(psi);
         const fE = Math.sin(psi);
-        const rate = (16 + 30 * ex.load + (ex.starting ? 24 : 0)) * step; // bolhas/s por saída
+        const rate = (20 + 38 * ex.load + (ex.starting ? 28 : 0)) * step; // bolhas/s por saída
         for (const o of disperserOutlets(v, e.geom.radiusAt)) {
           const src = toWorld(o.x, o.y, o.z);
           if (src.d + wv.elevation(src.n, src.e, tWave) < 0.3) continue; // saída fora d'água: sem bolhas
@@ -1003,7 +1003,6 @@ export class SubmarineScene {
         p.n += p.vn * step + (Math.random() - 0.5) * 0.14;
         p.e += p.ve * step + (Math.random() - 0.5) * 0.14;
         const alive = p.d > -wv.elevation(p.n, p.e, tWave) && p.life > 0;
-        if (!alive && p.life > 0 && Math.random() < 0.35) this.fx.exhaustFoam(p.n, p.e);
         return alive;
       });
       this.particles = this.particles.filter((p) => {
@@ -1054,7 +1053,7 @@ export class SubmarineScene {
       this.sub.updateMatrixWorld();
       const top = this.wind.pennant.getWorldPosition(new THREE.Vector3());
       const sailOut = top.y > e.env.waves.elevation(pn - top.z, pe + top.x, tWave) + 0.3;
-      this.wind.update(e, step, dtR, pn, pe, tWave, this.layers.wind && !this.layers.noWater, this.camera.position.y < 0, sailOut && this.layers.wind && this.layers.hull);
+      this.wind.update(e, step, dtR, pn, pe, tWave, this.layers.wind && !this.layers.noWater, this.camera.position.y < 0, sailOut && this.layers.pennant && this.layers.hull);
     }
     this.markers.update(e, pn, pe, tWave, this.layers.markers);
 
