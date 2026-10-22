@@ -18,6 +18,7 @@ import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 import { useIdentity } from '../appearance';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { perspSection } from '../components/SeaControls';
 import { viewSection, type ViewOption } from '../components/OverlayMenu';
 import { LayerPanel, type LayerKey } from '../components/LayerPanel';
 import type { SceneLayers } from '../../render3d/layers';
@@ -65,6 +66,7 @@ export function HelmScreen() {
                 title: 'Camadas da cena, com marcar/desmarcar todas',
                 content: <LayerPanel keys={HELM_LAYER_KEYS} value={lay} onChange={(p) => setLay({ ...laySaved, ...p })} />,
               },
+              perspSection(),
             ]}
           />
           <div className="helm-hud">

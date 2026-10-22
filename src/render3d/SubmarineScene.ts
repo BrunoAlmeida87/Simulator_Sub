@@ -42,6 +42,7 @@ import { MarineLife } from './MarineLife';
 import { periscopeCfg, periscopeHeadZ } from '../sim/systems/actuation';
 import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
 import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
+import { BASE_FOV, DEEP_VIEWS, dollyRatio } from './deepPerspective';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'perspectiva'
@@ -246,6 +247,13 @@ export class SubmarineScene {
   private viewFrom = new THREE.Vector3();
   /** campo de visão no início da transição de vista (interpolado junto com a posição) */
   private fovFrom = 50;
+  /**
+   * PERSPECTIVA PROFUNDA (deepPerspective.ts): campo de visão grande-angular (°)
+   * aplicado às vistas de 3ª pessoa, com a câmera aproximada na mesma proporção
+   * (mesmo enquadramento); 0 = desligada. Só visual.
+   */
+  deepFov = 0;
+  private lastDeepFov = 0;
   /** campo de visão da vista livre: mantém o da vista de onde se começou a arrastar (sem "pulo" de zoom) */
   private freeFov = 50;
   realisticFog = true;
@@ -758,7 +766,7 @@ export class SubmarineScene {
     if (!fc) {
       // mira 45 m à frente: o casco começa no quadro e o atravessa
       const ahead = 45;
-      const side = Math.max(100, 110 / asp);
+      const side = Math.max(100, 110 / asp) * this.deepRatio('fixa');
       const ln = pn + fn * ahead;
       const le = pe + fe * ahead;
       const ly = -pd;
@@ -863,7 +871,22 @@ export class SubmarineScene {
     return above * (1 - kk) + Math.min(this.lastSubPos.y - below, -1.2) * kk;
   }
 
+  /** fator de aproximação da câmera da perspectiva profunda (1 = vista normal) */
+  private deepRatio(v: ViewMode): number {
+    return this.deepFov > 0 && DEEP_VIEWS.has(v) ? dollyRatio(BASE_FOV, this.deepFov) : 1;
+  }
+
+  /** posição da câmera de cada vista; com a perspectiva profunda, aproximada do ponto de mira (mesmo enquadramento) */
   private cameraTarget(v: ViewMode): THREE.Vector3 {
+    const base = this.baseCameraTarget(v);
+    const k = this.deepRatio(v);
+    if (k === 1) return base;
+    const look = this.lastSubPos.clone();
+    if (v === 'piloto') look.add(this.headingVectors().fwd.multiplyScalar(this.pilotLead()));
+    return look.add(base.sub(look).multiplyScalar(k));
+  }
+
+  private baseCameraTarget(v: ViewMode): THREE.Vector3 {
     const v0L = this.env().vessel.hull.length;
     const { fwd, stbd } = this.headingVectors();
     const c = this.lastSubPos.clone();
@@ -940,8 +963,8 @@ export class SubmarineScene {
     if (v === 'perspectiva') return this.perspectiveFrame().fov;
     if (v === 'calado') return 16;
     if (v === 'drone') return 60;
-    if (v === 'livre') return this.freeFov;
-    return 50;
+    if (v === 'livre') return this.deepFov > 0 ? this.deepFov : this.freeFov;
+    return this.deepFov > 0 && DEEP_VIEWS.has(v) ? this.deepFov : BASE_FOV;
   }
 
   private persp: { key: string; f: { pos: THREE.Vector3; target: THREE.Vector3; fov: number } } | null = null;
@@ -1261,6 +1284,20 @@ export class SubmarineScene {
     this.lastSubPos.copy(subPos);
     const eyeView = this.view === 'periscopio' || this.view === 'passadico';
     const droneView = this.view === 'drone';
+    if (this.deepFov !== this.lastDeepFov) {
+      // perspectiva profunda ligada/desligada: as vistas que acompanham deslizam até o novo enquadramento;
+      // a câmera fixa é reposicionada; na livre, a câmera aproxima ou afasta mantendo o enquadramento
+      this.lastDeepFov = this.deepFov;
+      this.fixedCam = null;
+      if (this.view === 'livre') {
+        const k = dollyRatio(this.camera.fov, this.viewFov('livre'));
+        this.camera.position.sub(this.controls.target).multiplyScalar(k).add(this.controls.target);
+      } else if (DEEP_VIEWS.has(this.view)) {
+        this.viewFrom.copy(this.camera.position);
+        this.fovFrom = this.camera.fov;
+        this.viewBlend = 0;
+      }
+    }
     let fov =
       this.view === 'periscopio'
         ? Math.max(2, Math.min(70, this.periscope.fov))

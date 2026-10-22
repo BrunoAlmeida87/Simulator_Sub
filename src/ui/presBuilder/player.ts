@@ -27,6 +27,7 @@ import { runAction, type ActionCtx } from './actions';
 import { describeCondition, evalConditions, fillTemplate, fmtVarUnit, presVar, readVar, takeVars, type VarCtx } from './variables';
 import { presLibrary } from './library';
 import { droneCtl } from '../droneCtl';
+import { graphics } from '../graphics';
 import { bridgeSight } from '../bridgeSight';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { NEXT_END, normalizePresentation, droneFromStep, type CamPose, type PresStep, type StepFormat, type StepScreen, type StepVisual, type SubRef, type UserPresentation } from './model';
@@ -288,6 +289,7 @@ export class PresPlayer {
     if (v.camPose && (v.view ?? pres.view) === 'livre') this.cam = { key: ++this.camKey, pose: v.camPose };
     applyViewPose(v, v.view ?? pres.view, e);
     if (v.timeScale !== null) r.timeScale = v.timeScale;
+    if (v.persp !== null) graphics.set({ deepPersp: v.persp });
     if (v.run === 'executar') r.running = true;
     else if (v.run === 'pausar') r.running = false;
     if (!this.ff) this.onScreen?.(v.screen);

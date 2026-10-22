@@ -15,6 +15,8 @@ import type { SceneLayers, BoolLayer } from '../../render3d/layers';
 import { LAYER_INFO } from '../../render3d/layers';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { maneuver } from '../maneuvers';
+import { graphics } from '../graphics';
+import { DEEP_FOVS, DEEP_LABELS, type DeepLevel } from '../../render3d/deepPerspective';
 
 export type ParamValue = string | number | boolean;
 export type Params = Record<string, ParamValue>;
@@ -548,6 +550,22 @@ export const ACTION_TYPES: ActionType[] = [
     run: (p, c) => {
       const k = str(p, 'camada');
       if (k === 'hull' || k in LAYER_INFO) c.setLayers({ [k]: bool(p, 'ligar') } as Partial<SceneLayers>);
+    },
+  },
+  {
+    id: 'perspectiva',
+    group: 'Câmera e camadas',
+    label: 'Perspectiva profunda (todas as vistas)',
+    hint: 'Lente grande-angular com a câmera mais perto, mantendo o enquadramento: mais sensação de profundidade. Só visual.',
+    fields: [
+      { key: 'ligar', label: 'Perspectiva', type: 'bool', on: 'Profunda', off: 'Normal' },
+      { key: 'nivel', label: 'Intensidade', type: 'select', options: () => (Object.keys(DEEP_FOVS) as DeepLevel[]).map((k) => [k, `${DEEP_LABELS[k]} (${DEEP_FOVS[k]}°)`] as [string, string]) },
+    ],
+    defaults: { ligar: true, nivel: 'media' },
+    describe: (p) => (bool(p, 'ligar') ? `Perspectiva profunda — ${DEEP_LABELS[str(p, 'nivel') as DeepLevel]?.toLowerCase() ?? str(p, 'nivel')}` : 'Perspectiva normal'),
+    run: (p) => {
+      const lv = str(p, 'nivel', 'media');
+      graphics.set(bool(p, 'ligar') ? { deepPersp: true, ...(lv === 'leve' || lv === 'media' || lv === 'forte' ? { deepLevel: lv } : {}) } : { deepPersp: false });
     },
   },
   {

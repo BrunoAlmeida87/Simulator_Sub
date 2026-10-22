@@ -8,6 +8,7 @@ import { loadPersisted, savePersisted } from '../persist';
 import { visualOut, isVisualWindow } from '../sync';
 import type { PickTarget } from '../ops/opsBus';
 import { graphics } from '../graphics';
+import { DEEP_FOVS } from '../../render3d/deepPerspective';
 import { appearanceRev, currentAppearance } from '../appearance';
 import { TrimGainBanner } from './TrimGain';
 import { geoOriginOf } from '../routeNav';
@@ -144,6 +145,7 @@ export function Scene3D(props: Scene3DProps) {
             sc.terrainDetail = graphics.get().coastDetail;
             sc.lighting = graphics.get().lighting;
             sc.daylight = graphics.get();
+            sc.deepFov = graphics.get().deepPersp ? DEEP_FOVS[graphics.get().deepLevel] : 0;
             sc.marineLife.settings = graphics.get();
             sc.layers = mergedLayers(opts.current);
             if (opts.current.periscope) sc.periscope = opts.current.periscope;

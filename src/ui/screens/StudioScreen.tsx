@@ -14,7 +14,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
-import { useQuality } from '../graphics';
+import { graphics, useQuality } from '../graphics';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { viewSection } from '../components/OverlayMenu';
@@ -250,6 +250,7 @@ function Editor({ onStage, onPlay }: { onStage: (() => void) | null; onPlay: () 
     if (v.view) pres.setView(v.view);
     if (v.camPose && (v.view ?? pres.view) === 'livre') setPose({ key: ++poseKey.current, pose: v.camPose });
     applyViewPose(v, v.view ?? pres.view, runner.engine);
+    if (v.persp !== null) graphics.set({ deepPersp: v.persp });
   };
   useEffect(() => {
     if (autoApply && step && !presPlayer.active) applyVisual(step);
@@ -262,6 +263,7 @@ function Editor({ onStage, onPlay }: { onStage: (() => void) | null; onPlay: () 
       s.visual.camPose = pres.view === 'livre' ? loadPersisted<CamPose | null>('cam.studio', null) : null;
       s.visual.drone = pres.view === 'drone' && droneCtl.pose ? droneToStep(droneCtl.pose, subRef(runner.engine), s.visual.droneFrame) : null;
       s.visual.bridge = pres.view === 'passadico' ? { ...bridgeSight.get() } : null;
+      s.visual.persp = graphics.get().deepPersp;
       ui.toast(`Etapa ${k + 1}: câmera “${VIEW_OPTIONS.find((x) => x[0] === pres.view)?.[1] ?? pres.view}” e camadas atuais guardadas.`);
     });
 
@@ -916,6 +918,21 @@ function VisualTab({ e, step, updStep, capture }: { e: SimulationEngine; step: P
             </button>
           )}
         </span>
+      </div>
+      <div className="field">
+        <span>Perspectiva ao entrar (todas as vistas)</span>
+        <Seg<'m' | 'n' | 'p'>
+          value={v.persp === null ? 'm' : v.persp ? 'p' : 'n'}
+          options={[
+            ['m', 'Manter', 'Não muda a perspectiva'],
+            ['n', 'Normal', 'Lente normal'],
+            ['p', '◢ Profunda', 'Grande-angular de perto, mesmo enquadramento: mais sensação de profundidade (intensidade em “Mar e gráfico” no palco)'],
+          ]}
+          onChange={(x) => {
+            upV({ persp: x === 'm' ? null : x === 'p' });
+            if (x !== 'm') graphics.set({ deepPersp: x === 'p' });
+          }}
+        />
       </div>
       <div className="field">
         <span>Simulação ao entrar</span>

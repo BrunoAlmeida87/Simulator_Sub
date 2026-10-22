@@ -97,6 +97,8 @@ export interface StepVisual {
   hud: string[];
   /** null = manter */
   timeScale: number | null;
+  /** perspectiva profunda ao entrar (null = manter a que estiver) */
+  persp: boolean | null;
   run: RunMode;
 }
 
@@ -172,7 +174,7 @@ export function uid(prefix = 'x'): string {
 }
 
 export const defaultFormat = (): StepFormat => ({ style: 'cartao', position: 'baixo', size: 'M', accent: 'ciano', showProgress: true, showStatus: true });
-export const defaultVisual = (): StepVisual => ({ screen: 'palco', view: null, camPose: null, drone: null, droneFrame: 'submarino', bridge: null, layers: null, hud: [], timeScale: null, run: 'executar' });
+export const defaultVisual = (): StepVisual => ({ screen: 'palco', view: null, camPose: null, drone: null, droneFrame: 'submarino', bridge: null, layers: null, hud: [], timeScale: null, persp: null, run: 'executar' });
 export const defaultAdvance = (): StepAdvance => ({ mode: 'manual', seconds: 10, conditions: [], logic: 'todas', hold: 0, minDwell: 5, timeout: 0, onTimeout: 'avancar', waitText: '', next: '' });
 
 export function newStep(p: Partial<PresStep> = {}): PresStep {
@@ -357,6 +359,7 @@ export function normalizeStep(x: unknown): PresStep {
       layers: normLayers(vi.layers),
       hud: Array.isArray(vi.hud) ? vi.hud.filter((h): h is string => typeof h === 'string' && !!presVar(h)).slice(0, 12) : [],
       timeScale: vi.timeScale === null || vi.timeScale === undefined ? null : n(vi.timeScale, 1, 0.05, 64),
+      persp: typeof vi.persp === 'boolean' ? vi.persp : null,
       run: pick(vi.run, RUNS, dv.run),
     },
     actions: (Array.isArray(r.actions) ? r.actions : []).map(normAction).filter((a): a is StepAction => !!a),

@@ -54,6 +54,8 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   Terrain.ts          fundo e terra (mesma função da física) + imagem de satélite e luzes da cidade (terrainAssets.ts)
   RioLandmarks.ts     Cristo Redentor, Ponte Rio–Niterói e nomes dos lugares do Rio
   Shipyard.ts         estaleiro de Itaguaí (aterro, molhes, shiplift, galpões, submarinos atracados)
+  deepPerspective.ts  perspectiva profunda (botão nas cenas 3D): grande-angular + câmera aproximada na mesma proporção
+                      (dolly-zoom) nas vistas de 3ª pessoa; graphics.deepPersp/deepLevel; seção na fileira (SeaControls)
   daylight.ts         sol pela hora do dia, cores do céu/névoa/água, noite (cúpula, estrelas, lua, luar)
   NavLights.ts        luzes de navegação (setores do RIPEAM) do submarino e dos navios; faróis do submarino
   ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, aspiração do snorkel),

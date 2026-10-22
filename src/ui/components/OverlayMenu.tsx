@@ -13,7 +13,10 @@ export interface OverlaySection {
   /** texto do botão: o filtro e o valor atual (ex.: "Vista: Perspectiva") */
   label: ReactNode;
   title?: string;
-  content: ReactNode;
+  /** painel aberto pelo botão (omitido quando a seção é um botão de liga/desliga: ver `button`) */
+  content?: ReactNode;
+  /** botão próprio (ex.: liga/desliga), mostrado na fileira no lugar do botão que abre painel */
+  button?: ReactNode;
   /** classe extra do painel aberto */
   className?: string;
 }
@@ -21,11 +24,12 @@ export interface OverlaySection {
 export function OverlayMenu({ persistKey, sections }: { persistKey: string; sections: (OverlaySection | false | null | undefined)[] }) {
   const [openId, setOpenId] = usePersisted<string | null>(`${persistKey}.ovlOpen`, null);
   const list = sections.filter((s): s is OverlaySection => !!s);
-  const open = list.find((s) => s.id === openId);
+  const open = list.find((s) => s.id === openId && !s.button);
   return (
     <>
       <div className="ovl-bar" role="toolbar" aria-label="Filtros da cena 3D">
         {list.map((s) => {
+          if (s.button) return <span key={s.id}>{s.button}</span>;
           const on = s.id === open?.id;
           return (
             <button
