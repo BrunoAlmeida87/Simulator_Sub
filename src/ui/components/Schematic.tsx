@@ -63,13 +63,13 @@ export function PumpGlyph(props: { x: number; y: number; st: PumpState; label: s
   );
 }
 
-export function Pipe(props: { d: string; flow: number; color?: string; width?: number }) {
+export function Pipe(props: { d: string; flow: number; color?: string; idleColor?: string; width?: number }) {
   const flowing = Math.abs(props.flow) > 1e-6;
   return (
     <path
       d={props.d}
       fill="none"
-      stroke={flowing ? props.color ?? '#57a8ff' : '#2c4260'}
+      stroke={flowing ? props.color ?? '#57a8ff' : props.idleColor ?? '#2c4260'}
       strokeWidth={props.width ?? 3}
       className={flowing ? `flowline ${props.flow < 0 ? 'rev' : ''}` : ''}
       strokeLinecap="round"

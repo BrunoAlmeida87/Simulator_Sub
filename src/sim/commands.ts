@@ -42,7 +42,7 @@ export type FluidSystem = 'compensation' | 'trim' | 'heel';
 export type Command =
   | { type: 'mbtVent'; tank: string; open: boolean }
   | { type: 'mbtBlow'; tank: string; open: boolean }
-  | { type: 'emergencyBlow' }
+  | { type: 'emergencyBlow'; open?: boolean; tank?: string }
   | { type: 'hpBankValve'; bank: string; open: boolean }
   | { type: 'compressor'; run: boolean }
   | { type: 'valve'; system: FluidSystem; valve: string; open: boolean }
@@ -119,12 +119,17 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
       break;
     }
     case 'emergencyBlow': {
+      const open = c.open !== false;
       for (const t of v.ballast.tanks) {
-        s.ballast[t.id].vent.cmd = 0;
-        s.ballast[t.id].blow.cmd = 1;
+        if (c.tank && c.tank !== 'ALL' && t.id !== c.tank) continue;
+        s.ballast[t.id].emergencyBlow.cmd = open ? 1 : 0;
+        if (open) {
+          s.ballast[t.id].vent.cmd = 0;
+          s.ballast[t.id].blow.cmd = 0;
+        }
       }
-      for (const b of v.hpAir.banks) s.hpAir.banks[b.id].valve.cmd = 1;
-      log('SOPRO DE EMERGÊNCIA: suspiros fechados, sopro aberto em todos os TLP, grupos AP abertos', 'Lastro');
+      if (open) for (const b of v.hpAir.banks) if (b.purpose === 'emergency') s.hpAir.banks[b.id].valve.cmd = 1;
+      log(`${open ? 'SOPRO DE EMERGÊNCIA: suspiros e sopro normal fechados; ampolas dedicadas; compressor automático com ar/energia' : 'FECHAR sopro de emergência'} — ${c.tank && c.tank !== 'ALL' ? tankName(e, c.tank) : 'todos os TLP'}`, 'Lastro');
       break;
     }
     case 'hpBankValve':

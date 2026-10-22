@@ -27,7 +27,7 @@ import { mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLo
 import { computeHydrostatics as computeHydrostaticsLocal } from '../physics/hydrostatics';
 import type { SimState } from './state';
 import { updateBallastTank } from '../systems/ballast';
-import { bankPressure, bankTempK, drawFromManifold, updateCompressor, updateHpManifold } from '../systems/hpAir';
+import { bankPressure, bankTempK, drawFromManifold, manifoldMass, updateCompressor, updateHpManifold } from '../systems/hpAir';
 import { updateCompensation, updateTransfer } from '../systems/internalTanks';
 import { updatePropulsion } from '../systems/propulsion';
 import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updatePeriscope, updateSnorkel, updateSurfaces } from '../systems/actuation';
@@ -232,15 +232,20 @@ export class SimulationEngine {
     // 3. ar AP e lastro principal
     let strokes = updateHpManifold(cfg.hpAir, s, ctx);
     let drawn = 0;
+    let emergencyDrawn = 0;
+    const normalAvailable = manifoldMass(cfg.hpAir, s);
+    const emergencyAvailable = manifoldMass(cfg.hpAir, s, 'emergency');
     const Tb = bankTempK(cfg.hpAir);
     for (const t of cfg.ballast.tanks) {
-      const r = updateBallastTank(t, s.ballast[t.id], ctx, s.hpAir.manifoldPressure, Tb);
+      const r = updateBallastTank(t, s.ballast[t.id], ctx, s.hpAir.manifoldPressure, Tb, s.hpAir.emergencyManifoldPressure, normalAvailable - drawn, emergencyAvailable - emergencyDrawn);
       drawn += r.airDrawn;
+      emergencyDrawn += r.emergencyAirDrawn;
       s.ledger.airVented += r.airVented;
       s.ledger.airSpilled += r.airSpilled;
       strokes += r.valveStrokes;
     }
     drawFromManifold(cfg.hpAir, s, drawn);
+    drawFromManifold(cfg.hpAir, s, emergencyDrawn, 'emergency');
     const comp = updateCompressor(cfg.hpAir, s, ctx);
     s.ledger.airCompressed += comp.added;
 
@@ -371,6 +376,7 @@ export class SimulationEngine {
     for (const t of cfg.ballast.tanks) {
       checkValve(t.ventValve.name, s.ballast[t.id].vent);
       checkValve(t.blowValve.name, s.ballast[t.id].blow);
+      checkValve(t.emergencyBlowValve.name, s.ballast[t.id].emergencyBlow);
     }
     checkValve(cfg.compensation.inletValve.name, s.compensation.inlet);
     checkValve(cfg.compensation.dischargeValve.name, s.compensation.discharge);

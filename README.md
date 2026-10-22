@@ -34,7 +34,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Item da Fase 1 | Situação |
 |---|---|
 | Modelo físico de flutuabilidade e movimento | ✅ **6 graus de liberdade** completos (surge, sway, heave, roll, pitch, yaw), integração RK4, quatérnios |
-| Lastro principal | ✅ 4 TLP com suspiro, sopro, embornais, ar AP, transitórios e limites de vazão |
+| Lastro principal | ✅ 4 TLP com suspiro, sopro normal e de emergência, embornais, circuitos AP independentes, transitórios e limites de vazão; ampolas dedicadas de 2 m³ a 250 bar e recarga pelo compressor |
 | Compensação e trim | ✅ Circuitos fictícios com bombas, válvulas, sequência automática de dosagem e cálculo de compensação |
 | Propulsão | ✅ Motor elétrico, eixo, hélice de 4 quadrantes, rampa de rotação, limites de torque e potência |
 | Lemes de direção e de profundidade | ✅ Lemes de vante na vela, lemes de ré e direção totalmente móveis (sem estabilizadores fixos), atuadores limitados em velocidade; força proporcional a U² e estol |

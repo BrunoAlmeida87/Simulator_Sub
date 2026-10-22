@@ -90,6 +90,7 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Vazão de ar (suspiro / sopro / escape)', `${st.mdotVent.toFixed(2)} / ${st.mdotBlow.toFixed(2)} / ${st.mdotSpill.toFixed(2)} kg/s`),
           V('Suspiro', `${valveStatus(st.vent)} (${(st.vent.pos * 100).toFixed(0)} %)`, 'MED'),
           V('Sopro', `${valveStatus(st.blow)} (${(st.blow.pos * 100).toFixed(0)} %)`, 'MED'),
+          V('Sopro de emergência', `${valveStatus(st.emergencyBlow)} · ${st.mdotEmergencyBlow.toFixed(2)} kg/s`, 'MED'),
         ],
         state: `${ballastFillStatus(t, st)}${st.ventLeak > 0 ? ' — VAZAMENTO NO SUSPIRO' : ''}${st.vent.stuck || st.blow.stuck ? ' — VÁLVULA TRAVADA' : ''}`,
         influence: `Cada m³ de água no TLP adiciona ${(o.rhoLocal / 1000).toFixed(3)} t ao peso; como o volume do tanque já está no envelope de deslocamento, o TLP cheio torna o submarino neutro e o TLP vazio dá flutuabilidade positiva. Posição longitudinal x = ${t.center.x} m ⇒ alagamento assimétrico gera momento de trim.`,
@@ -115,11 +116,11 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
       const pExt = e.env.pressureAt(o.depthKeel);
       const totalMbt = v.ballast.tanks.reduce((a, t) => a + t.volume, 0);
       const need = (pExt * totalMbt) / (R_AIR * T);
-      const avail = v.hpAir.banks.reduce((a, x) => a + s.hpAir.banks[x.id].mass, 0);
+      const avail = v.hpAir.banks.filter((x) => (x.purpose ?? 'normal') === (b.purpose ?? 'normal')).reduce((a, x) => a + s.hpAir.banks[x.id].mass, 0);
       return {
         title: 'Ar comprimido de alta pressão — ' + b.name,
-        func: 'Armazena ar para soprar os TLP (e, em fases futuras, outros consumidores). Recarregado pelo compressor apenas com tomada de ar disponível.',
-        vars: [V('Pressão', `${(p / 1e5).toFixed(1)} bar`, 'MED'), V('Massa de ar', `${st.mass.toFixed(0)} kg`), V('Volume hidráulico', `${b.volume} m³`), V('Válvula de isolamento', valveStatus(st.valve), 'MED'), V('Pressão do coletor', `${o.hpManifoldBar.toFixed(1)} bar`, 'MED')],
+        func: b.purpose === 'emergency' ? 'Ampolas exclusivas do sopro de emergência, na mesma pressão e com menor volume que os bancos normais. Circuito independente; compressor automático durante a emergência com tomada de ar e energia.' : 'Armazena ar para o sopro normal dos TLP em circuito independente da reserva de emergência. Recarregado pelo compressor com tomada de ar e energia.',
+        vars: [V('Pressão', `${(p / 1e5).toFixed(1)} bar`, 'MED'), V('Massa de ar', `${st.mass.toFixed(0)} kg`), V('Volume hidráulico', `${b.volume} m³`), V('Válvula de isolamento', valveStatus(st.valve), 'MED'), V('Pressão do coletor', `${(b.purpose === 'emergency' ? s.hpAir.emergencyManifoldPressure / 1e5 : o.hpManifoldBar).toFixed(1)} bar`, 'MED')],
         state: st.valve.pos > 0.5 ? 'Conectado ao coletor' : 'Isolado',
         influence: 'A vazão de sopro é proporcional à pressão do coletor (escoamento crítico); quanto mais fundo, maior a massa de ar necessária para expulsar o mesmo volume de água.',
         equations: ['p = m·R·T / V', 'ṁ (crítico) = C_d·A·p₀·√(γ/(R·T))·(2/(γ+1))^((γ+1)/(2(γ−1)))'],

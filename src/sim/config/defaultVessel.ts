@@ -166,6 +166,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 3.0e-4,
           ventValve: valve('VS1BB', 'Suspiro TLP-1 BB', 2.5),
           blowValve: valve('VA1BB', 'Sopro TLP-1 BB', 1.5),
+          emergencyBlowValve: valve('VE1BB', 'Sopro de emergência TLP-1 BB', 1.5, false),
         },
         {
           id: 'TLP1BE',
@@ -178,6 +179,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 3.0e-4,
           ventValve: valve('VS1BE', 'Suspiro TLP-1 BE', 2.5),
           blowValve: valve('VA1BE', 'Sopro TLP-1 BE', 1.5),
+          emergencyBlowValve: valve('VE1BE', 'Sopro de emergência TLP-1 BE', 1.5, false),
         },
         {
           id: 'TLP2BB',
@@ -190,6 +192,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 2.5e-4,
           ventValve: valve('VS2BB', 'Suspiro TLP-2 BB', 2.5),
           blowValve: valve('VA2BB', 'Sopro TLP-2 BB', 1.5),
+          emergencyBlowValve: valve('VE2BB', 'Sopro de emergência TLP-2 BB', 1.5, false),
         },
         {
           id: 'TLP2BE',
@@ -202,6 +205,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 2.5e-4,
           ventValve: valve('VS2BE', 'Suspiro TLP-2 BE', 2.5),
           blowValve: valve('VA2BE', 'Sopro TLP-2 BE', 1.5),
+          emergencyBlowValve: valve('VE2BE', 'Sopro de emergência TLP-2 BE', 1.5, false),
         },
       ],
     },
@@ -209,6 +213,8 @@ export function defaultVessel(): VesselConfig {
       banks: [
         { id: 'AP1', name: 'Garrafas AP grupo 1', volume: 4.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAP1', 'Isolamento grupo AP 1', 2.0) },
         { id: 'AP2', name: 'Garrafas AP grupo 2', volume: 4.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAP2', 'Isolamento grupo AP 2', 2.0) },
+        { id: 'AE1', name: 'Ampolas de emergência grupo 1', purpose: 'emergency', volume: 2.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAE1', 'Isolamento emergência 1', 2.0, false) },
+        { id: 'AE2', name: 'Ampolas de emergência grupo 2', purpose: 'emergency', volume: 2.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAE2', 'Isolamento emergência 2', 2.0, false) },
       ],
       temperature: 20,
       compressor: { massFlow: 0.12, power: 80e3, maxPressure: 250 * BAR },
