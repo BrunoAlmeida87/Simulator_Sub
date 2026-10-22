@@ -39,10 +39,12 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       air: mbtFull ? 0 : (101325 * t.volume) / (R_AIR * 293),
       vent: newValve(),
       blow: newValve(),
+      emergencyBlow: newValve(),
       ventLeak: 0,
       qWater: 0,
       mdotVent: 0,
       mdotBlow: 0,
+      mdotEmergencyBlow: 0,
       mdotSpill: 0,
       pAir: 0,
       pExtPort: 0,
@@ -50,7 +52,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
   }
   const banks: SimState['hpAir']['banks'] = {};
   const Tb = v.hpAir.temperature + 273.15;
-  for (const b of v.hpAir.banks) banks[b.id] = { mass: (b.initialPressure * b.volume) / (R_AIR * Tb), valve: newValve(true) };
+  for (const b of v.hpAir.banks) banks[b.id] = { mass: (b.initialPressure * b.volume) / (R_AIR * Tb), valve: newValve(b.purpose !== 'emergency') };
   const compTanks: SimState['compensation']['tanks'] = {};
   for (const t of v.compensation.tanks) compTanks[t.id] = { mass: t.initialVolume * RHO_NOMINAL };
   const tankValves: SimState['compensation']['tankValves'] = {};
@@ -78,7 +80,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       omega: { x: 0, y: 0, z: 0 },
     },
     ballast,
-    hpAir: { banks, compressorCmd: false, compressorRunning: false, manifoldPressure: v.hpAir.banks[0].initialPressure },
+    hpAir: { banks, compressorCmd: false, compressorRunning: false, manifoldPressure: v.hpAir.banks[0].initialPressure, emergencyManifoldPressure: config.environment.atmosphericPressure },
     compensation: {
       tanks: compTanks,
       tankValves,

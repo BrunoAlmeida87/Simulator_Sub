@@ -175,7 +175,7 @@ export function drawBallastPanel(act: RoomActions) {
       });
       text(g, st.qWater > 0.01 ? '▲ alagando' : st.qWater < -0.01 ? '▼ esgotando' : '', x + tw / 2, ty + 298, 19, '#f1efe6', 'center', 'bold');
       if (st.mdotVent > 0.05) text(g, 'ar saindo pelo suspiro', x + tw / 2, ty + 322, 16, '#ffb3a8', 'center');
-      if (st.mdotBlow > 0.05) text(g, `sopro ${st.mdotBlow.toFixed(1)} kg/s`, x + tw / 2, ty + 322, 16, '#ffe08a', 'center');
+      if (st.mdotBlow + st.mdotEmergencyBlow > 0.05) text(g, `${st.mdotEmergencyBlow > 0.05 ? 'emergência' : 'sopro'} ${(st.mdotBlow + st.mdotEmergencyBlow).toFixed(1)} kg/s`, x + tw / 2, ty + 322, 16, '#ffe08a', 'center');
     });
     lampButton(c, {
       id: 'blowall',
@@ -216,18 +216,18 @@ export function drawBallastPanel(act: RoomActions) {
     // --- ar de alta pressão
     const ay = ty + 352;
     plate(g, 'AR DE ALTA PRESSÃO (AP)', 24, ay, W - 48, 34, 22);
-    const r = 64;
+    const r = 50;
     v.hpAir.banks.forEach((b, i) => {
       const st = s.hpAir.banks[b.id];
       const p = bankPressure(v.hpAir, b.id, st.mass) / 1e5;
-      const cx = 120 + i * 240;
+      const cx = 90 + i * Math.min(140, 560 / v.hpAir.banks.length);
       dial(g, cx, ay + 112, r, { value: p, min: 0, max: 300, major: 50, minor: 10, label: b.id, unit: 'bar', digits: 0 });
       const open = st.valve.cmd > 0.5;
       lampButton(c, {
         id: `hp-${b.id}`,
-        x: cx - 70,
+        x: cx - 55,
         y: ay + 186,
-        w: 140,
+        w: 110,
         h: 46,
         label: open ? 'ABERTO' : 'ISOLADO',
         sub: `isolamento ${b.id}`,
@@ -237,7 +237,7 @@ export function drawBallastPanel(act: RoomActions) {
         action: () => act.cmd({ type: 'hpBankValve', bank: b.id, open: !open }),
       });
     });
-    dial(g, 600, ay + 112, r, { value: e.outputs.hpManifoldBar, min: 0, max: 300, major: 50, minor: 10, label: 'COLETOR', unit: 'bar', digits: 0 });
+    dial(g, 650, ay + 112, r, { value: e.outputs.hpManifoldBar, min: 0, max: 300, major: 50, minor: 10, label: 'COLETOR NORMAL', unit: 'bar', digits: 0 });
     // compressor
     const cx0 = 720;
     g.fillStyle = '#2a2d2f';
@@ -740,7 +740,8 @@ export function drawManifold() {
     text(g, `mínimo ${(v.hydraulics.minPressure / 1e5).toFixed(0)} bar`, 60, 318, 18, '#333', 'left');
     v.hpAir.banks.forEach((b, i) => {
       const p = bankPressure(v.hpAir, b.id, s.hpAir.banks[b.id].mass) / 1e5;
-      dial(g, 330 + i * 170, 140, 70, { value: p, min: 0, max: 300, major: 100, minor: 20, label: b.id, unit: 'bar', digits: 0 });
+      const gap = (W - 490) / v.hpAir.banks.length;
+      dial(g, 270 + (i + 0.5) * gap, 140, Math.min(60, gap * 0.36), { value: p, min: 0, max: 300, major: 100, minor: 20, label: b.id, unit: 'bar', digits: 0 });
     });
     dial(g, W - 110, 140, 70, { value: e.outputs.hpManifoldBar, min: 0, max: 300, major: 100, minor: 20, label: 'COLETOR AP', unit: 'bar', digits: 0 });
     // etiquetas sob os volantes (2 fileiras de 4)

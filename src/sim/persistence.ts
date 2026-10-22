@@ -17,6 +17,7 @@ import type { SimState } from './core/state';
 import { SimulationEngine } from './core/engine';
 import { createState } from './core/initialState';
 import { defaultSimConfig } from './config/defaultVessel';
+import { upgradeEmergencyAir } from './config/emergencyAir';
 import { SIM_VERSION } from './version';
 
 export const SAVE_FORMAT = 'sx1-simulador';
@@ -142,6 +143,7 @@ export function migrateSave(raw: unknown): SaveFile {
   const f = decodeNonFinite(structuredClone(r)) as unknown as SaveFile;
   // configuração: completa campos obrigatórios acrescentados em versões posteriores
   fillMissing(f.config as unknown as Record<string, unknown>, defaultSimConfig() as unknown as Record<string, unknown>, CONFIG_OPTIONAL);
+  f.config.vessel = upgradeEmergencyAir(f.config.vessel);
   // fundo: arquivos sem "modo" usam o relevo (comportamento das versões anteriores)
   const b = f.config.environment.bottom;
   if (b && b.mode === undefined) b.mode = 'relevo';

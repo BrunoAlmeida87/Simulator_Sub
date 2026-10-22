@@ -838,7 +838,7 @@ export class ControlRoomScene {
     h.group.position.copy(pos);
     g.add(h.group);
     const id = `eb-${name}`;
-    const pulled = (en: SimulationEngine) => tanks.every((t) => en.state.ballast[t].blow.cmd > 0.5 && en.state.ballast[t].vent.cmd < 0.5);
+    const pulled = (en: SimulationEngine) => tanks.every((t) => en.state.ballast[t].emergencyBlow.cmd > 0.5 && en.state.ballast[t].vent.cmd < 0.5);
     let guardTimer = 0;
     this.addControl({
       id,
@@ -848,12 +848,12 @@ export class ControlRoomScene {
         pulled(en)
           ? `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: PUXADO (soprando ${tanks.join(', ')}). Clique para recolocar (fechar o sopro).`
           : this.ui.guards[id]
-            ? `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: tampa aberta — clique para PUXAR (fecha os suspiros, abre o sopro e os grupos de ar AP)`
+            ? `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: tampa aberta — clique para PUXAR (fecha os suspiros, abre o sopro dedicado e as ampolas de emergência)`
             : `SOPRO DE EMERGÊNCIA ${name.toUpperCase()}: clique para levantar a tampa de proteção`,
       click: () => {
         const en = this.runner.engine;
         if (pulled(en)) {
-          for (const t of tanks) this.act.cmd({ type: 'mbtBlow', tank: t, open: false });
+          for (const t of tanks) this.act.cmd({ type: 'emergencyBlow', tank: t, open: false });
           this.ui.guards[id] = false;
           return;
         }
@@ -864,10 +864,8 @@ export class ControlRoomScene {
           return;
         }
         for (const t of tanks) {
-          this.act.cmd({ type: 'mbtVent', tank: t, open: false });
-          this.act.cmd({ type: 'mbtBlow', tank: t, open: true });
+          this.act.cmd({ type: 'emergencyBlow', tank: t });
         }
-        for (const b of en.vessel.hpAir.banks) if (en.state.hpAir.banks[b.id].valve.cmd < 0.5) this.act.cmd({ type: 'hpBankValve', bank: b.id, open: true });
       },
       update: (en) => {
         const p = pulled(en);

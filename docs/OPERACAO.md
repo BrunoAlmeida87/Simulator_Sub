@@ -15,7 +15,7 @@ A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre vis�
 - **Comandos essenciais (sempre visíveis no topo do painel):** executar/pausar, telégrafo, lemes de vante, ré e direção, profundidade (MAN/AUTO + ordem) e manobras rápidas (Imergir para X m, Emergir, Manter).
 - **Grupos expansíveis**, com resumo no cabeçalho mesmo recolhidos:
   - *Navegação*: telégrafo com régua, lemes e pilotos de rumo, profundidade e inclinação.
-  - *Lastro principal*: suspiro e sopro de cada TLP, sopro de emergência.
+  - *Lastro principal*: comandos em três linhas: **suspiros**, **sopro normal** e **sopro de emergência**, nessa ordem. “Fechar emergência” encerra o sopro dedicado; “Fechar sopro” opera o circuito normal.
   - *Compensação*: válvulas, bomba, dosagem e ajuste calculado.
 
 **Diagrama da compensação (aba Lastro e compensação):** um coletor liga a admissão do mar (**V-AM**, à direita), a sucção da bomba **BC** (que recalca pela **V-DM** para o mar, à esquerda) e o ramal de cada tanque (**VC-1 → TC-1**, **VC-2 → TC-2**). Cada trecho anima com a vazão calculada para ele, no sentido real do escoamento: admitindo, a água vai do mar para os tanques abertos; esgotando, dos tanques para a bomba e o mar; ramais com válvula fechada, trechos isolados e a bomba com a V-DM fechada (aviso “descarga fechada”) ou sem tanque aberto (“sem sucção”) ficam parados. Com admissão e bomba ao mesmo tempo, o excedente passa direto da admissão para a bomba. As vazões de admissão e descarga aparecem junto às linhas. O corte 3D usa as mesmas vazões por trecho.
@@ -320,3 +320,13 @@ A página se adapta à tela do celular, em pé ou deitado (telas de toque pequen
 ## Aplicativo Windows
 
 Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVEL-WINDOWS.md). O aplicativo inclui a simulação local e mantém os comandos descritos neste guia. O botão **2ª janela** abre uma visualização para outro monitor; ao fechar a janela principal, a visualização também é fechada. Os fundos do mapa precisam de internet.
+
+## Reserva de ar e sopro de emergência
+
+O sopro normal utiliza **AP1/AP2 (4 m³ cada, 250 bar)**. O sopro de emergência utiliza somente **AE1/AE2 (2 m³ cada, 250 bar)**, inicialmente isoladas: mesma pressão e metade do volume total, com coletor e válvulas próprios. O uso normal não esgota a reserva dedicada, mesmo se seus isolamentos estiverem abertos.
+
+**SOPRO DE EMERGÊNCIA** fecha os suspiros e o sopro normal, abre as ampolas dedicadas e as válvulas de emergência dos TLP. **Fechar emergência** encerra esse sopro. As válvulas têm curso finito; a alteração não é instantânea. Os isolamentos e as válvulas de emergência independem da planta hidráulica.
+
+O **compressor** recarrega ambos os circuitos por retenções, inclusive com os isolamentos de sopro fechados. Durante o sopro de emergência, ele é solicitado automaticamente e prioriza AE1/AE2. Precisa de **energia e tomada de ar externa** (superfície ou snorkel com a cabeça fora d'água); sem isso, o sopro depende do ar já armazenado. A vazão total continua limitada a 0,12 kg/s. Encerrar a emergência remove a solicitação automática, preservando eventual comando manual do compressor.
+
+Em **Lastro e compensação**, o diagrama ampliado separa o coletor normal (claro), o de emergência (laranja) e a compensação (azul); há espaço entre válvulas e regiões de clique. A tabela informa pressão, volume e massa de cada reserva e as vazões dos dois sopros. Configurações e estados antigos recebem as ampolas e válvulas novas ao carregar.
