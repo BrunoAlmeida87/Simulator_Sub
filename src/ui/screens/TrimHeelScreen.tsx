@@ -5,6 +5,7 @@ import { Panel } from '../components/Panel';
 import { Readout } from '../components/Readout';
 import { Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../components/Schematic';
 import { MomentExplain } from '../components/Explain';
+import { CargoPanel } from '../components/CargoPanel';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
 import { tankVolume } from '../../sim/systems/internalTanks';
@@ -92,6 +93,7 @@ export function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' 
         </span>
       </div>
       {(st.pump.deadhead || st.pump.noSuction) && <span className="badge warn">Bomba sem fluxo (válvulas/seletor/tanque)</span>}
+      <div className="subtle">A transferência redistribui água e conserva a massa total. Disponível A → B: {fmtMass(Math.max(0, Math.min(st.tankA.mass, c.tankB.capacity * 1025 - st.tankB.mass)))}; B → A: {fmtMass(Math.max(0, Math.min(st.tankB.mass, c.tankA.capacity * 1025 - st.tankA.mass)))}.</div>
       <div className="row">
         <b>Sequência:</b>
         <input type="number" value={kg} min={10} step={50} onChange={(ev) => setKg(Number(ev.target.value))} /> kg
@@ -155,6 +157,9 @@ function TrimDiagram({ e }: { e: SimulationEngine }) {
           <text x={X(o.mp.cg.x) + 4} y={Y(-3.6)} fontSize="10" fill="#ffb347">G</text>
           <line x1={X(o.forces.hs.center.x)} x2={X(o.forces.hs.center.x)} y1={Y(-3.5)} y2={Y(3.5)} stroke="#36c5f0" strokeWidth="2" strokeDasharray="4 2" />
           <text x={X(o.forces.hs.center.x) - 12} y={Y(-3.6)} fontSize="10" fill="#36c5f0">B</text>
+        {(s.cargoLoads ?? []).map(l => <g key={l.id}>
+          <circle cx={X(l.position.x)} cy={Y(l.position.z)} r={5} fill="#ff7ad1"><title>{l.name}: {fmt(l.quantity * l.unitMass / 1000, 2)} t; Y={l.position.y} m</title></circle>
+        </g>)}
           <TankGlyph x={xa - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankA) / c.tankA.capacity} label="TT-AV" sub={`${tankVolume(st.tankA).toFixed(2)} m³`} inspect="trim" />
           <TankGlyph x={xb - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankB) / c.tankB.capacity} label="TT-AR" sub={`${tankVolume(st.tankB).toFixed(2)} m³`} inspect="trim" />
         </g>
@@ -231,12 +236,15 @@ export function TrimHeelScreen() {
   const dyn = o.euler.pitch - o.staticPitchEq;
   return (
     <div className="grid g2">
+      <Panel title="Cargas a bordo — embarcar e distribuir pesos" className="span-all">
+        <CargoPanel key={s.scenarioId} e={e} />
+      </Panel>
       <Panel title="Trim longitudinal — diagrama e distribuição de massa" inspect="trim" className="span-all">
         <TrimDiagram e={e} />
       </Panel>
       <Panel title="Trim: grandezas" inspect="trim">
         <div className="readouts">
-          <Readout label="Pitch medido" value={s.sensors.INSP.value} unit="°" digits={2} kind="MED" truth={o.euler.pitch} />
+          <Readout label="Pitch medido" value={s.sensors.INSP.value} unit="°" digits={3} kind="MED" truth={o.euler.pitch} />
           <Readout label="Pitch de equilíbrio estático" value={o.staticPitchEq} unit="°" digits={2} kind="CALC" title="Somente pesos e empuxo" />
           <Readout label="Parcela dinâmica (lemes/hidrodinâmica)" value={dyn} unit="°" digits={2} kind="CALC" />
           <Readout label="Momento dos pesos (G–B long.)" value={fmtMoment(o.weightTrimMoment)} kind="CALC" />

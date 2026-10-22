@@ -102,6 +102,11 @@ export function computeMassProps(cfg: VesselConfig, s: SimState, light: Resolved
   for (const b of cfg.hpAir.banks) air += s.hpAir.banks[b.id].mass;
   items.push({ id: 'arAP', name: 'Ar comprimido (garrafas)', group: 'ar', mass: air, pos: HP_AIR_POS });
   let internalMass = light.lightshipMass + fuel.mass + air + cfg.mass.loadOffset + cfg.mass.variableLoads.reduce((a, l) => a + l.mass, 0);
+  for (const l of s.cargoLoads ?? []) {
+    const mass = l.quantity * l.unitMass;
+    items.push({ id: 'cargo_' + l.id, name: l.name, group: 'cargas', mass, pos: l.position });
+    internalMass += mass;
+  }
   const dw = cfg.mass.demoWeight;
   if (dw && s.demoWeight && s.demoWeight.mass > 0) {
     items.push({ id: 'pesoMovel', name: 'Peso deslocável (demonstração)', group: 'cargas', mass: s.demoWeight.mass, pos: { x: s.demoWeight.x, y: dw.y, z: dw.z } });
