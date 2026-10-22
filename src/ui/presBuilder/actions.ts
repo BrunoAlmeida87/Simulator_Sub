@@ -100,6 +100,7 @@ const telegraphName = (rpm: number) => TELEGRAPH_PRESETS.find((t) => t[0] === rp
 
 export const VIEW_OPTIONS: [ViewMode, string][] = [
   ['superficie', 'Superfície'],
+  ['perspectiva', 'Perspectiva'],
   ['submerso', 'Submerso'],
   ['tanques', 'Tanques'],
   ['forcas', 'Forças'],
@@ -108,6 +109,8 @@ export const VIEW_OPTIONS: [ViewMode, string][] = [
   ['piloto', 'Seguir (lateral)'],
   ['perseguicao', 'Perseguição'],
   ['fixa', 'Fixa'],
+  ['passadico', 'Passadiço'],
+  ['drone', 'Drone'],
   ['livre', 'Livre'],
 ];
 const viewName = (v: string) => VIEW_OPTIONS.find((x) => x[0] === v)?.[1] ?? v;

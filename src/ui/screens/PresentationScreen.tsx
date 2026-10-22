@@ -8,7 +8,7 @@ import { useEffect, useReducer, useState } from 'react';
 import { cmd, runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
-import { SeaControls } from '../components/SeaControls';
+import { seaSections } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
@@ -31,6 +31,7 @@ import { SceneLayerPanel } from '../components/SceneLayerPanel';
 
 export const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
+  ['perspectiva', 'Perspectiva', 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa'],
   ['submerso', 'Submerso', 'Operação submersa, ao nível do casco'],
   ['tanques', 'Tanques', 'Inspeção dos tanques e circuitos no corte'],
   ['forcas', 'Forças', 'Vista lateral para os vetores de peso, empuxo e resultante'],
@@ -39,6 +40,8 @@ export const FRAMES: [ViewMode, string, string][] = [
   ['piloto', 'Seguir', 'Câmera lateral que acompanha o submarino'],
   ['perseguicao', 'Perseguição', 'Câmera atrás do submarino'],
   ['fixa', 'Fixa', 'Câmera parada no cenário: o submarino atravessa o quadro'],
+  ['passadico', 'Passadiço', 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50'],
+  ['drone', 'Drone', 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade'],
   ['livre', 'Livre', 'Arraste para girar, roda/pinça para aproximar'],
 ];
 
@@ -221,9 +224,7 @@ export function PresentationScreen() {
               <ForceHud e={e} gain={gainTxt} />
             </div>
           )}
-          <OverlayCtl>
-            <SeaControls quality={quality} setQuality={setQuality} />
-          </OverlayCtl>
+          <OverlayCtl persistKey="pres" sections={seaSections(quality, setQuality)} />
           <div className="pres-bottom only-wide">{tours.active || tours.finished ? <TourCard /> : <ManeuverStatus />}</div>
         </Scene3D>
         <div className="only-narrow pres-under">
@@ -293,7 +294,7 @@ export function PresentationScreen() {
           </div>
         </Panel>
 
-        <Panel title="Enquadramento">
+        <Panel title="Enquadramento" fold="pres.frames" tag={<span className="subtle panel-val">{FRAMES.find(([v]) => v === p.view)?.[1] ?? ''}</span>}>
           <div className="btngroup">
             {FRAMES.map(([v, l, tip]) => (
               <button key={v} className={`btn sm ${p.view === v ? 'on' : ''}`} onClick={() => pres.setView(v, true)} title={tip}>
@@ -303,7 +304,7 @@ export function PresentationScreen() {
           </div>
         </Panel>
 
-        <Panel title="Camadas">
+        <Panel title="Camadas" fold="pres.layers" foldOpen={false} tag={<span className="subtle panel-val">{LAYER_LIST.filter((k) => !!L[k]).length} ligadas</span>}>
           <SceneLayerPanel e={e} keys={LAYER_LIST} value={L} onChange={(p) => pres.setLayers(p)} hullControl />
           <div className="note mt8">Clique num tanque na lista ou no corte para destacá-lo. Cada grupo reúne a visibilidade e os ajustes dos seus itens.</div>
         </Panel>
@@ -372,30 +373,30 @@ export function PresentationScreen() {
         <Panel title="Comandos">
           <div className="subtle mb4">Lastro principal (TLP)</div>
           <div className="btngroup">
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'vent', true, cmd)}>
               Abrir suspiros
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'vent', false), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'vent', false, cmd)}>
               Fechar suspiros
             </button>
-            <button className="btn sm ok" onClick={() => (mbtGroup(e, 'todos', 'blow', true), runner.notify())}>
+            <button className="btn sm ok" onClick={() => mbtGroup(e, 'todos', 'blow', true, cmd)}>
               Soprar TLP
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'blow', false), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'blow', false, cmd)}>
               Fechar sopro
             </button>
           </div>
           <div className="btngroup mt4">
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'vante', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'vante', 'vent', true, cmd)}>
               Suspiros vante
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 're', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 're', 'vent', true, cmd)}>
               Suspiros ré
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'vante', 'blow', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'vante', 'blow', true, cmd)}>
               Soprar vante
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 're', 'blow', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 're', 'blow', true, cmd)}>
               Soprar ré
             </button>
           </div>

@@ -17,6 +17,8 @@ import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { viewSection } from '../components/OverlayMenu';
+import { seaSections } from '../components/SeaControls';
 import { LAYER_LIST } from './PresentationScreen';
 import { pres } from '../presentation';
 import { useUi } from '../uiContext';
@@ -28,10 +30,10 @@ import { serializeEngine, deserializeEngine } from '../../sim/persistence';
 import { applyCommand, withCommandSource } from '../../sim/commands';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { SceneLayers } from '../../render3d/layers';
-import type { ViewMode } from '../../render3d/SubmarineScene';
 import { NAV_GROUPS } from '../nav';
 import { baseConfig } from '../store';
 import { RichText, PresCardView, PresHudView, hudSide } from '../components/PresCard';
+import { isPanelWindow } from '../sync';
 import { presPlayer, type CardData, type HudItem, type StepOutcome } from '../presBuilder/player';
 import { presLibrary, exportText, presFileName, presSizeKB, scriptMarkdown } from '../presBuilder/library';
 import {
@@ -410,13 +412,14 @@ function Editor({ onStage, onPlay }: { onStage: (() => void) | null; onPlay: () 
               ▶ Voltar ao palco ({(presPlayer.k ?? 0) + 1}/{presPlayer.pres?.steps.length ?? 0})
             </button>
           )}
-          <button className="btn ok" onClick={() => play(0)} title="Apresenta do início (ponto de partida definido em ⚙ Apresentação)">
+          {isPanelWindow && <span className="subtle">Para apresentar, use a janela principal (aqui só edição).</span>}
+          <button className="btn ok" disabled={isPanelWindow} onClick={() => play(0)} title="Apresenta do início (ponto de partida definido em ⚙ Apresentação)">
             ▶ Apresentar
           </button>
-          <button className="btn sm" disabled={k <= 0} onClick={() => play(k)} title="Começa do ponto de partida e executa as etapas anteriores em velocidade acelerada, pela física, até chegar nesta">
+          <button className="btn sm" disabled={k <= 0 || isPanelWindow} onClick={() => play(k)} title="Começa do ponto de partida e executa as etapas anteriores em velocidade acelerada, pela física, até chegar nesta">
             ⏩ Desta etapa
           </button>
-          <button className="btn sm" disabled={k < 0} onClick={() => play(k, true)} title="Testa só esta etapa, a partir da situação atual do simulador (sem voltar ao início)">
+          <button className="btn sm" disabled={k < 0 || isPanelWindow} onClick={() => play(k, true)} title="Testa só esta etapa, a partir da situação atual do simulador (sem voltar ao início)">
             ▷ Testar etapa
           </button>
         </span>
@@ -544,8 +547,7 @@ function Editor({ onStage, onPlay }: { onStage: (() => void) | null; onPlay: () 
 
 // ---------------------------------------------------------------- palco do editor
 function EditorStage({ e, cur, step, k, pose }: { e: SimulationEngine; cur: UserPresentation; step: PresStep | null; k: number; pose: { key: number; pose: CamPose } | null }) {
-  const [quality] = useQuality();
-  const [layOpen, setLayOpen] = useState(false);
+  const [quality, setQuality] = useQuality();
   const card = step ? previewCard(cur, step, k, e) : null;
   return (
     <div className="st-preview">
@@ -556,23 +558,24 @@ function EditorStage({ e, cur, step, k, pose }: { e: SimulationEngine; cur: User
             <PresCardView c={card} />
           </div>
         )}
-        <OverlayCtl>
-          <select className="st-cam-sel" value={pres.view} onChange={(ev) => pres.setView(ev.target.value as ViewMode, true)} aria-label="Câmera do palco" title="Câmera do palco">
-            {VIEW_OPTIONS.map(([v, l]) => (
-              <option key={v} value={v}>
-                📷 {l}
-              </option>
-            ))}
-          </select>
-          <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)}>
-            Camadas {layOpen ? '▴' : '▾'}
-          </button>
-          {layOpen && (
-            <div className="tanksel-pop scene-layer-pop">
-              <SceneLayerPanel e={e} keys={LAYER_LIST} value={pres.layers} onChange={(p) => pres.setLayers(p)} hullControl />
-            </div>
-          )}
-        </OverlayCtl>
+        <OverlayCtl
+          persistKey="studio"
+          sections={[
+            viewSection(
+              VIEW_OPTIONS.map(([id, label]) => ({ id, label })),
+              pres.view,
+              (v) => pres.setView(v, true),
+            ),
+            {
+              id: 'camadas',
+              label: <>Camadas ({LAYER_LIST.filter((x) => !!pres.layers[x]).length})</>,
+              title: 'Tanques, vetores, identificações e ambiente do palco',
+              className: 'scene-layer-pop',
+              content: <SceneLayerPanel e={e} keys={LAYER_LIST} value={pres.layers} onChange={(p) => pres.setLayers(p)} hullControl />,
+            },
+            ...seaSections(quality, setQuality),
+          ]}
+        />
       </Scene3D>
       {card && (
         <div className="st-under">

@@ -13,6 +13,7 @@ import { useUi } from '../uiContext';
 import { usePersisted } from '../persist';
 import { presLibrary } from '../presBuilder/library';
 import { presPlayer } from '../presBuilder/player';
+import { isPanelWindow } from '../sync';
 
 /** condição de carga escolhida (também usada ao reiniciar pelas Configurações) */
 export function useScenarioOptions() {
@@ -175,6 +176,8 @@ export function ScenarioScreen() {
                 </div>
                 <button
                   className="btn"
+                  disabled={isPanelWindow}
+                  title={isPanelWindow ? 'Apresente pela janela principal' : undefined}
                   onClick={() => {
                     if (presPlayer.start(runner, p)) ui.setScreen('estudio');
                   }}

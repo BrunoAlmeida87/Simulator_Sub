@@ -38,13 +38,14 @@ import { opsBus, ALARM_GROUP } from './ops/opsBus';
 import { loadScenario } from './ops/OpsGroups';
 import { SCENARIOS } from '../sim/scenarios';
 import { link } from './link';
-import { openVisualWindow } from './sync';
+import { isPanelWindow, openPanelWindow, openVisualWindow, panelIndex } from './sync';
+import { loadPersisted, savePersisted } from './persist';
 import { NavBar } from './components/NavBar';
 import { SystemsOverview } from './screens/SystemsOverview';
 import { StudioScreen } from './screens/StudioScreen';
 import { PresFloating } from './components/PresFloating';
 import { presPlayer } from './presBuilder/player';
-import { isScreenId, screenForKey } from './nav';
+import { isScreenId, screenForKey, screenLabel } from './nav';
 
 function ScenarioPicker({ current }: { current: string }) {
   const [sel, setSel] = useState(current);
@@ -115,9 +116,36 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           <ScenarioPicker current={s.scenarioId} />
         </span>
         <RecIndicator />
-        <button className={`btn ph-more ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
-          ⧉ 2ª janela{link.master?.connected ? ' ✓' : ''}
-        </button>
+        {isPanelWindow ? (
+          <>
+            <span className={`badge ${link.viewer?.connected ? 'ok' : 'warn'}`} title="Esta janela espelha a janela de controle: os comandos dados aqui são executados lá">
+              Tela {panelIndex} · {link.viewer?.connected ? 'espelhando o controle' : 'sem conexão'}
+            </span>
+            <button
+              className="btn ph-more"
+              onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined)}
+              title="Tela cheia neste monitor (F11 também funciona)"
+            >
+              ⛶ Tela cheia
+            </button>
+          </>
+        ) : (
+          <>
+            <button className={`btn ph-more ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
+              ⧉ 2ª janela{link.master?.connected ? ' ✓' : ''}
+            </button>
+            <button
+              className={`btn ph-more ${link.master?.panelConnected ? 'on' : ''}`}
+              onClick={() => {
+                const n = openPanelWindow();
+                ui.toast(`Tela ${n} aberta: arraste-a para o outro monitor e escolha a aba. Comandos dados nela valem aqui.`);
+              }}
+              title="Abre outra janela com o simulador completo (todas as abas), espelhando esta simulação — ex.: o mapa tático num 3º monitor"
+            >
+              ＋ Tela{link.master?.panelConnected ? ' ✓' : ''}
+            </button>
+          </>
+        )}
         <button className={`btn phone-only ph-toggle ${phMore ? 'on' : ''}`} onClick={() => setPhMore(!phMore)} aria-expanded={phMore} title="Mais controles (cenário, passos, aceleração, 2ª janela, engenharia)">
           {phMore ? '✕' : '☰'}
         </button>
@@ -203,14 +231,33 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
   );
 }
 
+/** aba de cada janela de tela (a janela de controle usa as preferências gerais) */
+const PANEL_SCREEN_KEY = `tela${panelIndex}.screen`;
+
+/** janela de tela sem a janela de controle aberta */
+function PanelWait() {
+  useSim(2);
+  if (link.viewer?.connected) return null;
+  return (
+    <div className="visual-wait" style={{ position: 'fixed', zIndex: 60 }}>
+      <b>Tela {panelIndex}: aguardando a janela de controle…</b>
+      <span>Esta janela mostra a mesma simulação da janela principal do simulador (aberta no mesmo navegador). Abra o simulador e use “＋ Tela”, ou deixe as duas abertas.</span>
+      {!link.viewer?.available && <span className="badge alarm">Este navegador não permite comunicação entre janelas (BroadcastChannel).</span>}
+    </div>
+  );
+}
+
 export function App() {
   const prefs = storage.getPrefs({ screen: 'pilotagem' as ScreenId, eng: false });
-  const [screen, setScreen] = useState<ScreenId>(isScreenId(prefs.screen) ? prefs.screen : 'pilotagem');
+  const [screen, setScreen] = useState<ScreenId>(() => {
+    const sc = isPanelWindow ? loadPersisted<ScreenId>(PANEL_SCREEN_KEY, 'mapa') : prefs.screen;
+    return isScreenId(sc) ? sc : 'pilotagem';
+  });
   const [eng, setEngState] = useState<boolean>(prefs.eng);
   const [inspect, setInspect] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showProcedure, setShowProcedure] = useState(false);
-  const [resume, setResume] = useState(() => storage.getAutosave());
+  const [resume, setResume] = useState(() => (isPanelWindow ? null : storage.getAutosave()));
   const topRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<number>(0);
@@ -227,8 +274,14 @@ export function App() {
   };
 
   useEffect(() => {
-    storage.setPrefs({ screen, eng });
+    if (isPanelWindow) savePersisted(PANEL_SCREEN_KEY, screen);
+    else storage.setPrefs({ screen, eng });
   }, [screen, eng]);
+
+  // janela de tela: nome da aba na barra do navegador (ajuda a achar a janela certa)
+  useEffect(() => {
+    if (isPanelWindow) document.title = `Tela ${panelIndex} — ${screenLabel(screen)}`;
+  }, [screen]);
 
   // comandos recusados durante a reprodução de uma gravação
   useEffect(() => {
@@ -277,6 +330,7 @@ export function App() {
 
   // salvamento automático
   useEffect(() => {
+    if (isPanelWindow) return; // quem salva é a janela de controle
     const id = window.setInterval(() => {
       if (runner.running) storage.setAutosave(captureSession('Salvamento automático'));
     }, 20000);
@@ -407,6 +461,7 @@ export function App() {
           </div>
         )}
         {screen !== 'estudio' && <PresFloating onStage={() => setScreen('estudio')} />}
+        {isPanelWindow && <PanelWait />}
         {toastMsg && <div className="toast">{toastMsg}</div>}
       </div>
     </UiContext.Provider>

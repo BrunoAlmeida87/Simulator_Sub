@@ -5,8 +5,9 @@
  * forte com o mar mais agitado. Vento aparente = vento real − velocidade do
  * submarino sobre o fundo: com o submarino avançando ele passa a vir da proa,
  * de encontro ao submarino (sensação de avanço). Mostrado por:
- *  - poucas linhas finas e discretas passando acima da água perto da vela, no
- *    sentido do vento aparente (camada "Vento");
+ *  - feixes de fios finos de ar passando no ar em volta da vela (de ~1,5 a
+ *    14 m de altura, sem acompanhar as ondas), no sentido do vento aparente
+ *    (camada "Vento");
  *  - flâmula opcional num pau curto no topo da vela (camada "Flâmula", só com
  *    a vela fora d'água), estendida para sotavento.
  */
@@ -42,19 +43,56 @@ export function apparentWind(e: SimulationEngine): { n: number; e: number; speed
   return { n, e: ee, speed, fromRel: rel };
 }
 
-const N = 36;
+/** rajadas (cada uma é um feixe de fios de ar) */
+const N = 48;
+/** fios por rajada: dão volume ao ar em movimento */
+const STR = 3;
 /** comprimento da flâmula (m) */
 const FL = 2.6;
-const BOX = 38;
-/** largura das faixas de vento (m) */
-const WID = 0.07;
+const BOX = 40;
+/** meia largura dos fios de ar (m): faixas largas de borda suave (textura), não linhas */
+const WID = 0.2;
+
+/** textura do fio de ar: some nas pontas e nas bordas, com sombreado de tubo (aspecto de ar com volume, não de risco) */
+function wispTexture(): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 32;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(128, 32);
+  for (let y = 0; y < 32; y++)
+    for (let x = 0; x < 128; x++) {
+      const u = x / 127;
+      const v = (y - 15.5) / 15.5;
+      // cabeça mais densa a sotavento, cauda longa e transparente
+      const along = Math.pow(Math.sin(Math.PI * Math.pow(u, 0.75)), 0.8);
+      // sombreado de tubo: miolo claro e bordas cinza-azuladas (volume, e contraste também contra o céu claro)
+      const core = Math.exp(-v * v * 6);
+      const across = Math.exp(-v * v * 2);
+      const i = (y * 128 + x) * 4;
+      img.data[i] = Math.round(120 + 135 * core);
+      img.data[i + 1] = Math.round(138 + 117 * core);
+      img.data[i + 2] = Math.round(160 + 95 * core);
+      img.data[i + 3] = Math.round(255 * along * across);
+    }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 interface Streak {
   dn: number;
   de: number;
+  /** altura acima do nível médio do mar (m) — no ar, não acompanha as ondas */
   h: number;
   life: number;
   max: number;
+  /** fase da leve ondulação vertical */
+  ph: number;
+  /** afastamento de cada fio do feixe: lateral, vertical, ao longo do vento (m) e escala do comprimento */
+  off: Float32Array;
 }
 
 export class WindFx {
@@ -73,21 +111,25 @@ export class WindFx {
   constructor(sailTop: number, xStaff: number) {
     // cada faixa: duas tiras cruzadas (horizontal e vertical), visíveis de qualquer ângulo; 8 vértices
     const g = new THREE.BufferGeometry();
-    this.pos = new THREE.Float32BufferAttribute(new Float32Array(N * 8 * 3), 3);
-    this.col = new THREE.Float32BufferAttribute(new Float32Array(N * 8 * 4), 4);
+    this.pos = new THREE.Float32BufferAttribute(new Float32Array(N * STR * 8 * 3), 3);
+    this.col = new THREE.Float32BufferAttribute(new Float32Array(N * STR * 8 * 4), 4);
     const idx: number[] = [];
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < N * STR; i++) {
       const b = i * 8;
       idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2, b + 4, b + 5, b + 6, b + 5, b + 7, b + 6);
     }
     g.setIndex(idx);
     g.setAttribute('position', this.pos);
     g.setAttribute('color', this.col);
-    this.lines = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    // uv fixos: u ao longo do vento (cauda → cabeça), v através do fio
+    const uv = new Float32Array(N * STR * 8 * 2);
+    for (let i = 0; i < N * STR; i++) uv.set([0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1], i * 16);
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    this.lines = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: wispTexture() ?? undefined, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false }));
     this.lines.frustumCulled = false;
     this.lines.renderOrder = 5;
     this.group.add(this.lines);
-    for (let i = 0; i < N; i++) this.streaks.push(this.spawn({ dn: 0, de: 0, h: 0, life: 0, max: 1 }, Math.random()));
+    for (let i = 0; i < N; i++) this.streaks.push(this.spawn({ dn: 0, de: 0, h: 0, life: 0, max: 1, ph: 0, off: new Float32Array(STR * 4) }, Math.random()));
     // flâmula: pau no topo da vela (à ré) e um triângulo que tremula
     const staffMat = new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.6, roughness: 0.35 });
     const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 2.6, 8), staffMat);
@@ -115,8 +157,17 @@ export class WindFx {
   private spawn(s: Streak, phase = 0): Streak {
     s.dn = (Math.random() * 2 - 1) * BOX;
     s.de = (Math.random() * 2 - 1) * BOX;
-    s.h = 0.8 + Math.random() * Math.random() * 7;
-    s.max = 1.2 + Math.random() * 1.4;
+    // espalhadas no ar em volta da vela (até ~14 m), não rentes à água
+    s.h = 1.6 + Math.random() * 12.5;
+    s.max = 1.4 + Math.random() * 1.6;
+    s.ph = Math.random() * Math.PI * 2;
+    for (let j = 0; j < STR; j++) {
+      const o = j * 4;
+      s.off[o] = j === 0 ? 0 : (Math.random() * 2 - 1) * 0.9;
+      s.off[o + 1] = j === 0 ? 0 : (Math.random() * 2 - 1) * 0.6;
+      s.off[o + 2] = j === 0 ? 0 : (Math.random() * 2 - 1) * 1.2;
+      s.off[o + 3] = j === 0 ? 1 : 0.55 + Math.random() * 0.35;
+    }
     s.life = phase * s.max;
     return s;
   }
@@ -134,8 +185,11 @@ export class WindFx {
     if (this.group.visible) {
       const dn = aw.n / Math.max(1e-6, aw.speed);
       const de = aw.e / Math.max(1e-6, aw.speed);
-      const len = Math.min(4.5, 0.9 + aw.speed * 0.35);
-      const k = Math.min(1, (aw.speed - 0.5) / 6);
+      const len0 = Math.min(8, 2 + aw.speed * 0.6);
+      const k = Math.min(1, 0.25 + (aw.speed - 0.5) / 5);
+      // lateral horizontal unitária (perpendicular ao vento) na cena
+      const lx = dn;
+      const lz = de;
       for (let i = 0; i < N; i++) {
         const s = this.streaks[i];
         s.life += dt;
@@ -148,28 +202,36 @@ export class WindFx {
           s.dn -= dn * BOX * 0.6 * Math.random();
           s.de -= de * BOX * 0.6 * Math.random();
         }
-        const y = w.elevation(pn + s.dn, pe + s.de, t) + s.h;
-        // cena: x = leste, y = cima, z = −norte
-        const x0 = s.de;
-        const z0 = -s.dn;
-        // cauda (transparente) a barlavento, cabeça a sotavento; direção (leste, −norte) na cena
-        const ax = de * len * 0.5;
-        const az = -dn * len * 0.5;
-        // lateral horizontal (perpendicular ao vento) e vertical
-        const px = (-az / (len * 0.5)) * WID;
-        const pz = (ax / (len * 0.5)) * WID;
-        const b = i * 8;
-        this.pos.setXYZ(b, x0 - ax - px, y, z0 - az - pz);
-        this.pos.setXYZ(b + 1, x0 - ax + px, y, z0 - az + pz);
-        this.pos.setXYZ(b + 2, x0 + ax - px, y, z0 + az - pz);
-        this.pos.setXYZ(b + 3, x0 + ax + px, y, z0 + az + pz);
-        this.pos.setXYZ(b + 4, x0 - ax, y - WID, z0 - az);
-        this.pos.setXYZ(b + 5, x0 - ax, y + WID, z0 - az);
-        this.pos.setXYZ(b + 6, x0 + ax, y - WID, z0 + az);
-        this.pos.setXYZ(b + 7, x0 + ax, y + WID, z0 + az);
-        const a = Math.sin((Math.PI * s.life) / s.max) * 0.3 * k;
-        for (const q of [0, 1, 4, 5]) this.col.setXYZW(b + q, 1, 1, 1, 0);
-        for (const q of [2, 3, 6, 7]) this.col.setXYZW(b + q, 1, 1, 1, a);
+        // no ar: altura fixa com leve ondulação; só sobe se uma crista chegar perto
+        const floor = w.elevation(pn + s.dn, pe + s.de, t) + 0.8;
+        const yc = Math.max(floor, s.h + 0.35 * Math.sin(this.wall * 1.1 + s.ph));
+        const fade = Math.sin((Math.PI * s.life) / s.max);
+        for (let j = 0; j < STR; j++) {
+          const o = j * 4;
+          const len = len0 * s.off[o + 3];
+          // cena: x = leste, y = cima, z = −norte; fio afastado do eixo do feixe
+          const x0 = s.de + lx * s.off[o] + de * s.off[o + 2];
+          const z0 = -s.dn + lz * s.off[o] - dn * s.off[o + 2];
+          const y = yc + s.off[o + 1];
+          // cauda (transparente) a barlavento, cabeça a sotavento; direção (leste, −norte) na cena
+          const ax = de * len * 0.5;
+          const az = -dn * len * 0.5;
+          // lateral horizontal (perpendicular ao vento) e vertical
+          const wd = WID * (j === 0 ? 1 : 0.7);
+          const px = lx * wd;
+          const pz = lz * wd;
+          const b = (i * STR + j) * 8;
+          this.pos.setXYZ(b, x0 - ax - px, y, z0 - az - pz);
+          this.pos.setXYZ(b + 1, x0 - ax + px, y, z0 - az + pz);
+          this.pos.setXYZ(b + 2, x0 + ax - px, y, z0 + az - pz);
+          this.pos.setXYZ(b + 3, x0 + ax + px, y, z0 + az + pz);
+          this.pos.setXYZ(b + 4, x0 - ax, y - wd, z0 - az);
+          this.pos.setXYZ(b + 5, x0 - ax, y + wd, z0 - az);
+          this.pos.setXYZ(b + 6, x0 + ax, y - wd, z0 + az);
+          this.pos.setXYZ(b + 7, x0 + ax, y + wd, z0 + az);
+          const a = fade * (j === 0 ? 0.6 : 0.42) * k;
+          for (let q = 0; q < 8; q++) this.col.setXYZW(b + q, 1, 1, 1, a);
+        }
       }
       this.pos.needsUpdate = true;
       this.col.needsUpdate = true;

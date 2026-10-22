@@ -20,6 +20,8 @@ const VIEWS: [ViewMode, string][] = [
   ['tanques', 'Tanques (corte)'],
   ['forcas', 'Forças'],
   ['calado', 'Calado'],
+  ['passadico', 'Passadiço (vela)'],
+  ['drone', 'Drone (câmera livre)'],
   ['livre', 'Livre (arrastar)'],
 ];
 
@@ -127,6 +129,8 @@ export function RoomPip({ onClose }: { onClose: () => void }) {
         quality="baixa"
         labels={false}
         syncVisual={false}
+        hud="compact"
+        hudKeys={false}
         persistKey="roompip"
         layers={{
           markers: true,

@@ -27,6 +27,16 @@ class PresLibrary {
   /** último erro de gravação (ex.: espaço do navegador esgotado) */
   lastError: string | null = null;
 
+  constructor() {
+    // outra janela do simulador (＋ Tela) alterou a biblioteca
+    if (typeof window !== 'undefined')
+      window.addEventListener('storage', (ev) => {
+        if (ev.key !== K_LIB) return;
+        this.list = readLib();
+        this.emit();
+      });
+  }
+
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);

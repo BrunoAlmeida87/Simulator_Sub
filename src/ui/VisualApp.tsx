@@ -11,6 +11,7 @@ import { link } from './link';
 import { fullExternalLayers, type SceneLayers } from '../render3d/layers';
 import type { LayerKey } from './components/LayerPanel';
 import { SceneLayerPanel } from './components/SceneLayerPanel';
+import { OverlayMenu, viewSection, type ViewOption } from './components/OverlayMenu';
 import type { ViewMode } from '../render3d/SubmarineScene';
 import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
@@ -40,18 +41,21 @@ const LAYER_KEYS: LayerKey[] = [
   'presLight',
 ];
 
-const VIEWS: [ViewMode | 'seguir', string][] = [
-  ['seguir', 'Igual ao controle'],
-  ['piloto', 'Lateral'],
-  ['perseguicao', 'Perseguição'],
-  ['superficie', 'Superfície'],
-  ['submerso', 'Submerso'],
-  ['tanques', 'Vista tanques'],
-  ['forcas', 'Vista forças'],
-  ['calado', 'Calado'],
-  ['navio', 'Navio próximo'],
-  ['fixa', 'Fixa'],
-  ['livre', 'Livre'],
+const VIEWS: ViewOption<ViewMode | 'seguir'>[] = [
+  { id: 'seguir', label: 'Igual ao controle', tip: 'Segue a vista da janela de controle' },
+  { id: 'piloto', label: 'Lateral' },
+  { id: 'perseguicao', label: 'Perseguição' },
+  { id: 'perspectiva', label: 'Perspectiva' },
+  { id: 'superficie', label: 'Superfície' },
+  { id: 'submerso', label: 'Submerso' },
+  { id: 'tanques', label: 'Vista tanques' },
+  { id: 'forcas', label: 'Vista forças' },
+  { id: 'calado', label: 'Calado' },
+  { id: 'navio', label: 'Navio próximo' },
+  { id: 'fixa', label: 'Fixa' },
+  { id: 'passadico', label: 'Passadiço' },
+  { id: 'drone', label: 'Drone (câmera livre)' },
+  { id: 'livre', label: 'Livre' },
 ];
 
 export function VisualApp() {
@@ -69,7 +73,6 @@ export function VisualApp() {
   // camadas: "3D completo" (padrão) ou as da janela de controle, com as alterações feitas aqui por cima
   const [src, setSrc] = usePersisted<'completo' | 'controle'>('visual.layerSrc', 'completo');
   const [over, setOver] = usePersisted<Partial<SceneLayers>>('visual.layers', {});
-  const [layOpen, setLayOpen] = usePersisted('visual.layersOpen', false);
   const base = (presDrive || src === 'controle') && v?.layers ? v.layers : fullExternalLayers();
   const layers: SceneLayers = presDrive && v?.layers ? v.layers : { ...base, ...over };
   const pickView = (k: ViewMode | 'seguir') => {
@@ -86,7 +89,17 @@ export function VisualApp() {
   }, []);
   return (
     <div className="visual-app">
-      <Scene3D quality={defaultQuality()} view={view} layers={layers} labels={false} persistKey="visual" onPick={(p) => p && v?.pick(p)} camPose={presDrive ? presOv?.cam : null}>
+      <Scene3D
+        quality={defaultQuality()}
+        view={view}
+        layers={layers}
+        labels={false}
+        persistKey="visual"
+        onPick={(p) => p && v?.pick(p)}
+        bridge={(presDrive || mode === 'seguir') && view === 'passadico' ? (v?.bridge ?? undefined) : undefined}
+        drone={(presDrive || mode === 'seguir') && view === 'drone' ? (v?.drone ?? undefined) : undefined}
+        camPose={presDrive ? presOv?.cam : null}
+      >
         {!hideUi && (
           <div className="visual-status">
             <span className={`badge ${connected ? 'ok' : 'warn'}`}>{connected ? 'Espelhando a janela de controle' : 'Sem conexão'}</span>
@@ -106,40 +119,40 @@ export function VisualApp() {
         )}
         <div className="visual-ctl">
           {!hideUi && (
-            <div className="seg">
-              {VIEWS.map(([k, l]) => (
-                <button key={k} className={mode === k ? 'on' : ''} onClick={() => pickView(k)}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          )}
-          {!hideUi && (
-            <div className="btngroup visual-layers">
-              <span className="seg" title="De onde vêm as camadas desta janela">
-                <button
-                  className={src === 'completo' ? 'on' : ''}
-                  onClick={() => setSrc('completo')}
-                  title="Vetores, esteira e bolhas, vento, navios, boias, trajetória e rótulos — igual em qualquer aba da janela de controle"
-                >
-                  3D completo
-                </button>
-                <button className={src === 'controle' ? 'on' : ''} onClick={() => setSrc('controle')} title="As camadas da última cena 3D aberta na janela de controle">
-                  Camadas do controle
-                </button>
-              </span>
-              <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Ligar/desligar camadas nesta janela, por grupo">
-                Camadas ({LAYER_KEYS.filter((k) => !!layers[k]).length}) {layOpen ? '▴' : '▾'}
-              </button>
-              <button className="btn sm" disabled={Object.keys(over).length === 0} onClick={() => setOver({})} title="Desfaz as alterações feitas nesta janela">
-                ↺ Desfazer ajustes
-              </button>
-            </div>
-          )}
-          {!hideUi && layOpen && (
-            <div className="tanksel-pop scene-layer-pop visual-laypop">
-              <SceneLayerPanel e={e} hullControl keys={LAYER_KEYS} value={layers} onChange={(p) => setOver({ ...over, ...p })} marked={(k) => k in over} />
-            </div>
+            <OverlayMenu
+              persistKey="visual"
+              sections={[
+                viewSection(VIEWS, mode, pickView),
+                {
+                  id: 'camadas',
+                  label: <>Camadas ({LAYER_KEYS.filter((k) => !!layers[k]).length})</>,
+                  title: 'Ligar/desligar camadas nesta janela, por grupo',
+                  className: 'scene-layer-pop visual-laypop',
+                  content: (
+                    <>
+                      <div className="btngroup visual-layers">
+                        <span className="seg" title="De onde vêm as camadas desta janela">
+                          <button
+                            className={src === 'completo' ? 'on' : ''}
+                            onClick={() => setSrc('completo')}
+                            title="Vetores, esteira e bolhas, vento, navios, boias, trajetória e rótulos — igual em qualquer aba da janela de controle"
+                          >
+                            3D completo
+                          </button>
+                          <button className={src === 'controle' ? 'on' : ''} onClick={() => setSrc('controle')} title="As camadas da última cena 3D aberta na janela de controle">
+                            Camadas do controle
+                          </button>
+                        </span>
+                        <button className="btn sm" disabled={Object.keys(over).length === 0} onClick={() => setOver({})} title="Desfaz as alterações feitas nesta janela">
+                          ↺ Desfazer ajustes
+                        </button>
+                      </div>
+                      <SceneLayerPanel e={e} hullControl keys={LAYER_KEYS} value={layers} onChange={(p) => setOver({ ...over, ...p })} marked={(k) => k in over} />
+                    </>
+                  ),
+                },
+              ]}
+            />
           )}
           <div className="btngroup">
             {!hideUi && (
