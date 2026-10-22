@@ -5,6 +5,7 @@ import { useEffect, useReducer } from 'react';
 import { SimRunner } from '../sim/core/runner';
 import { buildScenario } from '../sim/scenarios';
 import { defaultSimConfig } from '../sim/config/defaultVessel';
+import { upgradeEmergencyAir } from '../sim/config/emergencyAir';
 import type { SimConfig } from '../sim/config/types';
 import { defaultGeo, type BottomConfig } from '../sim/environment/environment';
 import { mapOrigin } from './routeNav';
@@ -37,7 +38,7 @@ export function baseConfig(): SimConfig {
   try {
     // mescla raso por seção para tolerar versões antigas
     return {
-      vessel: { ...def.vessel, ...saved.vessel },
+      vessel: upgradeEmergencyAir({ ...def.vessel, ...saved.vessel }),
       environment: { ...def.environment, ...saved.environment, bottom: migrateBottom(def.environment.bottom, saved.environment?.bottom), geo },
       settings: { ...def.settings, ...saved.settings },
     };

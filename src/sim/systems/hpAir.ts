@@ -1,85 +1,74 @@
 /**
- * AR COMPRIMIDO DE ALTA PRESSÃO (AP) — garrafas, válvulas de isolamento,
- * coletor e compressor.
- *
- *  p_grupo = m·R·T_ar / V_grupo
- *
- * Simplificação: os grupos com válvula de isolamento aberta são equalizados
- * instantaneamente no coletor (p_coletor = Σm·R·T / ΣV). O compressor só
- * opera com tomada de ar disponível (superfície ou snorkel) e barramento
- * energizado, carregando todos os grupos até a pressão máxima.
+ * Ar AP: circuitos independentes normal/emergência, p = mRT/V.
+ * Só os grupos abertos de um mesmo circuito se equalizam. O compressor
+ * recarrega ambos por conexões com retenção, sem interligar as reservas.
  */
-import type { HpAirConfig } from '../config/types';
+import type { AirCircuit, HpAirConfig } from '../config/types';
 import type { SimState } from '../core/state';
 import { R_AIR, type StepContext } from '../core/context';
 import { updateValve } from './components';
 
 export const bankTempK = (cfg: HpAirConfig) => cfg.temperature + 273.15;
+export const bankCircuit = (b: HpAirConfig['banks'][number]): AirCircuit => b.purpose ?? 'normal';
+export const emergencyBlowActive = (s: SimState): boolean => Object.values(s.ballast).some((t) => t.emergencyBlow.cmd > 0.5);
 
 export function bankPressure(cfg: HpAirConfig, id: string, mass: number): number {
   const b = cfg.banks.find((x) => x.id === id)!;
   return (mass * R_AIR * bankTempK(cfg)) / b.volume;
 }
 
-/** Atualiza válvulas e calcula a pressão do coletor. Retorna cursos de válvula. */
+/** Massa disponível: um coletor isolado de volume desprezível não fornece ar. */
+export function manifoldMass(cfg: HpAirConfig, s: SimState, circuit: AirCircuit = 'normal'): number {
+  return cfg.banks.reduce((sum, b) => sum + (bankCircuit(b) === circuit && s.hpAir.banks[b.id].valve.pos > 0.05 ? s.hpAir.banks[b.id].mass : 0), 0);
+}
+
+/** Atualiza válvulas e equaliza cada circuito separadamente. */
 export function updateHpManifold(cfg: HpAirConfig, s: SimState, ctx: StepContext): number {
   let strokes = 0;
-  const T = bankTempK(cfg);
-  let mSum = 0;
-  let vSum = 0;
-  for (const b of cfg.banks) {
-    const st = s.hpAir.banks[b.id];
-    strokes += updateValve(b.valve, st.valve, ctx.dt, ctx.hydraulicFactor > 0);
-    if (st.valve.pos > 0.05) {
-      mSum += st.mass;
-      vSum += b.volume;
-    }
-  }
-  // equalização entre grupos abertos
-  if (vSum > 0) {
-    for (const b of cfg.banks) {
-      const st = s.hpAir.banks[b.id];
-      if (st.valve.pos > 0.05) st.mass = (mSum * b.volume) / vSum;
-    }
-    s.hpAir.manifoldPressure = (mSum * R_AIR * T) / vSum;
-  } else {
-    // coletor isolado: pressão residual decai rapidamente (volume desprezível)
-    s.hpAir.manifoldPressure = Math.max(ctx.env.cfg.atmosphericPressure, s.hpAir.manifoldPressure * Math.exp(-ctx.dt / 0.5));
+  for (const b of cfg.banks) strokes += updateValve(b.valve, s.hpAir.banks[b.id].valve, ctx.dt, ctx.hydraulicFactor > 0);
+  for (const circuit of ['normal', 'emergency'] as const) {
+    const open = cfg.banks.filter((b) => bankCircuit(b) === circuit && s.hpAir.banks[b.id].valve.pos > 0.05);
+    const mass = open.reduce((sum, b) => sum + s.hpAir.banks[b.id].mass, 0);
+    const volume = open.reduce((sum, b) => sum + b.volume, 0);
+    for (const b of open) s.hpAir.banks[b.id].mass = (mass * b.volume) / volume;
+    const pressure = volume > 0 ? (mass * R_AIR * bankTempK(cfg)) / volume : ctx.env.cfg.atmosphericPressure;
+    if (circuit === 'normal') s.hpAir.manifoldPressure = pressure;
+    else s.hpAir.emergencyManifoldPressure = pressure;
   }
   return strokes;
 }
 
-/** Retira do coletor a massa consumida pelos sopros (proporcional a cada grupo aberto). */
-export function drawFromManifold(cfg: HpAirConfig, s: SimState, mass: number): void {
-  if (mass <= 0) return;
-  let mOpen = 0;
+/** Consumo proporcional entre os grupos abertos do circuito selecionado. */
+export function drawFromManifold(cfg: HpAirConfig, s: SimState, mass: number, circuit: AirCircuit = 'normal'): void {
+  const available = manifoldMass(cfg, s, circuit);
+  if (mass <= 0 || available <= 0) return;
+  const fraction = Math.min(1, mass / available);
   for (const b of cfg.banks) {
     const st = s.hpAir.banks[b.id];
-    if (st.valve.pos > 0.05) mOpen += st.mass;
-  }
-  if (mOpen <= 0) return;
-  for (const b of cfg.banks) {
-    const st = s.hpAir.banks[b.id];
-    if (st.valve.pos > 0.05) st.mass = Math.max(0, st.mass - (mass * st.mass) / mOpen);
+    if (bankCircuit(b) === circuit && st.valve.pos > 0.05) st.mass *= 1 - fraction;
   }
 }
 
-/** Compressor: retorna massa adicionada (kg) e potência demandada (W). */
+/** Compressor manual ou automático durante a emergência, com prioridade à reserva dedicada. */
 export function updateCompressor(cfg: HpAirConfig, s: SimState, ctx: StepContext): { added: number; power: number } {
-  const c = cfg.compressor;
-  const run = s.hpAir.compressorCmd && ctx.busPowered && ctx.airIntakeAvailable;
+  const emergency = emergencyBlowActive(s);
+  const run = (s.hpAir.compressorCmd || emergency) && ctx.busPowered && ctx.airIntakeAvailable;
   s.hpAir.compressorRunning = false;
   if (!run) return { added: 0, power: 0 };
+  let remaining = cfg.compressor.massFlow * ctx.dt;
   let added = 0;
-  const T = bankTempK(cfg);
-  const per = (c.massFlow * ctx.dt) / cfg.banks.length;
-  for (const b of cfg.banks) {
-    const st = s.hpAir.banks[b.id];
-    const mMax = (c.maxPressure * b.volume) / (R_AIR * T);
-    const add = Math.min(per, Math.max(0, mMax - st.mass));
-    st.mass += add;
-    added += add;
+  const groups = emergency ? [cfg.banks.filter((b) => bankCircuit(b) === 'emergency'), cfg.banks.filter((b) => bankCircuit(b) === 'normal')] : [cfg.banks];
+  for (const banks of groups) {
+    const deficits = banks.map((b) => Math.max(0, (Math.min(b.maxPressure, cfg.compressor.maxPressure) * b.volume) / (R_AIR * bankTempK(cfg)) - s.hpAir.banks[b.id].mass));
+    const total = deficits.reduce((sum, deficit) => sum + deficit, 0);
+    if (total <= 0 || remaining <= 0) continue;
+    const supply = Math.min(remaining, total);
+    banks.forEach((b, i) => {
+      s.hpAir.banks[b.id].mass += (supply * deficits[i]) / total;
+    });
+    added += supply;
+    remaining -= supply;
   }
   s.hpAir.compressorRunning = added > 0;
-  return { added, power: added > 0 ? c.power : 0.1 * c.power };
+  return { added, power: added > 0 ? cfg.compressor.power : s.hpAir.compressorCmd ? 0.1 * cfg.compressor.power : 0 };
 }

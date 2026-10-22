@@ -42,7 +42,8 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | TC-1 / TC-2 (compensação) | 12 m³ cada | (6,0 / −1,0; 0; 2,3) | |
 | TT-AV / TT-AR (trim) | 8 m³ cada | (21,5 / −13,0; 0; 2,2) | braço de 34,5 m |
 | TB-BB / TB-BE (banda, fictícios) | 4 m³ cada | (2,0; ∓2,4; 1,0) | braço de 4,8 m |
-| Garrafas AP (2 grupos) | 4 m³ a 250 bar | | ≈ 1 188 kg de ar cada |
+| Garrafas AP normais (AP1 / AP2) | 4 m³ a 250 bar cada | | ≈ 1 188 kg de ar cada; coletor normal |
+| Ampolas de emergência (AE1 / AE2) | 2 m³ a 250 bar cada | | ≈ 594 kg de ar cada; coletor independente, isoladas inicialmente |
 
 ## Bombas e válvulas
 
@@ -52,7 +53,8 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Limitador de admissão de mar | 12 L/s (orifício de 25 cm²) |
 | Bomba de trim BT | 12 L/s; shutoff 5 bar; perda na linha 0,6 bar |
 | Bomba de banda BB | 6 L/s; shutoff 3 bar |
-| Curso das válvulas | suspiros 2,5 s · sopro 1,5 s · mar 5 s · tanques 3–4 s |
+| Curso das válvulas | suspiros 2,5 s · sopro normal/emergência 1,5 s · mar 5 s · tanques 3–4 s |
+| Sopro de emergência | mesmo orifício do normal em ramal dedicado; válvulas de emergência e isolamento AE independem da hidráulica |
 
 ## Superfícies de controle
 
@@ -104,7 +106,7 @@ Os ganhos que comandam lemes (rumo, pitch e lemes de vela) são multiplicados po
 | Bateria | 11 000 Ah; V_oc 440–560 V; R = 4 mΩ; I_máx 7 000 A |
 | Diesel-geradores | 2 × 1,1 MW; partida em 30 s; consumo específico de 215 g/kWh |
 | Cargas fixas | habitabilidade 60 kW; navegação/controle 12 kW |
-| Compressor de ar | 0,12 kg/s; 80 kW |
+| Compressor de ar | 0,12 kg/s total; 80 kW; recarrega os dois circuitos até o menor limite entre banco e compressor; prioridade às ampolas durante emergência |
 | Hidráulica | 200 bar nominal; mínimo de 90 bar |
 
 ## Limites fictícios (educacionais)

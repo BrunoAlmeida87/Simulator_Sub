@@ -129,10 +129,10 @@ export const fullExternalLayers = (): SceneLayers => ({
 
 /** Grupos das camadas nos painéis (ordem de exibição). */
 export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exclude<BoolLayer, 'hull'>[] }[] = [
-  { id: 'vetores', label: 'Vetores', title: 'Forças sobre o submarino', keys: ['vectors', 'hydroVectors', 'trimVectors'] },
-  { id: 'interior', label: 'Interior (corte)', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows', 'batteryInfo', 'airInfo'] },
-  { id: 'mar', label: 'Mar e efeitos', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'ships', 'markers', 'trail'] },
-  { id: 'refs', label: 'Rótulos e referências', title: 'Identificações e referências de calado/trim', keys: ['labels', 'trimRef'] },
+  { id: 'interior', label: 'Tanques e sistemas', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows'] },
+  { id: 'vetores', label: 'Forças e vetores', title: 'Forças sobre o submarino', keys: ['vectors', 'hydroVectors', 'trimVectors'] },
+  { id: 'refs', label: 'Identificações e referências', title: 'Nomes, bateria, ar comprimido e referências de calado/trim', keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef'] },
+  { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'ships', 'markers', 'trail'] },
   { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['noWater', 'presLight'] },
 ];
 

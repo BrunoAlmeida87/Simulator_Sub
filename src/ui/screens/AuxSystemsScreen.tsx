@@ -25,7 +25,7 @@ const MODULES: Module[] = [
     name: 'Ar comprimido (produção, armazenamento, distribuição)',
     status: 'PARCIAL',
     phase: 'Fase 1 (núcleo) / Fase 3 (expansão)',
-    implemented: ['Garrafas AP com pressão p = mRT/V', 'Válvulas de isolamento e coletor', 'Sopro dos TLP por orifício compressível', 'Compressor com tomada de ar e consumo elétrico'],
+    implemented: ['Garrafas normais e ampolas de emergência com pressão p = mRT/V', 'Isolamentos e coletores independentes', 'Sopro normal e de emergência dos TLP por orifício compressível', 'Compressor recarrega ambos; automático durante emergência com tomada de ar e energia'],
     future: ['Soprador de baixa pressão para a superfície', 'Válvulas redutoras e consumidores de serviço', 'Resfriamento adiabático na expansão'],
     relations: ['Energia elétrica → compressor', 'Snorkel/superfície → tomada de ar', 'Ar AP → lastro principal'],
     live: (e) => e.vessel.hpAir.banks.map((b) => `${b.id}: ${fmt(bankPressure(e.vessel.hpAir, b.id, e.state.hpAir.banks[b.id].mass) / 1e5, 0)} bar`).concat([`Compressor: ${e.state.hpAir.compressorRunning ? 'comprimindo' : 'parado'}`]),

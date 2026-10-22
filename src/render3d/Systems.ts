@@ -296,9 +296,9 @@ export class SystemsVis {
     // rótulos de energia: camada própria ("Bateria (%)"), junto da bateria e dos geradores —
     // só com o corte, quando esses componentes estão à vista (antes flutuava sobre o casco fechado)
     if (layers.tanks && !hide && layers.batteryInfo) {
-      labels.push({ id: 'pwB', text: `Bateria ${(soc * 100).toFixed(0)} %${el.current < -1 ? ' ▲ carregando' : ''}`, color: '#9fe3b0', small: true, prio: 3, ...proj(sub.localToWorld(b2l(14, 0, 1.6))) });
+      labels.push({ id: 'pwB', callout: true, text: `Bateria ${(soc * 100).toFixed(0)} %${el.current < -1 ? ' ▲ carregando' : ''}`, color: '#9fe3b0', small: true, prio: 3, ...proj(sub.localToWorld(b2l(14, 0, 1.6))) });
       const run = e.vessel.electrical.generators.filter((g) => el.generators[g.id].status === 'EM CARGA').length;
-      if (run) labels.push({ id: 'pwG', text: `Geradores: ${run} em carga`, color: '#ffd18a', small: true, prio: 3, ...proj(sub.localToWorld(b2l(-17.5, 0, 0.4))) });
+      if (run) labels.push({ id: 'pwG', callout: true, text: `Geradores: ${run} em carga`, color: '#ffd18a', small: true, prio: 3, ...proj(sub.localToWorld(b2l(-17.5, 0, 0.4))) });
     }
   }
 
@@ -326,6 +326,7 @@ export class SystemsVis {
       const at = this.hpBottles.find((x) => x.id === b.id)?.at ?? b2l(-8, 0, 1);
       labels.push({
         id: 'air' + b.id,
+        callout: true,
         text: `${b.id} · ${(p / 1e5).toFixed(0)} bar`,
         sub: `${st.mass.toFixed(0)} kg de ar ≈ ${free.toFixed(0)} m³ a 1 atm · ${dec(b.volume, 1)} m³ de garrafas · válvula ${vs.toLowerCase()}${flow}`,
         color: '#e8dc9a',
@@ -398,28 +399,33 @@ export class SystemsVis {
     const sq = (n: number) => Math.sign(n) * Math.min(1, Math.sqrt(Math.abs(n)));
     // --- ar AP: garrafas → coletor ao longo do casco → válvulas de sopro → TLP
     const zM = (x: number) => -(geom.radiusAt(x) - 0.45);
+    const zE = (x: number) => zM(x) + 0.4;
     const node = b2l(-8, 0, zM(-8));
     v.hpAir.banks.forEach((b, i) => {
-      const y = i === 0 ? -0.9 : 0.9;
+      const emergency = b.purpose === 'emergency';
+      const x = emergency ? -3.5 : -8;
+      const y = i % 2 === 0 ? -0.9 : 0.9;
+      const color = emergency ? 0xf0a070 : 0xd9cf8f;
+      const z = emergency ? zE : zM;
       const grp = new THREE.Group();
       for (let k = 0; k < 3; k++) {
-        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 3.2, 12), new THREE.MeshStandardMaterial({ color: 0xd9cf8f, emissive: 0x3a3418, transparent: true, opacity: 0.9 }));
+        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, emergency ? 1.6 : 3.2, 12), new THREE.MeshStandardMaterial({ color, emissive: 0x3a3418, transparent: true, opacity: 0.9 }));
         c.rotation.x = Math.PI / 2;
-        c.position.copy(b2l(-8, y + (k - 1) * 0.3, 1.5 + (k % 2) * 0.25));
+        c.position.copy(b2l(x, y + (k - 1) * 0.3, 1.5 + (k % 2) * 0.25));
         c.userData.pick = { kind: 'hp', id: b.id };
         this.pickables.push(c);
         grp.add(c);
       }
       // as garrafas são reservatórios: aparecem com o corte, mesmo sem a camada de tubulações
       this.group.add(grp);
-      this.hpBottles.push({ id: b.id, grp, at: b2l(-8, y * 1.25, 0.9) });
-      const start = b2l(-8, y, 1.0);
-      const riser = [start, b2l(-8, y, 0.2), b2l(-8, 0, zM(-8))];
-      this.pipe(riser, 0xb7a95c, ['HP']);
-      this.valve(b2l(-8, y, 0.6), b.valve.name, (en) => en.state.hpAir.banks[b.id].valve, ['HP']);
+      this.hpBottles.push({ id: b.id, grp, at: b2l(x, y * 1.25, 0.9) });
+      const start = b2l(x, y, 1.0);
+      const riser = [start, b2l(x, y, 0.2), b2l(x, 0, z(x))];
+      this.pipe(riser, color, ['HP']);
+      this.valve(b2l(x, y, 0.6), b.valve.name, (en) => en.state.hpAir.banks[b.id].valve, ['HP']);
       this.stream(riser, C_HP, ['HP'], (en) => {
         let m = 0;
-        for (const t of v.ballast.tanks) m += en.state.ballast[t.id].mdotBlow;
+        for (const t of v.ballast.tanks) m += emergency ? en.state.ballast[t.id].mdotEmergencyBlow : en.state.ballast[t.id].mdotBlow;
         return en.state.hpAir.banks[b.id].valve.pos > 0.05 ? sq(m / 30) : 0;
       });
     });
@@ -429,6 +435,7 @@ export class SystemsVis {
     const man: THREE.Vector3[] = [];
     for (let x = xMin; x <= xMax + 1e-6; x += (xMax - xMin) / 24) man.push(b2l(x, 0, zM(x)));
     this.pipe(man, 0xb7a95c, ['HP']);
+    this.pipe(man.map((_, i) => b2l(xMin + i * (xMax - xMin) / 24, 0, zE(xMin + i * (xMax - xMin) / 24))), 0xf0a070, ['HP']);
     for (const t of v.ballast.tanks) {
       const r = geom.radiusAt(t.center.x);
       const side = t.center.y < 0 ? -1 : 1;
@@ -443,6 +450,11 @@ export class SystemsVis {
       this.pipe([nodeX, b2l(xFace, yIn, topZ), b2l(t.center.x, yIn, topZ + 0.3)], 0xb7a95c, [t.id]);
       this.valve(b2l(xFace, yIn * 0.6, (zM(xFace) + topZ) / 2), t.blowValve.name, (en) => en.state.ballast[t.id].blow, [t.id]);
       this.stream([node, ...bl], C_HP, [t.id, 'HP'], (en) => sq(en.state.ballast[t.id].mdotBlow / 15));
+      const emergencyFace = xFace + (fwd ? -0.6 : 0.6);
+      const emergencyBranch = [b2l(emergencyFace, 0, zE(emergencyFace)), b2l(emergencyFace, yIn, topZ + 0.4), b2l(t.center.x, yIn, topZ + 0.6)];
+      this.pipe(emergencyBranch, 0xf0a070, [t.id]);
+      this.valve(b2l(emergencyFace, yIn * 0.6, (zE(emergencyFace) + topZ + 0.4) / 2), t.emergencyBlowValve.name, (en) => en.state.ballast[t.id].emergencyBlow, [t.id]);
+      this.stream([...this.pathAlongManifold(-3.5, emergencyFace, zE), ...emergencyBranch], new THREE.Color(0xf0a070), [t.id, 'HP'], (en) => sq(en.state.ballast[t.id].mdotEmergencyBlow / 15));
       // suspiro: topo do tanque → válvula → convés
       const yV = side * rr * 0.3;
       const zDeck = -Math.sqrt(Math.max(0, r * r - yV * yV)) - 0.15;
@@ -623,6 +635,7 @@ export class SystemsVis {
         const st = TANK_STYLE[t.cat];
         labels.push({
           id: 'tk' + t.id,
+          callout: true,
           text: `${t.short} ${(fill * 100).toFixed(0)} %${arrow}`,
           sub: sel ? `${st.label} — ${st.fn} · ${t.getVol(e).toFixed(t.cap > 20 ? 1 : 2)}/${t.cap.toFixed(0)} m³` : undefined,
           color: st.css,
@@ -652,7 +665,7 @@ export class SystemsVis {
       v.mesh.scale.setScalar(st.pos > 0.5 || moving ? 1.25 : 1);
       // rótulo só durante o curso da válvula (ou aberta, para o tanque destacado)
       if (showP && layers.labels && (moving || (hl && st.pos > 0.5 && v.owners.includes(hl)))) {
-        labels.push({ id: 'vl' + v.name, text: `${v.name}: ${moving ? (st.cmd > st.pos ? 'abrindo' : 'fechando') : 'aberta'}`, color: moving ? '#ffc040' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(v.mesh.position.clone())) });
+        labels.push({ id: 'vl' + v.name, callout: true, text: `${v.name}: ${moving ? (st.cmd > st.pos ? 'abrindo' : 'fechando') : 'aberta'}`, color: moving ? '#ffc040' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(v.mesh.position.clone())) });
       }
     }
     for (const p of this.pumps) {
@@ -664,7 +677,7 @@ export class SystemsVis {
       p.rotor.rotation.y += step * st.speed * 25;
       p.rotor.visible = owned(p.owners);
       if (showP && layers.labels && (st.speed > 0.05 || st.failed) && owned(p.owners)) {
-        labels.push({ id: 'pm' + p.name, text: `${p.name}: ${st.failed ? 'FALHA' : `em funcionamento ${(st.speed * 100).toFixed(0)} %`}`, color: st.failed ? '#ff6b6b' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(p.pos.clone().add(new THREE.Vector3(0, 0.9, 0)))) });
+        labels.push({ id: 'pm' + p.name, callout: true, text: `${p.name}: ${st.failed ? 'FALHA' : `em funcionamento ${(st.speed * 100).toFixed(0)} %`}`, color: st.failed ? '#ff6b6b' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(p.pos.clone().add(new THREE.Vector3(0, 0.9, 0)))) });
       }
     }
     for (const pa of this.ports) {

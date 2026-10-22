@@ -31,11 +31,13 @@ export interface BallastTankState {
   air: number; // kg de ar no tanque
   vent: ValveState;
   blow: ValveState;
+  emergencyBlow: ValveState;
   ventLeak: number; // m² — área de vazamento por falha de vedação do suspiro
   // diagnósticos
   qWater: number; // m³/s (+ entrando)
   mdotVent: number; // kg/s
   mdotBlow: number; // kg/s
+  mdotEmergencyBlow: number; // kg/s — circuito dedicado de emergência
   mdotSpill: number; // kg/s (ar escapando pelos embornais)
   pAir: number; // Pa absolutos
   pExtPort: number; // Pa no embornal
@@ -232,6 +234,7 @@ export interface SimState {
     compressorCmd: boolean;
     compressorRunning: boolean;
     manifoldPressure: number;
+    emergencyManifoldPressure: number;
   };
   compensation: CompensationState;
   trim: TransferState;

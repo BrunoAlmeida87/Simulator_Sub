@@ -184,7 +184,9 @@ Algumas consequências emergem do modelo: o alagamento é limitado pela saída d
 p_grupo = m·R·T_ar / V_grupo
 ```
 
-Os grupos abertos se equalizam no coletor. O compressor adiciona ṁ_c com tomada de ar disponível e consome potência.
+Os grupos abertos se equalizam somente no coletor de seu circuito (normal ou emergência). Não há equalização nem consumo cruzado entre os circuitos. Cada TLP recebe ar por válvulas independentes, com o mesmo modelo de orifício compressível; o consumo de cada circuito é limitado à massa de seus bancos abertos para conservar massa mesmo ao esgotar as reservas.
+
+O compressor adiciona no máximo ṁ_c·Δt ao conjunto de bancos por linhas com retenção, inclusive com os isolamentos de sopro fechados, sem ultrapassar a pressão máxima de cada banco ou a do compressor. A recarga é distribuída proporcionalmente à massa faltante. Durante o sopro de emergência há solicitação automática do compressor e prioridade às ampolas dedicadas; a operação exige tomada de ar disponível e energia. A massa admitida e a potência entram nos balanços do motor.
 
 ## 8. Compensação, trim e banda (`systems/internalTanks.ts`)
 
