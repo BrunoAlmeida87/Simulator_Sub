@@ -36,6 +36,8 @@ export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings {
   deepPersp: boolean;
   /** intensidade da perspectiva profunda */
   deepLevel: DeepLevel;
+  /** espaçamento das linhas de profundidade (m; camada “Linhas de profundidade”) */
+  depthLineSpacing: number;
 }
 
 const K_Q = 'sx1.quality.v1';
@@ -53,6 +55,8 @@ function initialQuality(): OceanQuality {
 }
 
 export const TRIM_GAINS = [1, 5, 10, 20, 50];
+/** espaçamentos oferecidos para as linhas de profundidade (m); padrão 25 m */
+export const DEPTH_LINE_SPACINGS = [5, 10, 20, 25, 50, 100];
 
 const num = (v: unknown, lo: number, hi: number, def: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def);
 
@@ -72,6 +76,7 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     depthRefs: typeof p?.depthRefs === 'boolean' ? p.depthRefs : base.depthRefs,
     deepPersp: typeof p?.deepPersp === 'boolean' ? p.deepPersp : base.deepPersp,
     deepLevel: p?.deepLevel === 'leve' || p?.deepLevel === 'media' || p?.deepLevel === 'forte' ? p.deepLevel : base.deepLevel,
+    depthLineSpacing: typeof p?.depthLineSpacing === 'number' && DEPTH_LINE_SPACINGS.includes(p.depthLineSpacing) ? p.depthLineSpacing : base.depthLineSpacing,
     sunHour: num(p?.sunHour, 0, 24, base.sunHour),
     sunTurn: num(p?.sunTurn, -180, 180, base.sunTurn),
     moonlight: typeof p?.moonlight === 'boolean' ? p.moonlight : base.moonlight,
@@ -100,6 +105,7 @@ class GraphicsStore {
       depthRefs: true,
       deepPersp: false,
       deepLevel: 'media',
+      depthLineSpacing: 25,
       ...DEFAULT_DAYLIGHT,
     };
     let saved: Partial<GraphicsSettings> | null = null;

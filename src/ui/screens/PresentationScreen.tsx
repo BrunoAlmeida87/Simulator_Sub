@@ -12,6 +12,7 @@ import { seaSections } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
+import { CargoPanel } from '../components/CargoPanel';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { TourCard, TourList } from '../components/TourCard';
 import { tours } from '../tours';
@@ -64,6 +65,7 @@ export const LAYER_LIST: LayerKey[] = [
   'presLight',
   'noWater',
   'trimRef',
+  'depthLines',
   'ships',
 ];
 
@@ -121,8 +123,8 @@ function tankRows(e: SimulationEngine): TankRow[] {
   for (const t of v.compensation.tanks) rows.push({ id: t.id, cat: 'compensacao', name: t.name, vol: tankVolume(s.compensation.tanks[t.id]), cap: t.capacity, flow: s.compensation.tanks[t.id].flow ?? 0 });
   rows.push({ id: v.trim.tankA.id, cat: 'trim', name: v.trim.tankA.name, vol: tankVolume(s.trim.tankA), cap: v.trim.tankA.capacity, flow: -s.trim.flow });
   rows.push({ id: v.trim.tankB.id, cat: 'trim', name: v.trim.tankB.name, vol: tankVolume(s.trim.tankB), cap: v.trim.tankB.capacity, flow: s.trim.flow });
-  rows.push({ id: v.heel.tankA.id, cat: 'banda', name: v.heel.tankA.name, vol: tankVolume(s.heel.tankA), cap: v.heel.tankA.capacity, flow: -s.heel.flow });
-  rows.push({ id: v.heel.tankB.id, cat: 'banda', name: v.heel.tankB.name, vol: tankVolume(s.heel.tankB), cap: v.heel.tankB.capacity, flow: s.heel.flow });
+  rows.push({ id: v.heel.tankA.id, cat: 'banda', name: v.heel.tankA.name, vol: tankVolume(s.heel.tankA), cap: v.heel.tankA.capacity, flow: (s.heel.tankA.flow ?? 0) - s.heel.flow });
+  rows.push({ id: v.heel.tankB.id, cat: 'banda', name: v.heel.tankB.name, vol: tankVolume(s.heel.tankB), cap: v.heel.tankB.capacity, flow: (s.heel.tankB.flow ?? 0) + s.heel.flow });
   return rows;
 }
 
@@ -351,6 +353,10 @@ export function PresentationScreen() {
               </tr>
             </tbody>
           </table>
+        </Panel>
+
+        <Panel title="Cargas a bordo — trim e banda">
+          <CargoPanel e={e} />
         </Panel>
 
         <Panel title="Trim — peso deslocável">

@@ -170,6 +170,13 @@ export interface InternalTankConfig {
   height: number; // m
   center: Vec3;
   initialVolume: number; // m³
+  /** largura transversal da seção (m); com hullRadius, a seção é este retângulo recortado pelo casco */
+  width?: number;
+  /**
+   * Raio interno do casco resistente (m) na posição do tanque: a seção do
+   * tanque segue o casco (fundo/costado abaulados). Ausente = tanque prismático.
+   */
+  hullRadius?: number;
 }
 
 export interface CompensationConfig {
@@ -181,6 +188,12 @@ export interface CompensationConfig {
   inletRegulatorFlow: number; // m³/s (limitador de vazão)
   seaConnection: Vec3; // posição da tomada de mar (corpo)
   pump: PumpConfig;
+  /**
+   * Ramais do coletor de compensação para os tanques de banda (TB-BB = 'A',
+   * TB-BE = 'B'): os tanques laterais também trocam água com o mar. A água
+   * deles continua no estado da banda. Ausente nas configurações antigas.
+   */
+  heelBranches?: { tank: 'A' | 'B'; valve: ValveConfig }[];
 }
 
 export interface TransferSystemConfig {

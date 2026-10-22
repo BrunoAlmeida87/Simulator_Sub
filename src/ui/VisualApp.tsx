@@ -37,6 +37,7 @@ const LAYER_KEYS: LayerKey[] = [
   'trail',
   'labels',
   'trimRef',
+  'depthLines',
   'noWater',
   'presLight',
 ];

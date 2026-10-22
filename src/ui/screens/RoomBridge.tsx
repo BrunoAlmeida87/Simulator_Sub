@@ -27,6 +27,7 @@ export function RoomBridge({ onExit }: { onExit: () => void }) {
           airInfo: false,
           trail: false,
           trimRef: false,
+          depthLines: false,
           noWater: false,
           markers: true,
           wake: true,

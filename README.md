@@ -35,9 +35,9 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 |---|---|
 | Modelo físico de flutuabilidade e movimento | ✅ **6 graus de liberdade** completos (surge, sway, heave, roll, pitch, yaw), integração RK4, quatérnios |
 | Lastro principal | ✅ 4 TLP com suspiro, sopro normal e de emergência, embornais, circuitos AP independentes, transitórios e limites de vazão; ampolas dedicadas de 2 m³ a 250 bar e recarga pelo compressor |
-| Compensação e trim | ✅ Circuitos fictícios com bombas, válvulas, sequência automática de dosagem e cálculo de compensação |
-| Propulsão | ✅ Motor elétrico, eixo, hélice de 4 quadrantes, rampa de rotação, limites de torque e potência |
-| Lemes de direção e de profundidade | ✅ Lemes de vante na vela, lemes de ré e direção totalmente móveis (sem estabilizadores fixos), atuadores limitados em velocidade; força proporcional a U² e estol |
+| Compensação e trim | ✅ Circuitos fictícios com bombas, válvulas, sequência automática de dosagem e cálculo de compensação; conjunto de três tanques num coletor único (TC central sob o CG + tanques de banda TB-BB/TB-BE, que também compensam) |
+| Propulsão | ✅ Motor elétrico, eixo, hélice de 4 quadrantes, rampa de rotação, limites de torque e potência. No 3D, hélice de 7 pás em cimitarra (grande caimento, passo helicoidal, inclinação para ré) |
+| Lemes de direção e de profundidade | ✅ Lemes de vante na vela, lemes de ré e direção totalmente móveis (sem estabilizadores fixos), atuadores limitados em velocidade; força proporcional a U² e estol. No 3D, perfil de asa NACA com afilamento, enflechamento e ponta arredondada |
 | Indicadores | ✅ Profundidade, rumo, velocidade, pitch, banda e muitos outros, classificados como MED, CALC ou CMD |
 | Modelo 3D animado | ✅ Three.js com corte dos tanques (TLP em seção "D" que acompanha o casco), tubulações, válvulas, bombas e escoamentos animados pelas vazões simuladas; hélice, lemes, bolhas e fundo |
 | Vetores de força | ✅ Peso (em G), empuxo (em B) e resultante E − P com ampliação declarada; empuxo do hélice, resistência da água e forças dos lemes — valores do último passo do motor |
@@ -260,3 +260,11 @@ Resumo (lista completa em [docs/LIMITACOES.md](docs/LIMITACOES.md)):
 - **Fase 2:** navegação inercial com deriva, distribuição elétrica com disjuntores e rejeição de cargas, soprador de baixa pressão, mais sensores redundantes e cenários de falhas combinadas.
 - **Fase 3:** ondas e correntes, sucção de superfície, superfície livre nos tanques, atmosfera interna (O₂/CO₂), refrigeração, esgoto, controle de avarias, hidrodinâmica refinada e WebAssembly, se houver ganho comprovado.
 
+
+### Cargas a bordo: trim e banda
+
+Na tela **Trim e banda** e na apresentação, use **Cargas a bordo** para embarcar vários itens (pessoas, carga, torpedos fictícios e equipamentos). Escolha um **modelo pronto** (tripulante, equipe, torpedo, mantimentos, lastro sólido…), que já recebe um **nome automático** numerado, e **clique no mapa de bordo** (perfil e planta, com os compartimentos) para posicioná-lo; arraste as cargas embarcadas para movê-las e passe o mouse sobre elas para ver o nome. O painel mostra o efeito estimado em trim, banda e flutuabilidade e pode **compensar o peso automaticamente** pela compensação. Na tabela é possível renomear, duplicar, mudar a quantidade e desembarcar. X cresce para vante, Y para boreste e Z para baixo; as posições ficam sempre dentro do casco. As cargas de projeto e o peso móvel de demonstração são contabilizados separadamente.
+
+As cargas adicionais alteram massa, centro de gravidade e inércia sem recalibrar o peso leve ou compensar automaticamente. Elas permanecem durante o mergulho e fazem parte dos salvamentos. Torpedos são cargas de massa nesta etapa; desembarcar não simula a hidráulica de lançamento.
+
+Para observar trim leve na superfície, escolha **Mar calmo para ensaio**, embarque 1 t na vante e avance a simulação. Observe o pitch real com três casas decimais e a diferença de profundidade entre as referências de vante e ré, em centímetros. Mergulhe com a mesma carga para observar a resposta submersa. Cargas laterais provocam banda para o bordo carregado. As sugestões de transferência de trim/banda dependem de comando explícito e respeitam a água disponível e o espaço no tanque de destino. São aproximações para nivelamento na posição atual, devendo ser reavaliadas após a resposta do submarino. A compensação vertical continua disponível na tela de compensação.

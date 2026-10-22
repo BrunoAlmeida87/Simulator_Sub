@@ -30,7 +30,21 @@ import { SceneLayerPanel } from '../components/SceneLayerPanel';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 
 /** preferências adicionais da Pilotagem (preserva as chaves já salvas) */
-const PILOT_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, trail: true, wind: true, presLight: false, hullOpacity: 0.16, resultantGain: 'auto' as const };
+const PILOT_LAYER_DEFAULTS = {
+  pipes: true,
+  flows: true,
+  labels: true,
+  batteryInfo: true,
+  airInfo: false,
+  wake: true,
+  trail: true,
+  wind: true,
+  pennant: false,
+  depthLines: true,
+  presLight: false,
+  hullOpacity: 0.16,
+  resultantGain: 'auto' as const,
+};
 const PILOT_LAYER_KEYS: LayerKey[] = [
   'vectors',
   'hydroVectors',
@@ -47,6 +61,7 @@ const PILOT_LAYER_KEYS: LayerKey[] = [
   'trail',
   'markers',
   'trimRef',
+  'depthLines',
   'ships',
   'noWater',
   'presLight',

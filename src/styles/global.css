@@ -1085,3 +1085,26 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .pc-wrap.pos-baixo, .pc-wrap.pos-esquerda, .pc-wrap.pos-direita, .pc-subwrap.pos-baixo { bottom: 84px; }
   .pres-float { left: 8px; right: 8px; bottom: 8px; width: auto; }
 }
+/* Cargas a bordo (CargoPanel): mapa clicável + formulário lado a lado; empilha em telas estreitas */
+.cargo-layout { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.cargo-mapbox { flex: 1.7 1 460px; min-width: 0; }
+.cargo-form { flex: 1 1 280px; }
+.cargo-map { border: 1px solid var(--line); border-radius: 4px; }
+.cargo-form { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; gap: 7px; min-width: 0; }
+.cargo-models { display: flex; flex-wrap: wrap; gap: 4px; }
+.cargo-where { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; }
+.cargo-step { display: inline-flex; align-items: center; gap: 3px; }
+.cargo-step .mono { min-width: 22px; text-align: center; }
+.cargo-preview { border-left: 2px solid var(--calc); padding: 2px 8px; font-size: 11.5px; display: flex; flex-direction: column; gap: 2px; }
+.cargo-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; border: 1px solid; border-radius: 10px; padding: 1px 8px; }
+.cargo-chip i, .cargo-legend i, .cargo-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.cargo-dot { margin-right: 6px; vertical-align: middle; }
+.cargo-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.cargo-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.cargo-legend i.dia { background: #5a6f86; border-radius: 1px; transform: rotate(45deg); width: 7px; height: 7px; }
+.cargo-legend i.ghost { background: transparent; border: 1.5px dashed; }
+.cargo-name { background: none; border: none; color: var(--text); cursor: text; padding: 0; font: inherit; text-align: left; }
+.cargo-name span { color: var(--dim); font-size: 10px; margin-left: 3px; }
+.cargo-name:hover span { color: var(--accent); }
+.cargo-table td.nowrap { white-space: nowrap; }
+@media (max-width: 760px) { .cargo-where { grid-template-columns: 1fr; } }
