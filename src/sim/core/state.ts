@@ -8,6 +8,15 @@
  */
 import type { Quat, Vec3 } from './math';
 
+export interface CargoLoad {
+  id: string;
+  name: string;
+  category: 'pessoas' | 'carga' | 'torpedos' | 'equipamentos';
+  quantity: number;
+  unitMass: number; // kg
+  position: Vec3;
+}
+
 export interface ValveState {
   cmd: number; // posição comandada (0 = fechada, 1 = aberta)
   pos: number; // posição real
@@ -210,7 +219,7 @@ export interface Ledger {
   generatorEnergy: number;
   propellerWork: number; // energia mecânica entregue ao hélice
   mass0: number; // massa interna inicial (referência)
-  /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (peso deslocável) */
+  /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (cargas e peso deslocável) */
   cargoIn?: number;
 }
 
@@ -258,6 +267,7 @@ export interface SimState {
   ledger: Ledger;
   contact: boolean;
   /** peso deslocável de demonstração: posição (m, corpo), posição ordenada e massa (kg) */
+  cargoLoads?: CargoLoad[]; // cargas adicionais; ausente em salvamentos antigos
   demoWeight?: { x: number; xCmd: number; mass: number };
   /** massas de referência dos tanques de trim (condição inicial do cenário) para os vetores de trim */
   trimRef?: { a: number; b: number };

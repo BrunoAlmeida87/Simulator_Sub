@@ -4,7 +4,7 @@
  * registrado em ordem cronológica (tempo de simulação + descrição).
  */
 import type { SimulationEngine } from './core/engine';
-import type { SensorFailMode } from './core/state';
+import type { CargoLoad, SensorFailMode } from './core/state';
 import { newDosing } from './systems/internalTanks';
 import { acknowledgeAlarm } from './systems/alarms';
 import { bumplessInit } from './systems/autopilot';
@@ -32,6 +32,8 @@ export type Command =
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
   | { type: 'seaState'; value: number; direction?: number }
+  | { type: 'cargoUpsert'; load: CargoLoad }
+  | { type: 'cargoRemove'; id: string }
   | { type: 'demoWeight'; x?: number; mass?: number }
   | { type: 'failure'; target: string; active: boolean; param?: number | string };
 
@@ -220,6 +222,34 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       e.env.setSeaState(c.value, c.direction);
       const w = e.env.waves;
       log(`Estado do mar: ${Math.round(c.value)} (Hs = ${w.hs.toFixed(1)} m, Tp = ${w.tp.toFixed(1)} s)`, 'Ambiente');
+      break;
+    }
+    case 'cargoUpsert': {
+      const l = c.load;
+      const { x, y, z } = l.position;
+      const mass = l.quantity * l.unitMass;
+      if (!l.id || !l.name.trim() || !['pessoas', 'carga', 'torpedos', 'equipamentos'].includes(l.category)
+        || ![l.quantity, l.unitMass, mass, x, y, z].every(Number.isFinite)
+        || !Number.isInteger(l.quantity) || l.quantity < 1 || l.unitMass <= 0 || mass > 200000
+        || Math.abs(x) > v.hull.length / 2 || Math.hypot(y, z) > e.geom.radiusAt(x)) {
+        log('Carga recusada: confira massa, quantidade e posição dentro do casco.', 'Cargas');
+        break;
+      }
+      const loads = s.cargoLoads ??= [];
+      const index = loads.findIndex(item => item.id === l.id);
+      const previous = index < 0 ? 0 : loads[index].quantity * loads[index].unitMass;
+      const next = structuredClone({ ...l, name: l.name.trim().slice(0, 80) });
+      if (index < 0) loads.push(next); else loads[index] = next;
+      s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) + mass - previous;
+      log(`${index < 0 ? 'Embarcar' : 'Atualizar/mover'} ${next.name}: ${l.quantity} × ${l.unitMass} kg; posição (${x}, ${y}, ${z}) m`, 'Cargas');
+      break;
+    }
+    case 'cargoRemove': {
+      const load = s.cargoLoads?.find(l => l.id === c.id);
+      if (!load) break;
+      s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) - load.quantity * load.unitMass;
+      s.cargoLoads = s.cargoLoads!.filter(l => l.id !== c.id);
+      log(`Desembarcar ${load.name}: ${load.quantity * load.unitMass} kg`, 'Cargas');
       break;
     }
     case 'demoWeight': {

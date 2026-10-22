@@ -11,6 +11,7 @@ import { SeaControls } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
+import { CargoPanel } from '../components/CargoPanel';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { TankSelector } from '../components/TankSelector';
 import { VectorSelector } from '../components/VectorSelector';
@@ -369,6 +370,10 @@ export function PresentationScreen() {
               </tr>
             </tbody>
           </table>
+        </Panel>
+
+        <Panel title="Cargas a bordo — trim e banda">
+          <CargoPanel e={e} />
         </Panel>
 
         <Panel title="Trim — peso deslocável">

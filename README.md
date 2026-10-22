@@ -211,3 +211,11 @@ Resumo (lista completa em [docs/LIMITACOES.md](docs/LIMITACOES.md)):
 - **Fase 2:** navegação inercial com deriva, distribuição elétrica com disjuntores e rejeição de cargas, soprador de baixa pressão, mais sensores redundantes e cenários de falhas combinadas.
 - **Fase 3:** ondas e correntes, sucção de superfície, superfície livre nos tanques, atmosfera interna (O₂/CO₂), refrigeração, esgoto, controle de avarias, hidrodinâmica refinada e WebAssembly, se houver ganho comprovado.
 
+
+### Cargas a bordo: trim e banda
+
+Na tela **Trim e banda** e na apresentação, use **Cargas a bordo** para embarcar vários itens (pessoas, carga, torpedos fictícios e equipamentos). Defina quantidade, massa por unidade em toneladas ou kg e posição; os botões Vante/Centro/Ré e Bombordo/Linha de centro/Boreste facilitam o posicionamento. X cresce para vante, Y para boreste e Z para baixo. Editar/mover conserva a massa quando apenas a posição muda; desembarcar remove a massa. As posições devem ficar dentro do casco. As cargas de projeto e o peso móvel de demonstração são contabilizados separadamente.
+
+As cargas adicionais alteram massa, centro de gravidade e inércia sem recalibrar o peso leve ou compensar automaticamente. Elas permanecem durante o mergulho e fazem parte dos salvamentos. Torpedos são cargas de massa nesta etapa; desembarcar não simula a hidráulica de lançamento.
+
+Para observar trim leve na superfície, escolha **Mar calmo para ensaio**, embarque 1 t na vante e avance a simulação. Observe o pitch real com três casas decimais e a diferença de profundidade entre as referências de vante e ré, em centímetros. Mergulhe com a mesma carga para observar a resposta submersa. Cargas laterais provocam banda para o bordo carregado. As sugestões de transferência de trim/banda dependem de comando explícito e respeitam a água disponível e o espaço no tanque de destino. São aproximações para nivelamento na posição atual, devendo ser reavaliadas após a resposta do submarino. A compensação vertical continua disponível na tela de compensação.
