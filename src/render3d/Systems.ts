@@ -27,6 +27,30 @@ type V3 = { x: number; y: number; z: number };
 /** corpo (x vante, y boreste, z para baixo) → local do grupo do submarino */
 const b2l = (x: number, y: number, z: number) => new THREE.Vector3(y, -z, -x);
 
+/** geometrias das válvulas (compartilhadas): eixo do tubo = x; haste = y */
+let VALVE_GEO: {
+  cone: THREE.BufferGeometry;
+  flange: THREE.BufferGeometry;
+  ring: THREE.BufferGeometry;
+  stem: THREE.BufferGeometry;
+  lever: THREE.BufferGeometry;
+  knob: THREE.BufferGeometry;
+  hit: THREE.BufferGeometry;
+} | null = null;
+function valveGeometries() {
+  // cones com a ponta no centro do corpo (girados ±90° em z na montagem)
+  VALVE_GEO ??= {
+    cone: new THREE.ConeGeometry(0.2, 0.3, 18),
+    flange: new THREE.CylinderGeometry(0.2, 0.2, 0.05, 18),
+    ring: new THREE.TorusGeometry(0.075, 0.035, 8, 18),
+    stem: new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8),
+    lever: new THREE.BoxGeometry(0.42, 0.05, 0.07),
+    knob: new THREE.SphereGeometry(0.06, 10, 8),
+    hit: new THREE.SphereGeometry(0.45, 10, 8),
+  };
+  return VALVE_GEO;
+}
+
 interface TankVis {
   id: string;
   cat: TankCategory;
@@ -60,7 +84,13 @@ interface Stream {
 }
 
 interface ValveVis {
-  mesh: THREE.Mesh;
+  /** grupo da válvula (corpo, flanges, haste, alavanca e anel de estado); eixo x local = eixo do tubo */
+  mesh: THREE.Group;
+  /** alavanca: paralela ao tubo = aberta, atravessada = fechada (gira com a posição real) */
+  lever: THREE.Object3D;
+  /** materiais coloridos pelo estado (anel e alavanca) e os de metal (corpo) */
+  stateMats: THREE.MeshStandardMaterial[];
+  metalMats: THREE.MeshStandardMaterial[];
   get: (e: SimulationEngine) => ValveState;
   name: string;
   owners: string[];
@@ -111,6 +141,8 @@ export class SystemsVis {
   private points: THREE.Points;
   private posAttr: THREE.BufferAttribute;
   private colAttr: THREE.BufferAttribute;
+  /** trajetos das tubulações (para alinhar cada válvula ao seu tubo) */
+  private pipePaths: THREE.Vector3[][] = [];
   private clipPlanes = new Map<string, { water: THREE.Plane; air: THREE.Plane; levelLocal: number; center: THREE.Vector3 }>();
 
   constructor(private e0: SimulationEngine, dot: THREE.Texture | null) {
@@ -122,6 +154,7 @@ export class SystemsVis {
     }
     this.buildCircuits();
     this.buildPower();
+    this.orientValves();
     for (const v of this.valves) this.pickables.push(v.mesh);
     for (const p of this.pumps) this.pickables.push(p.body);
     const g = new THREE.BufferGeometry();
@@ -380,6 +413,7 @@ export class SystemsVis {
 
   // ------------------------------------------------------------- circuitos
   private pipe(pts: THREE.Vector3[], color: number, owners: string[], r = 0.11): void {
+    this.pipePaths.push(pts);
     const path = new THREE.CurvePath<THREE.Vector3>();
     for (let i = 0; i < pts.length - 1; i++) path.add(new THREE.LineCurve3(pts[i], pts[i + 1]));
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false, fog: false });
@@ -397,12 +431,75 @@ export class SystemsVis {
   private valve(p: THREE.Vector3, name: string, get: (e: SimulationEngine) => ValveState, owners: string[]): void {
     const sys = owners.find((o) => o === 'HP' || o === 'compensacao' || o === 'trim' || o === 'heel') ?? 'lastro';
     const tank = owners.find((o) => this.tanks.some((t) => t.id === o));
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff4d4d, depthTest: false, transparent: true, toneMapped: false, fog: false }));
-    m.position.copy(p);
-    m.renderOrder = 13;
-    m.userData.pick = { kind: 'valve', id: tank ?? name, sys };
-    this.pipeGroup.add(m);
-    this.valves.push({ mesh: m, get, name, owners });
+    const geo = valveGeometries();
+    const metal = new THREE.MeshStandardMaterial({ color: 0x9aa6b2, emissive: 0x2c3844, metalness: 0.55, roughness: 0.38, transparent: true, fog: false });
+    const flangeMat = new THREE.MeshStandardMaterial({ color: 0x6d7884, emissive: 0x222c36, metalness: 0.5, roughness: 0.45, transparent: true, fog: false });
+    const ringMat = new THREE.MeshStandardMaterial({ color: 0xff4d4d, emissive: 0xff4d4d, emissiveIntensity: 0.6, roughness: 0.5, transparent: true, fog: false });
+    const leverMat = new THREE.MeshStandardMaterial({ color: 0xff4d4d, emissive: 0xff4d4d, emissiveIntensity: 0.45, roughness: 0.5, transparent: true, fog: false });
+    const g = new THREE.Group();
+    g.position.copy(p);
+    // corpo em "gravata" (dois cones unidos pela ponta: o símbolo de válvula), ao longo do eixo x
+    for (const sx of [-1, 1]) {
+      const c = new THREE.Mesh(geo.cone, metal);
+      c.rotation.z = (sx * Math.PI) / 2;
+      c.position.x = sx * 0.15;
+      g.add(c);
+      const f = new THREE.Mesh(geo.flange, flangeMat);
+      f.rotation.z = Math.PI / 2;
+      f.position.x = sx * 0.31;
+      g.add(f);
+    }
+    // anel de estado no centro do corpo
+    const ring = new THREE.Mesh(geo.ring, ringMat);
+    ring.rotation.y = Math.PI / 2;
+    g.add(ring);
+    // haste e alavanca (gira em torno da haste, eixo y local)
+    const stem = new THREE.Mesh(geo.stem, metal);
+    stem.position.y = 0.22;
+    g.add(stem);
+    const lever = new THREE.Group();
+    lever.position.y = 0.38;
+    const bar = new THREE.Mesh(geo.lever, leverMat);
+    bar.position.x = 0.2;
+    lever.add(bar);
+    const knob = new THREE.Mesh(geo.knob, leverMat);
+    knob.position.x = 0.42;
+    lever.add(knob);
+    g.add(lever);
+    // área de clique maior que a peça (invisível, mas pegável)
+    const hit = new THREE.Mesh(geo.hit, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
+    g.add(hit);
+    g.renderOrder = 13;
+    g.traverse((o) => (o.renderOrder = 13));
+    g.userData.pick = { kind: 'valve', id: tank ?? name, sys };
+    this.pipeGroup.add(g);
+    this.valves.push({ mesh: g, lever, stateMats: [ringMat, leverMat], metalMats: [metal, flangeMat], get, name, owners });
+  }
+
+  /** Alinha cada válvula ao trecho de tubulação mais próximo (eixo x local = tubo; haste para cima). */
+  private orientValves(): void {
+    const seg = new THREE.Line3();
+    const q = new THREE.Vector3();
+    for (const v of this.valves) {
+      const p = v.mesh.position;
+      let best = Infinity;
+      const dir = new THREE.Vector3(1, 0, 0);
+      for (const pts of this.pipePaths)
+        for (let i = 0; i < pts.length - 1; i++) {
+          seg.set(pts[i], pts[i + 1]);
+          if (seg.distance() < 1e-6) continue;
+          seg.closestPointToPoint(p, true, q);
+          const d = q.distanceTo(p);
+          if (d < best - 1e-6) {
+            best = d;
+            dir.subVectors(pts[i + 1], pts[i]).normalize();
+          }
+        }
+      const up0 = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+      const up = up0.sub(dir.clone().multiplyScalar(dir.dot(up0))).normalize();
+      const m = new THREE.Matrix4().makeBasis(dir, up, dir.clone().cross(up));
+      v.mesh.quaternion.setFromRotationMatrix(m);
+    }
   }
 
   private pump(p: THREE.Vector3, name: string, get: PumpVis['get'], owners: string[]): void {
@@ -794,12 +891,18 @@ export class SystemsVis {
     }
     for (const v of this.valves) {
       const st = v.get(e);
-      const m = v.mesh.material as THREE.MeshBasicMaterial;
       const moving = Math.abs(st.cmd - st.pos) > 0.02;
-      m.color.set(st.stuck ? 0xff00ff : moving ? 0xffc040 : st.pos > 0.5 ? 0x3ddc84 : 0xff4d4d);
+      const col = st.stuck ? 0xff00ff : moving ? 0xffc040 : st.pos > 0.5 ? 0x3ddc84 : 0xff4d4d;
+      const op = ownedDim(v.owners) ? 1 : 0.15;
+      for (const m of v.stateMats) {
+        m.color.set(col);
+        m.emissive.set(col);
+        m.opacity = op;
+      }
+      for (const m of v.metalMats) m.opacity = op;
       v.mesh.visible = shown(v.owners);
-      m.opacity = ownedDim(v.owners) ? 1 : 0.15;
-      v.mesh.scale.setScalar(st.pos > 0.5 || moving ? 1.25 : 1);
+      // alavanca: 0° (ao longo do tubo) aberta … 90° (atravessada) fechada, pela posição real
+      v.lever.rotation.y = (1 - Math.max(0, Math.min(1, st.pos))) * (Math.PI / 2);
       // rótulo só durante o curso da válvula (ou aberta, para o tanque destacado)
       if (showP && layers.labels && (moving || (hl && st.pos > 0.5 && v.owners.includes(hl)))) {
         labels.push({ id: 'vl' + v.name, callout: true, text: `${v.name}: ${moving ? (st.cmd > st.pos ? 'abrindo' : 'fechando') : 'aberta'}`, color: moving ? '#ffc040' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(v.mesh.position.clone())) });
