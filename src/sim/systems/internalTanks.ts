@@ -100,13 +100,17 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
     const useSides = capMain < remaining;
     for (const b of main) st.tankValves[b.valveId].cmd = 1;
     for (const b of sides) st.tankValves[b.valveId].cmd = useSides ? 1 : 0;
-    const tankReady = branches.some((b) => st.tankValves[b.valveId].pos > 0.98);
+    const selected = useSides ? branches : main;
+    // ramais fora da sequência (ex.: um lateral deixado aberto) precisam fechar antes de o mar entrar ou a bomba aspirar
+    const excludedClosed = useSides ? true : sides.every((b) => st.tankValves[b.valveId].pos < 0.02);
+    const tankReady = excludedClosed && selected.every((b) => st.tankValves[b.valveId].pos > 0.98);
     if (d.mode === 'admitir') {
       st.discharge.cmd = 0;
       st.pump.cmd = false;
-      st.inlet.cmd = 1;
+      // a admissão pode abrir junto com os ramais escolhidos, mas só depois de fechados os demais
+      if (excludedClosed) st.inlet.cmd = 1;
       const ready = st.inlet.pos > 0.98 && tankReady;
-      if (ready || st.qIn > 0) d.phase = 'escoando';
+      if (ready || (excludedClosed && st.qIn > 0)) d.phase = 'escoando';
     } else {
       st.inlet.cmd = 0;
       st.discharge.cmd = 1;

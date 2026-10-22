@@ -195,3 +195,37 @@ describe('Compensação: configurações antigas', () => {
     expect(up.heel.tankA.center.x).toBe(up.compensation.tanks[0].center.x);
   });
 });
+
+describe('Compensação: revisão (sessões antigas e alinhamento da dosagem)', () => {
+  it('sessão gravada com TC-1/TC-2 mantém o arranjo gravado (sem ramais de banda nem tanques abaulados)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { migrateSave, deserializeEngine } = await import('../src/sim/persistence');
+    const raw = JSON.parse(readFileSync(new URL('./fixtures/estado-v1-submerso50.json', import.meta.url), 'utf8'));
+    const f = migrateSave(raw);
+    expect(f.config.vessel.compensation.tanks.map((t) => t.id)).toEqual(['TC1', 'TC2']);
+    expect(f.config.vessel.compensation.heelBranches).toBeUndefined();
+    expect(f.config.vessel.heel.tankA.hullRadius).toBeUndefined();
+    expect(f.config.vessel.trim.tankA.hullRadius).toBeUndefined();
+    expect(f.state.compensation.tankValves.VCBB).toBeUndefined();
+    const e = deserializeEngine(raw);
+    const bb = e.state.heel.tankA.mass;
+    applyCommand(e, { type: 'dosing', system: 'compensation', mode: 'admitir', kg: 800 });
+    e.advanceSim(200);
+    expect(e.state.compensation.dosing?.phase).toBe('concluido');
+    expect(e.state.heel.tankA.mass).toBe(bb);
+  });
+
+  it('dosagem só pelo TC com um ramal lateral deixado aberto: o ramal fecha antes de o mar entrar', () => {
+    const e = buildScenario('submerso_50');
+    valve(e, 'VCBE', true);
+    e.advanceSim(8);
+    expect(e.state.compensation.tankValves.VCBE.pos).toBeGreaterThan(0.98);
+    const be0 = e.state.heel.tankB.mass;
+    const bb0 = e.state.heel.tankA.mass;
+    applyCommand(e, { type: 'dosing', system: 'compensation', mode: 'admitir', kg: 1500 });
+    e.advanceSim(400);
+    expect(e.state.compensation.dosing?.phase).toBe('concluido');
+    expect(e.state.heel.tankB.mass).toBeCloseTo(be0, 6);
+    expect(e.state.heel.tankA.mass).toBeCloseTo(bb0, 6);
+  });
+});
