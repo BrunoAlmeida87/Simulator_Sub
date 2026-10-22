@@ -83,3 +83,36 @@ describe('Cargas e resposta hidrostática', () => {
     expect(deserializeEngine(f).outputs.mp.mass).toBeCloseTo(e.outputs.mp.mass, 6);
   });
 });
+
+describe('Painel de cargas: nomes, modelos e posição', () => {
+  it('gera o próximo nome livre e ignora a própria carga em edição', async () => {
+    const { nextCargoName } = await import('../src/ui/components/cargoUi');
+    const l = (id: string, name: string): CargoLoad => ({ ...cargo(), id, name });
+    expect(nextCargoName('Torpedo', [])).toBe('Torpedo 1');
+    expect(nextCargoName('Torpedo', [l('a', 'Torpedo 1'), l('b', 'torpedo 2')])).toBe('Torpedo 3');
+    expect(nextCargoName('Torpedo', [l('a', 'Torpedo 1')], 'a')).toBe('Torpedo 1');
+    expect(nextCargoName('  ', [])).toBe('Carga 1');
+  });
+  it('leva qualquer clique para dentro do casco e o comando aceita a posição', async () => {
+    const { clampInHull, insideHull, CARGO_MODELS, compartmentOf } = await import('../src/ui/components/cargoUi');
+    const e = buildScenario('superficie');
+    let n = 0;
+    for (let x = -40; x <= 40; x += 2.7)
+      for (const y of [-5, -1.5, 0, 2.2, 6])
+        for (const z of [-5, -1.5, 0, 2, 6]) {
+          const p = clampInHull(e, { x, y, z });
+          expect(insideHull(e, p)).toBe(true);
+          applyCommand(e, { type: 'cargoUpsert', load: { ...cargo(), id: 'c' + n++, quantity: 1, unitMass: 1, position: p } });
+        }
+    expect(e.state.cargoLoads).toHaveLength(n);
+    for (const m of CARGO_MODELS) {
+      const p = clampInHull(e, m.position);
+      expect(p).toEqual(m.position); // modelos já ficam dentro do casco
+      applyCommand(e, { type: 'cargoUpsert', load: { id: m.id, name: m.base, category: m.category, quantity: m.quantity, unitMass: m.unitMass, position: p } });
+      expect(e.state.cargoLoads!.some((l) => l.id === m.id)).toBe(true);
+    }
+    expect(compartmentOf(e, 17)).toBe('Compartimento de vante');
+    expect(compartmentOf(e, 30)).toMatch(/^Proa/);
+    expect(compartmentOf(e, -25)).toMatch(/^Popa/);
+  });
+});

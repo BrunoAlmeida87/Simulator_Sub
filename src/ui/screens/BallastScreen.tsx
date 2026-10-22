@@ -15,6 +15,7 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtMass } from '../format';
 import { QuickBallast } from '../components/Controls';
 import { WideDiagram } from '../components/WideDiagram';
+import { useUi } from '../uiContext';
 
 const VS = (st: { cmd: number; pos: number; stuck: boolean }) => {
   const s = valveStatus(st);
@@ -260,6 +261,7 @@ export function BallastScreen() {
   const v = e.vessel;
   const o = e.outputs;
   const [kg, setKg] = useState(500);
+  const ui = useUi();
   const T = e.env.temperatureAt(Math.max(0, s.body.pos.z)) + 273.15;
   // cálculo de compensação: casco totalmente submerso (na superfície, para a cota periscópica)
   const calcDepth = Math.max(s.body.pos.z, 12);
@@ -499,6 +501,15 @@ export function BallastScreen() {
               <span className="subtle">
                 <KindTag kind="CALC" /> {need.message}
               </span>
+            </div>
+            <div className="row">
+              <span className="subtle">
+                Cargas adicionais a bordo: <b>{fmtMass((s.cargoLoads ?? []).reduce((m, l) => m + l.quantity * l.unitMass, 0))}</b> em {(s.cargoLoads ?? []).length} {(s.cargoLoads ?? []).length === 1 ? 'item' : 'itens'}{' '}
+                (já incluídas no cálculo acima).
+              </span>
+              <button className="btn sm" onClick={() => ui.setScreen('trim')} title="Embarcar, nomear e posicionar cargas no mapa de bordo (aba Trim e banda)">
+                Cargas a bordo…
+              </button>
             </div>
           </div>
         </div>
