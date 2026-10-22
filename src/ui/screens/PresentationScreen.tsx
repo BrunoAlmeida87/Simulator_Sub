@@ -31,6 +31,7 @@ import { SceneLayerPanel } from '../components/SceneLayerPanel';
 
 const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
+  ['perspectiva', 'Perspectiva', 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa'],
   ['submerso', 'Submerso', 'Operação submersa, ao nível do casco'],
   ['tanques', 'Tanques', 'Inspeção dos tanques e circuitos no corte'],
   ['forcas', 'Forças', 'Vista lateral para os vetores de peso, empuxo e resultante'],
@@ -39,6 +40,8 @@ const FRAMES: [ViewMode, string, string][] = [
   ['piloto', 'Seguir', 'Câmera lateral que acompanha o submarino'],
   ['perseguicao', 'Perseguição', 'Câmera atrás do submarino'],
   ['fixa', 'Fixa', 'Câmera parada no cenário: o submarino atravessa o quadro'],
+  ['passadico', 'Passadiço', 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50'],
+  ['drone', 'Drone', 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade'],
   ['livre', 'Livre', 'Arraste para girar, roda/pinça para aproximar'],
 ];
 
