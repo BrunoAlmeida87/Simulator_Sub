@@ -247,6 +247,13 @@ Na superfície o plano de flutuação resiste à inclinação: a rigidez de trim
 - **Vento** (camada *Mar e efeitos*): uma brisa leve sopra no sentido das ondas (≈ 1 nó no mar 0 a 6 nós no mar 6); o vento aparente é essa brisa menos a velocidade do submarino — avançando, ele passa a vir da proa, de encontro ao submarino, dando a sensação de avanço. Aparece como poucas faixas finas e discretas passando acima da água perto da vela. A **flâmula** vermelha no topo da vela é opcional (camada *Flâmula*, desligada por padrão): com a vela fora d'água ela se estende para sotavento (com *Identificações*, o rótulo dá a intensidade e de onde vem). É só visual: o vento não entra na física. Com *Identificações* desligadas somem também os rótulos de superfície, cota e fundo e a linha tracejada entre eles.
 - **Visualização salva:** Pilotagem, Visualização 3D e Apresentação guardam a câmera, a posição da câmera livre, os botões e a seleção de tanques ao trocar de aba. Também ficam guardados ao recarregar a página.
 
+## Piloto automático de profundidade — lemes de ré × lemes de vela
+
+- **Lemes de ré fazem a mudança de cota.** Em AUTO, o erro de profundidade vira um **ângulo ordenado** (até ±10,5°), que os lemes de ré dão e mantêm; é o ângulo do casco que leva o submarino à nova cota. A 6 nós, 50 → 100 m leva cerca de 2 a 2,5 min até ±2 m, com sobrepasso abaixo de 0,5 m e ângulo máximo ~11°.
+- **Lemes de vela só fazem o ajuste fino** (autoridade ±10°): uma pequena ajuda constante durante a travessia (~3,5° a 6 nós) e, perto da cota (erro < 3 m, desaparecendo até 8 m), corrigem pequenos erros e freiam a chegada com força vertical direta — é o que mantém a cota periscópica.
+- **Abaixo de ~4 nós** os lemes de ré se aproximam da sua velocidade crítica (~3 nós neste modelo): a força do próprio leme anula a sustentação que o ângulo produz no casco e a cota quase não muda. O piloto passa então a cota, aos poucos, para os lemes de vela (até ±20°) e reduz o ângulo ordenado para 4°. A 3 nós, uma mudança de 50 m leva ~8 min. Com "BAIXA EFETIVIDADE", use a compensação.
+- A linha **Cascata de profundidade** (Central de comando e grupo Navegação) mostra o ângulo ordenado → lemes de ré e o ângulo dos lemes de vante.
+
 ## Sequência completa (cenário "Superfície — pronto para imergir")
 
 1. **Preparar:** telégrafo **AV MEIA** (75 rpm). Aguarde > 4 nós. A compensação já está pré-calculada para ~40 m.
