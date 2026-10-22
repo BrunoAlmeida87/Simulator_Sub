@@ -7,7 +7,7 @@ import { AirBottleGlyph, Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../compo
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
 import { ballastFillStatus } from '../../sim/systems/ballast';
 import { bankPressure, emergencyBlowActive } from '../../sim/systems/hpAir';
-import { tankVolume } from '../../sim/systems/internalTanks';
+import { compensationBranches, compensationWater, tankVolume } from '../../sim/systems/internalTanks';
 import { clean, compensationFlows, compensationNodes, manifoldSegments } from '../../sim/systems/compensationNetwork';
 import { solveNeutralCompensation } from '../../sim/equilibrium';
 import { R_AIR } from '../../sim/core/context';
@@ -47,11 +47,13 @@ export function Diagram({ e }: { e: SimulationEngine }) {
   const manY = 476;
   const seaY = 590;
   // Distâncias esquemáticas: espaço para válvulas, rótulos e áreas de clique.
-  const tcPos = comp.tanks.map((_, i) => 520 + i * 140);
+  // Ordem no coletor: TB-BB, tanque(s) central(is), TB-BE (os de banda também são compensação).
+  const branches = compensationBranches(comp, s.compensation, v.heel, s.heel).sort((a, b) => (a.heel === 'A' ? -1 : a.heel === 'B' ? 1 : 0) - (b.heel === 'A' ? -1 : b.heel === 'B' ? 1 : 0));
+  const tcPos = branches.map((_, i) => 590 - ((branches.length - 1) * 140) / 2 + i * 140);
   const xPump = Math.min(...tcPos) - 110;
   const xInlet = Math.max(...tcPos) + 110;
-  const cf = compensationFlows(comp, s.compensation);
-  const segs = manifoldSegments(compensationNodes(cf, xInlet, xPump, Object.fromEntries(comp.tanks.map((t, i) => [t.id, tcPos[i]]))), cf.tol);
+  const cf = compensationFlows(comp, s.compensation, v.heel, s.heel);
+  const segs = manifoldSegments(compensationNodes(cf, xInlet, xPump, Object.fromEntries(branches.map((b, i) => [b.id, tcPos[i]]))), cf.tol);
   const qIn = clean(cf.qIn, cf.tol);
   const qOut = clean(cf.qOut, cf.tol);
   const pumpSt = s.compensation.pump;
@@ -171,13 +173,26 @@ export function Diagram({ e }: { e: SimulationEngine }) {
         {segs.map((g) => (
           <Pipe key={g.from.id + g.to.id} d={`M${g.from.x},${manY} L${g.to.x},${manY}`} flow={g.q} width={3} />
         ))}
-        {comp.tanks.map((t, i) => {
-          const st = s.compensation.tanks[t.id];
-          const vid = comp.tankValves[i].id;
+        {branches.map((b, i) => {
+          const st = b.st;
+          const vid = b.valveId;
+          // largura proporcional ao volume: o TC (um só, maior) se destaca dos tanques de banda
+          const w = b.heel ? 60 : 124;
+          const insp = b.heel ? 'heel' : 'comp:' + b.id;
           return (
-            <g key={t.id}>
-              <TankGlyph x={tcPos[i] - 40} y={400} w={80} h={38} fill={tankVolume(st) / t.capacity} label={t.id} sub={`${tankVolume(st).toFixed(2)} m³`} color="#2a7fd4" inspect={'comp:' + t.id} />
-              <Pipe d={`M${tcPos[i]},${manY} V438`} flow={clean(cf.tanks[t.id], cf.tol)} width={2.5} />
+            <g key={b.id}>
+              <TankGlyph
+                x={tcPos[i] - w / 2}
+                y={400}
+                w={w}
+                h={38}
+                fill={tankVolume(st) / b.cfg.capacity}
+                label={b.heel ? (b.heel === 'A' ? 'TB-BB' : 'TB-BE') : b.id}
+                sub={`${tankVolume(st).toFixed(2)} m³`}
+                color={b.heel ? '#8a5cd6' : '#2a7fd4'}
+                inspect={insp}
+              />
+              <Pipe d={`M${tcPos[i]},${manY} V438`} flow={clean(cf.tanks[b.id], cf.tol)} width={2.5} />
               <ValveGlyph
                 x={tcPos[i]}
                 y={457}
@@ -186,7 +201,7 @@ export function Diagram({ e }: { e: SimulationEngine }) {
                 size={7}
                 label={vid}
                 onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: vid, open: s.compensation.tankValves[vid].cmd < 0.5 })}
-                inspect={'comp:' + t.id}
+                inspect={insp}
               />
             </g>
           );
@@ -249,8 +264,9 @@ export function BallastScreen() {
   // cálculo de compensação: casco totalmente submerso (na superfície, para a cota periscópica)
   const calcDepth = Math.max(s.body.pos.z, 12);
   const need = useMemo(() => solveNeutralCompensation(e, calcDepth, false), [e, Math.round(calcDepth), Math.round(s.t / 5)]);
-  const curComp = Object.values(s.compensation.tanks).reduce((a, t) => a + t.mass, 0);
-  const needComp = Object.values(need.compensation).reduce((a, x) => a + x, 0);
+  // água de compensação = tanque central + tanques de banda (todos no mesmo coletor)
+  const curComp = compensationWater(v.compensation, s.compensation, v.heel, s.heel);
+  const needComp = Object.values(need.compensation).reduce((a, x) => a + x, 0) + (v.compensation.heelBranches?.length ? need.heelA + need.heelB : 0);
   const d = s.compensation.dosing;
   const totalMbt = v.ballast.tanks.reduce((a, t) => a + t.volume, 0);
   const waterMbt = v.ballast.tanks.reduce((a, t) => a + s.ballast[t.id].water, 0);
@@ -385,18 +401,17 @@ export function BallastScreen() {
           <div style={{ flex: '1 1 300px' }}>
             <table className="t">
               <tbody>
-                {v.compensation.tanks.map((t, i) => {
-                  const st = s.compensation.tanks[t.id];
-                  const vv = s.compensation.tankValves[v.compensation.tankValves[i].id];
+                {compensationBranches(v.compensation, s.compensation, v.heel, s.heel).map((b) => {
+                  const vv = b.valve;
                   return (
-                    <tr key={t.id}>
-                      <td>{t.name}</td>
+                    <tr key={b.id}>
+                      <td>{b.cfg.name}</td>
                       <td className="num">
-                        {tankVolume(st).toFixed(2)} / {t.capacity} m³
+                        {tankVolume(b.st).toFixed(2)} / {b.cfg.capacity} m³
                       </td>
                       <td>
                         {VS(vv)}{' '}
-                        <button className="btn sm" onClick={() => cmd({ type: 'valve', system: 'compensation', valve: v.compensation.tankValves[i].id, open: vv.cmd < 0.5 })}>
+                        <button className="btn sm" onClick={() => cmd({ type: 'valve', system: 'compensation', valve: b.valveId, open: vv.cmd < 0.5 })}>
                           {vv.cmd > 0.5 ? 'Fechar' : 'Abrir'}
                         </button>
                       </td>

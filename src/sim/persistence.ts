@@ -123,7 +123,15 @@ function fillMissing(target: Record<string, unknown>, defaults: Record<string, u
 }
 
 /** campos opcionais da configuração cuja ausência deve ser mantida (comportamento antigo) */
-const CONFIG_OPTIONAL = new Set(['environment.waves', 'vessel.mass.demoWeight', 'environment.bottom.mode', 'environment.geo']);
+const CONFIG_OPTIONAL = new Set([
+  'environment.waves',
+  'vessel.mass.demoWeight',
+  'environment.bottom.mode',
+  'environment.geo',
+  // sessões gravadas antes do conjunto de compensação de três tanques e dos tanques abaulados mantêm o arranjo gravado
+  'vessel.compensation.heelBranches',
+  ...(['heel', 'trim'] as const).flatMap((sys) => (['tankA', 'tankB'] as const).flatMap((t) => [`vessel.${sys}.${t}.width`, `vessel.${sys}.${t}.hullRadius`])),
+]);
 /** campos opcionais do estado que não devem ser criados */
 const STATE_OPTIONAL = new Set(['trimRef']);
 

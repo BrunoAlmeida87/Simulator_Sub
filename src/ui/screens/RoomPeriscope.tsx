@@ -435,6 +435,7 @@ export function RoomPeriscope({ sight, setSight, onExit, acts }: { sight: Perisc
             airInfo: false,
             trail: false,
             trimRef: false,
+            depthLines: false,
             noWater: false,
             markers: false,
             wake: true,

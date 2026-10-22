@@ -81,7 +81,7 @@ export const PRESETS: Preset[] = [
     name: 'Pairando a 80 m — controle só pelo peso',
     scenario: 'pairando',
     view: 'forcas',
-    layers: { trimVectors: false, vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, markers: false, highlight: 'TC1' },
+    layers: { trimVectors: false, vectors: true, hydroVectors: false, tanks: true, pipes: true, flows: true, labels: true, markers: false, highlight: 'TC' },
     note: 'Sem velocidade os lemes não atuam. Só a compensação (admitir/esgotar) altera a resultante e o movimento vertical.',
   },
   {

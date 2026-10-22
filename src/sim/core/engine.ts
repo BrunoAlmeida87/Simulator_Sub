@@ -250,7 +250,7 @@ export class SimulationEngine {
     s.ledger.airCompressed += comp.added;
 
     // 4. tanques internos e alagamento
-    const rc = updateCompensation(cfg.compensation, s.compensation, ctx);
+    const rc = updateCompensation(cfg.compensation, s.compensation, ctx, cfg.heel, s.heel);
     const rt = updateTransfer(cfg.trim, s.trim, ctx);
     const rh = updateTransfer(cfg.heel, s.heel, ctx);
     s.ledger.seaIn += rc.seaIn;
@@ -381,6 +381,7 @@ export class SimulationEngine {
     checkValve(cfg.compensation.inletValve.name, s.compensation.inlet);
     checkValve(cfg.compensation.dischargeValve.name, s.compensation.discharge);
     cfg.compensation.tankValves.forEach((v) => checkValve(v.name, s.compensation.tankValves[v.id]));
+    for (const b of cfg.compensation.heelBranches ?? []) if (s.compensation.tankValves[b.valve.id]) checkValve(b.valve.name, s.compensation.tankValves[b.valve.id]);
     for (const [sys, st] of [
       [cfg.trim, s.trim],
       [cfg.heel, s.heel],

@@ -13,7 +13,7 @@ import type { Command, FluidSystem } from '../../sim/commands';
 import type { ValveState } from '../../sim/core/state';
 import { C, box, button, dial, digital, faceBg, hbar, lamp, lampButton, pipe, plate, pumpSym, screenBg, stepper, tankSym, text, valveSym } from './draw';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
-import { tankVolume, tankCapacityMass } from '../../sim/systems/internalTanks';
+import { compensationBranches, compensationWater, tankVolume, tankCapacityMass } from '../../sim/systems/internalTanks';
 import { bankPressure } from '../../sim/systems/hpAir';
 import { dieselExhaust } from '../../sim/systems/exhaust';
 import { solveNeutralCompensation } from '../../sim/equilibrium';
@@ -296,7 +296,7 @@ export function drawCompensation(act: RoomActions) {
     const s = e.state;
     const v = e.vessel;
     const cs = s.compensation;
-    const y0 = screenBg(c, 'COMPENSAÇÃO', 'mar ⇄ TC-1 / TC-2');
+    const y0 = screenBg(c, 'COMPENSAÇÃO', 'mar ⇄ TB-BB · TC · TB-BE');
     // diagrama: mar → V-AM → coletor → TC; coletor → bomba → V-DM → mar
     const inY = y0 + 58;
     const outY = y0 + 214;
@@ -394,38 +394,41 @@ export function drawCompensation(act: RoomActions) {
       size: 22,
     });
     text(g, `${(qOut * 1000).toFixed(1)} L/s`, 254, outY - 44, 20, '#a9c3d6', 'center', 'bold', true);
-    // tanques de compensação
-    v.compensation.tanks.forEach((t, i) => {
-      const x = 430 + i * 262;
-      const vcfg = v.compensation.tankValves[i];
-      const vs = cs.tankValves[vcfg.id];
+    // tanques ligados ao coletor: TB-BB, central (TC) e TB-BE
+    const brs = compensationBranches(v.compensation, cs, v.heel, s.heel).sort((p, q) => (p.heel === 'A' ? -1 : p.heel === 'B' ? 1 : 0) - (q.heel === 'A' ? -1 : q.heel === 'B' ? 1 : 0));
+    const step = Math.min(262, (W - 30 - 400) / Math.max(1, brs.length));
+    const tw = Math.min(140, step - 16);
+    brs.forEach((b, i) => {
+      const x = 400 + i * step + (step - tw) / 2;
+      const vs = b.valve;
       const st = valveStatus(vs);
+      const short = b.heel ? (b.heel === 'A' ? 'TB-BB' : 'TB-BE') : b.id.replace(/^TC(\d)$/, 'TC-$1');
       pipe(
         g,
         [
-          [x + 70, manY],
-          [x + 70, y0 + 102],
+          [x + tw / 2, manY],
+          [x + tw / 2, y0 + 102],
         ],
         C.water,
         9,
-        Math.abs(cs.tanks[t.id].flow ?? 0) > 1e-5 ? 1 : 0,
+        Math.abs(b.st.flow ?? 0) > 1e-5 ? 1 : 0,
         now,
       );
-      tankSym(g, x, y0 + 36, 140, 64, cs.tanks[t.id].mass / tankCapacityMass(t), t.id.replace('TC', 'TC-'));
-      valveSym(g, x + 70, manY - 18, 15, st, true);
-      text(g, `${tankVolume(cs.tanks[t.id]).toFixed(2)} / ${t.capacity} m³`, x + 70, manY + 30, 19, '#a9c3d6', 'center', 'bold', true);
+      tankSym(g, x, y0 + 36, tw, 64, b.st.mass / tankCapacityMass(b.cfg), short);
+      valveSym(g, x + tw / 2, manY - 18, 15, st, true);
+      text(g, `${tankVolume(b.st).toFixed(2)} / ${b.cfg.capacity} m³`, x + tw / 2, manY + 30, 19, '#a9c3d6', 'center', 'bold', true);
       button(c, {
-        id: `c-${vcfg.id}`,
-        x: x + 4,
+        id: `c-${b.valveId}`,
+        x: x + 2,
         y: manY + 52,
-        w: 132,
+        w: tw - 4,
         h: 54,
-        label: vcfg.id,
+        label: b.valveId,
         sub: st,
         on: vs.cmd > 0.5,
         tone: 'ok',
-        tip: `${vcfg.name}: ${st} — clique para ${vs.cmd > 0.5 ? 'FECHAR' : 'ABRIR'}`,
-        action: () => act.cmd({ type: 'valve', system: 'compensation', valve: vcfg.id, open: vs.cmd < 0.5 }),
+        tip: `${b.heel ? (v.compensation.heelBranches?.find((h) => h.valve.id === b.valveId)?.valve.name ?? b.valveId) : (v.compensation.tankValves.find((t) => t.id === b.valveId)?.name ?? b.valveId)}: ${st} — clique para ${vs.cmd > 0.5 ? 'FECHAR' : 'ABRIR'}`,
+        action: () => act.cmd({ type: 'valve', system: 'compensation', valve: b.valveId, open: vs.cmd < 0.5 }),
         size: 22,
       });
     });
@@ -490,12 +493,12 @@ export function drawCompensation(act: RoomActions) {
     if (!compCache || compCache.e !== e || Math.abs(s.t - compCache.t) > 5 || Math.abs(calcDepth - compCache.depth) > 3) {
       try {
         const sol = solveNeutralCompensation(e, calcDepth, false);
-        compCache = { e, t: s.t, depth: calcDepth, need: Object.values(sol.compensation).reduce((a, b) => a + b, 0) };
+        compCache = { e, t: s.t, depth: calcDepth, need: Object.values(sol.compensation).reduce((a, b) => a + b, 0) + (v.compensation.heelBranches?.length ? sol.heelA + sol.heelB : 0) };
       } catch {
         compCache = { e, t: s.t, depth: calcDepth, need: NaN };
       }
     }
-    const cur = v.compensation.tanks.reduce((a, t) => a + cs.tanks[t.id].mass, 0);
+    const cur = compensationWater(v.compensation, cs, v.heel, s.heel);
     const dm = compCache.need - cur;
     button(c, {
       id: 'c-calc',

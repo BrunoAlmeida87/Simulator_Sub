@@ -6,7 +6,7 @@ export function tankGroups(e: SimulationEngine): { cat: TankCategory; tanks: { i
   const v = e.vessel;
   return [
     { cat: 'lastro', tanks: v.ballast.tanks.map((t) => ({ id: t.id, short: t.id.replace('TLP', 'TLP-').replace(/(BB|BE)$/, ' $1') })) },
-    { cat: 'compensacao', tanks: v.compensation.tanks.map((t) => ({ id: t.id, short: t.id.replace('TC', 'TC-') })) },
+    { cat: 'compensacao', tanks: v.compensation.tanks.map((t) => ({ id: t.id, short: t.id.replace(/^TC(\d)$/, 'TC-$1') })) },
     { cat: 'trim', tanks: [{ id: v.trim.tankA.id, short: 'TT-AV' }, { id: v.trim.tankB.id, short: 'TT-AR' }] },
     { cat: 'banda', tanks: [{ id: v.heel.tankA.id, short: 'TB-BB' }, { id: v.heel.tankB.id, short: 'TB-BE' }] },
   ];

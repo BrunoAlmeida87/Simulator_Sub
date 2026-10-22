@@ -83,21 +83,79 @@ export function anechoicTextures(size: number, tiles = 8): { map: THREE.CanvasTe
   return { map, bump };
 }
 
-/** Superfície de controle perfilada (planta trapezoidal, bordo de ataque arredondado). */
+/** Meia espessura do perfil simétrico NACA 00xx (x = 0…1 da corda, bordo de fuga fechado), em frações da corda. */
+function nacaHalf(x: number, tc: number): number {
+  return 5 * tc * (0.2969 * Math.sqrt(x) - 0.126 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
+}
+
+/**
+ * Superfície de controle com perfil de asa: seção NACA 00xx simétrica, planta
+ * trapezoidal (afilamento e enflechamento do bordo de ataque) e ponta arredondada.
+ * Eixos da construção: x = envergadura (raiz em −span/2, ponta em +span/2),
+ * y = corda (bordo de ataque em −chord/2), z = espessura.
+ */
 export function finGeometry(span: number, chord: number, thickness: number, horizontal: boolean): THREE.BufferGeometry {
-  // planta no plano (ao longo da envergadura, ao longo da corda)
-  const tip = chord * 0.72;
-  const sweep = chord * 0.12;
-  const s = new THREE.Shape();
-  s.moveTo(-span / 2, -chord / 2);
-  s.lineTo(span / 2, -chord / 2 + sweep);
-  s.lineTo(span / 2, -chord / 2 + sweep + tip);
-  s.quadraticCurveTo(span / 2 - 0.1, chord / 2 + 0.05, span / 2 - 0.35, chord / 2);
-  s.lineTo(-span / 2, chord / 2);
-  s.closePath();
-  const g = new THREE.ExtrudeGeometry(s, { depth: thickness * 0.55, bevelEnabled: true, bevelThickness: thickness * 0.22, bevelSize: thickness * 0.2, bevelSegments: 3, curveSegments: 6 });
-  g.translate(0, 0, -thickness * 0.275);
-  // shape (x = envergadura, y = corda, z = espessura) → horizontal: (x, espessura, corda) | vertical: (espessura, x, corda)
+  const tc = Math.min(0.2, Math.max(0.15, thickness / chord)); // espessura relativa (perfil 0015…0020)
+  const taper = 0.62; // corda na ponta / corda na raiz
+  const sweep = chord * 0.24; // recuo do bordo de ataque na ponta
+  const NS = 18; // estações ao longo da envergadura
+  const NC = 22; // pontos por face do perfil
+  const xs: number[] = [];
+  for (let i = 0; i <= NC; i++) xs.push(0.5 * (1 - Math.cos((Math.PI * i) / NC))); // mais pontos nos bordos
+  const pos: number[] = [];
+  const ring = 2 * NC; // anel: extradorso (bordo de ataque → fuga) + intradorso (fuga → ataque), sem repetir os bordos
+  for (let j = 0; j <= NS; j++) {
+    const u = j / NS;
+    // ponta arredondada: nos últimos 22 % da envergadura a corda fecha em quarto de elipse, a partir do bordo de fuga
+    const tipU = 0.78;
+    const base = chord * (1 - (1 - taper) * u);
+    const le0 = -chord / 2 + sweep * u;
+    let c = base;
+    let le = le0;
+    if (u > tipU) {
+      const k = (u - tipU) / (1 - tipU);
+      const f = Math.sqrt(Math.max(0, 1 - k * k));
+      c = Math.max(base * 0.04, base * (0.25 + 0.75 * f));
+      le = le0 + (base - c) * 0.85;
+    }
+    const x = -span / 2 + span * u;
+    const thick = tc * c * (u > tipU ? Math.max(0.15, Math.sqrt(Math.max(0, 1 - ((u - tipU) / (1 - tipU)) ** 2))) : 1);
+    const ht = thick / tc; // corda equivalente para a espessura
+    for (let i = 0; i < NC; i++) pos.push(x, le + xs[i] * c, nacaHalf(xs[i], tc) * ht);
+    for (let i = NC; i > 0; i--) pos.push(x, le + xs[i] * c, -nacaHalf(xs[i], tc) * ht);
+  }
+  const idx: number[] = [];
+  for (let j = 0; j < NS; j++)
+    for (let i = 0; i < ring; i++) {
+      const a = j * ring + i;
+      const b = j * ring + ((i + 1) % ring);
+      const c2 = a + ring;
+      const d = b + ring;
+      idx.push(a, c2, b, b, c2, d);
+    }
+  // tampas: raiz (dentro do casco) e ponta
+  const cap = (j: number, flip: boolean) => {
+    const o = pos.length / 3;
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0; i < ring; i++) {
+      cx += pos[(j * ring + i) * 3];
+      cy += pos[(j * ring + i) * 3 + 1];
+    }
+    pos.push(cx / ring, cy / ring, 0);
+    for (let i = 0; i < ring; i++) {
+      const a = j * ring + i;
+      const b = j * ring + ((i + 1) % ring);
+      if (flip) idx.push(o, a, b);
+      else idx.push(o, b, a);
+    }
+  };
+  cap(0, true);
+  cap(NS, false);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  // (x = envergadura, y = corda, z = espessura) → horizontal: (x, espessura, corda) | vertical: (espessura, x, corda)
   if (horizontal) g.rotateX(Math.PI / 2);
   else {
     g.rotateX(Math.PI / 2);
@@ -107,29 +165,80 @@ export function finGeometry(span: number, chord: number, thickness: number, hori
   return g;
 }
 
-/** Pá de hélice em cimitarra (com caimento e passo), para hélices de 7 pás. */
-export function bladeGeometry(rHub: number, rTip: number): THREE.BufferGeometry {
-  const L = rTip - rHub;
-  const s = new THREE.Shape();
-  // contorno da pá no plano (x = corda, y = raio)
-  s.moveTo(-0.22, 0);
-  s.bezierCurveTo(-0.5, L * 0.35, -0.35, L * 0.8, 0.12, L);
-  s.bezierCurveTo(0.45, L * 0.82, 0.5, L * 0.3, 0.22, 0);
-  s.closePath();
-  const g = new THREE.ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 10 });
-  // torção (passo): gira cada seção em torno do raio proporcionalmente
-  const p = g.getAttribute('position') as THREE.BufferAttribute;
-  const v = new THREE.Vector3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    const k = Math.max(0, Math.min(1, v.y / L));
-    const ang = 0.9 - 0.45 * k;
-    const c = Math.cos(ang);
-    const sn = Math.sin(ang);
-    const x = v.x * c - v.z * sn;
-    const z = v.x * sn + v.z * c;
-    p.setXYZ(i, x, v.y + rHub, z);
+/**
+ * Pá de hélice de submarino (cimitarra de grande caimento): superfície helicoidal
+ * com passo P (ângulo φ(r) = atan(P / 2πr)), corda máxima a ~0,5 R e ponta
+ * arredondada, caimento (skew) crescente para a ponta, inclinação para ré (rake)
+ * e seção lenticular espessa na raiz e fina na ponta.
+ * Eixo do hélice = z (+z para ré); a pá nasce ao longo de +y; o giro de vante é −z.
+ */
+export function bladeGeometry(rHub: number, rTip: number, pitchRatio = 1.0): THREE.BufferGeometry {
+  const D = 2 * rTip;
+  const P = pitchRatio * D;
+  const NR = 26;
+  const NC = 14;
+  const xh = rHub / rTip;
+  const skewMax = (38 * Math.PI) / 180;
+  const pos: number[] = [];
+  const ring = 2 * NC;
+  for (let j = 0; j <= NR; j++) {
+    const t = j / NR;
+    const xi = 1 - (1 - t) ** 1.35; // estações mais densas perto da ponta
+    const x = xh + (1 - xh) * xi; // r/R
+    const r = x * rTip * (j === 0 ? 0.92 : 1); // raiz um pouco dentro do cubo
+    const chord = D * 0.36 * Math.sqrt(Math.max(0.0016, 1 - x)) * (0.18 + 1.45 * x);
+    const phi = Math.atan(P / (2 * Math.PI * Math.max(r, 0.05)));
+    const skew = skewMax * xi ** 1.7 - 0.1 * skewMax * Math.sin(Math.PI * xi);
+    const rake = 0.06 * D * xi;
+    const tmax = D * (0.042 - 0.036 * xi);
+    const cphi = Math.cos(phi);
+    const sphi = Math.sin(phi);
+    const pt = (s: number, side: number) => {
+      // s: −1 (bordo de ataque) … +1 (bordo de fuga); side: +1 face (ré), −1 dorso (vante)
+      const sc = (s * chord) / 2;
+      const xc = (s + 1) / 2;
+      const half = 0.5 * tmax * Math.pow(4 * xc * (1 - xc), 0.75); // seção lenticular, bordos finos
+      const off = side * half;
+      // coordenadas na superfície helicoidal (tangencial, axial) + espessura na normal (−sinφ, cosφ)
+      const tang = sc * cphi - off * sphi;
+      const ax = sc * sphi + off * cphi + rake;
+      const th = skew + tang / r;
+      pos.push(-r * Math.sin(th), r * Math.cos(th), ax);
+    };
+    for (let i = 0; i < NC; i++) pt(-1 + (2 * i) / NC, 1);
+    for (let i = NC; i > 0; i--) pt(-1 + (2 * i) / NC, -1);
   }
+  const idx: number[] = [];
+  for (let j = 0; j < NR; j++)
+    for (let i = 0; i < ring; i++) {
+      const a = j * ring + i;
+      const b = j * ring + ((i + 1) % ring);
+      idx.push(a, a + ring, b, b, a + ring, b + ring);
+    }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Cubo do hélice: cilindro curto que continua o cone de popa e termina em ogiva. Eixo z (+z para ré). */
+export function hubGeometry(rFront: number, length: number): THREE.BufferGeometry {
+  const pts: THREE.Vector2[] = [];
+  const z0 = -0.45 * length;
+  const z1 = 0.1 * length;
+  const z2 = 0.55 * length;
+  pts.push(new THREE.Vector2(0.001, z0));
+  pts.push(new THREE.Vector2(rFront * 0.96, z0));
+  pts.push(new THREE.Vector2(rFront, z0 + 0.04 * length));
+  pts.push(new THREE.Vector2(rFront * 1.04, z1));
+  const N = 12;
+  for (let i = 1; i <= N; i++) {
+    const k = i / N;
+    pts.push(new THREE.Vector2(Math.max(0.001, rFront * 1.04 * Math.cos((k * Math.PI) / 2) ** 0.8), z1 + (z2 - z1) * Math.sin((k * Math.PI) / 2)));
+  }
+  const g = new THREE.LatheGeometry(pts, 28);
+  g.rotateX(Math.PI / 2); // eixo do torno (y) → z
   g.computeVertexNormals();
   return g;
 }

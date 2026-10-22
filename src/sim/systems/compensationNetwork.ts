@@ -2,7 +2,8 @@
  * REDE DA COMPENSAÇÃO — vazões por trecho de tubulação, derivadas do estado.
  *
  * Topologia: um coletor único liga a admissão de mar (V-AM), a sucção da
- * bomba BC (→ V-DM → mar) e o ramal de cada tanque (VC-n → TC-n). Cada nó do
+ * bomba BC (→ V-DM → mar) e o ramal de cada tanque: o central (VC → TC) e os
+ * dois de banda (VC-BB → TB-BB, VC-BE → TB-BE). Cada nó do
  * coletor injeta uma vazão: admissão +Q_adm, bomba −Q_desc, tanque −Q_tanque
  * (Q_tanque > 0 = enchendo). Num trecho entre dois nós vizinhos a vazão é a
  * soma das injeções de um lado (conservação de massa); o sinal dá o sentido.
@@ -10,8 +11,9 @@
  * Usado pelos diagramas (2D e 3D) para animar só o que a física move e no
  * sentido em que move. Não altera a simulação.
  */
-import type { CompensationConfig } from '../config/types';
-import type { CompensationState } from '../core/state';
+import type { CompensationConfig, TransferSystemConfig } from '../config/types';
+import type { CompensationState, TransferState } from '../core/state';
+import { compensationBranches } from './internalTanks';
 
 export interface ManifoldNode {
   id: string;
@@ -39,12 +41,13 @@ export interface CompensationFlows {
   tol: number;
 }
 
-export function compensationFlows(cfg: CompensationConfig, st: CompensationState): CompensationFlows {
+/** Vazões da compensação; com `heelCfg`/`heelSt`, inclui os ramais dos tanques de banda (vazão de compensação, sem a transferência BB ↔ BE). */
+export function compensationFlows(cfg: CompensationConfig, st: CompensationState, heelCfg?: TransferSystemConfig, heelSt?: TransferState): CompensationFlows {
   const tanks: Record<string, number> = {};
   let big = Math.max(st.qIn, st.qOut);
-  for (const t of cfg.tanks) {
-    const q = st.tanks[t.id].flow ?? 0;
-    tanks[t.id] = q;
+  for (const b of compensationBranches(cfg, st, heelCfg, heelSt)) {
+    const q = b.st.flow ?? 0;
+    tanks[b.id] = q;
     big = Math.max(big, Math.abs(q));
   }
   return { qIn: st.qIn, qOut: st.qOut, tanks, tol: Math.max(1e-5, 0.02 * big) };

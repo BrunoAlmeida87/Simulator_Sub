@@ -15,7 +15,7 @@ import { storage, downloadText } from '../storage';
 import { captureSession, restoreSession, resumeSimulation, sessionFileName, type RestoreReport } from '../session';
 import { parseSaveText, saveToText, type SaveFile } from '../../sim/persistence';
 import { identity, FIN_COLORS, DEFAULT_IDENTITY } from '../identity';
-import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS } from '../graphics';
+import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS, DEPTH_LINE_SPACINGS } from '../graphics';
 import type { SceneLighting } from '../../render3d/lighting';
 import { MAX_TRAFFIC } from '../../sim/traffic';
 import { currentAppearance, useIdentity } from '../appearance';
@@ -451,6 +451,18 @@ function GraphicsPanel() {
         <span className="mono" style={{ minWidth: 28, textAlign: 'right' }}>
           {g.traffic}
         </span>
+      </div>
+      <div className="row mt8" title="Distância vertical entre as linhas de profundidade (camada “Linhas de profundidade” da cena 3D)">
+        <span className="subtle" style={{ minWidth: 120 }}>
+          Linhas de profundidade
+        </span>
+        <div className="seg">
+          {DEPTH_LINE_SPACINGS.map((k) => (
+            <button key={k} className={g.depthLineSpacing === k ? 'on' : ''} onClick={() => graphics.set({ depthLineSpacing: k })}>
+              {k} m
+            </button>
+          ))}
+        </div>
       </div>
       <div className="row mt8">
         <label className="row" title="Partículas em suspensão em camadas de profundidade e marcas tênues no fundo, para perceber a cota e a distância ao fundo">
