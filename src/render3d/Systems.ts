@@ -399,28 +399,33 @@ export class SystemsVis {
     const sq = (n: number) => Math.sign(n) * Math.min(1, Math.sqrt(Math.abs(n)));
     // --- ar AP: garrafas → coletor ao longo do casco → válvulas de sopro → TLP
     const zM = (x: number) => -(geom.radiusAt(x) - 0.45);
+    const zE = (x: number) => zM(x) + 0.4;
     const node = b2l(-8, 0, zM(-8));
     v.hpAir.banks.forEach((b, i) => {
-      const y = i === 0 ? -0.9 : 0.9;
+      const emergency = b.purpose === 'emergency';
+      const x = emergency ? -3.5 : -8;
+      const y = i % 2 === 0 ? -0.9 : 0.9;
+      const color = emergency ? 0xf0a070 : 0xd9cf8f;
+      const z = emergency ? zE : zM;
       const grp = new THREE.Group();
       for (let k = 0; k < 3; k++) {
-        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 3.2, 12), new THREE.MeshStandardMaterial({ color: 0xd9cf8f, emissive: 0x3a3418, transparent: true, opacity: 0.9 }));
+        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, emergency ? 1.6 : 3.2, 12), new THREE.MeshStandardMaterial({ color, emissive: 0x3a3418, transparent: true, opacity: 0.9 }));
         c.rotation.x = Math.PI / 2;
-        c.position.copy(b2l(-8, y + (k - 1) * 0.3, 1.5 + (k % 2) * 0.25));
+        c.position.copy(b2l(x, y + (k - 1) * 0.3, 1.5 + (k % 2) * 0.25));
         c.userData.pick = { kind: 'hp', id: b.id };
         this.pickables.push(c);
         grp.add(c);
       }
       // as garrafas são reservatórios: aparecem com o corte, mesmo sem a camada de tubulações
       this.group.add(grp);
-      this.hpBottles.push({ id: b.id, grp, at: b2l(-8, y * 1.25, 0.9) });
-      const start = b2l(-8, y, 1.0);
-      const riser = [start, b2l(-8, y, 0.2), b2l(-8, 0, zM(-8))];
-      this.pipe(riser, 0xb7a95c, ['HP']);
-      this.valve(b2l(-8, y, 0.6), b.valve.name, (en) => en.state.hpAir.banks[b.id].valve, ['HP']);
+      this.hpBottles.push({ id: b.id, grp, at: b2l(x, y * 1.25, 0.9) });
+      const start = b2l(x, y, 1.0);
+      const riser = [start, b2l(x, y, 0.2), b2l(x, 0, z(x))];
+      this.pipe(riser, color, ['HP']);
+      this.valve(b2l(x, y, 0.6), b.valve.name, (en) => en.state.hpAir.banks[b.id].valve, ['HP']);
       this.stream(riser, C_HP, ['HP'], (en) => {
         let m = 0;
-        for (const t of v.ballast.tanks) m += en.state.ballast[t.id].mdotBlow;
+        for (const t of v.ballast.tanks) m += emergency ? en.state.ballast[t.id].mdotEmergencyBlow : en.state.ballast[t.id].mdotBlow;
         return en.state.hpAir.banks[b.id].valve.pos > 0.05 ? sq(m / 30) : 0;
       });
     });
@@ -430,6 +435,7 @@ export class SystemsVis {
     const man: THREE.Vector3[] = [];
     for (let x = xMin; x <= xMax + 1e-6; x += (xMax - xMin) / 24) man.push(b2l(x, 0, zM(x)));
     this.pipe(man, 0xb7a95c, ['HP']);
+    this.pipe(man.map((_, i) => b2l(xMin + i * (xMax - xMin) / 24, 0, zE(xMin + i * (xMax - xMin) / 24))), 0xf0a070, ['HP']);
     for (const t of v.ballast.tanks) {
       const r = geom.radiusAt(t.center.x);
       const side = t.center.y < 0 ? -1 : 1;
@@ -444,6 +450,11 @@ export class SystemsVis {
       this.pipe([nodeX, b2l(xFace, yIn, topZ), b2l(t.center.x, yIn, topZ + 0.3)], 0xb7a95c, [t.id]);
       this.valve(b2l(xFace, yIn * 0.6, (zM(xFace) + topZ) / 2), t.blowValve.name, (en) => en.state.ballast[t.id].blow, [t.id]);
       this.stream([node, ...bl], C_HP, [t.id, 'HP'], (en) => sq(en.state.ballast[t.id].mdotBlow / 15));
+      const emergencyFace = xFace + (fwd ? -0.6 : 0.6);
+      const emergencyBranch = [b2l(emergencyFace, 0, zE(emergencyFace)), b2l(emergencyFace, yIn, topZ + 0.4), b2l(t.center.x, yIn, topZ + 0.6)];
+      this.pipe(emergencyBranch, 0xf0a070, [t.id]);
+      this.valve(b2l(emergencyFace, yIn * 0.6, (zE(emergencyFace) + topZ + 0.4) / 2), t.emergencyBlowValve.name, (en) => en.state.ballast[t.id].emergencyBlow, [t.id]);
+      this.stream([...this.pathAlongManifold(-3.5, emergencyFace, zE), ...emergencyBranch], new THREE.Color(0xf0a070), [t.id, 'HP'], (en) => sq(en.state.ballast[t.id].mdotEmergencyBlow / 15));
       // suspiro: topo do tanque → válvula → convés
       const yV = side * rr * 0.3;
       const zDeck = -Math.sqrt(Math.max(0, r * r - yV * yV)) - 0.15;

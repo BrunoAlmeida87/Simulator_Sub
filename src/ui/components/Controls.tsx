@@ -134,9 +134,13 @@ export function NumSet({ value, onSet, step, unit, min, max }: { value: number; 
   };
   return (
     <span className="row" style={{ gap: 4 }}>
-      <button className="btn sm" onClick={() => commit(value - step)}>−{step}</button>
+      <button className="btn sm" onClick={() => commit(value - step)}>
+        −{step}
+      </button>
       <input type="number" value={v} onChange={(ev) => setV(ev.target.value)} onBlur={() => commit(Number(v))} onKeyDown={(ev) => ev.key === 'Enter' && commit(Number(v))} style={{ width: 70 }} />
-      <button className="btn sm" onClick={() => commit(value + step)}>+{step}</button>
+      <button className="btn sm" onClick={() => commit(value + step)}>
+        +{step}
+      </button>
       <span className="subtle">{unit}</span>
     </span>
   );
@@ -207,7 +211,9 @@ export function AutopilotPanel({ e }: { e: SimulationEngine }) {
           Cascata de profundidade: θ ordenado = <b className="mono">{fmt(ap.tDepth.output, 1)}°</b> → lemes de ré {fmt(ap.tPitch.output, 1)}°; lemes de vante {fmt(ap.tBow.output, 1)}°.
         </div>
       )}
-      <div className="note">Os controladores usam as leituras dos sensores. Mover manualmente um leme desengaja o canal correspondente. Ganhos escalonados com (U₀/U)²; a baixa velocidade os lemes perdem efetividade.</div>
+      <div className="note">
+        Os controladores usam as leituras dos sensores. Mover manualmente um leme desengaja o canal correspondente. Ganhos escalonados com (U₀/U)²; a baixa velocidade os lemes perdem efetividade.
+      </div>
     </div>
   );
 }
@@ -219,22 +225,31 @@ export function QuickBallast({ e }: { e: SimulationEngine }) {
   const fill = tanks.reduce((a, t) => a + e.state.ballast[t.id].water, 0) / tanks.reduce((a, t) => a + t.volume, 0);
   return (
     <div className="col">
-      <div className="row">
-        <button className={`btn ${anyVent ? 'on' : ''}`} onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: true })}>
-          Abrir suspiros
-        </button>
-        <button className="btn" onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: false })}>
-          Fechar suspiros
-        </button>
-        <button className={`btn ok ${anyBlow ? 'on' : ''}`} onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: true })}>
-          Soprar TLP
-        </button>
-        <button className="btn" onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: false })}>
-          Fechar sopro
-        </button>
-        <button className="btn danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
-          SOPRO DE EMERGÊNCIA
-        </button>
+      <div className="col ballast-actions">
+        <div className="row" role="group" aria-label="Suspiros">
+          <button className={`btn ${anyVent ? 'on' : ''}`} onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: true })}>
+            Abrir suspiros
+          </button>
+          <button className="btn" onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: false })}>
+            Fechar suspiros
+          </button>
+        </div>
+        <div className="row" role="group" aria-label="Sopro normal">
+          <button className={`btn ok ${anyBlow ? 'on' : ''}`} onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: true })}>
+            Soprar TLP
+          </button>
+          <button className="btn" onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: false })}>
+            Fechar sopro
+          </button>
+        </div>
+        <div className="row" role="group" aria-label="Sopro de emergência">
+          <button className="btn danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
+            SOPRO DE EMERGÊNCIA
+          </button>
+          <button className="btn" onClick={() => cmd({ type: 'emergencyBlow', open: false })}>
+            Fechar emergência
+          </button>
+        </div>
       </div>
       <div className="row subtle">
         <span>
