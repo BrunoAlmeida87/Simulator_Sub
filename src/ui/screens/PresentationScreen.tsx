@@ -9,17 +9,14 @@ import { cmd, runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
-import { TrimGainSelect } from '../components/TrimGain';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
 import { TrimDemoPanel } from '../components/TrimDemo';
-import { TankSelector } from '../components/TankSelector';
-import { VectorSelector } from '../components/VectorSelector';
 import { TourCard, TourList } from '../components/TourCard';
 import { tours } from '../tours';
 import type { ViewMode } from '../../render3d/SubmarineScene';
-import { FORCE_STYLE, TANK_STYLE, type SceneLayers, type TankCategory } from '../../render3d/layers';
+import { FORCE_STYLE, TANK_STYLE, type TankCategory } from '../../render3d/layers';
 import { pres, PRESETS, METRICS, takeMetrics, mbtGroup } from '../presentation';
 import { maneuver } from '../maneuvers';
 import { verticalBalance, toTf } from '../../sim/forceVectors';
@@ -29,7 +26,8 @@ import { fmt, fmtTime } from '../format';
 import { toKnots } from '../../sim/units';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { useUi } from '../uiContext';
-import { LayerPanel, type LayerKey } from '../components/LayerPanel';
+import type { LayerKey } from '../components/LayerPanel';
+import { SceneLayerPanel } from '../components/SceneLayerPanel';
 
 const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
@@ -46,16 +44,6 @@ const FRAMES: [ViewMode, string, string][] = [
 
 /** camadas da apresentação (nomes no catálogo LAYER_INFO) */
 const LAYER_LIST: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'markers', 'trail', 'presLight', 'noWater', 'trimRef', 'ships'];
-
-/** visualização do casco: externo (opaco), corte (transparente, com os tanques) ou sem o casco externo */
-type HullMode = 'externo' | 'corte' | 'oculto';
-const HULL_MODES: [HullMode, string, string][] = [
-  ['externo', 'Externo', 'Casco opaco: forma externa, vela, lemes e pintura'],
-  ['corte', 'Corte', 'Casco transparente com os componentes internos (transparência ajustável)'],
-  ['oculto', 'Sem casco', 'Esconde casco, vela e convés: ficam os componentes internos, lemes, hélice e o contorno'],
-];
-const hullModeOf = (L: SceneLayers): HullMode => (L.hull === false ? 'oculto' : L.tanks ? 'corte' : 'externo');
-const HULL_PATCH: Record<HullMode, Partial<SceneLayers>> = { externo: { hull: true, tanks: false }, corte: { hull: true, tanks: true }, oculto: { hull: false, tanks: true } };
 
 function usePres() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -200,7 +188,6 @@ export function PresentationScreen() {
   const [presetSel, setPresetSel] = useState(PRESETS.some((x) => x.id === p.presetId) ? p.presetId! : PRESETS[0].id);
   useEffect(() => pres.ensureInitial(runner), []);
   const L = p.layers;
-  const setL = (k: keyof SceneLayers, v: unknown) => pres.setLayers({ [k]: v } as Partial<SceneLayers>);
   const pick = (id: string | null) => pres.setLayers({ highlight: id, ...(id ? { tanks: true } : {}) });
   const preset = PRESETS.find((x) => x.id === presetSel) ?? PRESETS[0];
   const vb = verticalBalance(e);
@@ -298,50 +285,8 @@ export function PresentationScreen() {
         </Panel>
 
         <Panel title="Camadas">
-          <div className="row mb8">
-            <span className="subtle">Casco</span>
-            <div className="seg" role="group" aria-label="Visualização do casco">
-              {HULL_MODES.map(([m, l, tip]) => (
-                <button key={m} className={hullModeOf(L) === m ? 'on' : ''} onClick={() => pres.setLayers(HULL_PATCH[m])} title={tip}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-          <LayerPanel keys={LAYER_LIST} value={L} onChange={(p) => pres.setLayers(p)} />
-          {L.trimRef && (
-            <div className="mt8">
-              <TrimGainSelect />
-            </div>
-          )}
-          {(L.vectors || L.hydroVectors || L.trimVectors) && (
-            <div className="mt8">
-              <div className="subtle mb4">Vetores visíveis</div>
-              <VectorSelector value={L} onChange={(v) => pres.setLayers(v)} />
-            </div>
-          )}
-          {L.tanks && (
-            <div className="mt8">
-              <div className="subtle mb4">Tanques visíveis no corte</div>
-              <TankSelector e={e} value={L.tankFilter} onChange={(v) => setL('tankFilter', v)} />
-            </div>
-          )}
-          <div className="row mt8">
-            <label className="subtle">Ampliação da resultante</label>
-            <select value={String(L.resultantGain)} onChange={(ev) => setL('resultantGain', ev.target.value === 'auto' ? 'auto' : Number(ev.target.value))}>
-              <option value="auto">automática</option>
-              {[1, 10, 100, 1000].map((g) => (
-                <option key={g} value={g}>
-                  ×{g}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="row mt8">
-            <label className="subtle">Transparência do casco</label>
-            <input type="range" min={0.04} max={0.8} step={0.02} value={L.hullOpacity} onChange={(ev) => setL('hullOpacity', Number(ev.target.value))} style={{ flex: 1 }} aria-label="Opacidade do casco" />
-          </div>
-          <div className="note">Peso e empuxo estão na mesma escala (14 m = peso inicial). A resultante pode ser ampliada; o fator aparece no rótulo. Clique num tanque (aqui ou no corte) para destacá-lo.</div>
+          <SceneLayerPanel e={e} keys={LAYER_LIST} value={L} onChange={(p) => pres.setLayers(p)} hullControl />
+          <div className="note mt8">Clique num tanque na lista ou no corte para destacá-lo. Cada grupo reúne a visibilidade e os ajustes dos seus itens.</div>
         </Panel>
 
         <Panel title="Forças e equilíbrio vertical">

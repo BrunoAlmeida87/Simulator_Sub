@@ -9,7 +9,8 @@ import { Scene3D, defaultQuality } from './components/Scene3D';
 import { OpsStrip } from './ops/OpsStrip';
 import { link } from './link';
 import { fullExternalLayers, type SceneLayers } from '../render3d/layers';
-import { LayerPanel, type LayerKey } from './components/LayerPanel';
+import type { LayerKey } from './components/LayerPanel';
+import { SceneLayerPanel } from './components/SceneLayerPanel';
 import type { ViewMode } from '../render3d/SubmarineScene';
 import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
@@ -47,7 +48,6 @@ export function VisualApp() {
   const [layOpen, setLayOpen] = usePersisted('visual.layersOpen', false);
   const base = src === 'controle' && v?.layers ? v.layers : fullExternalLayers();
   const layers: SceneLayers = { ...base, ...over };
-  const toggle = (k: keyof SceneLayers) => setOver({ ...over, [k]: !layers[k] });
   const pickView = (k: ViewMode | 'seguir') => {
     setMode(k);
     if (k === 'tanques') setOver({ ...over, tanks: true });
@@ -102,17 +102,14 @@ export function VisualApp() {
               <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Ligar/desligar camadas nesta janela, por grupo">
                 Camadas ({LAYER_KEYS.filter((k) => !!layers[k]).length}) {layOpen ? '▴' : '▾'}
               </button>
-              <button className={`btn sm ${layers.hull ? 'on' : ''}`} onClick={() => toggle('hull')} title="Casco externo (desligado mostra só os componentes internos)">
-                {layers.hull ? '☑' : '☐'} Casco{'hull' in over ? ' •' : ''}
-              </button>
               <button className="btn sm" disabled={Object.keys(over).length === 0} onClick={() => setOver({})} title="Desfaz as alterações feitas nesta janela">
                 ↺ Desfazer ajustes
               </button>
             </div>
           )}
           {!hideUi && layOpen && (
-            <div className="tanksel-pop visual-laypop">
-              <LayerPanel keys={LAYER_KEYS} value={layers} onChange={(p) => setOver({ ...over, ...p })} marked={(k) => k in over} />
+            <div className="tanksel-pop scene-layer-pop visual-laypop">
+              <SceneLayerPanel e={e} hullControl keys={LAYER_KEYS} value={layers} onChange={(p) => setOver({ ...over, ...p })} marked={(k) => k in over} />
             </div>
           )}
           <div className="btngroup">

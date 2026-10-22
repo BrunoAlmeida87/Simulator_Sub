@@ -6,6 +6,7 @@
  * sem um clique do operador.
  */
 import { LAYER_GROUPS, LAYER_INFO, allLayersOff, allLayersOn, toggleLayerGroup, type BoolLayer, type SceneLayers } from '../../render3d/layers';
+import type { ReactNode } from 'react';
 
 export type LayerKey = Exclude<BoolLayer, 'hull'>;
 
@@ -15,6 +16,7 @@ export function LayerPanel({
   onChange,
   note,
   marked,
+  sections,
 }: {
   keys: readonly LayerKey[];
   value: Partial<SceneLayers>;
@@ -22,6 +24,8 @@ export function LayerPanel({
   note?: string;
   /** destaca camadas (ex.: alteradas nesta janela) */
   marked?: (k: LayerKey) => boolean;
+  /** seletores e ajustes junto ao grupo ao qual pertencem */
+  sections?: Partial<Record<string, ReactNode>>;
 }) {
   const anyOn = keys.some((k) => !!value[k]);
   const allOn = keys.every((k) => LAYER_INFO[k].mode || !!value[k]);
@@ -44,8 +48,8 @@ export function LayerPanel({
           const on = g.keys.filter((k) => !!value[k]).length;
           const full = on === g.keys.length;
           return (
-            <div key={g.id} className="layergroup">
-              <button className={`layergroup-h ${on ? (full ? 'all' : 'some') : ''}`} title={`${g.title} — clique para ${on ? 'desmarcar' : 'marcar'} o grupo`} onClick={() => onChange(toggleLayerGroup(g.keys, value))}>
+            <section key={g.id} className="layergroup" aria-label={g.label}>
+              <button className={`layergroup-h ${on ? (full ? 'all' : 'some') : ''}`} aria-pressed={full ? true : on ? 'mixed' : false} title={`${g.title} — clique para ${on ? 'desmarcar' : 'marcar'} o grupo`} onClick={() => onChange(toggleLayerGroup(g.keys, value))}>
                 <span className="lg-box">{full ? '☑' : on ? '◩' : '☐'}</span> {g.label}{' '}
                 <small>
                   {on}/{g.keys.length}
@@ -53,19 +57,20 @@ export function LayerPanel({
               </button>
               <div className="layergroup-items">
                 {g.keys.map((k) => (
-                  <button key={k} className={`btn sm ${value[k] ? 'on' : ''}`} onClick={() => onChange({ [k]: !value[k] })} title={LAYER_INFO[k].title + (marked?.(k) ? ' (alterada nesta janela)' : '')}>
+                  <button key={k} className={`btn sm ${value[k] ? 'on' : ''}`} aria-pressed={!!value[k]} onClick={() => onChange({ [k]: !value[k] })} title={LAYER_INFO[k].title + (marked?.(k) ? ' (alterada nesta janela)' : '')}>
                     {value[k] ? '☑' : '☐'} {LAYER_INFO[k].label}
                     {marked?.(k) ? ' •' : ''}
                   </button>
                 ))}
               </div>
-            </div>
+              {sections?.[g.id]}
+              {g.id === 'refs' && !value.tanks && (value.batteryInfo || value.airInfo) && (
+                <div className="note mt4">Para ver bateria e ar comprimido junto aos componentes, ligue “Tanques (corte)”.</div>
+              )}
+            </section>
           );
         })}
       </div>
-      {(keys.includes('batteryInfo') || keys.includes('airInfo')) && !value.tanks && (value.batteryInfo || value.airInfo) && (
-        <div className="note mt4">Bateria e ar comprimido aparecem junto aos componentes internos: ligue “Tanques (corte)”.</div>
-      )}
       {note && <div className="note mt4">{note}</div>}
     </div>
   );

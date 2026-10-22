@@ -53,6 +53,7 @@ describe('Camadas no 3D (valores do modelo)', () => {
     const cut = labelsFor({ ...allLayersOff(KEYS), tanks: true, batteryInfo: true });
     const b = cut.out.find((l) => l.id === 'pwB');
     expect(b?.text).toBe(`Bateria ${(cut.e.state.electrical.soc * 100).toFixed(0)} %`);
+    expect(b?.callout).toBe(true);
     // identificações desligadas não afetam a bateria, e vice-versa
     const off = labelsFor({ ...allLayersOff(KEYS), tanks: true, labels: true, batteryInfo: false });
     expect(off.out.find((l) => l.id === 'pwB')).toBeUndefined();
@@ -64,6 +65,7 @@ describe('Camadas no 3D (valores do modelo)', () => {
     expect(first.length).toBe(e.vessel.hpAir.banks.length);
     for (const b of e.vessel.hpAir.banks) {
       const l = first.find((x) => x.id === 'air' + b.id)!;
+      expect(l.callout).toBe(true);
       const p = bankPressure(e.vessel.hpAir, b.id, e.state.hpAir.banks[b.id].mass) / 1e5;
       expect(l.text).toBe(`${b.id} · ${p.toFixed(0)} bar`);
       expect(l.sub).toContain(`${e.state.hpAir.banks[b.id].mass.toFixed(0)} kg de ar`);

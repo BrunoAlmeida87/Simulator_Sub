@@ -296,9 +296,9 @@ export class SystemsVis {
     // rótulos de energia: camada própria ("Bateria (%)"), junto da bateria e dos geradores —
     // só com o corte, quando esses componentes estão à vista (antes flutuava sobre o casco fechado)
     if (layers.tanks && !hide && layers.batteryInfo) {
-      labels.push({ id: 'pwB', text: `Bateria ${(soc * 100).toFixed(0)} %${el.current < -1 ? ' ▲ carregando' : ''}`, color: '#9fe3b0', small: true, prio: 3, ...proj(sub.localToWorld(b2l(14, 0, 1.6))) });
+      labels.push({ id: 'pwB', callout: true, text: `Bateria ${(soc * 100).toFixed(0)} %${el.current < -1 ? ' ▲ carregando' : ''}`, color: '#9fe3b0', small: true, prio: 3, ...proj(sub.localToWorld(b2l(14, 0, 1.6))) });
       const run = e.vessel.electrical.generators.filter((g) => el.generators[g.id].status === 'EM CARGA').length;
-      if (run) labels.push({ id: 'pwG', text: `Geradores: ${run} em carga`, color: '#ffd18a', small: true, prio: 3, ...proj(sub.localToWorld(b2l(-17.5, 0, 0.4))) });
+      if (run) labels.push({ id: 'pwG', callout: true, text: `Geradores: ${run} em carga`, color: '#ffd18a', small: true, prio: 3, ...proj(sub.localToWorld(b2l(-17.5, 0, 0.4))) });
     }
   }
 
@@ -326,6 +326,7 @@ export class SystemsVis {
       const at = this.hpBottles.find((x) => x.id === b.id)?.at ?? b2l(-8, 0, 1);
       labels.push({
         id: 'air' + b.id,
+        callout: true,
         text: `${b.id} · ${(p / 1e5).toFixed(0)} bar`,
         sub: `${st.mass.toFixed(0)} kg de ar ≈ ${free.toFixed(0)} m³ a 1 atm · ${dec(b.volume, 1)} m³ de garrafas · válvula ${vs.toLowerCase()}${flow}`,
         color: '#e8dc9a',
@@ -623,6 +624,7 @@ export class SystemsVis {
         const st = TANK_STYLE[t.cat];
         labels.push({
           id: 'tk' + t.id,
+          callout: true,
           text: `${t.short} ${(fill * 100).toFixed(0)} %${arrow}`,
           sub: sel ? `${st.label} — ${st.fn} · ${t.getVol(e).toFixed(t.cap > 20 ? 1 : 2)}/${t.cap.toFixed(0)} m³` : undefined,
           color: st.css,
@@ -652,7 +654,7 @@ export class SystemsVis {
       v.mesh.scale.setScalar(st.pos > 0.5 || moving ? 1.25 : 1);
       // rótulo só durante o curso da válvula (ou aberta, para o tanque destacado)
       if (showP && layers.labels && (moving || (hl && st.pos > 0.5 && v.owners.includes(hl)))) {
-        labels.push({ id: 'vl' + v.name, text: `${v.name}: ${moving ? (st.cmd > st.pos ? 'abrindo' : 'fechando') : 'aberta'}`, color: moving ? '#ffc040' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(v.mesh.position.clone())) });
+        labels.push({ id: 'vl' + v.name, callout: true, text: `${v.name}: ${moving ? (st.cmd > st.pos ? 'abrindo' : 'fechando') : 'aberta'}`, color: moving ? '#ffc040' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(v.mesh.position.clone())) });
       }
     }
     for (const p of this.pumps) {
@@ -664,7 +666,7 @@ export class SystemsVis {
       p.rotor.rotation.y += step * st.speed * 25;
       p.rotor.visible = owned(p.owners);
       if (showP && layers.labels && (st.speed > 0.05 || st.failed) && owned(p.owners)) {
-        labels.push({ id: 'pm' + p.name, text: `${p.name}: ${st.failed ? 'FALHA' : `em funcionamento ${(st.speed * 100).toFixed(0)} %`}`, color: st.failed ? '#ff6b6b' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(p.pos.clone().add(new THREE.Vector3(0, 0.9, 0)))) });
+        labels.push({ id: 'pm' + p.name, callout: true, text: `${p.name}: ${st.failed ? 'FALHA' : `em funcionamento ${(st.speed * 100).toFixed(0)} %`}`, color: st.failed ? '#ff6b6b' : '#3ddc84', small: true, prio: 3, ...proj(sub.localToWorld(p.pos.clone().add(new THREE.Vector3(0, 0.9, 0)))) });
       }
     }
     for (const pa of this.ports) {

@@ -209,6 +209,19 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .lbl3d.col { border-left: 3px solid; font-weight: 600; }
 .lbl3d.small { font-size: 10.5px; padding: 1px 5px; }
 .lbl3d .s { font-size: 10px; color: #c3d4e6; font-weight: 400; }
+.lbl3d { width: max-content; max-width: calc(100% - 24px); white-space: normal; overflow-wrap: anywhere; z-index: 1; }
+.lbl3d.callout { max-width: min(300px, calc(100% - 24px)); background: rgba(5, 12, 20, 0.9); }
+.lbl3d-leader { position: absolute; height: 1px; transform-origin: left center; opacity: 0.55; pointer-events: none; }
+.overlay-ctl { max-width: calc(100% - 16px); z-index: 3; }
+.overlay-ctl .seg { flex-wrap: wrap; justify-content: flex-end; }
+.scene-layer-pop { width: min(370px, calc(100vw - 48px)); max-width: 100%; max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain; align-items: stretch; }
+.layer-detail { border-top: 1px solid var(--line2); margin-top: 5px; padding-top: 5px; }
+.layer-detail > summary { cursor: pointer; color: var(--muted); font-size: 11.5px; padding: 3px 0; }
+.layer-detail[open] > summary { margin-bottom: 6px; color: var(--text); }
+.layer-setting { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+.layer-setting input[type='range'] { flex: 1; min-width: 90px; }
+.layer-setting .seg { flex-wrap: wrap; }
+.vecsel .tsel-g { flex-basis: 100%; }
 
 /* ---------- diversos ---------- */
 .svgbox { width: 100%; height: auto; display: block; }
@@ -678,10 +691,11 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .room-peri-keys { display: none; }
   .room-peri-status { font-size: 12px; max-width: 70%; }
 }
-.layergroups { display: flex; flex-direction: column; gap: 6px; }
-.layergroup { display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--line2); border-radius: 6px; padding: 4px 6px 6px; background: rgba(8, 18, 28, 0.55); }
+.layergroups { display: flex; flex-direction: column; gap: 8px; }
+.layergroup { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line2); border-radius: 6px; padding: 8px; background: rgba(8, 18, 28, 0.55); }
 .layergroup-h { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 5px; padding: 1px 2px; border-radius: 4px; }
 .layergroup-h:hover { color: var(--text, #e6eef6); background: rgba(255, 255, 255, 0.05); }
+.layergroup-h:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .layergroup-h.some, .layergroup-h.all { color: var(--accent); }
 .layergroup-h small { font-weight: 400; color: var(--muted); }
 .layergroup-h .lg-box { font-size: 14px; }

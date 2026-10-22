@@ -26,6 +26,7 @@ import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
 import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
+import type { LabelRect } from './labelLayout';
 import type { Appearance } from './sailArt';
 import { SailDecals, anechoicTextures, bladeGeometry, draftMarkBand, finGeometry } from './HullDetail';
 import { DRAFT_MARK_X, draftInfo } from '../sim/drafts';
@@ -69,6 +70,8 @@ export interface Label3D {
   sub?: string;
   color?: string;
   small?: boolean;
+  /** identificação de componente: fica fora do casco, com linha até a âncora */
+  callout?: boolean;
   /** prioridade de posicionamento (0 = mais importante; ≥ 3 pode ser omitido se não couber) */
   prio?: number;
   x: number;
@@ -97,6 +100,8 @@ function dotTexture(): THREE.Texture | null {
 }
 
 export class SubmarineScene {
+  /** Área projetada do submarino reservada para o modelo, sem textos de componentes. */
+  labelBounds: LabelRect | null = null;
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
   camera: THREE.PerspectiveCamera;
@@ -1200,6 +1205,16 @@ export class SubmarineScene {
     };
     const lbl: Label3D[] = [];
     this.sub.updateMatrixWorld();
+    const hull = e.vessel.hull;
+    const rHull = hull.diameter / 2;
+    const corners = [-rHull, rHull].flatMap((x) => [-rHull, rHull + hull.sail.height].flatMap((y) =>
+      [-hull.length / 2, hull.length / 2].map((z) => proj(this.sub.localToWorld(new THREE.Vector3(x, y, z))))));
+    this.labelBounds = corners.every((p) => p.visible) ? {
+      x0: Math.min(...corners.map((p) => p.x)) - 10,
+      x1: Math.max(...corners.map((p) => p.x)) + 10,
+      y0: Math.min(...corners.map((p) => p.y)) - 10,
+      y1: Math.max(...corners.map((p) => p.y)) + 10,
+    } : null;
     this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);

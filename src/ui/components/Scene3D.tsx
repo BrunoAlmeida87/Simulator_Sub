@@ -11,6 +11,7 @@ import { graphics } from '../graphics';
 import { appearanceRev, currentAppearance } from '../appearance';
 import { TrimGainBanner } from './TrimGain';
 import { geoOriginOf } from '../routeNav';
+import { layoutLabels, type LabelRect } from '../../render3d/labelLayout';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
 export function defaultQuality(): OceanQuality {
@@ -60,7 +61,8 @@ export function Scene3D(props: Scene3DProps) {
   const box = useRef<HTMLDivElement>(null);
   const lblBox = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SubmarineScene | null>(null);
-  const pool = useRef(new Map<string, { el: HTMLDivElement; key: string; w: number; h: number }>());
+  const pool = useRef(new Map<string, { el: HTMLDivElement; line: HTMLDivElement; key: string; w: number; h: number }>());
+  const labelWidth = useRef(0);
   const [err, setErr] = useState<string | null>(null);
   const opts = useRef(props);
   opts.current = props;
@@ -122,7 +124,7 @@ export function Scene3D(props: Scene3DProps) {
               visualOut.view = opts.current.view;
             }
             sc.realisticFog = opts.current.fog ?? true;
-            drawLabels(sc.render());
+            drawLabels(sc.render(), sc.labelBounds);
           }
           raf = requestAnimationFrame(loop);
         };
@@ -143,15 +145,25 @@ export function Scene3D(props: Scene3DProps) {
 
   /**
    * Rótulos HTML sobre a cena. Posicionados por prioridade (forças primeiro),
-   * com o tamanho real medido e desempilhamento para não se sobreporem;
-   * rótulos secundários que não cabem são omitidos.
+   * com o tamanho real medido. Identificações ficam fora do casco, ligadas
+   * ao componente por uma linha; os controles também são áreas reservadas.
    */
-  const drawLabels = (labels: Label3D[]) => {
+  const drawLabels = (labels: Label3D[], hull: LabelRect | null) => {
     const host = lblBox.current;
     if (!host) return;
     const basic = opts.current.labels !== false;
     const W = host.clientWidth;
     const H = host.clientHeight;
+    if (labelWidth.current !== W) {
+      for (const slot of pool.current.values()) slot.w = -1;
+      labelWidth.current = W;
+    }
+    const origin = host.getBoundingClientRect();
+    const obstacles: LabelRect[] = [];
+    box.current?.querySelectorAll<HTMLElement>('.overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
+    });
     const list = labels
       .filter((l) => l.visible && !(BASIC.has(l.id) && !basic) && l.x > -50 && l.y > -30 && l.x < W + 50 && l.y < H + 30)
       .sort((a, b) => (a.prio ?? 1) - (b.prio ?? 1));
@@ -161,13 +173,15 @@ export function Scene3D(props: Scene3DProps) {
       if (!slot) {
         const el = document.createElement('div');
         el.className = 'lbl3d';
-        host.appendChild(el);
-        slot = { el, key: '', w: 0, h: 0 };
+        const line = document.createElement('div');
+        line.className = 'lbl3d-leader';
+        host.append(line, el);
+        slot = { el, line, key: '', w: 0, h: 0 };
         pool.current.set(l.id, slot);
       }
-      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}`;
+      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.callout ? 1 : 0}`;
       if (slot.key !== key) {
-        slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.color ? ' col' : ''}`;
+        slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.color ? ' col' : ''}${l.callout ? ' callout' : ''}`;
         slot.el.style.borderColor = l.color ?? '';
         slot.el.style.color = l.color ?? '';
         slot.el.innerHTML = '';
@@ -193,37 +207,32 @@ export function Scene3D(props: Scene3DProps) {
         s.h = s.el.offsetHeight;
       }
     }
-    // 3) posição
+    // 3) posição e linhas de identificação (sem forçar sobreposições)
+    const positions = layoutLabels(list.map((l, i) => ({ ...l, width: slots[i].w, height: slots[i].h })), W, H, obstacles, hull);
     const used = new Set<string>();
-    const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
-    list.forEach((l, i) => {
-      const s = slots[i];
-      const w = s.w + 4;
-      const h = s.h + 2;
-      // candidatos: posição original e deslocamentos alternados para cima/baixo
-      let y = l.y;
-      let ok = false;
-      for (let k = 0; k < 13; k++) {
-        const dy = k === 0 ? 0 : Math.ceil(k / 2) * (h * 0.55) * (k % 2 ? 1 : -1);
-        const yy = l.y + dy;
-        const r = { x0: l.x - w / 2, x1: l.x + w / 2, y0: yy - h / 2, y1: yy + h / 2 };
-        if (!placed.some((p) => r.x0 < p.x1 && r.x1 > p.x0 && r.y0 < p.y1 && r.y1 > p.y0)) {
-          y = yy;
-          ok = true;
-          break;
-        }
+    const byId = new Map(list.map((l) => [l.id, l]));
+    for (const p of positions) {
+      const s = pool.current.get(p.id)!;
+      const l = byId.get(p.id)!;
+      s.el.style.left = `${p.x}px`;
+      s.el.style.top = `${p.y}px`;
+      s.line.style.display = 'none';
+      if (l.callout || Math.hypot(p.x - l.x, p.y - l.y) > 20) {
+        const endX = Math.max(p.x - s.w / 2, Math.min(p.x + s.w / 2, l.x));
+        const endY = Math.max(p.y - s.h / 2, Math.min(p.y + s.h / 2, l.y));
+        s.line.style.display = 'block';
+        s.line.style.left = `${l.x}px`;
+        s.line.style.top = `${l.y}px`;
+        s.line.style.width = `${Math.hypot(endX - l.x, endY - l.y)}px`;
+        s.line.style.transform = `rotate(${Math.atan2(endY - l.y, endX - l.x)}rad)`;
+        s.line.style.backgroundColor = l.color ?? '#9fb7cf';
       }
-      if (!ok && (l.prio ?? 1) >= 3) {
-        s.el.style.display = 'none';
-        used.add(l.id);
-        return;
-      }
-      placed.push({ x0: l.x - w / 2, x1: l.x + w / 2, y0: y - h / 2, y1: y + h / 2 });
-      s.el.style.left = `${l.x}px`;
-      s.el.style.top = `${y}px`;
-      used.add(l.id);
-    });
-    for (const [id, s] of pool.current) if (!used.has(id)) s.el.style.display = 'none';
+      used.add(p.id);
+    }
+    for (const [id, s] of pool.current) if (!used.has(id)) {
+      s.el.style.display = 'none';
+      s.line.style.display = 'none';
+    }
   };
 
   useEffect(() => {
