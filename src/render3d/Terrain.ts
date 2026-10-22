@@ -234,16 +234,19 @@ const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
 WHITE.needsUpdate = true;
 
 /** une a imagem de satélite à cor do terreno (só onde o peso da imagem é > 0: terra coberta) */
-function addSatellite(m: THREE.MeshStandardMaterial, u: { uSatS: { value: THREE.Texture }; uSatR: { value: THREE.Texture }; uSatGain: { value: number } }, tag: string): void {
+function addSatellite(m: THREE.MeshStandardMaterial, u: { uSatS: { value: THREE.Texture }; uSatR: { value: THREE.Texture }; uSatGain: { value: number }; uNight: { value: number } }, tag: string): void {
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => {
     prev?.call(m, sh, r);
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 aUvS;\nattribute vec2 aUvR;\nattribute vec2 aSat;\nvarying vec2 vUvS;\nvarying vec2 vUvR;\nvarying vec2 vSat;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvUvS = aUvS; vUvR = aUvR; vSat = aSat;');
+      .replace('#include <common>', '#include <common>\nattribute vec2 aUvS;\nattribute vec2 aUvR;\nattribute vec2 aSat;\nvarying vec2 vUvS;\nvarying vec2 vUvR;\nvarying vec2 vSat;\nvarying float vH;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvUvS = aUvS; vUvR = aUvR; vSat = aSat; vH = position.y;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D uSatS;\nuniform sampler2D uSatR;\nuniform float uSatGain;\nvarying vec2 vUvS;\nvarying vec2 vUvR;\nvarying vec2 vSat;')
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform sampler2D uSatS;\nuniform sampler2D uSatR;\nuniform float uSatGain;\nuniform float uNight;\nvarying vec2 vUvS;\nvarying vec2 vUvR;\nvarying vec2 vSat;\nvarying float vH;',
+      )
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
@@ -255,6 +258,16 @@ function addSatellite(m: THREE.MeshStandardMaterial, u: { uSatS: { value: THREE.
             float det = 0.9;
           #endif
           diffuseColor.rgb = mix(diffuseColor.rgb, satC * uSatGain * (0.72 + 0.3 * det), vSat.y);
+          // luzes da cidade à noite: áreas urbanas da imagem (cinza, pouco saturadas, nem água nem areia clara), em pontos
+          if (uNight > 0.01 && vH > 1.5) {
+            float lum = dot(satC, vec3(0.299, 0.587, 0.114));
+            float sat = max(satC.r, max(satC.g, satC.b)) - min(satC.r, min(satC.g, satC.b));
+            float urban = smoothstep(0.2, 0.32, lum) * (1.0 - smoothstep(0.55, 0.7, lum)) * (1.0 - smoothstep(0.07, 0.14, sat));
+            vec2 cell = floor(mix(vUvS * vec2(7000.0, 4500.0), vUvR * vec2(4000.0, 3600.0), step(0.5, vSat.x)));
+            float h = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
+            vec3 lamp = mix(vec3(1.0, 0.68, 0.32), vec3(1.0, 0.92, 0.78), step(0.85, h));
+            totalEmissiveRadiance += lamp * urban * step(0.62, h) * uNight * vSat.y * 1.4;
+          }
         }`,
       );
   };
@@ -271,7 +284,11 @@ export class TerrainLayer {
   private landMat: THREE.MeshStandardMaterial;
   private key = '';
   readonly detail: TerrainDetail;
-  private satU = { uSatS: { value: WHITE as THREE.Texture }, uSatR: { value: WHITE as THREE.Texture }, uSatGain: { value: 1.3 } };
+  private satU = { uSatS: { value: WHITE as THREE.Texture }, uSatR: { value: WHITE as THREE.Texture }, uSatGain: { value: 1.3 }, uNight: { value: 0 } };
+  /** luzes da cidade (0 = dia … 1 = noite) */
+  set night(k: number) {
+    this.satU.uNight.value = k;
+  }
 
   constructor(detail: TerrainDetail, decorate: (m: THREE.MeshStandardMaterial) => void) {
     this.detail = detail;

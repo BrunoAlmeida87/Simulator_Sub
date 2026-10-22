@@ -742,3 +742,13 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .sysov-alarm.warn { color: var(--warn); }
 .sysov-alarm.alarm { color: var(--alarm); font-weight: 600; }
 .sysov-card > footer { margin-top: auto; }
+
+/* ---------- sol e luzes (cena 3D) ---------- */
+.lightpanel { display: flex; flex-direction: column; gap: 6px; font-size: 12px; align-self: stretch; min-width: 260px; }
+.lightpanel .lp-row { display: flex; gap: 4px; align-items: center; }
+.lightpanel .lp-row.wrap { flex-wrap: wrap; }
+.lightpanel .lp-row > span { color: #9fb7cf; margin-right: 4px; }
+.lightpanel .lp-slider { display: grid; grid-template-columns: 58px 1fr; gap: 2px 6px; align-items: center; color: #9fb7cf; }
+.lightpanel .lp-slider input { width: 100%; min-width: 0; }
+.lightpanel .lp-slider .lp-val { grid-column: 2; color: #dbe7f3; font-variant-numeric: tabular-nums; }
+.lightpanel .lp-check { display: flex; gap: 6px; align-items: center; cursor: pointer; }

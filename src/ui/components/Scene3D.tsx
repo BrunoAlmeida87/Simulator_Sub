@@ -114,6 +114,7 @@ export function Scene3D(props: Scene3DProps) {
             sc.depthRefsOn = graphics.get().depthRefs;
             sc.terrainDetail = graphics.get().coastDetail;
             sc.lighting = graphics.get().lighting;
+            sc.daylight = graphics.get();
             sc.marineLife.settings = graphics.get();
             sc.layers = mergedLayers(opts.current);
             if (opts.current.periscope) sc.periscope = opts.current.periscope;

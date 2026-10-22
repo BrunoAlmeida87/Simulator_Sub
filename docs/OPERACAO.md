@@ -152,13 +152,23 @@ A costa da Baía de Sepetiba — continente de Itaguaí a Guaratiba, Restinga e 
 - **No 3D**: fundo texturizado e terra com cores por altura e declive (praia, mata, rocha), em três níveis de detalhe que acompanham o submarino (perto, médio e longe — este só acima d'água; a névoa vai mais longe e a serra aparece ao fundo). Detalhe em Configurações → Qualidade gráfica → Terreno e costa.
 - **Estaleiro e Base Naval da Ilha da Madeira (Itaguaí)** no lugar real, traçado de imagens de satélite Sentinel-2 (julho/2026) e conferido com fotografias: aterro com cais a +3 m, quebra-mares de enrocamento (crista a +5 m, talude 1:1,5) com cabeças arredondadas, cais interno, **shiplift** (110 × 20 m, 8 000 t, 34 guinchos) com um submarino içado, trilhos de transferência, galpões (prédio principal do estaleiro de construção, manutenção, oficinas, transferência, administração e apoio), tanques de combustível, guindastes e, a oeste, o píer de minério do Porto Sudeste como referência.
   - **Na física**: aterro, cais, quebra-mares e shiplift são terra (encostar = contato); junto a eles o fundo sobe com o mesmo talude, exceto na **bacia, na entrada e na aproximação, dragadas a 16 m** (estimado). O aterro vale sobre o relevo antigo do morro (que foi cortado e nivelado).
-  - **Só visuais**: galpões, tanques, guindastes, o submarino no shiplift e o Porto Sudeste. Posições e alturas dos galpões são estimadas.
+  - **Só visuais**: galpões, tanques, guindastes, o submarino no shiplift, **dois submarinos atracados a contrabordo dos píeres do shiplift** (flutuando na bacia dragada, sobem e descem com as ondas, com defensas, espias e prancha) e o Porto Sudeste. Posições e alturas dos galpões são estimadas.
   - Com rótulos ligados, a cena mostra “Estaleiro e Base Naval — Itaguaí” e a distância.
 - **No mapa tático**: o botão *Costa do simulador* desenha em laranja a costa usada pela simulação e, por cima, o estaleiro com os mesmos contornos da física e do 3D (aterro, molhes na largura real, shiplift, galpões, área dragada tracejada e o píer do Porto Sudeste), também sem internet. O marcador da base (EBN) fica no centro da bacia.
 - **Cenários**: *Saída da base — Estaleiro e Base Naval de Itaguaí* (superfície, no centro da bacia, aproado à entrada a 214°; baía com fundo de 30 m) e *Aproximação da Restinga da Marambaia* (submerso, fundo subindo, alarmes antes do encalhe) vêm com a costa ligada. Os outros cenários continuam em mar aberto (costa desligada), como antes — partindo da baía, vários encontrariam terra em poucos quilômetros.
 - **Posição geográfica**: *Definir posição* e *Posição inicial* no mapa mudam a posição da simulação (comando registrado); com a costa ligada, o simulador recusa colocar o casco em terra ou sobre o fundo.
 
 Dados: polígonos de terra do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL; pacote geo-maps) corrigidos com o relevo Terrarium (AWS Open Data/Mapzen: SRTM e outros). A batimetria real da baía não é usada: o fundo de mar aberto é o configurado.
+
+**Imagem de satélite e relevo fino no 3D:** com a costa ligada, a terra de Sepetiba e do Rio aparece com a **imagem de satélite em cor verdadeira** (Sentinel-2, 05/08/2024; contém dados Copernicus Sentinel modificados) sobre o **relevo de 30 m** (Copernicus DEM GLO-30). As imagens vêm do próprio site (funcionam sem internet externa) e só são carregadas quando a costa é ligada. A física continua usando a costa embutida (grade de 50 m).
+
+## Rio de Janeiro (Baía de Guanabara e orla)
+
+A orla do Rio, **do Leme ao Pontal**, e a **Baía de Guanabara** também estão embutidas (Configurações → Fundo do mar → Costa):
+- **Na física**: o contorno da costa vem da classe "água" da imagem Sentinel-2 (grade de 50 m; ilhas, Ilha do Governador, Niterói, Ilha Fiscal, Villegagnon e Mocanguê); em terra vale o relevo (Corcovado, Pão de Açúcar, Pedra da Gávea, Tijuca). Encostar é encalhe, como em Sepetiba.
+- **No 3D**: relevo com a imagem de satélite (cidade, matas, praias), **Cristo Redentor** no alto do Corcovado, **Ponte Rio–Niterói** com o vão central alto sobre o canal e, com *Identificações*, os nomes dos lugares (Pão de Açúcar, Corcovado, Pedra da Gávea, Fortaleza de Santa Cruz, Escola Naval, Ilha Fiscal, Arsenal de Marinha, Base de Submarinos — Mocanguê, Santos Dumont, Niterói, Leme, Copacabana, Ipanema, Leblon, São Conrado, Barra, Recreio — Pontal, Cagarras…). À noite, as áreas urbanas da imagem acendem como luzes da cidade.
+- **Navios**: perto do Rio a mesa tática e o 3D mostram contatos próprios da região, todos em rotas na água — barca Rio–Niterói, graneleiro entrando a barra, rebocador, pesqueiro e navio-patrulha ao largo da orla.
+- **Cenários** (acrescentados): *Baía de Guanabara — rumo à barra (Pão de Açúcar e Cristo à vista)* (superfície, entre a Ilha Fiscal e Niterói, aproado à saída da barra) e *Orla do Rio — cota periscópica em frente a Copacabana* (submerso a 4 nós ao largo do Leme–Copacabana).
 
 ## Duas janelas (dois monitores)
 
@@ -300,6 +310,15 @@ Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeit
   - **Clara** (padrão): água mais clara, luz suave presa à câmera e contorno do casco realçado — o submarino se destaca do fundo em qualquer profundidade.
   - **Estúdio**: luz forte presa à câmera, para projetor ou sala clara.
   Nenhuma das três altera a física; a escolha fica guardada e chega à 2ª janela.
+- **Sol e luzes** (VISUAL) — também no botão **☀ hora** ao lado de *Luz* nas cenas 3D:
+  - **Hora do dia** (0 h a 24 h): o sol segue o caminho do equinócio no Rio (nasce a leste às 6 h, passa ao norte ao meio-dia a 67°, põe-se a oeste às 18 h); céu, névoa, luz direta, luz ambiente e a cor da água acompanham — amanhecer e pôr do sol em tons quentes, noite escura. Atalhos: Amanhecer, Manhã (padrão, o sol de sempre), Meio-dia, Pôr do sol e Noite.
+  - **Direção do sol**: gira o caminho do sol para escolher de que lado vem a luz (mostra a direção e a altura atuais).
+  - **Luar**: à noite, lua cheia oposta ao sol, com luz azulada fraca, reflexo na água e estrelas no céu. Sem luar a noite fica mais escura.
+  - **Luzes de navegação** (automáticas do crepúsculo ao amanhecer, ligadas ou desligadas), na superfície, pelo RIPEAM: luz de **mastro** branca para vante, **encarnada a BB** e **verde a BE** na vela, **alcançado** branca a ré e a luz **amarela de lampejos rápidos** que identifica submarinos. Cada luz só é vista de dentro do seu setor, como no mar. Os navios também acendem as suas (mastro, bordos e alcançado).
+  - **Faróis do submarino**: dois holofotes de proa, uma luz sob o casco que ilumina o fundo e uma luz suave sobre o casco; debaixo d'água os feixes aparecem na água.
+  - **Água escura (submerso)**: quase sem luz natural debaixo d'água — só os faróis mostram o caminho e o fundo.
+  - **Mergulho noturno** liga noite, faróis e água escura de uma vez; **Padrão** volta ao sol da manhã.
+  Tudo é só visual (vale em todas as cenas 3D e na 2ª janela); a vista *Sem água* usa sempre a luz padrão.
 - **Ambiente** (AGORA): estado do mar, salinidade, temperaturas, termoclina e declinação. *Aplicar agora* mantém o estado; *Usar nos próximos cenários* guarda como padrão.
 - **Fundo do mar** (AGORA): uniforme (padrão de 300 m) ou com relevo. O simulador recusa um fundo que ficaria acima do casco na posição atual.
 - **Simulação** e **Parâmetros da embarcação** (REINICIAR): passo de integração, semente, instrumentação e parâmetros fictícios do casco, propulsão, bombas, lemes e limites.

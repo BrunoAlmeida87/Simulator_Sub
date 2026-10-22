@@ -5,6 +5,7 @@
  * apenas VISUAL, se afeta a SIMULAÇÃO AGORA (comando registrado, sem
  * reiniciar) ou se EXIGE REINICIAR o cenário.
  */
+import { LightPanel } from '../components/LightPanel';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { RecordingPanel } from '../components/RecordingPanel';
 import { baseConfig, cmd, runner, useSim } from '../store';
@@ -396,6 +397,14 @@ function GraphicsPanel() {
               {LIGHTING_LABELS[k]}
             </button>
           ))}
+        </div>
+      </div>
+      <div className="row mt8" style={{ alignItems: 'flex-start' }}>
+        <span className="subtle" style={{ minWidth: 120 }}>
+          Sol e luzes
+        </span>
+        <div style={{ maxWidth: 420, flex: 1 }}>
+          <LightPanel />
         </div>
       </div>
       <div className="row mt8">

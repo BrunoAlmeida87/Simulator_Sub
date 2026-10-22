@@ -1,16 +1,18 @@
 /**
  * PREFERÊNCIAS GRÁFICAS (apenas visuais): qualidade do oceano/cena, nível de
  * detalhe das texturas, ampliação visual do trim para demonstração, alcance
- * de desenho dos navios, detalhe da costa e iluminação da cena. Guardadas no navegador e
+ * de desenho dos navios, detalhe da costa, iluminação da cena e sol e luzes
+ * (hora do dia, luar, luzes de navegação, faróis). Guardadas no navegador e
  * enviadas à segunda janela. Nada aqui altera a física.
  */
 import { useEffect, useReducer } from 'react';
 import type { OceanQuality } from '../render3d/Ocean';
 import type { SceneLighting } from '../render3d/lighting';
+import { DEFAULT_DAYLIGHT, type DaylightSettings } from '../render3d/daylight';
 import { DEFAULT_MARINE_LIFE, type MarineLifeSettings } from '../render3d/marineLifeMotion';
 import { MAX_TRAFFIC } from '../sim/traffic';
 
-export interface GraphicsSettings extends MarineLifeSettings {
+export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings {
   quality: OceanQuality;
   /** texturas do casco: 'alta' (placas anecoicas, marcas, mais resolução) ou 'normal' */
   textures: 'alta' | 'normal';
@@ -47,6 +49,8 @@ function initialQuality(): OceanQuality {
 
 export const TRIM_GAINS = [1, 5, 10, 20, 50];
 
+const num = (v: unknown, lo: number, hi: number, def: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def);
+
 function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: GraphicsSettings): GraphicsSettings {
   const q = p?.quality;
   return {
@@ -61,6 +65,12 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
     traffic: typeof p?.traffic === 'number' && Number.isFinite(p.traffic) ? Math.max(0, Math.min(MAX_TRAFFIC, Math.round(p.traffic))) : base.traffic,
     depthRefs: typeof p?.depthRefs === 'boolean' ? p.depthRefs : base.depthRefs,
+    sunHour: num(p?.sunHour, 0, 24, base.sunHour),
+    sunTurn: num(p?.sunTurn, -180, 180, base.sunTurn),
+    moonlight: typeof p?.moonlight === 'boolean' ? p.moonlight : base.moonlight,
+    navLights: p?.navLights === 'auto' || p?.navLights === 'ligadas' || p?.navLights === 'desligadas' ? p.navLights : base.navLights,
+    subLights: typeof p?.subLights === 'boolean' ? p.subLights : base.subLights,
+    darkWater: typeof p?.darkWater === 'boolean' ? p.darkWater : base.darkWater,
   };
 }
 
@@ -71,7 +81,18 @@ class GraphicsStore {
 
   constructor() {
     const q = typeof window !== 'undefined' ? initialQuality() : 'alta';
-    const def: GraphicsSettings = { ...DEFAULT_MARINE_LIFE, quality: q, textures: q === 'baixa' ? 'normal' : 'alta', trimGain: 1, shipRange: 12, coastDetail: q === 'baixa' ? 'baixa' : 'media', lighting: 'clara', traffic: 0, depthRefs: true };
+    const def: GraphicsSettings = {
+      ...DEFAULT_MARINE_LIFE,
+      quality: q,
+      textures: q === 'baixa' ? 'normal' : 'alta',
+      trimGain: 1,
+      shipRange: 12,
+      coastDetail: q === 'baixa' ? 'baixa' : 'media',
+      lighting: 'clara',
+      traffic: 0,
+      depthRefs: true,
+      ...DEFAULT_DAYLIGHT,
+    };
     let saved: Partial<GraphicsSettings> | null = null;
     try {
       const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;

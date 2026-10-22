@@ -10,6 +10,8 @@
 import { dieselExhaust, disperserOutlets } from '../sim/systems/exhaust';
 import { WindFx } from './WindFx';
 import { RioLandmarks } from './RioLandmarks';
+import { DEFAULT_DAYLIGHT, NightSky, computeDaylight, navLightsOn, skyPalette, type DaylightSettings } from './daylight';
+import { NavLights, Searchlights, submarineNavLights } from './NavLights';
 import { DepthRefs } from './DepthRefs';
 import { trafficAt, trafficForEnv } from '../sim/traffic';
 import * as THREE from 'three';
@@ -155,6 +157,15 @@ export class SubmarineScene {
   private trimVis!: TrimVis;
   private keyLight = new THREE.DirectionalLight(0xffffff, 0);
   private fillLight = new THREE.AmbientLight(0xffffff, 0);
+  /** sol, lua e luzes (Sol e luzes: hora do dia, direção, luar, luzes de navegação, faróis, água escura) — só visual */
+  daylight: DaylightSettings = { ...DEFAULT_DAYLIGHT };
+  private sunLight!: THREE.DirectionalLight;
+  private hemiLight!: THREE.HemisphereLight;
+  private nightSky = new NightSky();
+  private navLights!: NavLights;
+  private searchlights!: Searchlights;
+  private pal = { fog: new THREE.Color(), zenith: new THREE.Color(), hemiSky: new THREE.Color(), hemiGround: new THREE.Color(), sun: new THREE.Color() };
+  private tmpV = new THREE.Vector3();
   private fixedCam: { n: number; e: number; y: number; ln: number; le: number; ly: number } | null = null;
   /** camadas visuais (alteradas pela interface a cada quadro) */
   layers: SceneLayers = defaultLayers();
@@ -228,10 +239,14 @@ export class SubmarineScene {
     });
 
     // luzes
-    this.scene.add(new THREE.HemisphereLight(0xbfdfff, 0x0b1a26, 1.3));
+    this.hemiLight = new THREE.HemisphereLight(0xbfdfff, 0x0b1a26, 1.3);
+    this.scene.add(this.hemiLight);
     const sun = new THREE.DirectionalLight(0xfff2dd, 2.2);
     sun.position.copy(this.sunDir).multiplyScalar(1000);
+    this.sunLight = sun;
     this.scene.add(sun);
+    // céu noturno (estrelas, lua) e luar
+    this.scene.add(this.nightSky.group, this.nightSky.moonLight);
     // luzes de apresentação (presas à câmera)
     this.keyLight.position.set(0.4, 0.6, 1);
     this.camera.add(this.keyLight, this.fillLight);
@@ -256,6 +271,14 @@ export class SubmarineScene {
     addCaustics(this.sailMat, this.caustics, 14);
     addRim(this.sailMat, this.rim);
     this.buildSubmarine();
+    {
+      // luzes de navegação (superfície) e faróis (submerso), presas ao submarino
+      const v = this.env().vessel;
+      const R = v.hull.diameter / 2;
+      this.navLights = new NavLights(submarineNavLights(v.hull.length, R, v.hull.sail));
+      this.searchlights = new Searchlights(v.hull.length, R, R + v.hull.sail.height);
+      this.sub.add(this.navLights.group, this.searchlights.group);
+    }
     this.scene.add(this.sub);
     this.scene.add(this.trimLines);
     this.forces = new ForceArrows(this.env());
@@ -1072,11 +1095,11 @@ export class SubmarineScene {
 
     // linha de profundidade (superfície ↔ submarino ↔ fundo)
     const bottom = e.env.bottomDepthAt(pn, pe);
-    const dl = this.depthLine.geometry.getAttribute('position') as THREE.BufferAttribute;
-    dl.setXYZ(0, 0, 0, 0);
-    dl.setXYZ(1, 0, -pd, 0);
-    dl.setXYZ(2, 0, -bottom, 0);
-    dl.needsUpdate = true;
+    const dlp = this.depthLine.geometry.getAttribute('position') as THREE.BufferAttribute;
+    dlp.setXYZ(0, 0, 0, 0);
+    dlp.setXYZ(1, 0, -pd, 0);
+    dlp.setXYZ(2, 0, -bottom, 0);
+    dlp.needsUpdate = true;
     this.depthLine.computeLineDistances();
 
     // câmera: segue o submarino (vista "Calado" usa teleobjetiva)
@@ -1140,9 +1163,26 @@ export class SubmarineScene {
     const camDepth = Math.max(0, -this.camera.position.y);
     this.wallTime += dtR;
     const prof = LIGHTING[this.lighting] ?? LIGHTING.clara;
-    const uw = this.underSky.update(this.camera.position, camDepth, this.wallTime, prof.water);
+    // sol, lua e noite (só visual); sem água a cena fica sempre com a luz padrão de dia
+    const dry0 = this.layers.noWater;
+    const dl = computeDaylight(dry0 ? DEFAULT_DAYLIGHT : this.daylight);
+    const pal = skyPalette(dl, !dry0 && this.daylight.moonlight, this.pal);
+    this.sunLight.position.copy(dl.sunDir).multiplyScalar(1000);
+    this.sunLight.color.copy(this.pal.sun);
+    this.sunLight.intensity = pal.sunI;
+    this.hemiLight.color.copy(this.pal.hemiSky);
+    this.hemiLight.groundColor.copy(this.pal.hemiGround);
+    this.hemiLight.intensity = pal.hemiK;
+    this.sky.material.uniforms.sunPosition.value.copy(dl.sunDir);
+    (this.underSky.material.uniforms.uSunDir.value as THREE.Vector3).copy(dl.sunDir);
+    const uw = this.underSky.update(this.camera.position, camDepth, this.wallTime, prof.water, dl.under, dl.sunK);
     const deepColor = uw.horizon.clone();
+    this.ocean.setLight(dl.sunDir, dl.sunK, dl.moonDir, dl.moonK, this.pal.zenith, this.pal.fog, 0.12 + 0.88 * dl.day, dl.under);
+    // neve marinha: no escuro só se vê de perto (fica discreta)
+    (this.snow.material as THREE.PointsMaterial).opacity = 0.6 * (0.25 + 0.75 * dl.under);
     this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
+    this.nightSky.update(dl, this.camera.position, !under && !dry0, pal.moonI, this.pal.zenith, this.pal.fog);
+    terrain.night = coastOn ? dl.night : 0;
     this.sky.position.copy(this.camera.position);
     this.sky.visible = !under;
     this.underSky.mesh.visible = under;
@@ -1171,7 +1211,7 @@ export class SubmarineScene {
       if (this.shipyard) this.shipyard.group.visible = false;
     }
     this.caustics.uTime.value = this.wallTime;
-    this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15);
+    this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15) * dl.sunK;
     if (dry) {
       this.scene.background = this.dryBg;
       this.scene.fog = null;
@@ -1180,19 +1220,36 @@ export class SubmarineScene {
       this.scene.background = deepColor;
       this.scene.fog = this.realisticFog ? new THREE.FogExp2(deepColor.getHex(), 0.0032) : new THREE.FogExp2(deepColor.getHex(), 0.0008);
     } else {
-      this.scene.background = new THREE.Color(0x9dbad4);
+      this.scene.background = this.pal.fog.clone();
       // com a costa ligada a névoa vai mais longe: a serra aparece ao fundo
-      this.scene.fog = new THREE.Fog(0x9dbad4, coastOn ? 5000 : 3000, coastOn ? 32000 : 14000);
+      this.scene.fog = new THREE.Fog(this.pal.fog.getHex(), coastOn ? 5000 : 3000, coastOn ? 32000 : 14000);
     }
     // iluminação: exposição, luz presa à câmera (mais fraca acima d'água, onde o sol ilumina) e contorno do casco
     {
       const pres = this.layers.presLight;
-      const k = under ? 1 : 0.5;
+      // à noite e com a água escura a luz presa à câmera também diminui (os faróis passam a mostrar o submarino)
+      const k = (under ? 1 : 0.5) * (dry ? 1 : under ? Math.max(0.2, dl.under) : Math.max(0.3, dl.day));
       this.renderer.toneMappingExposure = under && !dry ? prof.exposureUnder : prof.exposureAbove;
       this.keyLight.intensity = Math.max(pres ? 1.6 : 0, prof.camKey * k);
       this.fillLight.intensity = Math.max(pres ? 0.45 : 0, prof.camFill * k);
       this.rim.uRim.value = this.layers.tanks ? 0 : prof.rim * (under && !dry ? 1 : 0.35);
     }
+    // luzes de navegação (na superfície, do crepúsculo ao amanhecer ou ligadas) e faróis
+    {
+      this.sub.updateMatrixWorld();
+      const wv = e.env.waves;
+      const aboveWater = (p: THREE.Vector3) => {
+        const w = this.sub.localToWorld(this.tmpV.copy(p));
+        return w.y > wv.elevation(pn - w.z, pe + w.x, tWave) + 0.1;
+      };
+      const camLocal = this.sub.worldToLocal(this.camera.position.clone());
+      this.navLights.update(!dry && this.layers.hull && navLightsOn(this.daylight, dl), camLocal, this.wallTime, aboveWater);
+      const bow = this.sub.localToWorld(this.tmpV.set(0, 0, -(v.hull.length / 2 - 3)));
+      const bowUnder = bow.y < wv.elevation(pn - bow.z, pe + bow.x, tWave) - 0.5;
+      this.searchlights.update(!dry && this.daylight.subLights, under, bowUnder);
+    }
+    // navios: luzes de navegação junto com as do submarino
+    this.ships.lights = { on: !dry && navLightsOn(this.daylight, dl), cam: this.camera.position, time: this.wallTime };
     // camadas: casco, tanques/circuitos, vetores
     this.applyHull();
     this.camera.updateMatrixWorld();
@@ -1294,6 +1351,9 @@ export class SubmarineScene {
   }
 
   dispose(): void {
+    this.navLights.dispose();
+    this.searchlights.dispose();
+    this.nightSky.dispose();
     this.marineLife.dispose();
     this.wind.dispose();
     this.shipyard?.dispose();
