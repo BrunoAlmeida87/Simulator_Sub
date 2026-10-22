@@ -647,7 +647,7 @@ export const ACTION_TYPES: ActionType[] = [
     id: 'comando',
     group: 'Avançado',
     label: 'Comando do simulador (JSON)',
-    hint: 'Qualquer comando do simulador, escrito em JSON. Ex.: {"type":"telegraph","rpm":40}',
+    hint: 'Comando do simulador escrito em JSON; os campos são conferidos antes de executar. Ex.: {"type":"telegraph","rpm":40}',
     fields: [{ key: 'json', label: 'Comando', type: 'text', rows: 3 }],
     defaults: { json: '{"type":"telegraph","rpm":40}' },
     describe: (p) => `Comando: ${str(p, 'json').slice(0, 80)}`,
@@ -666,40 +666,72 @@ function ACTION_FIELD(type: string, key: string): FieldDef | undefined {
   return BY_ID.get(type)?.fields.find((x) => x.key === key);
 }
 
-const COMMAND_TYPES = new Set([
-  'mbtVent',
-  'mbtBlow',
-  'emergencyBlow',
-  'hpBankValve',
-  'compressor',
-  'valve',
-  'pump',
-  'direction',
-  'dosing',
-  'dosingAbort',
-  'telegraph',
-  'surface',
-  'autopilot',
-  'setpoint',
-  'snorkel',
-  'periscope',
-  'generator',
-  'breaker',
-  'ack',
-  'seaState',
-  'environment',
-  'demoWeight',
-  'failure',
-]);
+/**
+ * Campos de cada comando aceito no modo avançado (JSON): o que falta ou vem
+ * com o tipo errado é recusado antes de chegar ao motor — um número ausente
+ * viraria NaN no estado da simulação.
+ */
+type FieldCheck = (v: unknown) => boolean;
+const isNum: FieldCheck = (v) => typeof v === 'number' && Number.isFinite(v);
+const isBool: FieldCheck = (v) => typeof v === 'boolean';
+const isStr: FieldCheck = (v) => typeof v === 'string' && v.length > 0;
+const isObj: FieldCheck = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const oneOf =
+  (...xs: string[]): FieldCheck =>
+  (v) =>
+    typeof v === 'string' && xs.includes(v);
+const opt =
+  (f: FieldCheck): FieldCheck =>
+  (v) =>
+    v === undefined || f(v);
+const FLUID = oneOf('compensation', 'trim', 'heel');
+const CHANNEL = oneOf('heading', 'depth', 'pitch');
+const DIR = oneOf('AtoB', 'BtoA');
 
-/** comando JSON digitado no modo avançado (null se inválido) */
+const COMMAND_FIELDS: Record<string, Record<string, FieldCheck>> = {
+  mbtVent: { tank: isStr, open: isBool },
+  mbtBlow: { tank: isStr, open: isBool },
+  emergencyBlow: { open: opt(isBool), tank: opt(isStr) },
+  hpBankValve: { bank: isStr, open: isBool },
+  compressor: { run: isBool },
+  valve: { system: FLUID, valve: isStr, open: isBool },
+  pump: { system: FLUID, run: isBool },
+  direction: { system: oneOf('trim', 'heel'), dir: DIR },
+  dosing: { system: FLUID, mode: oneOf('admitir', 'esgotar', 'transferir'), kg: (v) => isNum(v) && (v as number) > 0, dir: opt(DIR) },
+  dosingAbort: { system: FLUID },
+  telegraph: { rpm: isNum },
+  surface: { id: isStr, angle: isNum },
+  autopilot: { channel: CHANNEL, mode: oneOf('MANUAL', 'AUTO') },
+  setpoint: { channel: CHANNEL, value: isNum },
+  snorkel: { raise: isBool },
+  periscope: { raise: isBool },
+  generator: { id: isStr, run: isBool },
+  breaker: { closed: isBool },
+  ack: { id: isStr },
+  seaState: { value: isNum, direction: opt(isNum) },
+  environment: { patch: isObj },
+  demoWeight: { x: opt(isNum), mass: opt(isNum) },
+  failure: { target: isStr, active: isBool, param: opt((v) => isNum(v) || isStr(v)) },
+};
+
+/** tipos de comando aceitos no modo avançado */
+export const ADVANCED_COMMAND_TYPES: string[] = Object.keys(COMMAND_FIELDS);
+
+/** comando JSON digitado no modo avançado (null se inválido: tipo desconhecido, campo faltando ou com tipo errado) */
 export function parseCommandJson(text: string): Command | null {
+  let c: Record<string, unknown>;
   try {
-    const c = JSON.parse(text) as { type?: unknown };
-    return c && typeof c === 'object' && typeof c.type === 'string' && COMMAND_TYPES.has(c.type) ? (c as Command) : null;
+    c = JSON.parse(text) as Record<string, unknown>;
   } catch {
     return null;
   }
+  if (!isObj(c) || typeof c.type !== 'string') return null;
+  const fields = COMMAND_FIELDS[c.type];
+  if (!fields) return null;
+  for (const [k, check] of Object.entries(fields)) if (!check(c[k])) return null;
+  // peso deslocável: ao menos posição ou massa
+  if (c.type === 'demoWeight' && c.x === undefined && c.mass === undefined) return null;
+  return c as unknown as Command;
 }
 
 /** descrição de uma ação guardada */
@@ -729,7 +761,7 @@ export function runAction(a: StepAction, c: ActionCtx): boolean {
 export function actionProblem(a: StepAction): string | null {
   const t = BY_ID.get(a.t);
   if (!t) return 'tipo de ação desconhecido';
-  if (a.t === 'comando' && !parseCommandJson(str(a.p, 'json'))) return 'JSON inválido ou comando desconhecido';
+  if (a.t === 'comando' && !parseCommandJson(str(a.p, 'json'))) return 'JSON inválido, comando desconhecido ou campo faltando/com tipo errado (ex.: {"type":"telegraph","rpm":40})';
   for (const fd of t.fields) if (fd.type === 'number' && a.p[fd.key] !== undefined && !Number.isFinite(Number(a.p[fd.key]))) return `${fd.label}: número inválido`;
   return null;
 }

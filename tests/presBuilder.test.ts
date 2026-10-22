@@ -7,7 +7,7 @@ import { buildScenario } from '../src/sim/scenarios';
 import { SimRunner } from '../src/sim/core/runner';
 import { parseRich, plainText } from '../src/ui/presBuilder/richText';
 import { fillTemplate, testCondition, describeCondition, unknownPlaceholders, PRES_VARS, readVar, evalConditions } from '../src/ui/presBuilder/variables';
-import { ACTION_TYPES, describeAction, runAction, actionProblem, type ActionCtx } from '../src/ui/presBuilder/actions';
+import { ACTION_TYPES, ADVANCED_COMMAND_TYPES, describeAction, runAction, actionProblem, parseCommandJson, type ActionCtx } from '../src/ui/presBuilder/actions';
 import { normalizePresentation, newPresentation, newStep, newAction, clonePresentation, presentationProblems, NEXT_END, droneToStep, droneFromStep } from '../src/ui/presBuilder/model';
 import { PresPlayer } from '../src/ui/presBuilder/player';
 import { submergir50Template, recursosTemplate, BUILTIN_PRESENTATIONS } from '../src/ui/presBuilder/templates';
@@ -115,6 +115,59 @@ describe('Catálogo de ações', () => {
     expect(r.engine.state.autopilot.depthMode).toBe('AUTO');
     expect(r.engine.state.autopilot.depthSet).toBe(80);
     expect(actionProblem(newAction('comando', { json: '{"type":"naoExiste"}' }))).not.toBeNull();
+  });
+
+  it('comando JSON avançado: campo faltando ou com tipo errado é recusado (sem NaN no estado)', () => {
+    for (const bad of [
+      '{"type":"telegraph"}',
+      '{"type":"telegraph","rpm":"40"}',
+      '{"type":"setpoint","channel":"depth"}',
+      '{"type":"autopilot","channel":"depth","mode":"auto"}',
+      '{"type":"mbtVent","tank":"ALL"}',
+      '{"type":"dosing","system":"trim","mode":"transferir","kg":0}',
+      '{"type":"demoWeight"}',
+      '[1]',
+      'null',
+      '{"rpm":40}',
+    ]) {
+      expect(parseCommandJson(bad), bad).toBeNull();
+      expect(actionProblem(newAction('comando', { json: bad })), bad).not.toBeNull();
+    }
+    const good: Record<string, unknown> = {
+      mbtVent: { tank: 'ALL', open: true },
+      mbtBlow: { tank: 'ALL', open: false },
+      emergencyBlow: {},
+      hpBankValve: { bank: 'AP1', open: true },
+      compressor: { run: true },
+      valve: { system: 'compensation', valve: 'inlet', open: true },
+      pump: { system: 'trim', run: false },
+      direction: { system: 'heel', dir: 'BtoA' },
+      dosing: { system: 'compensation', mode: 'admitir', kg: 500 },
+      dosingAbort: { system: 'compensation' },
+      telegraph: { rpm: 40 },
+      surface: { id: 'stern', angle: -5 },
+      autopilot: { channel: 'depth', mode: 'AUTO' },
+      setpoint: { channel: 'depth', value: 60 },
+      snorkel: { raise: true },
+      periscope: { raise: false },
+      generator: { id: 'GD1', run: true },
+      breaker: { closed: true },
+      ack: { id: 'ALL' },
+      seaState: { value: 2 },
+      environment: { patch: { salinity: 35 } },
+      demoWeight: { x: 10 },
+      failure: { target: 'pump:trim', active: true },
+    };
+    expect(Object.keys(good).sort()).toEqual([...ADVANCED_COMMAND_TYPES].sort());
+    const r = new SimRunner(buildScenario('submerso_50'));
+    for (const [type, fields] of Object.entries(good)) {
+      const json = JSON.stringify({ type, ...(fields as object) });
+      expect(parseCommandJson(json), json).not.toBeNull();
+      expect(runAction(newAction('comando', { json }), testCtx(r, [])), json).toBe(true);
+    }
+    r.engine.advanceSim(1);
+    expect(Number.isFinite(r.engine.state.propulsion.rpmCmd)).toBe(true);
+    expect(Number.isFinite(r.engine.outputs.depthKeel)).toBe(true);
   });
 });
 
