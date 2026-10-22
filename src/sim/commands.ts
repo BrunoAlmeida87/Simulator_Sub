@@ -159,7 +159,7 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
           name = v.compensation.dischargeValve.name;
         } else if (cs.tankValves[c.valve]) {
           cs.tankValves[c.valve].cmd = val;
-          name = v.compensation.tankValves.find((x) => x.id === c.valve)?.name ?? c.valve;
+          name = v.compensation.tankValves.find((x) => x.id === c.valve)?.name ?? v.compensation.heelBranches?.find((b) => b.valve.id === c.valve)?.valve.name ?? c.valve;
         }
       } else {
         const ts = s[c.system];

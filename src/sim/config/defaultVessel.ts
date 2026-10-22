@@ -220,11 +220,13 @@ export function defaultVessel(): VesselConfig {
       compressor: { massFlow: 0.12, power: 80e3, maxPressure: 250 * BAR },
     },
     compensation: {
-      tanks: [
-        { id: 'TC1', name: 'TC-1 Compensação vante', capacity: 12, height: 1.4, center: { x: 6.0, y: 0, z: 2.3 }, initialVolume: 6 },
-        { id: 'TC2', name: 'TC-2 Compensação ré', capacity: 12, height: 1.4, center: { x: -1.0, y: 0, z: 2.3 }, initialVolume: 6 },
+      // tanque central de compensação, sob o centro de gravidade; os tanques de banda (ao lado) ligam-se ao mesmo coletor
+      tanks: [{ id: 'TC', name: 'TC Compensação central', capacity: 22, height: 1.4, center: { x: 2.6, y: 0, z: 2.3 }, initialVolume: 11 }],
+      tankValves: [valve('VC', 'Válvula TC (central)', 4)],
+      heelBranches: [
+        { tank: 'A', valve: valve('VCBB', 'Ramal de compensação TB-BB', 4) },
+        { tank: 'B', valve: valve('VCBE', 'Ramal de compensação TB-BE', 4) },
       ],
-      tankValves: [valve('VC1', 'Válvula TC-1', 4), valve('VC2', 'Válvula TC-2', 4)],
       inletValve: valve('VAM', 'Admissão de mar (V-AM)', 5),
       dischargeValve: valve('VDM', 'Descarga ao mar (V-DM)', 5),
       inletArea: 2.5e-3,
@@ -245,9 +247,10 @@ export function defaultVessel(): VesselConfig {
     },
     heel: {
       id: 'heel',
-      name: 'Sistema de banda (arquitetura fictícia)',
-      tankA: { id: 'TBBB', name: 'TB-BB Banda bombordo', capacity: 4, height: 1.3, center: { x: 2.0, y: -2.4, z: 1.0 }, initialVolume: 2 },
-      tankB: { id: 'TBBE', name: 'TB-BE Banda boreste', capacity: 4, height: 1.3, center: { x: 2.0, y: 2.4, z: 1.0 }, initialVolume: 2 },
+      name: 'Sistema de banda (tanques laterais do conjunto de compensação)',
+      // ao lado do tanque central (mesma posição longitudinal); transferência BB ↔ BE pela bomba BB através do coletor central
+      tankA: { id: 'TBBB', name: 'TB-BB Banda bombordo', capacity: 5, height: 1.3, center: { x: 2.6, y: -2.4, z: 1.0 }, initialVolume: 2.5 },
+      tankB: { id: 'TBBE', name: 'TB-BE Banda boreste', capacity: 5, height: 1.3, center: { x: 2.6, y: 2.4, z: 1.0 }, initialVolume: 2.5 },
       valveA: valve('VBBB', 'Isolamento TB-BB', 3),
       valveB: valve('VBBE', 'Isolamento TB-BE', 3),
       directionValve: valve('VDB', 'Seletor de sentido (banda)', 3),

@@ -57,6 +57,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
   for (const t of v.compensation.tanks) compTanks[t.id] = { mass: t.initialVolume * RHO_NOMINAL };
   const tankValves: SimState['compensation']['tankValves'] = {};
   for (const tv of v.compensation.tankValves) tankValves[tv.id] = newValve();
+  for (const b of v.compensation.heelBranches ?? []) tankValves[b.valve.id] = newValve();
   const surfaces: SimState['surfaces'] = {};
   for (const f of v.fins) if (f.maxDeflection > 0) surfaces[f.id] = { cmd: 0, actual: 0, jammed: false };
   const generators: SimState['electrical']['generators'] = {};

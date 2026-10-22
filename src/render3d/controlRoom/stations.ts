@@ -39,7 +39,7 @@ export const STATIONS: StationDef[] = [
   {
     id: 'mergulho',
     name: 'Console de segurança do mergulho',
-    info: 'Ajuste fino do peso e da atitude: COMPENSAÇÃO (admitir/esgotar água do mar nos tanques TC-1/TC-2) e transferência interna de TRIM (vante ⇄ ré) e BANDA (BB ⇄ BE), com válvulas, bombas e sequências automáticas de dosagem.',
+    info: 'Ajuste fino do peso e da atitude: COMPENSAÇÃO (admitir/esgotar água do mar no tanque central TC e, pelos ramais VC-BB/VC-BE, nos tanques de banda) e transferência interna de TRIM (vante ⇄ ré) e BANDA (BB ⇄ BE), com válvulas, bombas e sequências automáticas de dosagem.',
     view: { pos: [1.55, 1.28, -2.55], look: [2.3, 1.1, -2.55] },
   },
   {

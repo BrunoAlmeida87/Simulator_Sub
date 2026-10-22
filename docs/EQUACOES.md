@@ -202,6 +202,8 @@ Previsão estática:  Δθ ≈ atan(Δm·g·Δx / (W·BG)) ,  Δφ ≈ atan(Δm�
 
 Válvulas: dx/dt = sinal(x_cmd − x)/t_curso, com atuação hidráulica disponível. Bombas: rotação em rampa (t_partida).
 
+Compensação com três tanques num coletor único (TC central + TB-BB e TB-BE, que também são os tanques de banda): a vazão líquida do coletor (admissão − descarga) divide-se pelos ramais abertos na proporção aᵢ·Vᵢ (abertura × capacidade); a parte que um tanque cheio (ou vazio) não aceita passa aos demais. Como os três tanques estão na posição longitudinal de G, a compensação não altera o trim; os ramais laterais abertos por igual não alteram a banda.
+
 ## 9. Propulsão (`systems/propulsion.ts`)
 
 ```

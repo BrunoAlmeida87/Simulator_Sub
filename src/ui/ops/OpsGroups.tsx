@@ -11,7 +11,8 @@ import { TransferControls } from '../screens/TrimHeelScreen';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { TourList } from '../components/TourCard';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
-import { tankVolume } from '../../sim/systems/internalTanks';
+import { compensationBranches, compensationWater, tankVolume } from '../../sim/systems/internalTanks';
+import { RHO_NOMINAL } from '../../sim/core/context';
 import { bankPressure, emergencyBlowActive } from '../../sim/systems/hpAir';
 import { solveNeutralCompensation } from '../../sim/equilibrium';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
@@ -191,27 +192,29 @@ function CompBody({ e }: { e: SimulationEngine }) {
   // na superfície o equilíbrio submerso é calculado para a cota de 40 m (eixo)
   const calcDepth = e.outputs.surfaced ? 40 : Math.max(0, e.state.body.pos.z);
   const need = useMemo(() => solveNeutralCompensation(e, calcDepth, false), [e, Math.round(calcDepth), Math.round(s.t / 5)]);
-  const needComp = Object.values(need.compensation).reduce((a, b) => a + b, 0);
-  const curComp = v.compensation.tanks.reduce((a, t) => a + c.tanks[t.id].mass, 0);
+  // água de compensação = tanque central + tanques de banda ligados ao coletor
+  const needComp = Object.values(need.compensation).reduce((a, b) => a + b, 0) + (v.compensation.heelBranches?.length ? need.heelA + need.heelB : 0);
+  const curComp = compensationWater(v.compensation, c, v.heel, s.heel);
   const d = c.dosing;
   return (
     <div className="col">
       <table className="t ops-t">
         <tbody>
-          {v.compensation.tanks.map((t, i) => {
-            const vv = c.tankValves[v.compensation.tankValves[i].id];
-            const vol = tankVolume(c.tanks[t.id]);
+          {compensationBranches(v.compensation, c, v.heel, s.heel).map((b) => {
+            const vv = b.valve;
+            const vol = tankVolume(b.st);
+            const short = b.heel ? (b.heel === 'A' ? 'TB-BB' : 'TB-BE') : b.id;
             return (
-              <tr key={t.id} className={isFocus(t.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: t.id })} style={{ cursor: 'pointer' }}>
+              <tr key={b.id} className={isFocus(b.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: b.id })} style={{ cursor: 'pointer' }}>
                 <td>
-                  <b>{t.id.replace('TC', 'TC-')}</b> <span className="subtle">{t.name.replace(/^TC-\d\s*/, '')}</span>
+                  <b>{short}</b> <span className="subtle">{b.heel ? 'banda · ramal ' + b.valveId : b.cfg.name.replace(/^TC(-\d)?\s*/, '')}</span>
                 </td>
                 <td className="mono">
-                  {fmt(vol, 2)}/{fmt(t.capacity, 0)} m³
+                  {fmt(vol, 2)}/{fmt(b.cfg.capacity, 0)} m³
                 </td>
                 <td onClick={(ev) => ev.stopPropagation()}>
                   <VBadge v={vv} />
-                  <button className="btn sm" onClick={() => cmd({ type: 'valve', system: 'compensation', valve: v.compensation.tankValves[i].id, open: vv.cmd < 0.5 })}>
+                  <button className="btn sm" onClick={() => cmd({ type: 'valve', system: 'compensation', valve: b.valveId, open: vv.cmd < 0.5 })}>
                     {vv.cmd > 0.5 ? 'Fechar' : 'Abrir'}
                   </button>
                 </td>
@@ -604,7 +607,7 @@ export const GROUPS: Record<GroupId, GroupDef> = {
   comp: {
     summary: (e) => {
       const c = e.state.compensation;
-      const vol = e.vessel.compensation.tanks.reduce((a, t) => a + tankVolume(c.tanks[t.id]), 0);
+      const vol = compensationWater(e.vessel.compensation, c, e.vessel.heel, e.state.heel) / RHO_NOMINAL;
       return `${fmt(vol, 2)} m³ · ${e.outputs.surfaced ? 'superfície' : `flutuab. ${fmt(e.outputs.netBuoyancyKg / 1000, 2)} t`} · bomba ${c.pump.speed > 0.05 ? 'ligada' : 'parada'}${c.dosing?.active ? ' · DOSANDO' : ''}`;
     },
     Body: CompBody,

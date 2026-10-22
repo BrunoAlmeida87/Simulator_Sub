@@ -199,6 +199,21 @@ function FrontView({ e }: { e: SimulationEngine }) {
       <g transform={`rotate(${o.euler.roll} ${cx} ${cy})`}>
         <circle cx={cx} cy={cy} r={R * k} fill="#1a2838" stroke="#9fb7cf" strokeWidth="1.5" />
         <rect x={cx - 0.75 * k} y={cy - (R + 5.2) * k * 0.55} width={1.5 * k} height={5.2 * k * 0.55 - R * k * 0.55 + R * k * 0.55} fill="#1a2838" stroke="#9fb7cf" />
+        {/* tanque central de compensação (sob o CG) e ramais do coletor para os tanques de banda */}
+        {e.vessel.compensation.tanks.slice(0, 1).map((t) => (
+          <g key={t.id}>
+            <path
+              d={`M${cx + c.tankA.center.y * k} ${cy + c.tankA.center.z * k + 12} V${cy + t.center.z * k - 10} H${cx + c.tankB.center.y * k} V${cy + c.tankB.center.z * k + 12}`}
+              fill="none"
+              stroke="#3ddc84"
+              strokeWidth="2"
+              opacity="0.7"
+            >
+              <title>Coletor de compensação: os tanques de banda ligam-se ao tanque central</title>
+            </path>
+            <TankGlyph x={cx - 24} y={cy + t.center.z * k - 13} w={48} h={20} fill={tankVolume(s.compensation.tanks[t.id]) / t.capacity} label="TC" color="#2a7fd4" inspect={'comp:' + t.id} />
+          </g>
+        ))}
         <TankGlyph x={cx + c.tankA.center.y * k - 14} y={cy + c.tankA.center.z * k - 12} w={28} h={24} fill={tankVolume(s.heel.tankA) / c.tankA.capacity} label="BB" inspect="heel" />
         <TankGlyph x={cx + c.tankB.center.y * k - 14} y={cy + c.tankB.center.z * k - 12} w={28} h={24} fill={tankVolume(s.heel.tankB) / c.tankB.capacity} label="BE" inspect="heel" />
         <circle cx={cx + o.mp.cg.y * k * 20} cy={cy + o.mp.cg.z * k} r="4" fill="#ffb347">

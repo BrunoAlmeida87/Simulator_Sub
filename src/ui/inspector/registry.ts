@@ -8,7 +8,7 @@ import type { Kind } from '../components/Readout';
 import { valveStatus, pumpStatus, pumpFlow, pumpPower } from '../../sim/systems/components';
 import { ballastFillStatus, gasMassFlux } from '../../sim/systems/ballast';
 import { bankPressure } from '../../sim/systems/hpAir';
-import { tankVolume } from '../../sim/systems/internalTanks';
+import { compensationBranches, compensationWater, tankVolume } from '../../sim/systems/internalTanks';
 import { SENSOR_DEFS, RHO_CAL } from '../../sim/systems/sensors';
 import { R_AIR, RHO_NOMINAL } from '../../sim/core/context';
 import { liftCurveSlope } from '../../sim/physics/hydrodynamics';
@@ -135,14 +135,15 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
       const dp = Math.max(0, e.env.pressureAt(zc) - v.internalPressure);
       const qp = pumpFlow(c.pump, 1, dp);
       const pp = pumpPower(c.pump, 1, qp, dp);
-      const total = Object.values(st.tanks).reduce((a, t) => a + t.mass, 0);
+      const total = compensationWater(c, st, v.heel, s.heel);
+      const brs = compensationBranches(c, st, v.heel, s.heel);
       const vt = terminalVz(e, 500);
       return {
         title: sub === 'pump' ? c.pump.name : sub === 'inlet' ? c.inletValve.name : sub === 'discharge' ? c.dischargeValve.name : 'Sistema de compensação de peso',
-        func: 'Ajusta a MASSA total do submarino submerso trocando água com o mar, para obter equilíbrio hidrostático (flutuabilidade neutra). Diferente do controle de profundidade pelos lemes, atua mesmo sem velocidade.',
+        func: 'Ajusta a MASSA total do submarino submerso trocando água com o mar, para obter equilíbrio hidrostático (flutuabilidade neutra). Diferente do controle de profundidade pelos lemes, atua mesmo sem velocidade. Conjunto de três tanques num coletor único: o central (TC, sob o centro de gravidade) e os dois de banda (TB-BB e TB-BE, ao lado dele), que também recebem e devolvem água do mar pelos ramais VC-BB e VC-BE.',
         vars: [
-          V('Água de compensação', `${(total / 1000).toFixed(3)} t`, 'MED'),
-          ...c.tanks.map((t) => V(t.name, `${tankVolume(st.tanks[t.id]).toFixed(3)} / ${t.capacity} m³`, 'MED')),
+          V('Água de compensação (TC + TB)', `${(total / 1000).toFixed(3)} t`, 'MED'),
+          ...brs.map((b) => V(b.cfg.name, `${tankVolume(b.st).toFixed(3)} / ${b.cfg.capacity} m³ — ${b.valveId} ${valveStatus(b.valve)}`, 'MED')),
           V('Admissão', `${(st.qIn * 1000).toFixed(2)} L/s — ${valveStatus(st.inlet)}`, 'MED'),
           V('Descarga', `${(st.qOut * 1000).toFixed(2)} L/s — ${valveStatus(st.discharge)}`, 'MED'),
           V('Bomba', `${pumpStatus(st.pump, s.electrical.energized)} · ${(st.pump.speed * 100).toFixed(0)} % · ${fmtPower(st.pump.power)}`, 'MED'),
@@ -150,7 +151,8 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Flutuabilidade líquida', fmtMass(o.netBuoyancyKg)),
         ],
         state: st.dosing?.active ? `Sequência ${st.dosing.mode}: ${st.dosing.phase}` : 'Manual',
-        influence: 'Admitir água aumenta o peso (tendência de descer); esgotar reduz (tendência de subir). Os tanques ficam perto de G para alterar pouco o trim.',
+        influence:
+          'Admitir água aumenta o peso (tendência de descer); esgotar reduz (tendência de subir). Os três tanques ficam na posição longitudinal de G, logo não alteram o trim. Com os dois ramais laterais abertos por igual a banda não muda; abrindo um só bordo a compensação também corrige banda. A sequência automática usa o TC e só abre os ramais laterais (juntos) quando ele não comporta a quantidade.',
         equations: ['Q_adm = min(C_d·A·a·√(2Δp/ρ), Q_reg)', 'Q_bomba = Q₀·√(1 − Δp/Δp₀)', 'P = Q·Δp/η + P₀', 'F_líquida = (ρ·V_desl − m)·g'],
         predictions: [
           `Admitir 500 kg ⇒ flutuabilidade −0,5 t ⇒ velocidade vertical terminal parado ≈ ${fmt(vt, 2)} m/s (descendo).`,
@@ -192,7 +194,7 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
       const d = Math.atan((500 * g * arm) / o.rollStiffness) * RAD;
       return {
         title: 'Sistema de banda (arquitetura fictícia)',
-        func: 'Tanques laterais com bomba de transferência para provocar e corrigir pequenas bandas (arquitetura conceitual, identificada como fictícia).',
+        func: 'Tanques laterais (TB-BB e TB-BE), ao lado do tanque central de compensação e na mesma posição longitudinal, com bomba de transferência para provocar e corrigir pequenas bandas. Também fazem parte da compensação: ligam-se ao coletor do tanque central pelos ramais VC-BB e VC-BE (arquitetura conceitual, identificada como fictícia).',
         vars: [
           V('TB-BB', `${tankVolume(st.tankA).toFixed(3)} m³`, 'MED'),
           V('TB-BE', `${tankVolume(st.tankB).toFixed(3)} m³`, 'MED'),

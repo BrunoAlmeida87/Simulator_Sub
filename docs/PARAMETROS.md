@@ -39,9 +39,9 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 |---|---|---|---|
 | TLP-1 BB / BE | 58 m³ cada | (28,0; ∓1,35; 0) | suspiro 350 cm², embornais 0,6 m², sopro 3 cm² |
 | TLP-2 BB / BE | 46 m³ cada | (−23,5; ∓1,15; 0) | suspiro 280 cm², embornais 0,5 m², sopro 2,5 cm² |
-| TC-1 / TC-2 (compensação) | 12 m³ cada | (6,0 / −1,0; 0; 2,3) | |
+| TC (compensação central) | 22 m³ | (2,6; 0; 2,3) | sob o CG; ramal VC no coletor de compensação |
 | TT-AV / TT-AR (trim) | 8 m³ cada | (21,5 / −13,0; 0; 2,2) | braço de 34,5 m |
-| TB-BB / TB-BE (banda, fictícios) | 4 m³ cada | (2,0; ∓2,4; 1,0) | braço de 4,8 m |
+| TB-BB / TB-BE (banda, fictícios) | 5 m³ cada | (2,6; ∓2,4; 1,0) | braço de 4,8 m; ao lado do TC; também compensação (ramais VC-BB / VC-BE) |
 | Garrafas AP normais (AP1 / AP2) | 4 m³ a 250 bar cada | | ≈ 1 188 kg de ar cada; coletor normal |
 | Ampolas de emergência (AE1 / AE2) | 2 m³ a 250 bar cada | | ≈ 594 kg de ar cada; coletor independente, isoladas inicialmente |
 

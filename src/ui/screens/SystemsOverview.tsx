@@ -8,7 +8,8 @@ import { useSim } from '../store';
 import { useUi } from '../uiContext';
 import { visibleAlarms } from '../../sim/systems/alarms';
 import { bankPressure } from '../../sim/systems/hpAir';
-import { tankVolume } from '../../sim/systems/internalTanks';
+import { compensationWater } from '../../sim/systems/internalTanks';
+import { RHO_NOMINAL } from '../../sim/core/context';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { toKnots } from '../../sim/units';
@@ -68,10 +69,10 @@ const CARDS: SysCard[] = [
     ops: 'comp',
     kpis: (e) => {
       const c = e.state.compensation;
-      const vol = e.vessel.compensation.tanks.reduce((a, t) => a + tankVolume(c.tanks[t.id]), 0);
+      const vol = compensationWater(e.vessel.compensation, c, e.vessel.heel, e.state.heel) / RHO_NOMINAL;
       const o = e.outputs;
       return [
-        { label: 'Água nos TC', value: fmt(vol, 2), unit: 'm³' },
+        { label: 'Água (TC + TB)', value: fmt(vol, 2), unit: 'm³' },
         o.surfaced
           ? { label: 'Reserva', value: fmt(o.reserveKg / 1000, 1), unit: 't' }
           : { label: 'Flutuab.', value: fmt(o.netBuoyancyKg / 1000, 2), unit: 't', tone: Math.abs(o.netBuoyancyKg) > 2000 ? 'warn' : undefined },

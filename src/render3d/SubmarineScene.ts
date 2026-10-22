@@ -31,7 +31,7 @@ import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
 import type { LabelRect } from './labelLayout';
 import type { Appearance } from './sailArt';
-import { SailDecals, anechoicTextures, bladeGeometry, draftMarkBand, finGeometry } from './HullDetail';
+import { SailDecals, anechoicTextures, bladeGeometry, draftMarkBand, finGeometry, hubGeometry } from './HullDetail';
 import { DRAFT_MARK_X, draftInfo } from '../sim/drafts';
 import { qFromEuler, qToEuler } from '../sim/core/math';
 import { ShipsLayer } from './Ships';
@@ -601,13 +601,12 @@ export class SubmarineScene {
     const fr = v.fins.find((f) => f.id === 'rudder')!;
     makeV(fr.position.x, 3.3, 3.0, ctrlMat, 'rudder');
     // hélice
-    const hub = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.6, 16), finMat);
-    hub.rotation.x = -Math.PI / 2;
+    const hub = new THREE.Mesh(hubGeometry(0.48, 2.0), finMat);
     this.prop.add(hub);
     const bladeMat = new THREE.MeshStandardMaterial({ color: 0xb08d57, metalness: 0.75, roughness: 0.28, side: THREE.DoubleSide });
     const nb = v.propulsion.propeller.blades;
     const Rp = v.propulsion.propeller.diameter / 2;
-    const bg = bladeGeometry(0.35, Rp);
+    const bg = bladeGeometry(0.45, Rp);
     for (let k = 0; k < nb; k++) {
       const arm = new THREE.Group();
       arm.rotation.z = (k / nb) * Math.PI * 2;

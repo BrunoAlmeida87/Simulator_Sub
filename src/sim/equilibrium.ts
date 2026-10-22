@@ -57,13 +57,25 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
     const mp = computeMassProps(cfg, s, engine.light, rho);
     const M = mp.mass;
     const dmc = Mreq - M;
-    // distribui a compensação igualmente
+    // distribui a compensação igualmente pelos tanques de compensação (TC central)
+    let left = dmc;
     for (const id of compIds) {
       const st = s.compensation.tanks[id];
       const nv = st.mass + dmc / compIds.length;
       st.mass = clamp(nv, 0, capC(id));
-      if (nv !== st.mass) clamped = true;
+      left -= st.mass - (nv - dmc / compIds.length);
     }
+    // o que não coube no central vai, em partes iguais, aos tanques de banda ligados ao coletor
+    if (Math.abs(left) > 1e-6 && (cfg.compensation.heelBranches?.length ?? 0) > 0) {
+      const capH0 = cfg.heel.tankA.capacity * RHO_NOMINAL;
+      const capH1 = cfg.heel.tankB.capacity * RHO_NOMINAL;
+      const room = left > 0 ? Math.min(capH0 - s.heel.tankA.mass, capH1 - s.heel.tankB.mass) : Math.min(s.heel.tankA.mass, s.heel.tankB.mass);
+      const each = Math.sign(left) * Math.min(Math.abs(left) / 2, Math.max(0, room));
+      s.heel.tankA.mass += each;
+      s.heel.tankB.mass += each;
+      left -= 2 * each;
+    }
+    if (Math.abs(left) > 1) clamped = true;
     const mp2 = computeMassProps(cfg, s, engine.light, rho);
     const xA = tankWaterCentroid(cfg.trim.tankA, s.trim.tankA).x;
     const xBt = tankWaterCentroid(cfg.trim.tankB, s.trim.tankB).x;

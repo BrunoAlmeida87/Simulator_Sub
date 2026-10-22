@@ -181,6 +181,12 @@ export interface CompensationConfig {
   inletRegulatorFlow: number; // m³/s (limitador de vazão)
   seaConnection: Vec3; // posição da tomada de mar (corpo)
   pump: PumpConfig;
+  /**
+   * Ramais do coletor de compensação para os tanques de banda (TB-BB = 'A',
+   * TB-BE = 'B'): os tanques laterais também trocam água com o mar. A água
+   * deles continua no estado da banda. Ausente nas configurações antigas.
+   */
+  heelBranches?: { tank: 'A' | 'B'; valve: ValveConfig }[];
 }
 
 export interface TransferSystemConfig {
