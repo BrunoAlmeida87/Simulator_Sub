@@ -18,6 +18,13 @@ import { RAD } from '../../sim/core/math';
 import { fmt, fmtMass, fmtMoment } from '../format';
 import { draftInfo } from '../../sim/drafts';
 import { WideDiagram } from '../components/WideDiagram';
+import { CARGO_STYLE, SvgTip, cargoMass, cargoTipLines, markerRadius } from '../components/cargoUi';
+
+/** Ponto girado como no grupo SVG rotate(deg cx cy) — para desenhar a dica fora da rotação. */
+const rotPt = (x: number, y: number, deg: number, cx: number, cy: number) => {
+  const a = (deg * Math.PI) / 180;
+  return { x: cx + (x - cx) * Math.cos(a) - (y - cy) * Math.sin(a), y: cy + (x - cx) * Math.sin(a) + (y - cy) * Math.cos(a) };
+};
 
 /** Calados nas marcas e por que o trim quase não aparece na superfície. */
 function DraftPanel({ e }: { e: SimulationEngine }) {
@@ -36,8 +43,9 @@ function DraftPanel({ e }: { e: SimulationEngine }) {
       <div className="note">
         {d.surfaced ? (
           <>
-            <b>Na superfície</b> o plano de flutuação resiste à inclinação: a rigidez de trim é <b>{fmt(d.ratio, 0)}×</b> a submersa. O mesmo deslocamento de peso que embica o submarino vários graus submerso muda o calado
-            apenas alguns centímetros aqui (5 t levadas 23 m a vante: ~0,09° e ~6 cm entre as marcas). Para ver: vista <b>Calado</b>, camada <b>Calado/trim</b> e, se quiser, a ampliação visual do trim (identificada na tela).
+            <b>Na superfície</b> o plano de flutuação resiste à inclinação: a rigidez de trim é <b>{fmt(d.ratio, 0)}×</b> a submersa. O mesmo deslocamento de peso que embica o submarino vários graus submerso muda o
+            calado apenas alguns centímetros aqui (5 t levadas 23 m a vante: ~0,09° e ~6 cm entre as marcas). Para ver: vista <b>Calado</b>, camada <b>Calado/trim</b> e, se quiser, a ampliação visual do trim
+            (identificada na tela).
           </>
         ) : (
           <>Submerso não há plano de flutuação: só W·BG resiste ao trim, por isso pequenas massas deslocadas produzem ângulos grandes.</>
@@ -95,7 +103,10 @@ export function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' 
         </span>
       </div>
       {(st.pump.deadhead || st.pump.noSuction) && <span className="badge warn">Bomba sem fluxo (válvulas/seletor/tanque)</span>}
-      <div className="subtle">A transferência redistribui água e conserva a massa total. Disponível A → B: {fmtMass(Math.max(0, Math.min(st.tankA.mass, c.tankB.capacity * 1025 - st.tankB.mass)))}; B → A: {fmtMass(Math.max(0, Math.min(st.tankB.mass, c.tankA.capacity * 1025 - st.tankA.mass)))}.</div>
+      <div className="subtle">
+        A transferência redistribui água e conserva a massa total. Disponível A → B: {fmtMass(Math.max(0, Math.min(st.tankA.mass, c.tankB.capacity * 1025 - st.tankB.mass)))}; B → A:{' '}
+        {fmtMass(Math.max(0, Math.min(st.tankB.mass, c.tankA.capacity * 1025 - st.tankA.mass)))}.
+      </div>
       <div className="row">
         <b>Sequência:</b>
         <input type="number" value={kg} min={10} step={50} onChange={(ev) => setKg(Number(ev.target.value))} /> kg
@@ -115,13 +126,15 @@ export function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' 
         </div>
       )}
       <div className="note">
-        Previsão estática <span className="kind CALC">CALC</span>: transferir {fmtMass(kg)} {lblA}→{lblB} ⇒ Δ{sys === 'trim' ? 'θ' : 'φ'} ≈ <b className="mono">{fmt(predAB, 2)}°</b> ({sys === 'trim' ? 'proa para cima' : 'adernar para BE'}); sentido oposto ⇒ {fmt(-predAB, 2)}°. Rigidez {sys === 'trim' ? 'longitudinal' : 'transversal'}: {fmt(stiff / 1e6, 2)} MN·m/rad.
+        Previsão estática <span className="kind CALC">CALC</span>: transferir {fmtMass(kg)} {lblA}→{lblB} ⇒ Δ{sys === 'trim' ? 'θ' : 'φ'} ≈ <b className="mono">{fmt(predAB, 2)}°</b> (
+        {sys === 'trim' ? 'proa para cima' : 'adernar para BE'}); sentido oposto ⇒ {fmt(-predAB, 2)}°. Rigidez {sys === 'trim' ? 'longitudinal' : 'transversal'}: {fmt(stiff / 1e6, 2)} MN·m/rad.
       </div>
     </div>
   );
 }
 
 function TrimDiagram({ e }: { e: SimulationEngine }) {
+  const [hover, setHover] = useState<string | null>(null);
   const s = e.state;
   const v = e.vessel;
   const o = e.outputs;
@@ -156,14 +169,26 @@ function TrimDiagram({ e }: { e: SimulationEngine }) {
         <g transform={`rotate(${-o.euler.pitch} ${X(0)} ${Y(0)})`}>
           <path d={`M${top.join(' L')} L${bot.join(' L')} Z`} fill="#1a2838" stroke="#9fb7cf" />
           <line x1={X(o.mp.cg.x)} x2={X(o.mp.cg.x)} y1={Y(-3.5)} y2={Y(3.5)} stroke="#ffb347" strokeWidth="2" />
-          <text x={X(o.mp.cg.x) + 4} y={Y(-3.6)} fontSize="10" fill="#ffb347">G</text>
+          <text x={X(o.mp.cg.x) + 4} y={Y(-3.6)} fontSize="10" fill="#ffb347">
+            G
+          </text>
           <line x1={X(o.forces.hs.center.x)} x2={X(o.forces.hs.center.x)} y1={Y(-3.5)} y2={Y(3.5)} stroke="#36c5f0" strokeWidth="2" strokeDasharray="4 2" />
-          <text x={X(o.forces.hs.center.x) - 12} y={Y(-3.6)} fontSize="10" fill="#36c5f0">B</text>
-        {(s.cargoLoads ?? []).map(l => <g key={l.id}>
-          <circle cx={X(l.position.x)} cy={Y(l.position.z)} r={5} fill="#ff7ad1"><title>{l.name}: {fmt(l.quantity * l.unitMass / 1000, 2)} t; Y={l.position.y} m</title></circle>
-        </g>)}
+          <text x={X(o.forces.hs.center.x) - 12} y={Y(-3.6)} fontSize="10" fill="#36c5f0">
+            B
+          </text>
           <TankGlyph x={xa - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankA) / c.tankA.capacity} label="TT-AV" sub={`${tankVolume(st.tankA).toFixed(2)} m³`} inspect="trim" />
           <TankGlyph x={xb - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankB) / c.tankB.capacity} label="TT-AR" sub={`${tankVolume(st.tankB).toFixed(2)} m³`} inspect="trim" />
+          {/* cargas adicionais: passe o mouse (ou toque) para ver o nome */}
+          {(s.cargoLoads ?? []).map((l) => {
+            const hot = hover === l.id;
+            const r = markerRadius(cargoMass(l)) * 0.8;
+            return (
+              <g key={l.id} onPointerEnter={() => setHover(l.id)} onPointerLeave={() => setHover(null)} onPointerDown={() => setHover(l.id)} style={{ cursor: 'help' }}>
+                <circle cx={X(l.position.x)} cy={Y(l.position.z)} r={r + 6} fill="transparent" />
+                <circle cx={X(l.position.x)} cy={Y(l.position.z)} r={r} fill={CARGO_STYLE[l.category]?.color ?? '#ff7ad1'} stroke={hot ? '#fff' : '#0a1017'} strokeWidth={hot ? 2 : 1} />
+              </g>
+            );
+          })}
         </g>
         <Pipe d={`M${xb},${pipeY} L${xa},${pipeY}`} flow={st.flow === 0 ? 0 : -st.flow} width={3} />
         <ValveGlyph x={xa} y={pipeY} st={st.valveA} label="VTAV" onToggle={() => cmd({ type: 'valve', system: 'trim', valve: 'A', open: st.valveA.cmd < 0.5 })} inspect="trim" />
@@ -184,6 +209,12 @@ function TrimDiagram({ e }: { e: SimulationEngine }) {
         <text x={8} y={226} fontSize="9.5" fill="#7f93a8">
           distribuição longitudinal das massas variáveis (t por faixa de 5 m) — ré ← → vante
         </text>
+        {(() => {
+          const l = hover ? s.cargoLoads?.find((x) => x.id === hover) : undefined;
+          if (!l) return null;
+          const p = rotPt(X(l.position.x), Y(l.position.z), -o.euler.pitch, X(0), Y(0));
+          return <SvgTip x={p.x} y={p.y} lines={cargoTipLines(e, l)} W={W} H={290} />;
+        })()}
       </svg>
     </WideDiagram>
   );
@@ -214,6 +245,7 @@ function SectionTank({ t, vol, cx, cy, k, color, label, inspect }: { t: Internal
 }
 
 function FrontView({ e }: { e: SimulationEngine }) {
+  const [hover, setHover] = useState<string | null>(null);
   const o = e.outputs;
   const s = e.state;
   const c = e.vessel.heel;
@@ -254,6 +286,12 @@ function FrontView({ e }: { e: SimulationEngine }) {
         ))}
         <SectionTank t={c.tankA} vol={tankVolume(s.heel.tankA)} cx={cx} cy={cy} k={k} color="#b07cff" label="BB" inspect="heel" />
         <SectionTank t={c.tankB} vol={tankVolume(s.heel.tankB)} cx={cx} cy={cy} k={k} color="#b07cff" label="BE" inspect="heel" />
+        {(s.cargoLoads ?? []).map((l) => (
+          <g key={l.id} onPointerEnter={() => setHover(l.id)} onPointerLeave={() => setHover(null)} onPointerDown={() => setHover(l.id)} style={{ cursor: 'help' }}>
+            <circle cx={cx + l.position.y * k} cy={cy + l.position.z * k} r={9} fill="transparent" />
+            <circle cx={cx + l.position.y * k} cy={cy + l.position.z * k} r={4} fill={CARGO_STYLE[l.category]?.color ?? '#ff7ad1'} stroke={hover === l.id ? '#fff' : '#0a1017'} strokeWidth={hover === l.id ? 1.8 : 1} />
+          </g>
+        ))}
         <circle cx={cx + o.mp.cg.y * k * 20} cy={cy + o.mp.cg.z * k} r="4" fill="#ffb347">
           <title>G (deslocamento lateral ampliado 20×)</title>
         </circle>
@@ -273,6 +311,13 @@ function FrontView({ e }: { e: SimulationEngine }) {
       <text x={cx} y={S - 6} fontSize="12" textAnchor="middle" fill="#d8e4f0" fontFamily="var(--mono)">
         φ {fmt(o.euler.roll, 2)}°
       </text>
+      {(() => {
+        const l = hover ? s.cargoLoads?.find((x) => x.id === hover) : undefined;
+        if (!l) return null;
+        const p = rotPt(cx + l.position.y * k, cy + l.position.z * k, o.euler.roll, cx, cy);
+        const lines = cargoTipLines(e, l);
+        return <SvgTip x={p.x} y={p.y} lines={[lines[0], lines[1].replace(/^.*? · /, '')]} W={S} H={S} fs={8.5} />;
+      })()}
     </svg>
   );
 }
@@ -304,7 +349,9 @@ export function TrimHeelScreen() {
           <Readout label="TT-AR" value={tankVolume(s.trim.tankB)} unit="m³" digits={2} kind="MED" />
         </div>
         <div className="note">
-          <b>Tendência de trim</b>: {Math.abs(o.staticPitchEq - o.euler.pitch) < 0.2 ? 'atitude coincide com o equilíbrio estático.' : o.staticPitchEq > o.euler.pitch ? 'os pesos tendem a levantar a proa.' : 'os pesos tendem a abaixar a proa.'} A redistribuição de pesos muda o <b>equilíbrio estático</b> (mesmo parado); os lemes produzem uma atitude <b>dinâmica</b> que depende da velocidade e desaparece quando a velocidade cai.
+          <b>Tendência de trim</b>:{' '}
+          {Math.abs(o.staticPitchEq - o.euler.pitch) < 0.2 ? 'atitude coincide com o equilíbrio estático.' : o.staticPitchEq > o.euler.pitch ? 'os pesos tendem a levantar a proa.' : 'os pesos tendem a abaixar a proa.'} A
+          redistribuição de pesos muda o <b>equilíbrio estático</b> (mesmo parado); os lemes produzem uma atitude <b>dinâmica</b> que depende da velocidade e desaparece quando a velocidade cai.
         </div>
       </Panel>
       <Panel title="Trim: comandos" inspect="trim">
@@ -327,7 +374,8 @@ export function TrimHeelScreen() {
           </div>
         </div>
         <div className="note">
-          Arquitetura <b>fictícia</b> de tanques laterais. Submerso, a estabilidade transversal vem de BG (G abaixo de B): momento restaurador ≈ W·BG·sen φ. Tendência de retorno: {Math.abs(o.euler.roll - o.staticRollEq) < 0.05 ? 'em equilíbrio.' : `retorna para ${fmt(o.staticRollEq, 2)}°.`}
+          Arquitetura <b>fictícia</b> de tanques laterais. Submerso, a estabilidade transversal vem de BG (G abaixo de B): momento restaurador ≈ W·BG·sen φ. Tendência de retorno:{' '}
+          {Math.abs(o.euler.roll - o.staticRollEq) < 0.05 ? 'em equilíbrio.' : `retorna para ${fmt(o.staticRollEq, 2)}°.`}
         </div>
       </Panel>
       <Panel title="Banda: comandos" inspect="heel">
