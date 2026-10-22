@@ -1,4 +1,4 @@
-/** Seleção dos tanques visíveis no corte (todos, por grupo ou um a um). */
+/** Seleção dos tanques visíveis no corte (todos, nenhum, por grupo ou um a um). Lista vazia = nenhum tanque. */
 import type { SimulationEngine } from '../../sim/core/engine';
 import { TANK_STYLE, type TankCategory } from '../../render3d/layers';
 
@@ -21,7 +21,6 @@ export function TankSelector({ e, value, onChange }: { e: SimulationEngine; valu
     const n = new Set(sel);
     if (n.has(id)) n.delete(id);
     else n.add(id);
-    if (n.size === 0) return; // pelo menos um tanque
     set(n);
   };
   const toggleGroup = (ids: string[]) => {
@@ -31,7 +30,6 @@ export function TankSelector({ e, value, onChange }: { e: SimulationEngine; valu
       if (allOn) n.delete(i);
       else n.add(i);
     }
-    if (n.size === 0) return;
     set(n);
   };
   return (
@@ -39,6 +37,9 @@ export function TankSelector({ e, value, onChange }: { e: SimulationEngine; valu
       <div className="row" style={{ gap: 4 }}>
         <button className={`btn sm ${!value ? 'on' : ''}`} onClick={() => onChange(null)}>
           Todos
+        </button>
+        <button className={`btn sm ${value && value.length === 0 ? 'on' : ''}`} onClick={() => onChange([])} title="Nenhum tanque no corte (casco e circuitos continuam)">
+          Nenhum
         </button>
         {groups.map((g) => (
           <button key={g.cat} className="btn sm" style={{ borderColor: TANK_STYLE[g.cat].css, color: TANK_STYLE[g.cat].css }} onClick={() => onChange(g.tanks.map((t) => t.id))} title={`Mostrar só: ${TANK_STYLE[g.cat].label}`}>

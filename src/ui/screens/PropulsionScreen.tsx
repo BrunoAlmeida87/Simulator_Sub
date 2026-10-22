@@ -9,6 +9,7 @@ import { fmt, fmtPower } from '../format';
 import { snorkelHeadDepth } from '../../sim/systems/actuation';
 import { makeDepthOf } from '../../sim/core/context';
 import { qToMat3 } from '../../sim/core/math';
+import { PropulsionDiagram } from '../components/PropulsionDiagram';
 
 const LOAD_NAMES: Record<string, string> = {
   MEP: 'Motor elétrico principal',
@@ -22,7 +23,7 @@ const LOAD_NAMES: Record<string, string> = {
 };
 
 export function PropulsionScreen() {
-  const e = useSim(8);
+  const e = useSim(10);
   const s = e.state;
   const v = e.vessel;
   const p = s.propulsion;
@@ -42,6 +43,9 @@ export function PropulsionScreen() {
   const maxLoad = Math.max(1, ...loads.map(([, w]) => w));
   return (
     <div className="grid">
+      <Panel title="Linha de eixo — motor elétrico → eixo → hélice" inspect="propulsion" className="span-all">
+        <PropulsionDiagram e={e} />
+      </Panel>
       <Panel title="Motor elétrico principal e eixo" inspect="propulsion">
         <div className="row" style={{ flexWrap: 'nowrap' }}>
           <Dial value={o.rpm} min={-m.ratedRpm} max={m.ratedRpm} label="Eixo" unit="rpm" cmd={p.rpmCmd} />

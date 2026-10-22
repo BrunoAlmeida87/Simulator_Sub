@@ -6,7 +6,7 @@
 import type { SimRunner } from '../sim/core/runner';
 import type { SimulationEngine } from '../sim/core/engine';
 import { buildScenario } from '../sim/scenarios';
-import { applyCommand } from '../sim/commands';
+import { applyCommand, type Command } from '../sim/commands';
 import { deserializeEngine, serializeEngine, type SaveFile } from '../sim/persistence';
 import { verticalBalance, toTf } from '../sim/forceVectors';
 import { tankVolume } from '../sim/systems/internalTanks';
@@ -195,6 +195,8 @@ class PresentationStore {
     // enquadramentos que já ligam o que mostram (clique do operador)
     if (autoLayers && v === 'tanques' && !this.layers.tanks) this.layers = { ...this.layers, tanks: true };
     if (autoLayers && v === 'forcas' && !this.layers.vectors) this.layers = { ...this.layers, vectors: true };
+    if (autoLayers && v === 'calado' && !this.layers.trimRef) this.layers = { ...this.layers, trimRef: true };
+    if (autoLayers && v === 'navio' && !this.layers.ships) this.layers = { ...this.layers, ships: true };
     try {
       localStorage.setItem(K_VIEW, v);
     } catch {
@@ -256,11 +258,11 @@ class PresentationStore {
 export const pres = new PresentationStore();
 
 /** Comando de lastro para um grupo de TLP (vante/ré/todos). */
-export function mbtGroup(e: SimulationEngine, group: 'vante' | 're' | 'todos', what: 'vent' | 'blow', open: boolean): void {
+export function mbtGroup(e: SimulationEngine, group: 'vante' | 're' | 'todos', what: 'vent' | 'blow', open: boolean, send: (c: Command) => void = (c) => applyCommand(e, c)): void {
   const ids = e.vessel.ballast.tanks.filter((t) => group === 'todos' || (group === 'vante' ? t.center.x > 0 : t.center.x < 0)).map((t) => t.id);
   if (group === 'todos') {
-    applyCommand(e, { type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: 'ALL', open });
+    send({ type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: 'ALL', open });
     return;
   }
-  for (const id of ids) applyCommand(e, { type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: id, open });
+  for (const id of ids) send({ type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: id, open });
 }

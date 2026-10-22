@@ -1,0 +1,32 @@
+name: Gerar executavel Windows (Electron)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci --include=dev
+      - name: Verificar o simulador
+        run: npm test
+      - name: Gerar instalador e versao portatil
+        run: npm run dist:win
+      - name: Disponibilizar os executaveis para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: SX-1-Windows
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 30

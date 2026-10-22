@@ -1,8 +1,10 @@
 # SX-1 · Simulador Técnico de Submarino
 
-Plataforma de **simulação de engenharia e treinamento conceitual** de um submarino convencional diesel-elétrico **fictício** ("SX-1 Marlim"), executada diretamente no navegador.
+Plataforma de **simulação de engenharia e treinamento conceitual** de um submarino convencional diesel-elétrico **fictício** ("SX-1 Marlim"), executada no navegador ou como aplicativo desktop com Electron.
 
-Não é um jogo: todas as respostas visuais vêm de um **motor físico independente** com estado central compartilhado. Abrir um suspiro libera ar por um orifício compressível, a água entra pelos embornais, a massa aumenta, o empuxo líquido muda e o casco 6-GL responde. Nenhuma animação simula um efeito por conta própria.
+Não é um jogo: as respostas do submarino vêm de um **motor físico independente** com estado central compartilhado. Abrir um suspiro libera ar por um orifício compressível, a água entra pelos embornais, a massa aumenta, o empuxo líquido muda e o casco 6-GL responde.
+
+**Vida marinha decorativa:** peixes de aparência e movimento variados e cardumes de peixes pequenos nadam na água e perto do fundo, com saltos ocasionais na superfície. Em **Configurações → Vida marinha**, escolha a quantidade (discreta por padrão, moderada ou abundante) e habilite saltos e peixes submersos separadamente. As opções ficam salvas e acompanham a segunda janela; os peixes seguem o relógio da simulação sem alterar a física.
 
 **▶ Simulador publicado:** https://brunoalmeida87.github.io/Simulator_Sub/
 
@@ -14,6 +16,8 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 
 - [O que a Fase 1 entrega](#o-que-a-fase-1-entrega)
 - [Instalação e execução](#instalação-e-execução)
+- [Abrir com duplo clique (Windows, sem instalar)](#abrir-com-duplo-clique-windows-sem-instalar)
+- [Executável para Windows (Electron)](#executável-para-windows-electron)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Arquitetura](#arquitetura)
 - [Telas](#telas)
@@ -30,7 +34,7 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Item da Fase 1 | Situação |
 |---|---|
 | Modelo físico de flutuabilidade e movimento | ✅ **6 graus de liberdade** completos (surge, sway, heave, roll, pitch, yaw), integração RK4, quatérnios |
-| Lastro principal | ✅ 4 TLP com suspiro, sopro, embornais, ar AP, transitórios e limites de vazão |
+| Lastro principal | ✅ 4 TLP com suspiro, sopro normal e de emergência, embornais, circuitos AP independentes, transitórios e limites de vazão; ampolas dedicadas de 2 m³ a 250 bar e recarga pelo compressor |
 | Compensação e trim | ✅ Circuitos fictícios com bombas, válvulas, sequência automática de dosagem e cálculo de compensação |
 | Propulsão | ✅ Motor elétrico, eixo, hélice de 4 quadrantes, rampa de rotação, limites de torque e potência |
 | Lemes de direção e de profundidade | ✅ Lemes de vante na vela, lemes de ré e direção totalmente móveis (sem estabilizadores fixos), atuadores limitados em velocidade; força proporcional a U² e estol |
@@ -38,15 +42,32 @@ Não é um jogo: todas as respostas visuais vêm de um **motor físico independe
 | Modelo 3D animado | ✅ Three.js com corte dos tanques (TLP em seção "D" que acompanha o casco), tubulações, válvulas, bombas e escoamentos animados pelas vazões simuladas; hélice, lemes, bolhas e fundo |
 | Vetores de força | ✅ Peso (em G), empuxo (em B) e resultante E − P com ampliação declarada; empuxo do hélice, resistência da água e forças dos lemes — valores do último passo do motor |
 | Percepção de movimento | ✅ Esteira persistente fixa no mundo, onda de proa e braços de Kelvin (∝ U²), rastro do hélice (∝ empuxo), jato de ar dos suspiros, boias e marcadores de distância, câmera fixa |
-| Cenários guiados | ✅ Roteiros automáticos e narrados, etapa por etapa (primeiro: "Submergir e descer para 50 m"), com valores ao vivo, câmera e camadas por etapa e tempo de leitura |
+| Roteiros automáticos | ✅ Roteiros narrados, etapa por etapa (primeiro: "Submergir e descer para 50 m"), com valores ao vivo, câmera e camadas por etapa e tempo de leitura |
 | Trimagem demonstrável | ✅ Peso deslocável de 5 t sobre trilho, compensação calculada pelos tanques de trim e camada própria de vetores de trim (binários e momento líquido) |
 | Central de operação | ✅ Pilotagem com a cena sempre visível, comandos essenciais fixos, 9 grupos de sistemas expansíveis com resumo, até 2 grupos fixados e controles abertos ao clicar em tanques, lemes, hélice, mastro, bateria, válvulas ou alarmes |
 | Duas janelas | ✅ "⧉ 2ª janela": a cena numa segunda janela/monitor, espelhando a mesma simulação (BroadcastChannel); cliques nela abrem os controles na janela principal |
+| Vários monitores | ✅ "＋ Tela": o simulador completo (todas as abas) em mais janelas — ex.: Pilotagem, cena 3D e Mapa tático em três monitores; os comandos dados em qualquer janela valem para a mesma simulação |
 | Mapa tático | ✅ Posição geográfica (Baía de Sepetiba, EBN da Ilha da Madeira, Itaguaí), derrota, vetor de velocidade, navegação estimada, contatos fictícios com CPA, rota por pontos de passagem com seguimento automático e medição; fundos gratuitos sem chave de API (OpenStreetMap, OpenTopoMap, Sentinel-2/EOX, OpenSeaMap) |
 | Fluxo de energia | ✅ Diagrama animado (largura ∝ potência): geradores → barramento → bateria/consumidores; carga e descarga com tempo estimado |
 | Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |
-| Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6 e qualidade gráfica ajustável |
-| Interface e controles | ✅ 7 telas, mais cenários, auxiliares, validação, guia e modo engenharia; executar, pausar, passo, reiniciar e acelerar |
+| Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6, qualidade gráfica e iluminação (natural, clara, estúdio) ajustáveis |
+| Interface e controles | ✅ Telas organizadas em grupos (Operação, Sistemas, Apresentação, Análise, Ajustes e guia, Sala de comando) com visão geral dos sistemas em cartões e marcas de alarme na navegação; modo engenharia; executar, pausar, passo, reiniciar e acelerar |
+| Configurações | ✅ Aba própria com sessões, gravações, identificação, gráficos, ambiente, fundo, simulação e embarcação; cada grupo indica se é VISUAL, se muda a física AGORA ou se exige REINICIAR |
+| Salvar e continuar | ✅ Sessão completa (estado físico, automações em andamento, aceleração, identificação, posição geográfica) em arquivo compartilhável; carrega pausado; arquivos antigos abrem com conversão |
+| Gravação e reprodução | ✅ Comandos estruturados (operador e automações) com passo fixo e tempo; reprodução exata a partir do estado inicial gravado, com pontos de controle e automações sem duplicar |
+| Identificação | ✅ “S50 Vasco da Gama”: emblema na vela (estilizado ou imagem própria), inscrição vermelha configurável, cor dos lemes, snorkel destacado, texturas detalhadas (placas anecoicas, lemes perfilados, hélice de 7 pás) |
+| Trim na superfície | ✅ Investigação documentada (física correta: ~130× mais rígido que submerso); marcas de calado, leitura de calados AV/AR, vista Calado e ampliação opcional identificada |
+| Sala de comando em primeira pessoa | ✅ Aba Sala de comando: andar pela sala de controle em 3D (teclado, mouse ou toque) e operar o submarino inteiro de dentro — posto de governo com manches e telégrafo, painel do lastro com indicador de aberturas do casco e sopro de emergência, segurança do mergulho, coletor de válvulas, plataforma, sonar, quadro tático, navegação, mesa tática e estação do instrutor; clique de longe aproxima e abre o painel 2D do posto, de perto aciona direto; enquadramento centralizado em cada tela (◀ ▶); iluminação normal/vermelha/azul; submarino 3D em picture-in-picture; periscópio com régua de marcação, identificação, estadímetro e marcações no quadro tático; som, anúncios por voz (1MC) e sala que inclina com o navio |
+| Periscópio | ✅ Periscópio de ataque com mastro hidráulico na simulação (comando registrado, sobe na vela na cena externa) e ocular com retículo em milésimos, janela da marcação relativa, aumentos 1,5×/6×/12×, coluna da cabeça, estadímetro com colchete, ondas cobrindo a cabeça na cota periscópica, gotas na janela e vibração do mastro |
+| Vistas especiais | ✅ Perspectiva verdadeira (grande-angular de perto, 3/4 pela proa), passadiço no alto da vela com binóculo 7×50 (retículo e agulha) e drone (câmera livre no mundo para voar pelo mar, orla e cidade), também na 2ª janela |
+| Painel de governo | ✅ Aba Governo: manche (leme + lemes de ré), alavanca dos lemes de vante, telégrafo em alavanca, piloto com botões giratórios; mouse e toque; comandado × real |
+| Celular | ✅ Página adaptada a telas de toque pequenas (em pé ou deitado): cabeçalho compacto com ☰, controles do 3D no botão ⚙ Vista, diagramas legíveis com rolagem lateral; no PC nada muda |
+| Fluxo de energia e propulsão | ✅ Equipamentos clicáveis com estados e comandos; diagrama motor → eixo → hélice com rotação, sentido, torque, potência e empuxo |
+| Camadas sob controle | ✅ Painel “Camadas” com marcar/desmarcar todas em Pilotagem, 3D, Governo, Apresentação e 2ª janela (submarino sem nenhum texto ou vetor, se desejado); camadas de **bateria (%)** e **ar comprimido** (pressão, massa e ar livre de cada grupo de garrafas); casco externo / corte / sem casco na Apresentação |
+| Compensação coerente | ✅ Diagrama e corte 3D com a bomba no coletor e cada trecho animado pela vazão calculada para ele, no sentido real (admissão, esgoto, ramais fechados, recalque bloqueado) |
+| Ambiente marítimo | ✅ Navios adicionais configuráveis (0–20) em água com calado suficiente e sem sobreposição, no 3D e no mapa; mais peixes; referências discretas de profundidade (faixas de partículas e sombra no fundo); descarga dos diesel-geradores em bolhas atrás da vela, abaixo d'água, e aspiração de ar pelo snorkel; vento aparente discreto (vem da proa com o avanço) e flâmula opcional na vela; camadas do 3D em grupos; 2ª janela com o 3D completo |
+| Rio de Janeiro e iluminação | ✅ Baía de Guanabara e orla do Leme ao Pontal com relevo e imagem de satélite, Cristo Redentor, Ponte Rio–Niterói, nomes dos lugares, navios da região e dois cenários; sol pela hora do dia com amanhecer, pôr do sol e noite com luar e estrelas; luzes de navegação (RIPEAM) no submarino e nos navios; faróis do submarino e água escura; luzes da cidade à noite; dois submarinos atracados no estaleiro de Itaguaí |
+| Navios e costa no 3D | ✅ Contatos da mesa tática como navios 3D na mesma posição; costa de Sepetiba embutida (offline) com terra, orla e fundo costeiro na física; Estaleiro e Base Naval da Ilha da Madeira no lugar real (satélite Sentinel-2), com aterro, quebra-mares, shiplift e bacia dragada na física e no mapa |
 
 **Antecipados das Fases 2 e 3** (funcionais, mas simplificados): banda por tanques laterais, balanço de energia com bateria, diesel-geradores, combustível compensado e compressor; sensores com ruído, atraso e falhas; alarmes com prioridade e registro; gráficos históricos sincronizados; piloto automático PID; injeção de falhas (bombas, válvulas, sensores, energia, hidráulica, alagamento); termoclina; topografia do fundo.
 
@@ -56,7 +77,7 @@ Tudo o que ainda não foi implementado aparece na interface com a marca **FUTURO
 
 ## Instalação e execução
 
-Requisitos: **Node.js 20 ou superior** e npm.
+Requisitos: **Node.js 22.12 ou superior** e npm. Recomendado: Node.js **24 LTS**.
 
 ```bash
 git clone https://github.com/BrunoAlmeida87/Simulator_Sub.git
@@ -70,11 +91,33 @@ npm run dev        # servidor de desenvolvimento → http://localhost:5173
 | `npm run dev` | Servidor de desenvolvimento com recarga automática |
 | `npm run build` | Verificação de tipos (TypeScript) e build de produção em `dist/` |
 | `npm run preview` | Serve o build de produção localmente |
-| `npm test` | Testes automáticos: 12 casos de validação física e 16 testes unitários |
+| `npm test` | Testes automáticos: validação física, apresentação, sessão, fundo e costa, trim na superfície, gravação/reprodução, navios e unidades |
 | `npm run report` | Executa a validação e gera `docs/VALIDACAO.md` |
 | `npm run typecheck` | Somente verificação de tipos |
 
 O build usa caminho base relativo (`base: './'`), então funciona em qualquer subcaminho, como o GitHub Pages. A publicação é automática pelo workflow `.github/workflows/deploy.yml`.
+
+## Abrir com duplo clique (Windows, sem instalar)
+
+Os navegadores não rodam o simulador aberto direto do arquivo (`file://`), por isso o **Abrir-simulador.bat** liga um pequeno servidor local com o PowerShell, que já vem no Windows, e abre o navegador em `http://localhost:8765/`. Para encerrar, feche a janela preta.
+
+- **Versão pronta (recomendado):** no GitHub, troque para a branch **gh-pages**, *Code → Download ZIP*, descompacte e dê duplo clique em **Abrir-simulador.bat**. Não precisa de Node.js.
+- **Código-fonte (zip da main):** o mesmo arquivo está na raiz. Ele usa a pasta `dist` se existir; senão, com o Node.js instalado, compila uma vez (`npm install` + `npm run build`) e abre.
+
+Se a porta 8765 estiver ocupada, ele usa a seguinte livre (até 8784). As preferências do navegador ficam guardadas por endereço, então são separadas das do site.
+
+## Executável para Windows (Electron)
+
+Instale o Node.js LTS, baixe e extraia o projeto e dê dois cliques em **GERAR-EXECUTAVEL.cmd**. Os arquivos serão criados em **release/**: um instalador e uma versão portátil para Windows 10/11 de 64 bits. O computador que recebe o executável não precisa de Node.js.
+
+**[Passo a passo para iniciantes, com alternativa pelo GitHub →](docs/EXECUTAVEL-WINDOWS.md)**
+
+| Comando | Função |
+|---|---|
+| `npm run desktop` | Compila o simulador e abre a janela do Electron |
+| `npm run dist:win` | Compila e gera instalador `.exe` e versão portátil `.exe` em `release/` |
+
+A simulação, a cena 3D e a costa de Sepetiba (dados embutidos) funcionam offline; os fundos do mapa tático dependem de internet (sem ela o mapa mostra a grade e a costa do simulador). O aplicativo mantém a visualização em segunda janela e a exportação/importação de estados. Os executáveis são gerados sem assinatura digital.
 
 ---
 
@@ -126,6 +169,8 @@ O build usa caminho base relativo (`base: './'`), então funciona em qualquer su
 
 ## Telas
 
+As telas ficam em **grupos** (navegação em dois níveis: grupo em cima, telas do grupo embaixo): **Operação** (Pilotagem, Central de comando, Governo, Mapa tático), **Sistemas** (Visão geral em cartões, Lastro e compensação, Trim e banda, Propulsão e energia, Fluxo de energia, Segurança, Sistemas auxiliares), **Apresentação** (Apresentação, Visualização 3D, Cenários), **Análise** (Histórico, Validação), **Ajustes e guia** (Configurações, Guia) e, por último, **Sala de comando**. As teclas `0`–`8` abrem as telas numeradas abaixo; detalhes em [docs/OPERACAO.md](docs/OPERACAO.md#navegação-grupos-e-telas).
+
 - **Apresentação:** tela para conduzir demonstrações. Reúne a cena 3D, os vetores de peso, empuxo e resultante, os tanques (clique para destacar um), os comandos de lastro, compensação, trim, banda e máquinas, e os indicadores físicos. Tem situações prontas, pausa, câmera lenta (×0,25), +0,1 s, retorno ao estado inicial, comparação "antes × agora", enquadramentos rápidos (superfície, submerso, tanques, forças, fixa) e camadas que podem ser ligadas separadamente (vetores, tanques, tubulações, escoamentos, identificações, esteira, boias, iluminação).
 
 0. **Pilotagem (tela inicial) — central de operação:** cena 3D sempre visível, faixa de indicadores, comandos essenciais e grupos expansíveis de todos os sistemas (ver docs/OPERACAO.md). Antes era: o submarino em 3D numa vista lateral que acompanha o casco, com os comandos ao lado (telégrafo, lemes, lastro, piloto automático e as manobras rápidas "Imergir para X m", "Emergir" e "Manter profundidade"). Você vê o submarino avançar, alagar os tanques, mergulhar, nivelar e emergir conforme opera os comandos. As referências de movimento (partículas em suspensão, esteira na superfície, bolhas e fita de profundidade) também vêm do estado físico.
@@ -137,7 +182,9 @@ O build usa caminho base relativo (`base: './'`), então funciona em qualquer su
 6. **Visualização 3D:** câmeras lateral, perseguição, perspectiva, perfil, frente, topo, fixa, livre e os enquadramentos de apresentação; corte com níveis reais dos tanques, tubulações e escoamentos; vetores de força; boias; trajetória; bolhas proporcionais à vazão de ar.
 7. **Histórico:** gráficos sincronizados (grandezas de unidades diferentes em eixos separados, à esquerda e à direita), marcas dos comandos, comparação antes × depois e exportação em CSV.
 
-Também há as telas **Cenários e configuração** (9 cenários, condições de carga, ambiente, parâmetros, salvar/carregar/exportar), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
+8. **Sala de comando:** primeira pessoa dentro da sala de controle: anda-se pela sala e operam-se todos os sistemas pelos painéis em 3D ou pelo painel 2D de cada posto, com periscópio.
+
+Também há as telas **Sistemas › Visão geral** (um cartão por sistema com os números principais, a cor do pior alarme e atalhos para as telas de detalhe), **Governo** (painel visual de governo com manche, alavancas e instrumentos), **Cenários** (biblioteca: condições iniciais com condição de carga, situações de aula e roteiros automáticos, indicando com costa ou mar aberto), **⚙ Configurações** (sessões salvas e arquivos, gravação e reprodução de comandos, identificação, gráficos, ambiente, fundo e costa, parâmetros), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
 
 O **modo engenharia** (botão ⓘ ou tecla `I`) permite clicar em tanques, válvulas, bombas, lemes e instrumentos. O painel mostra a função do componente, as variáveis ao vivo, o estado, a influência na dinâmica, as equações, as consequências previstas e um gráfico antes × depois.
 
@@ -155,7 +202,7 @@ O **modo engenharia** (botão ⓘ ou tecla `I`) permite clicar em tanques, válv
 
 O mesmo roteiro está no **Guia → Demonstração automática**. Detalhes em [docs/OPERACAO.md](docs/OPERACAO.md).
 
-Atalhos: `Espaço` executar/pausar · `A`/`D` leme de direção · `W`/`S` lemes de ré · `Q`/`E` lemes de vante · `+`/`−` telégrafo · `1`–`7` telas · `I` modo engenharia.
+Atalhos: `Espaço` executar/pausar · `A`/`D` leme de direção · `W`/`S` lemes de ré · `Q`/`E` lemes de vante · `+`/`−` telégrafo · `0`–`8` telas · `I` modo engenharia.
 
 ---
 

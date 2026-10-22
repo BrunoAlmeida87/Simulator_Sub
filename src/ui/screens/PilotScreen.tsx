@@ -8,12 +8,10 @@
  */
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { usePersisted } from '../persist';
-import { TankSelector } from '../components/TankSelector';
-import { VectorSelector } from '../components/VectorSelector';
 import { cmd, runner, useSim } from '../store';
-import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
-import { SeaControls } from '../components/SeaControls';
-import type { OceanQuality } from '../../render3d/Ocean';
+import { Scene3D } from '../components/Scene3D';
+import { useQuality } from '../graphics';
+import { seaSections } from '../components/SeaControls';
 import { DepthTape } from '../components/gauges';
 import { NumSet, TELEGRAPH } from '../components/Controls';
 import type { ViewMode } from '../../render3d/SubmarineScene';
@@ -25,6 +23,48 @@ import { GROUPS } from '../ops/OpsGroups';
 import { OpsStrip } from '../ops/OpsStrip';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt } from '../format';
+import { OverlayCtl } from '../components/OverlayCtl';
+import { viewSection, type ViewOption } from '../components/OverlayMenu';
+import type { LayerKey } from '../components/LayerPanel';
+import { SceneLayerPanel } from '../components/SceneLayerPanel';
+import { defaultLayers, type SceneLayers } from '../../render3d/layers';
+
+/** preferências adicionais da Pilotagem (preserva as chaves já salvas) */
+const PILOT_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, trail: true, wind: true, presLight: false, hullOpacity: 0.16, resultantGain: 'auto' as const };
+const PILOT_LAYER_KEYS: LayerKey[] = [
+  'vectors',
+  'hydroVectors',
+  'trimVectors',
+  'tanks',
+  'pipes',
+  'flows',
+  'labels',
+  'batteryInfo',
+  'airInfo',
+  'wake',
+  'wind',
+  'pennant',
+  'trail',
+  'markers',
+  'trimRef',
+  'ships',
+  'noWater',
+  'presLight',
+];
+
+/** vistas da Pilotagem (os enquadramentos de apresentação já ligam o que mostram) */
+const PILOT_VIEWS: ViewOption[] = [
+  { id: 'piloto', label: 'Lateral' },
+  { id: 'perseguicao', label: 'Perseguição' },
+  { id: 'perspectiva', label: 'Perspectiva', tip: 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa' },
+  { id: 'tanques', label: 'Vista tanques', tip: 'Câmera de perto no corte (liga os tanques)' },
+  { id: 'forcas', label: 'Vista forças', tip: 'Câmera lateral para os vetores (liga peso/empuxo)' },
+  { id: 'calado', label: 'Calado' },
+  { id: 'fixa', label: 'Fixa' },
+  { id: 'passadico', label: 'Passadiço', tip: 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50' },
+  { id: 'drone', label: 'Drone', tip: 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade' },
+  { id: 'livre', label: 'Livre' },
+];
 
 export function useOps() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -179,14 +219,11 @@ export function PilotScreen() {
   const [view, setView] = usePersisted<ViewMode>('pilot.view', 'piloto');
   const [cut, setCut] = usePersisted('pilot.cut', false);
   const [tankF, setTankF] = usePersisted<string[] | null>('pilot.tankFilter', null);
-  const [selOpen, setSelOpen] = usePersisted('pilot.tankSelOpen', false);
   const [vec, setVec] = usePersisted('pilot.vec', false);
   const [trimV, setTrimV] = usePersisted('pilot.trim', false);
   const [hydro, setHydro] = usePersisted('pilot.hydro', false);
   const [hiddenV, setHiddenV] = usePersisted<string[]>('pilot.hiddenVec', []);
-  const [vecOpen, setVecOpen] = usePersisted('pilot.vecOpen', true);
   const [dry, setDry] = usePersisted('pilot.dry', false);
-  const anyVec = vec || hydro || trimV;
   const setVecLayers = (v: { vectors?: boolean; hydroVectors?: boolean; trimVectors?: boolean; hiddenVectors?: string[] }) => {
     if (v.vectors !== undefined) setVec(v.vectors);
     if (v.hydroVectors !== undefined) setHydro(v.hydroVectors);
@@ -194,11 +231,38 @@ export function PilotScreen() {
     if (v.hiddenVectors !== undefined) setHiddenV(v.hiddenVectors);
   };
   const [marks, setMarks] = usePersisted('pilot.marks', true);
-  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
-  const setQuality = (q: OceanQuality) => {
-    saveQuality(q);
-    setQualityS(q);
+  const [trimRef, setTrimRef] = usePersisted('pilot.trimRef', false);
+  const [ships, setShips] = usePersisted('pilot.ships', true);
+  // demais camadas (antes fixas: identificações, tubulações, escoamentos e o rótulo da bateria)
+  const [laySaved, setLay] = usePersisted<Partial<SceneLayers>>('pilot.layers', {});
+  const lay = { ...PILOT_LAYER_DEFAULTS, ...laySaved };
+  const layerValue: SceneLayers = {
+    ...defaultLayers(),
+    ...lay,
+    tankFilter: tankF,
+    vectors: vec,
+    hydroVectors: hydro,
+    trimVectors: trimV,
+    hiddenVectors: hiddenV,
+    tanks: cut,
+    noWater: dry,
+    markers: marks,
+    trimRef,
+    ships,
   };
+  const setLayers = (p: Partial<SceneLayers>) => {
+    setVecLayers(p);
+    if (p.tankFilter !== undefined) setTankF(p.tankFilter);
+    if (p.tanks !== undefined) setCut(p.tanks);
+    if (p.noWater !== undefined) setDry(p.noWater);
+    if (p.markers !== undefined) setMarks(p.markers);
+    if (p.trimRef !== undefined) setTrimRef(p.trimRef);
+    if (p.ships !== undefined) setShips(p.ships);
+    const rest: Partial<SceneLayers> = {};
+    for (const k of Object.keys(PILOT_LAYER_DEFAULTS) as (keyof typeof PILOT_LAYER_DEFAULTS)[]) if (p[k] !== undefined) Object.assign(rest, { [k]: p[k] });
+    if (Object.keys(rest).length) setLay({ ...laySaved, ...rest });
+  };
+  const [quality, setQuality] = useQuality();
   const o = e.outputs;
   const ap = e.state.autopilot;
   const st = navStatus(e);
@@ -215,19 +279,7 @@ export function PilotScreen() {
             cutaway={cut}
             labels={false}
             persistKey="pilot"
-            layers={{
-              tankFilter: tankF,
-              vectors: vec,
-              hydroVectors: hydro,
-              trimVectors: trimV,
-              hiddenVectors: hiddenV,
-              noWater: dry,
-              markers: marks,
-              pipes: true,
-              flows: true,
-              labels: true,
-              highlight: ops.highlight,
-            }}
+            layers={{ ...layerValue, highlight: ops.highlight }}
             onPick={(p) => {
               if (p && !cut && ['tank', 'valve', 'pump', 'battery', 'generator', 'hp', 'demoWeight'].includes(p.kind)) setCut(true);
               ops.select(p);
@@ -242,94 +294,26 @@ export function PilotScreen() {
               </span>
               <span className="subtle">Clique num tanque, leme, hélice, mastro, bateria ou válvula para abrir os controles.</span>
             </div>
-            <div className="overlay-ctl">
-              <SeaControls quality={quality} setQuality={setQuality} />
-              <div className="seg">
-                {(
-                  [
-                    ['piloto', 'Lateral'],
-                    ['perseguicao', 'Perseguição'],
-                    ['tanques', 'Vista tanques'],
-                    ['forcas', 'Vista forças'],
-                    ['fixa', 'Fixa'],
-                    ['livre', 'Livre'],
-                  ] as [ViewMode, string][]
-                ).map(([v, l]) => (
-                  <button
-                    key={v}
-                    className={view === v ? 'on' : ''}
-                    onClick={() => {
-                      setView(v);
-                      // os enquadramentos de apresentação já ligam o que mostram
-                      if (v === 'tanques') setCut(true);
-                      if (v === 'forcas') setVec(true);
-                    }}
-                    title={v === 'tanques' ? 'Câmera de perto no corte (liga os tanques)' : v === 'forcas' ? 'Câmera lateral para os vetores (liga peso/empuxo)' : undefined}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-              <div className="btngroup">
-                <button className={`btn sm ${cut ? 'on' : ''}`} onClick={() => setCut(!cut)}>
-                  Ver tanques
-                </button>
-                <button
-                  className={`btn sm ${anyVec ? 'on' : ''}`}
-                  onClick={() => {
-                    // liga os vetores e abre a escolha; um novo clique desliga todos
-                    if (anyVec)
-                      setVecLayers({
-                        vectors: false,
-                        hydroVectors: false,
-                        trimVectors: false,
-                      });
-                    else {
-                      setVecLayers({
-                        vectors: true,
-                        hydroVectors: false,
-                      });
-                      setVecOpen(true);
-                    }
-                  }}
-                  title="Liga/desliga os vetores e abre a escolha de quais mostrar"
-                >
-                  Vetores {anyVec ? '▾' : ''}
-                </button>
-                <button className={`btn sm ${dry ? 'on' : ''}`} onClick={() => setDry(!dry)} title="Tira (ou recoloca) o mar para ver melhor o submarino">
-                  {dry ? '💧 Pôr água' : '💧 Tirar água'}
-                </button>
-                <button className={`btn sm ${marks ? 'on' : ''}`} onClick={() => setMarks(!marks)}>
-                  Boias
-                </button>
-              </div>
-              {anyVec && (
-                <div className="tanksel-pop">
-                  <button className="btn sm" onClick={() => setVecOpen(!vecOpen)}>
-                    {vecOpen ? '▴ Vetores visíveis' : '▾ Escolher vetores'}
-                  </button>
-                  {vecOpen && (
-                    <VectorSelector
-                      value={{
-                        vectors: vec,
-                        hydroVectors: hydro,
-                        trimVectors: trimV,
-                        hiddenVectors: hiddenV,
-                      }}
-                      onChange={setVecLayers}
-                    />
-                  )}
-                </div>
-              )}
-              {cut && (
-                <div className="tanksel-pop">
-                  <button className="btn sm" onClick={() => setSelOpen(!selOpen)}>
-                    {selOpen ? '▴ Tanques visíveis' : `▾ Escolher tanques${tankF ? ` (${tankF.length})` : ''}`}
-                  </button>
-                  {selOpen && <TankSelector e={e} value={tankF} onChange={setTankF} />}
-                </div>
-              )}
-            </div>
+            <OverlayCtl
+              persistKey="pilot"
+              sections={[
+                viewSection(PILOT_VIEWS, view, (v) => {
+                  setView(v);
+                  // os enquadramentos de apresentação já ligam o que mostram
+                  if (v === 'tanques') setCut(true);
+                  if (v === 'forcas') setVec(true);
+                  if (v === 'calado') setTrimRef(true);
+                }),
+                {
+                  id: 'camadas',
+                  label: <>Camadas ({PILOT_LAYER_KEYS.filter((k) => !!layerValue[k]).length})</>,
+                  title: 'Tanques, vetores, identificações e ambiente',
+                  className: 'scene-layer-pop',
+                  content: <SceneLayerPanel e={e} keys={PILOT_LAYER_KEYS} value={layerValue} onChange={setLayers} />,
+                },
+                ...seaSections(quality, setQuality),
+              ]}
+            />
             <div className="pres-bottom">
               <ManeuverStatus compact />
             </div>

@@ -1,0 +1,30 @@
+appId: br.com.sx1.simulador
+productName: SX-1 Simulador
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+asar: true
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  # Os executáveis são distribuídos sem certificado de assinatura digital.
+  signAndEditExecutable: false
+nsis:
+  artifactName: SX-1-Simulador-${version}-Instalador.${ext}
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: SX-1 Simulador
+  installerLanguages: [pt_BR]
+  language: '1046'
+portable:
+  artifactName: SX-1-Simulador-${version}-Portatil.${ext}

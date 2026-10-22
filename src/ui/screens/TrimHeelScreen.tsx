@@ -14,6 +14,36 @@ import type { TransferSystemConfig } from '../../sim/config/types';
 import type { TransferState } from '../../sim/core/state';
 import { RAD } from '../../sim/core/math';
 import { fmt, fmtMass, fmtMoment } from '../format';
+import { draftInfo } from '../../sim/drafts';
+import { WideDiagram } from '../components/WideDiagram';
+
+/** Calados nas marcas e por que o trim quase não aparece na superfície. */
+function DraftPanel({ e }: { e: SimulationEngine }) {
+  const d = draftInfo(e);
+  const cm = (m: number) => `${fmt(m * 100, 1)} cm`;
+  return (
+    <Panel title="Calados e trim (marcas pintadas no casco)" inspect="trim">
+      <div className="readouts">
+        <Readout label="Calado a vante (x = +25 m)" value={d.fwd} unit="m" digits={2} kind="CALC" />
+        <Readout label="Calado a ré (x = −13,4 m)" value={d.aft} unit="m" digits={2} kind="CALC" />
+        <Readout label={`Trim (AR − AV) ${d.trim > 0.005 ? 'pela popa' : d.trim < -0.005 ? 'pela proa' : ''}`} value={cm(d.trim)} kind="CALC" />
+        <Readout label="Rigidez de trim atual" value={d.stiffness / 1e6} unit="MN·m/rad" digits={1} kind="CALC" />
+        <Readout label="Rigidez submersa (W·BG)" value={d.submergedStiffness / 1e6} unit="MN·m/rad" digits={1} kind="CALC" />
+        <Readout label="Momento para 1 cm de trim" value={d.mtc} unit="t·m" digits={1} kind="CALC" />
+      </div>
+      <div className="note">
+        {d.surfaced ? (
+          <>
+            <b>Na superfície</b> o plano de flutuação resiste à inclinação: a rigidez de trim é <b>{fmt(d.ratio, 0)}×</b> a submersa. O mesmo deslocamento de peso que embica o submarino vários graus submerso muda o calado
+            apenas alguns centímetros aqui (5 t levadas 23 m a vante: ~0,09° e ~6 cm entre as marcas). Para ver: vista <b>Calado</b>, camada <b>Calado/trim</b> e, se quiser, a ampliação visual do trim (identificada na tela).
+          </>
+        ) : (
+          <>Submerso não há plano de flutuação: só W·BG resiste ao trim, por isso pequenas massas deslocadas produzem ângulos grandes.</>
+        )}
+      </div>
+    </Panel>
+  );
+}
 
 export function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' | 'heel' }) {
   const c: TransferSystemConfig = e.vessel[sys];
@@ -119,39 +149,41 @@ function TrimDiagram({ e }: { e: SimulationEngine }) {
   const yT = Y(2.2) - 12;
   const pipeY = Y(3.1) + 30;
   return (
-    <svg viewBox={`0 0 ${W} 290`} className="svgbox">
-      <g transform={`rotate(${-o.euler.pitch} ${X(0)} ${Y(0)})`}>
-        <path d={`M${top.join(' L')} L${bot.join(' L')} Z`} fill="#1a2838" stroke="#9fb7cf" />
-        <line x1={X(o.mp.cg.x)} x2={X(o.mp.cg.x)} y1={Y(-3.5)} y2={Y(3.5)} stroke="#ffb347" strokeWidth="2" />
-        <text x={X(o.mp.cg.x) + 4} y={Y(-3.6)} fontSize="10" fill="#ffb347">G</text>
-        <line x1={X(o.forces.hs.center.x)} x2={X(o.forces.hs.center.x)} y1={Y(-3.5)} y2={Y(3.5)} stroke="#36c5f0" strokeWidth="2" strokeDasharray="4 2" />
-        <text x={X(o.forces.hs.center.x) - 12} y={Y(-3.6)} fontSize="10" fill="#36c5f0">B</text>
+    <WideDiagram minWidth={640}>
+      <svg viewBox={`0 0 ${W} 290`} className="svgbox">
+        <g transform={`rotate(${-o.euler.pitch} ${X(0)} ${Y(0)})`}>
+          <path d={`M${top.join(' L')} L${bot.join(' L')} Z`} fill="#1a2838" stroke="#9fb7cf" />
+          <line x1={X(o.mp.cg.x)} x2={X(o.mp.cg.x)} y1={Y(-3.5)} y2={Y(3.5)} stroke="#ffb347" strokeWidth="2" />
+          <text x={X(o.mp.cg.x) + 4} y={Y(-3.6)} fontSize="10" fill="#ffb347">G</text>
+          <line x1={X(o.forces.hs.center.x)} x2={X(o.forces.hs.center.x)} y1={Y(-3.5)} y2={Y(3.5)} stroke="#36c5f0" strokeWidth="2" strokeDasharray="4 2" />
+          <text x={X(o.forces.hs.center.x) - 12} y={Y(-3.6)} fontSize="10" fill="#36c5f0">B</text>
         {(s.cargoLoads ?? []).map(l => <g key={l.id}>
           <circle cx={X(l.position.x)} cy={Y(l.position.z)} r={5} fill="#ff7ad1"><title>{l.name}: {fmt(l.quantity * l.unitMass / 1000, 2)} t; Y={l.position.y} m</title></circle>
         </g>)}
-        <TankGlyph x={xa - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankA) / c.tankA.capacity} label="TT-AV" sub={`${tankVolume(st.tankA).toFixed(2)} m³`} inspect="trim" />
-        <TankGlyph x={xb - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankB) / c.tankB.capacity} label="TT-AR" sub={`${tankVolume(st.tankB).toFixed(2)} m³`} inspect="trim" />
-      </g>
-      <Pipe d={`M${xb},${pipeY} L${xa},${pipeY}`} flow={st.flow === 0 ? 0 : -st.flow} width={3} />
-      <ValveGlyph x={xa} y={pipeY} st={st.valveA} label="VTAV" onToggle={() => cmd({ type: 'valve', system: 'trim', valve: 'A', open: st.valveA.cmd < 0.5 })} inspect="trim" />
-      <ValveGlyph x={xb} y={pipeY} st={st.valveB} label="VTAR" onToggle={() => cmd({ type: 'valve', system: 'trim', valve: 'B', open: st.valveB.cmd < 0.5 })} inspect="trim" />
-      <PumpGlyph x={(xa + xb) / 2} y={pipeY} st={st.pump} label="BT" reverse={st.direction.pos < 0.5} onToggle={() => cmd({ type: 'pump', system: 'trim', run: !st.pump.cmd })} inspect="trim" />
-      {/* barras de distribuição */}
-      {bins.map((m, k) => {
-        const h = (m / maxBin) * 50;
-        return (
-          <g key={k}>
-            <rect x={X(-35 + k * 5) + 2} y={285 - h} width={46} height={h} fill="#3a5878" />
-            <text x={X(-35 + k * 5) + 25} y={283 - h} fontSize="8.5" textAnchor="middle" fill="#a9bdd2">
-              {m > 500 ? (m / 1000).toFixed(0) : ''}
-            </text>
-          </g>
-        );
-      })}
-      <text x={8} y={226} fontSize="9.5" fill="#7f93a8">
-        distribuição longitudinal das massas variáveis (t por faixa de 5 m) — ré ← → vante
-      </text>
-    </svg>
+          <TankGlyph x={xa - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankA) / c.tankA.capacity} label="TT-AV" sub={`${tankVolume(st.tankA).toFixed(2)} m³`} inspect="trim" />
+          <TankGlyph x={xb - 26} y={yT} w={52} h={22} fill={tankVolume(st.tankB) / c.tankB.capacity} label="TT-AR" sub={`${tankVolume(st.tankB).toFixed(2)} m³`} inspect="trim" />
+        </g>
+        <Pipe d={`M${xb},${pipeY} L${xa},${pipeY}`} flow={st.flow === 0 ? 0 : -st.flow} width={3} />
+        <ValveGlyph x={xa} y={pipeY} st={st.valveA} label="VTAV" onToggle={() => cmd({ type: 'valve', system: 'trim', valve: 'A', open: st.valveA.cmd < 0.5 })} inspect="trim" />
+        <ValveGlyph x={xb} y={pipeY} st={st.valveB} label="VTAR" onToggle={() => cmd({ type: 'valve', system: 'trim', valve: 'B', open: st.valveB.cmd < 0.5 })} inspect="trim" />
+        <PumpGlyph x={(xa + xb) / 2} y={pipeY} st={st.pump} label="BT" reverse={st.direction.pos < 0.5} onToggle={() => cmd({ type: 'pump', system: 'trim', run: !st.pump.cmd })} inspect="trim" />
+        {/* barras de distribuição */}
+        {bins.map((m, k) => {
+          const h = (m / maxBin) * 50;
+          return (
+            <g key={k}>
+              <rect x={X(-35 + k * 5) + 2} y={285 - h} width={46} height={h} fill="#3a5878" />
+              <text x={X(-35 + k * 5) + 25} y={283 - h} fontSize="8.5" textAnchor="middle" fill="#a9bdd2">
+                {m > 500 ? (m / 1000).toFixed(0) : ''}
+              </text>
+            </g>
+          );
+        })}
+        <text x={8} y={226} fontSize="9.5" fill="#7f93a8">
+          distribuição longitudinal das massas variáveis (t por faixa de 5 m) — ré ← → vante
+        </text>
+      </svg>
+    </WideDiagram>
   );
 }
 
@@ -230,6 +262,7 @@ export function TrimHeelScreen() {
       <Panel title="Trim: comandos" inspect="trim">
         <TransferControls e={e} sys="trim" />
       </Panel>
+      <DraftPanel e={e} />
       <Panel title="Peso deslocável (demonstração de trim)" inspect="trim">
         <TrimDemoPanel e={e} />
       </Panel>

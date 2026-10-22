@@ -24,6 +24,12 @@ export class SimRunner {
   history: HistoryRecorder;
   version = 0;
   private listeners = new Set<() => void>();
+  /**
+   * Ganchos chamados ANTES de cada passo fixo (gravação: pontos de controle;
+   * reprodução: comandos gravados para este passo). Retornar false interrompe
+   * os passos do quadro (ex.: fim da reprodução).
+   */
+  readonly beforeStep = new Set<(e: SimulationEngine) => boolean | void>();
   private resetHooks = new Set<() => void>();
 
   constructor(engine: SimulationEngine) {
@@ -64,12 +70,13 @@ export class SimRunner {
       this.acc -= n * dt;
       this.lagging = false;
     }
+    let done = 0;
     for (let i = 0; i < n; i++) {
-      this.engine.step();
-      this.history.sample(this.engine);
+      if (!this.doStep()) break;
+      done++;
     }
-    this.realTimeFactor = realDt > 0 ? (n * dt) / realDt : 0;
-    return n;
+    this.realTimeFactor = realDt > 0 ? (done * dt) / realDt : 0;
+    return done;
   }
 
   /** Fração do passo atual (para interpolação visual). */
@@ -81,11 +88,16 @@ export class SimRunner {
     return Math.max(0, Math.min(1, this.acc / this.engine.config.settings.dt));
   }
 
+  /** Um passo fixo, precedido dos ganchos; false se um gancho interrompeu. */
+  private doStep(): boolean {
+    for (const h of this.beforeStep) if (h(this.engine) === false) return false;
+    this.engine.step();
+    this.history.sample(this.engine);
+    return true;
+  }
+
   stepOnce(n = 1): void {
-    for (let i = 0; i < n; i++) {
-      this.engine.step();
-      this.history.sample(this.engine);
-    }
+    for (let i = 0; i < n; i++) if (!this.doStep()) break;
     this.notify();
   }
 

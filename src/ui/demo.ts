@@ -7,8 +7,21 @@
 import { fullSequenceSteps, type SequenceStep } from '../sim/validation/suite';
 import type { SimRunner } from '../sim/core/runner';
 import { visibleAlarms } from '../sim/systems/alarms';
+import { withCommandSource } from '../sim/commands';
+import { replayLock } from './replayLock';
 
 export type StepOutcome = 'pendente' | 'em curso' | 'sucesso' | 'tempo esgotado' | 'falha' | 'interrompida';
+
+export interface DemoSnapshot {
+  active: boolean;
+  k: number;
+  tStep: number;
+  entered: boolean;
+  lastT: number;
+  outcome: StepOutcome[];
+  duration: number[];
+  final: { ok: number; timeout: number; fail: number; stopped: boolean } | null;
+}
 
 export class DemoController {
   active = false;
@@ -28,6 +41,7 @@ export class DemoController {
   }
 
   start(r: SimRunner): void {
+    if (replayLock.active) return;
     this.steps = fullSequenceSteps();
     this.k = 0;
     this.tStep = 0;
@@ -61,8 +75,29 @@ export class DemoController {
     };
   }
 
+  snapshot(): DemoSnapshot {
+    return { active: this.active, k: this.k, tStep: this.tStep, entered: this.entered, lastT: this.lastT, outcome: [...this.outcome], duration: [...this.duration], final: this.final };
+  }
+
+  /** restaura a demonstração salva na mesma etapa (sem repetir os comandos de entrada já emitidos) */
+  restore(d: Partial<DemoSnapshot> | null | undefined): void {
+    this.steps = fullSequenceSteps();
+    this.active = !!d?.active;
+    this.k = Math.max(0, Math.min(this.steps.length, Number(d?.k ?? 0)));
+    this.tStep = Number(d?.tStep ?? 0);
+    this.entered = !!d?.entered;
+    this.lastT = Number(d?.lastT ?? 0);
+    this.outcome = Array.isArray(d?.outcome) && d!.outcome.length === this.steps.length ? d!.outcome : this.steps.map(() => 'pendente');
+    this.duration = Array.isArray(d?.duration) && d!.duration.length === this.steps.length ? d!.duration : this.steps.map(() => 0);
+    this.final = d?.final ?? null;
+  }
+
   tick(r: SimRunner): void {
-    if (!this.active) return;
+    if (!this.active || replayLock.active) return;
+    withCommandSource('demonstracao', () => this.tickInner(r));
+  }
+
+  private tickInner(r: SimRunner): void {
     const e = r.engine;
     const t = e.state.t;
     const dt = t - this.lastT;
