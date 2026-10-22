@@ -55,7 +55,9 @@ describe('Costa: fundo e terra na física', () => {
 
   it('cenários existentes e sessões novas: costa desligada (mar aberto como antes)', () => {
     expect(defaultSimConfig().environment.geo?.coast).toBe(false);
-    for (const sc of SCENARIOS.filter((x) => x.id !== 'base_itaguai' && x.id !== 'restinga')) {
+    // cenários costeiros (acrescentados): Sepetiba e Rio de Janeiro
+    const costeiros = ['base_itaguai', 'restinga', 'baia_guanabara', 'orla_copacabana'];
+    for (const sc of SCENARIOS.filter((x) => !costeiros.includes(x.id))) {
       const e = buildScenario(sc.id);
       expect(e.env.coastDistanceAt(0, 0)).toBeNull();
     }

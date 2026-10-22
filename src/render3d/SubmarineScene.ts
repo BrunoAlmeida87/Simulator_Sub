@@ -9,6 +9,7 @@
  */
 import { dieselExhaust, disperserOutlets } from '../sim/systems/exhaust';
 import { WindFx } from './WindFx';
+import { RioLandmarks } from './RioLandmarks';
 import { DepthRefs } from './DepthRefs';
 import { trafficAt, trafficForEnv } from '../sim/traffic';
 import * as THREE from 'three';
@@ -130,6 +131,8 @@ export class SubmarineScene {
   trimGain = 1;
   /** navios da mesa tática */
   private ships = new ShipsLayer();
+  /** Cristo Redentor, Ponte Rio–Niterói e nomes dos lugares (costa do Rio) */
+  private rio = new RioLandmarks();
   /** fauna decorativa; preferências compartilhadas com a segunda janela */
   readonly marineLife = new MarineLife();
   /** origem geográfica do referencial local (para posicionar os navios como no mapa) */
@@ -272,6 +275,7 @@ export class SubmarineScene {
     this.scene.add(this.markers.group);
     this.scene.add(this.ships.group);
     this.scene.add(this.marineLife.group);
+    this.scene.add(this.rio.group);
 
     // oceano: mesmas componentes de onda da física, deslocadas em GPU
     this.ocean = new Ocean(quality, this.sunDir);
@@ -1209,6 +1213,12 @@ export class SubmarineScene {
     this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj, extra);
     this.marineLife.update(e.env, tWave, pn, pe, !dry);
     if (this.layers.labels) this.wind.label(e, lbl, proj);
+    {
+      const g = e.env.cfg.geo;
+      const origin = g && g.coast ? g.origin : null;
+      this.rio.update(origin, pn, pe, !dry);
+      if (this.layers.labels && !under) this.rio.label(origin, pn, pe, this.camera.position, lbl, proj);
+    }
     if (this.shipyard && this.layers.labels && !dry && coastOn) this.shipyard.label(lbl, proj, this.shipyardDist);
     this.renderer.render(this.scene, this.camera);
 

@@ -18,9 +18,9 @@ import { route, mapOrigin, geoOriginOf } from '../routeNav';
 import { cmd } from '../store';
 import { useUi } from '../uiContext';
 import { Environment } from '../../sim/environment/environment';
-import { coastMask } from '../../sim/environment/coast';
+import { coastMasks } from '../../sim/environment/coast';
 import { shipyardOutlines } from '../../sim/environment/shipyard';
-import { bearingRange, contactsAt, contactsLocal, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
+import { bearingRange, contactsAt, contactsLocal, rioContactsAt, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
 import { toKnots } from '../../sim/units';
 import { fmt, fmtTime } from '../format';
 import { useIdentity } from '../appearance';
@@ -165,28 +165,33 @@ export function TacticalMapScreen() {
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !coastOv) return;
-    const { land, nx, ny, bounds } = coastMask();
-    const c = document.createElement('canvas');
-    c.width = nx;
-    c.height = ny;
-    const g = c.getContext('2d')!;
-    const img = g.createImageData(nx, ny);
-    for (let y = 0; y < ny; y++)
-      for (let x = 0; x < nx; x++) {
-        const i = y * nx + x;
-        if (!land[i]) continue;
-        const edge = (x > 0 && !land[i - 1]) || (x < nx - 1 && !land[i + 1]) || (y > 0 && !land[i - nx]) || (y < ny - 1 && !land[i + nx]);
-        const k = i * 4;
-        img.data[k] = 255;
-        img.data[k + 1] = edge ? 140 : 205;
-        img.data[k + 2] = edge ? 40 : 90;
-        img.data[k + 3] = edge ? 255 : 60;
-      }
-    g.putImageData(img, 0, 0);
-    const ov = L.imageOverlay(c.toDataURL(), [
-      [bounds.lat0, bounds.lon0],
-      [bounds.lat1, bounds.lon1],
-    ], { opacity: 0.9, interactive: false }).addTo(m);
+    // uma camada por região da costa (Sepetiba e Rio de Janeiro)
+    const ovs: L.ImageOverlay[] = [];
+    for (const { land, nx, ny, bounds } of coastMasks()) {
+      const c = document.createElement('canvas');
+      c.width = nx;
+      c.height = ny;
+      const g = c.getContext('2d')!;
+      const img = g.createImageData(nx, ny);
+      for (let y = 0; y < ny; y++)
+        for (let x = 0; x < nx; x++) {
+          const i = y * nx + x;
+          if (!land[i]) continue;
+          const edge = (x > 0 && !land[i - 1]) || (x < nx - 1 && !land[i + 1]) || (y > 0 && !land[i - nx]) || (y < ny - 1 && !land[i + nx]);
+          const k = i * 4;
+          img.data[k] = 255;
+          img.data[k + 1] = edge ? 140 : 205;
+          img.data[k + 2] = edge ? 40 : 90;
+          img.data[k + 3] = edge ? 255 : 60;
+        }
+      g.putImageData(img, 0, 0);
+      ovs.push(
+        L.imageOverlay(c.toDataURL(), [
+          [bounds.lat0, bounds.lon0],
+          [bounds.lat1, bounds.lon1],
+        ], { opacity: 0.9, interactive: false }).addTo(m),
+      );
+    }
     // estaleiro e base naval: os mesmos contornos da física e do 3D
     const y = shipyardOutlines();
     const yard = L.layerGroup().addTo(m);
@@ -204,7 +209,7 @@ export function TacticalMapScreen() {
         .addTo(yard);
     for (const line of y.sudeste) L.polyline(line.map(ll), { color: '#a07d62', weight: 3, opacity: 0.9 }).bindTooltip('Porto Sudeste (referência visual)').addTo(yard);
     return () => {
-      m.removeLayer(ov);
+      for (const o of ovs) m.removeLayer(o);
       m.removeLayer(yard);
     };
   }, [coastOv]);
@@ -264,7 +269,11 @@ export function TacticalMapScreen() {
       .bindTooltip(`${id.name} · ${o.depthKeel.toFixed(0)} m · ${toKnots(st.body.vel.x).toFixed(1)} nós · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
       .addTo(g);
     // contatos fixos e tráfego adicional (os mesmos navios da cena 3D)
-    const all = [...contactsAt(st.t).map((c) => ({ c, o: DEFAULT_ORIGIN })), ...trafficAt(st.t, trafficForEnv(eng.env, origin, graphics.get().traffic), origin).map((c) => ({ c, o: origin }))];
+    const all = [
+      ...contactsAt(st.t).map((c) => ({ c, o: DEFAULT_ORIGIN })),
+      ...rioContactsAt(st.t).map((c) => ({ c, o: DEFAULT_ORIGIN })),
+      ...trafficAt(st.t, trafficForEnv(eng.env, origin, graphics.get().traffic), origin).map((c) => ({ c, o: origin })),
+    ];
     for (const { c, o: co } of all) {
       const cll = nedToLatLon(co, c.n, c.e);
       const c2 = nedToLatLon(co, c.n + Math.cos((c.course * Math.PI) / 180) * c.speed * 360, c.e + Math.sin((c.course * Math.PI) / 180) * c.speed * 360);
