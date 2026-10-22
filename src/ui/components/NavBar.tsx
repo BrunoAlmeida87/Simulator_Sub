@@ -1,9 +1,11 @@
 /**
  * Barra de navegação em dois níveis: grupos (com ícone) e as telas do grupo atual.
  * Clicar num grupo abre a última tela usada nele. Teclas 0–8 aparecem discretas.
+ * Cada grupo tem uma cor (ícone, barra do grupo ativo, faixa das telas) e há
+ * divisórias entre os grupos e entre as telas, para identificar de relance.
  * Celular: uma linha só (grupo ▾ + telas do grupo); o ▾ abre o mapa de todas as telas.
  */
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { useSim } from '../store';
 import { visibleAlarms } from '../../sim/systems/alarms';
 import { usePersisted } from '../persist';
@@ -23,6 +25,17 @@ const ICON_PATHS: Record<NavGroupId, string[]> = {
   // periscópio
   sala: ['M9.5 21V6.5A2.5 2.5 0 0 1 12 4h7v4.5h-5.5V21', 'M5 14.5h4.5M5 18h4.5'],
 };
+
+/** cor de cada grupo (ícone, barra do grupo ativo e faixa das telas): diferencia os grupos de relance */
+export const GROUP_COLOR: Record<NavGroupId, string> = {
+  operacao: '#36c5f0',
+  sistemas: '#4cd98a',
+  apresentacao: '#b48cff',
+  analise: '#ffb347',
+  ajustes: '#9fb7cf',
+  sala: '#ff7a6b',
+};
+const gc = (id: NavGroupId) => ({ '--gc': GROUP_COLOR[id] }) as CSSProperties;
 
 export function NavIcon({ id }: { id: NavGroupId }) {
   return (
@@ -87,7 +100,7 @@ export function NavBar({ screen, setScreen, navRef }: { screen: ScreenId; setScr
         {NAV_GROUPS.map((g) => {
           const on = g.id === cur.id;
           return (
-            <button key={g.id} className={`nav2-group${on ? ' active' : ''}${g.id === 'sala' ? ' last' : ''}`} aria-current={on ? 'true' : undefined} onClick={() => openGroup(g)} title={groupTitle(g)}>
+            <button key={g.id} className={`nav2-group${on ? ' active' : ''}${g.id === 'sala' ? ' last' : ''}`} style={gc(g.id)} aria-current={on ? 'true' : undefined} onClick={() => openGroup(g)} title={groupTitle(g)}>
               <NavIcon id={g.id} />
               <span className="lbl">{g.label}</span>
               <Dot m={groupMark(g, marks)} />
@@ -95,7 +108,7 @@ export function NavBar({ screen, setScreen, navRef }: { screen: ScreenId; setScr
           );
         })}
       </nav>
-      <nav className="nav2-screens" aria-label={`Telas do grupo ${cur.label}`}>
+      <nav className="nav2-screens" style={gc(cur.id)} aria-label={`Telas do grupo ${cur.label}`}>
         <button className={`nav2-chip${menu ? ' on' : ''}`} onClick={() => setMenu(!menu)} aria-expanded={menu} aria-haspopup="true" title="Todas as telas, por grupo">
           <NavIcon id={cur.id} />
           <span className="lbl">{cur.short}</span>
@@ -123,7 +136,7 @@ export function NavBar({ screen, setScreen, navRef }: { screen: ScreenId; setScr
           <div className="nav2-backdrop" onClick={() => setMenu(false)} />
           <nav className="nav2-menu" aria-label="Todas as telas">
             {NAV_GROUPS.map((g) => (
-              <section key={g.id} className={g.id === cur.id ? 'cur' : ''}>
+              <section key={g.id} className={g.id === cur.id ? 'cur' : ''} style={gc(g.id)}>
                 <h4>
                   <NavIcon id={g.id} />
                   {g.label}
