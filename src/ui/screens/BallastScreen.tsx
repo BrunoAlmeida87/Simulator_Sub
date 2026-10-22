@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { cmd, useSim } from '../store';
 import { Panel } from '../components/Panel';
 import { Readout, KindTag } from '../components/Readout';
-import { Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../components/Schematic';
+import { AirBottleGlyph, Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../components/Schematic';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
 import { ballastFillStatus } from '../../sim/systems/ballast';
 import { bankPressure, emergencyBlowActive } from '../../sim/systems/hpAir';
@@ -92,27 +92,28 @@ export function Diagram({ e }: { e: SimulationEngine }) {
           const bx = bankX(i);
           const my = emergency ? emY : hpY;
           const color = emergency ? '#ffb080' : '#c9d6e3';
-          const w = emergency ? 52 : 64;
-          const h = emergency ? 40 : 50;
+          const w = emergency ? 36 : 44;
+          const h = emergency ? 64 : 80;
+          const by = 314 - h;
           return (
             <g key={b.id}>
               <Pipe
-                d={emergency ? `M${bx},242 V${hpY + 5} M${bx},${hpY - 5} V${my}` : `M${bx},242 V${my}`}
+                d={emergency ? `M${bx},${by} V${hpY + 5} M${bx},${hpY - 5} V${my}` : `M${bx},${by} V${my}`}
                 flow={st.valve.pos > 0.05 ? -(emergency ? emergencyFlow : normalFlow) : 0}
                 color={color}
                 idleColor={emergency ? '#795645' : undefined}
                 width={2}
               />
               <ValveGlyph x={bx} y={216} st={st.valve} vertical size={8} label={b.valve.id} onToggle={() => cmd({ type: 'hpBankValve', bank: b.id, open: st.valve.cmd < 0.5 })} inspect={'hp:' + b.id} />
-              <TankGlyph x={bx - w / 2} y={242} w={w} h={h} fill={p / b.maxPressure} color={emergency ? '#905332' : '#526f8d'} label={b.id} sub={`${fmt(p / 1e5, 0)} bar`} air inspect={'hp:' + b.id} />
-              <text x={bx} y="307" textAnchor="middle" fontSize="10" fill={color}>
+              <AirBottleGlyph x={bx - w / 2} y={by} w={w} h={h} fill={p / b.maxPressure} color={emergency ? '#c47f53' : '#6e94b6'} label={b.id} sub={`${fmt(p / 1e5, 0)} bar`} inspect={'hp:' + b.id} />
+              <text x={bx} y="326" textAnchor="middle" fontSize="10" fill={color}>
                 {b.volume} m³
               </text>
-              <Pipe d={`M${bx - w / 2 + 4},${242 + h} V332`} flow={s.hpAir.compressorRunning && p < b.maxPressure ? -1 : 0} color="#d9cf8f" width={1.5} />
+              <Pipe d={`M${bx - w / 2 + 4},${314 - h * 0.12} V332`} flow={s.hpAir.compressorRunning && p < b.maxPressure ? -1 : 0} color="#d9cf8f" width={1.5} />
             </g>
           );
         })}
-        <Pipe d={`M${bankX(0) - 32},332 H${bankX(v.hpAir.banks.length - 1)} M560,350 V332`} flow={s.hpAir.compressorRunning ? 1 : 0} color="#d9cf8f" width={2} />
+        <Pipe d={`M${bankX(0) - 22},332 H${bankX(v.hpAir.banks.length - 1)} M560,350 V332`} flow={s.hpAir.compressorRunning ? 1 : 0} color="#d9cf8f" width={2} />
         <g onClick={() => cmd({ type: 'compressor', run: !s.hpAir.compressorCmd })} style={{ cursor: 'pointer' }}>
           <title>Compressor: recarga dos dois circuitos por retenções, sem equalização entre reservas</title>
           <rect x="480" y="350" width="160" height="30" rx="4" fill="#0a121b" stroke={s.hpAir.compressorRunning ? '#3ddc84' : '#8399b1'} />

@@ -2,6 +2,7 @@
  * Primitivas de diagramas esquemáticos (SVG): tanques, válvulas, bombas e
  * tubulações com animação de escoamento acionada pela vazão real.
  */
+import { useId } from 'react';
 import type { ValveState, PumpState } from '../../sim/core/state';
 import { valveStatus } from '../../sim/systems/components';
 import { useUi } from '../uiContext';
@@ -23,9 +24,7 @@ export function ValveGlyph(props: { x: number; y: number; st: ValveState; label?
     if (ui.eng && props.inspect) ui.setInspect(props.inspect);
     else props.onToggle?.();
   };
-  const pts = props.vertical
-    ? `${-s},${-s} ${s},${-s} ${-s},${s} ${s},${s}`
-    : `${-s},${-s} ${-s},${s} ${s},${-s} ${s},${s}`;
+  const pts = props.vertical ? `${-s},${-s} ${s},${-s} ${-s},${s} ${s},${s}` : `${-s},${-s} ${-s},${s} ${s},${-s} ${s},${s}`;
   return (
     <g transform={`translate(${props.x} ${props.y})`} onClick={click} style={{ cursor: 'pointer' }}>
       <title>{`${props.label ?? 'Válvula'}: ${valveStatus(props.st)} (${(props.st.pos * 100).toFixed(0)} %) — clique para ${props.st.cmd > 0.5 ? 'fechar' : 'abrir'}`}</title>
@@ -69,11 +68,50 @@ export function Pipe(props: { d: string; flow: number; color?: string; idleColor
     <path
       d={props.d}
       fill="none"
-      stroke={flowing ? props.color ?? '#57a8ff' : props.idleColor ?? '#2c4260'}
+      stroke={flowing ? (props.color ?? '#57a8ff') : (props.idleColor ?? '#2c4260')}
       strokeWidth={props.width ?? 3}
       className={flowing ? `flowline ${props.flow < 0 ? 'rev' : ''}` : ''}
       strokeLinecap="round"
     />
+  );
+}
+
+/** Ampola de ar: ombros arredondados, gargalo e registro; a cor indica a carga de pressão. */
+export function AirBottleGlyph(props: { x: number; y: number; w: number; h: number; fill: number; label: string; sub: string; color: string; inspect: string }) {
+  const ui = useUi();
+  const id = useId().replace(/:/g, '');
+  const { w, h } = props;
+  const f = Math.max(0, Math.min(1, props.fill));
+  const cx = w / 2;
+  const neck = w * 0.13;
+  const shape = `M${cx - neck},5 H${cx + neck} V${h * 0.13}
+    C${cx + neck},${h * 0.22} ${w},${h * 0.18} ${w},${h * 0.36}
+    V${h * 0.84} Q${w},${h} ${cx},${h} Q0,${h} 0,${h * 0.84}
+    V${h * 0.36} C0,${h * 0.18} ${cx - neck},${h * 0.22} ${cx - neck},${h * 0.13} Z`;
+  return (
+    <g transform={`translate(${props.x} ${props.y})`} data-air-bottle={props.label} onClick={() => ui.eng && ui.setInspect(props.inspect)} style={{ cursor: ui.eng ? 'help' : 'default' }}>
+      <title>{`${props.label}: ${props.sub} · ${(f * 100).toFixed(0)} % da pressão máxima`}</title>
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#172635" />
+          <stop offset="0.32" stopColor={props.color} />
+          <stop offset="0.58" stopColor={props.color} />
+          <stop offset="1" stopColor="#172635" />
+        </linearGradient>
+      </defs>
+      <path d={shape} fill="#14212d" />
+      <path d={shape} fill={`url(#${id})`} fillOpacity={0.3 + 0.7 * f} stroke={props.color} strokeWidth="1.2" />
+      <path d={`M${w * 0.16},${h * 0.38} V${h * 0.8}`} stroke="#e9f2fb" strokeWidth="2" strokeLinecap="round" opacity="0.18" />
+      <path d={`M1,${h * 0.4} Q${cx},${h * 0.44} ${w - 1},${h * 0.4} M1,${h * 0.82} Q${cx},${h * 0.86} ${w - 1},${h * 0.82}`} stroke="#b0c1cf" strokeWidth="2" opacity="0.5" fill="none" />
+      <rect x={cx - neck - 1} y="3" width={neck * 2 + 2} height="6" rx="1" fill="#b5a57a" stroke="#e1cf9d" strokeWidth="0.8" />
+      <line x1={cx - w * 0.25} x2={cx + w * 0.25} y1="2" y2="2" stroke={props.color} strokeWidth="3" strokeLinecap="round" />
+      <text x={cx} y={h * 0.61 - 3} fontSize="10" textAnchor="middle" fill="#f0f5fa" fontWeight="600">
+        {props.label}
+      </text>
+      <text x={cx} y={h * 0.61 + 10} fontSize={w < 40 ? 7.5 : 8.5} textAnchor="middle" fill="#e1ecf7" fontFamily="var(--mono)">
+        {props.sub}
+      </text>
+    </g>
   );
 }
 
