@@ -57,13 +57,17 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       stations.ts (postos e enquadramentos), actions.ts (RoomActions: a cena só monta Commands),
                       periscope.ts (óptica do periscópio: horizonte, contatos à vista, estadímetro)
 src/ui/               INTERFACE (React)
-  App.tsx             abas (TABS) e atalhos de teclado
+  App.tsx             barra superior, telas (screens) e atalhos de teclado
+  nav.ts              NAVEGAÇÃO: SCREEN_IDS/ScreenId, grupos NAV_GROUPS (grupo → telas, teclas 0–8), marcas de alarme
+                      (tela nova = id em SCREEN_IDS + entrada num grupo + componente em App.tsx; Sala de comando sempre a última)
   VisualApp.tsx       segunda janela (só visual) — modo dois monitores
   sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
+                      SystemsOverview (Sistemas › Visão geral: cartões por sistema)
                       sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
   ops/                central de operação da Pilotagem (grupos expansíveis, faixa inferior, opsBus)
-  components/         controles, seletores (TankSelector, VectorSelector, LayerPanel), gráficos, Scene3D
+  components/         controles, seletores (TankSelector, VectorSelector, LayerPanel), gráficos, Scene3D,
+                      NavBar (navegação em dois níveis; no celular, grupo ▾ + telas)
   inspector/          modo engenharia (registry.ts = textos e variáveis por componente)
   maneuvers.ts        manobras rápidas (Imergir/Emergir)
   tours.ts            cenários guiados automáticos passo a passo (TOURS)

@@ -7,6 +7,28 @@
 - **Trim e banda** redistribuem pesos e mudam a atitude de equilíbrio estático.
 - **Lemes** produzem forças dinâmicas ∝ U². Sem velocidade não há efeito; com velocidade, mantêm a profundidade mesmo com pequenos desequilíbrios.
 
+## Navegação: grupos e telas
+
+As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores de treinamento, em que se escolhe primeiro o posto ou sistema e depois a tela):
+
+- **Linha de cima — grupos**, com ícone: clicar num grupo abre a **última tela usada** nele (na primeira vez, a primeira tela do grupo). A escolha fica guardada no navegador.
+- **Linha de baixo — telas do grupo atual**. O número cinza antes do nome é a tecla de atalho.
+
+| Grupo | Telas (tecla) |
+|---|---|
+| **Operação** | Pilotagem (0), Central de comando (1), Governo, Mapa tático |
+| **Sistemas** | Visão geral, Lastro e compensação (2), Trim e banda (3), Propulsão e energia (4), Fluxo de energia, Segurança (5), Sistemas auxiliares |
+| **Apresentação** | Apresentação, Visualização 3D (6), Cenários |
+| **Análise** | Histórico (7), Validação |
+| **Ajustes e guia** | ⚙ Configurações, Guia |
+| **Sala de comando** | Sala de comando (8) — sempre a última |
+
+- **Teclas 0–8** abrem as mesmas telas de antes, de qualquer grupo (fora de campos de texto). Passar o mouse sobre um grupo ou tela mostra a descrição e o atalho.
+- **Marcas de alarme:** um ponto vermelho (alarme ativo de prioridade 1–2) ou âmbar (demais alarmes, ou alarme ainda não reconhecido) aparece no grupo e na tela onde o sistema afetado é tratado — por exemplo, falha de bomba em *Sistemas › Lastro e compensação* — e sempre em *Segurança*.
+- **Sistemas › Visão geral:** um cartão por sistema (lastro principal, compensação, trim e banda, ar comprimido, propulsão, energia e snorkel, hidráulica e governo, segurança) com três números principais, o alarme mais grave daquele sistema e a cor do estado (**NORMAL**, **ATENÇÃO**, **ALARME**). Os botões do cartão abrem a tela de detalhe ou o grupo correspondente na Pilotagem. É a visão de conjunto para começar uma explicação ou achar rapidamente o sistema com problema.
+- Botões dentro das telas que levam a outra tela (ex.: *📚 Biblioteca* na Apresentação, *Sistema →* de um alarme) continuam funcionando; a navegação acompanha o grupo da tela aberta.
+- **Barra superior:** no PC, *ⓘ Engenharia* e *Procedimento* ficam na linha dos indicadores (profundidade, velocidade, rumo…), para a barra ocupar duas linhas em vez de três.
+
 ## Pilotagem — central de operação
 
 A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre visível, com a faixa de indicadores embaixo: profundidade, velocidade vertical, velocidade, rumo, pitch, banda, bateria e flutuabilidade (ou reserva, na superfície). O painel lateral tem rolagem própria.
@@ -308,7 +330,7 @@ Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O p
 ## Celular
 
 A página se adapta à tela do celular, em pé ou deitado (telas de toque pequenas). No PC nada muda, em nenhum tamanho de janela.
-- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a barra de abas fica presa no topo.
+- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a navegação fica presa no topo numa linha só: o botão do **grupo ▾** (ex.: *Sistemas ▾*) seguido das telas desse grupo, que rolam para o lado. O ▾ abre o mapa de **todas as telas**, por grupo, com os atalhos e as marcas de alarme.
 - **Cenas 3D**: os controles de vista, camadas, mar, gráfico e luz ficam no botão **⚙ Vista**, para não cobrir a cena. Com o celular deitado, a cena ocupa a altura da tela (sobra uma faixa para rolar a página).
 - **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
 - Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.
