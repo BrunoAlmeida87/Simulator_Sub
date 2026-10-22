@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { bufferOutline, MOUND_CREST, MOUND_SLOPE, QUAY_TOP, shipyardLocal, type V2 } from '../sim/environment/shipyard';
 import { latLonToNed, type LatLon } from '../sim/geo';
+import type { WaveField } from '../sim/environment/waves';
 import type { Label3D } from './SubmarineScene';
 
 type Detail = 'baixa' | 'media' | 'alta';
@@ -205,6 +206,65 @@ class Bins {
   }
 }
 
+/** eixo do casco dos submarinos atracados (m): borda livre ~1,3 m */
+const MOORED_AXIS = -1.8;
+
+/**
+ * Submarino atracado (só visual): casco de revolução (proa elíptica, cone de
+ * popa), vela com lemes de vela, lemes em X e hélice. Eixo maior = +x (proa).
+ */
+function mooredSub(L: number, R: number, hull: THREE.Material, deck: THREE.Material): THREE.Group {
+  const g = new THREE.Group();
+  const pts: THREE.Vector2[] = [];
+  const bow = 7.5;
+  const stern = 17;
+  for (let i = 0; i <= 90; i++) {
+    const x = -L / 2 + (i / 90) * L;
+    let r = R;
+    if (x > L / 2 - bow) r = R * Math.sqrt(Math.max(0, 1 - ((x - (L / 2 - bow)) / bow) ** 2));
+    else if (x < -L / 2 + stern) r = 0.35 + (R - 0.35) * Math.sin((((x + L / 2) / stern) * Math.PI) / 2) ** 0.9;
+    pts.push(new THREE.Vector2(Math.max(0.02, r), x));
+  }
+  const hg = new THREE.LatheGeometry(pts, 32);
+  hg.rotateZ(-Math.PI / 2);
+  g.add(new THREE.Mesh(hg, hull));
+  // convés (faixa antiderrapante sobre o casco, da vela à proa e à ré)
+  const dk = new THREE.BoxGeometry(L * 0.62, 0.12, 1.6);
+  dk.translate(2, R - 0.02, 0);
+  g.add(new THREE.Mesh(dk, deck));
+  // vela (estádio extrudado), 9 × 2,4 m, 6 m acima do casco
+  const sl = 9;
+  const w = 1.2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-sl / 2 + w, -w);
+  shape.lineTo(sl / 2 - 2, -w);
+  shape.quadraticCurveTo(sl / 2, -w, sl / 2, 0);
+  shape.quadraticCurveTo(sl / 2, w, sl / 2 - 2, w);
+  shape.lineTo(-sl / 2 + w, w);
+  shape.quadraticCurveTo(-sl / 2, w, -sl / 2, 0);
+  shape.quadraticCurveTo(-sl / 2, -w, -sl / 2 + w, -w);
+  const sg = new THREE.ExtrudeGeometry(shape, { depth: 6.6, bevelEnabled: false, curveSegments: 6 });
+  sg.rotateX(-Math.PI / 2);
+  sg.translate(14, R - 0.6, 0);
+  g.add(new THREE.Mesh(sg, hull));
+  // lemes de vela
+  const sp = new THREE.BoxGeometry(2.2, 0.22, 7.4);
+  sp.translate(15.6, R + 3.6, 0);
+  g.add(new THREE.Mesh(sp, hull));
+  // lemes em X e hélice
+  for (const a of [Math.PI / 4, -Math.PI / 4]) {
+    const f = new THREE.BoxGeometry(4.2, 0.3, 8.4);
+    f.rotateX(a);
+    f.translate(-L / 2 + 5, 0, 0);
+    g.add(new THREE.Mesh(f, hull));
+  }
+  const hub = new THREE.ConeGeometry(0.55, 1.6, 12);
+  hub.rotateZ(Math.PI / 2);
+  hub.translate(-L / 2 - 0.5, 0, 0);
+  g.add(new THREE.Mesh(hub, hull));
+  return g;
+}
+
 // ------------------------------------------------------------------ modelo
 export class ShipyardModel {
   readonly group = new THREE.Group();
@@ -213,6 +273,10 @@ export class ShipyardModel {
   private texs: THREE.Texture[] = [];
   /** ponto do rótulo (local) */
   private labelAt = new THREE.Vector3();
+  /** submarinos atracados ao lado do shiplift (flutuam com as ondas) */
+  private moored: { g: THREE.Group; c: V2; u: V2; L: number }[] = [];
+  /** posição NED da âncora em relação à origem (atualizada em place) */
+  private anchorNed = { n: 0, e: 0 };
 
   constructor(readonly detail: Detail) {
     this.group.name = 'estaleiro';
@@ -334,6 +398,63 @@ export class ShipyardModel {
         fin.rotateX(a);
         B.add(hull, place(fin, [mid[0] - u[0] * (subL / 2 - 4), mid[1] - u[1] * (subL / 2 - 4)], yC, brg));
       }
+      // dois submarinos atracados a contrabordo dos píeres do shiplift (bacia dragada, 16 m), proa para a bacia,
+      // com defensas, espias (lançantes e springs), cabeços no píer e prancha de acesso
+      {
+        const deckMat = this.mat({ color: 0x2b2f33, roughness: 0.95 });
+        const fender = this.mat({ color: 0x111214, roughness: 0.9 });
+        const rope = this.mat({ color: 0xd9cfa8, roughness: 0.9 });
+        const yAxis = MOORED_AXIS;
+        const gap = 2.4; // defensas entre o costado e o píer
+        for (const side of [-1, 1]) {
+          const off = s.width / 2 + gap + R;
+          const c: V2 = [mid[0] + u[0] * 12 + v[0] * side * off, mid[1] + u[1] * 12 + v[1] * side * off];
+          const g = mooredSub(subL, R, hull, deckMat);
+          g.position.set(c[0], yAxis, -c[1]);
+          g.rotation.y = Math.PI / 2 - (brg * Math.PI) / 180;
+          g.name = 'Submarino atracado';
+          this.group.add(g);
+          this.moored.push({ g, c, u, L: subL });
+          // defensas flutuantes (cilindros pretos) entre o costado e a face do píer
+          for (const t of [-22, 0, 22]) {
+            const fc: V2 = [c[0] + u[0] * t - v[0] * side * (R + gap / 2), c[1] + u[1] * t - v[1] * side * (R + gap / 2)];
+            const fg = new THREE.CylinderGeometry(1.1, 1.1, 3.4, 12);
+            fg.rotateZ(Math.PI / 2);
+            B.add(fender, place(fg, fc, 0.2, brg));
+          }
+          // espias: do convés do submarino a cabeços na borda do píer
+          const face = s.width / 2 - 1.2;
+          for (const [tSub, tPier] of [
+            [subL / 2 - 6, subL / 2 + 10],
+            [subL / 2 - 14, subL / 2 - 26],
+            [-subL / 2 + 16, -subL / 2 + 30],
+            [-subL / 2 + 10, -subL / 2 - 6],
+          ]) {
+            const a = new THREE.Vector3(c[0] + u[0] * tSub - v[0] * side * (R * 0.55), yAxis + R * 0.85, -(c[1] + u[1] * tSub - v[1] * side * (R * 0.55)));
+            const bp: V2 = [mid[0] + u[0] * (12 + tPier) + v[0] * side * face, mid[1] + u[1] * (12 + tPier) + v[1] * side * face];
+            const b = new THREE.Vector3(bp[0], QUAY_TOP + 0.7, -bp[1]);
+            const d = b.clone().sub(a);
+            const lg = new THREE.CylinderGeometry(0.07, 0.07, d.length(), 5);
+            lg.translate(0, d.length() / 2, 0);
+            lg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()));
+            lg.translate(a.x, a.y, a.z);
+            D.add(rope, lg);
+            D.add(steel, place(new THREE.CylinderGeometry(0.35, 0.45, 0.9, 10), bp, QUAY_TOP + 0.45, 0));
+          }
+          // prancha (passarela) do píer ao convés, com corrimãos
+          {
+            const pa: V2 = [c[0] + u[0] * 4 - v[0] * side * (s.width / 2 + gap - 3 + R), c[1] + u[1] * 4 - v[1] * side * (s.width / 2 + gap - 3 + R)];
+            const pb: V2 = [c[0] + u[0] * 4 - v[0] * side * 0.6, c[1] + u[1] * 4 - v[1] * side * 0.6];
+            const A = new THREE.Vector3(pa[0], QUAY_TOP + 0.1, -pa[1]);
+            const Bv = new THREE.Vector3(pb[0], yAxis + R + 0.1, -pb[1]);
+            const d = Bv.clone().sub(A);
+            const plank = new THREE.BoxGeometry(1.2, 0.12, d.length());
+            plank.lookAt(d);
+            plank.translate((A.x + Bv.x) / 2, (A.y + Bv.y) / 2, (A.z + Bv.z) / 2);
+            D.add(steel, plank);
+          }
+        }
+      }
       // trilhos de transferência para os galpões
       for (const off of [-6, 0, 6]) {
         const c: V2 = [s.root[0] - u[0] * 70 + v[0] * off, s.root[1] - u[1] * 70 + v[1] * off];
@@ -438,11 +559,30 @@ export class ShipyardModel {
    */
   place(origin: LatLon, pn: number, pe: number, cam: THREE.Vector3): number {
     const a = latLonToNed(origin, shipyardLocal().anchor);
+    this.anchorNed = a;
     this.group.position.set(a.e - pe, 0, -(a.n - pn));
     const dist = Math.hypot(cam.x - this.group.position.x, cam.z - this.group.position.z);
     this.group.visible = dist < 16000;
     this.detailGroup.visible = dist < 3500;
     return dist;
+  }
+
+  /**
+   * Submarinos atracados: sobem e descem com a água no local (mesmo campo de
+   * ondas da superfície desenhada) e caturram de leve pela diferença proa–popa.
+   */
+  float(waves: WaveField, t: number): void {
+    if (!this.group.visible) return;
+    const a = this.anchorNed;
+    for (const m of this.moored) {
+      const n = a.n + m.c[1];
+      const e = a.e + m.c[0];
+      const h = waves.elevation(n, e, t);
+      const hb = waves.elevation(n + m.u[1] * m.L * 0.4, e + m.u[0] * m.L * 0.4, t);
+      const hs = waves.elevation(n - m.u[1] * m.L * 0.4, e - m.u[0] * m.L * 0.4, t);
+      m.g.position.y = MOORED_AXIS + h * 0.85;
+      m.g.rotation.z = Math.atan2(hb - hs, m.L * 0.8) * 0.5;
+    }
   }
 
   label(labels: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }, dist: number): void {

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import { contactsLocal, NM, type Contact, type LatLon } from '../sim/geo';
 import type { Label3D } from './SubmarineScene';
+import { NavLights, shipNavLights } from './NavLights';
 
 export type ShipModel = 'graneleiro' | 'conteineiro' | 'pesqueiro' | 'rebocador' | 'patrulha';
 
@@ -178,6 +179,7 @@ interface ShipObj {
   model: ShipModel;
   group: THREE.Group;
   wake: THREE.Mesh;
+  nav: NavLights;
 }
 
 export interface NearestShip {
@@ -193,6 +195,9 @@ export class ShipsLayer {
   readonly group = new THREE.Group();
   private ships = new Map<string, ShipObj>();
   private wakeMat: THREE.MeshBasicMaterial;
+  /** luzes de navegação (à noite ou ligadas): câmera para os setores e relógio */
+  lights: { on: boolean; cam: THREE.Vector3; time: number } = { on: false, cam: new THREE.Vector3(), time: 0 };
+  private camLocal = new THREE.Vector3();
   /** navio visível mais próximo (para a câmera “Navio”) */
   nearest: NearestShip | null = null;
 
@@ -207,6 +212,7 @@ export class ShipsLayer {
     if (s && s.model !== modelFor(c)) {
       s.group.removeFromParent();
       s.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      s.nav.dispose();
       this.ships.delete(c.id);
       s = undefined;
     }
@@ -220,8 +226,10 @@ export class ShipsLayer {
       wake.renderOrder = 2;
       group.add(wake);
       group.userData.length = sp.L;
+      const nav = new NavLights(shipNavLights(sp.L, sp.B, sp.free), sp.L > 100 ? 0.016 : 0.013, sp.L > 100 ? 0.6 : 0.3);
+      group.add(nav.group);
       this.group.add(group);
-      s = { id: c.id, model, group, wake };
+      s = { id: c.id, model, group, wake, nav };
       this.ships.set(c.id, s);
     }
     return s;
@@ -265,6 +273,10 @@ export class ShipsLayer {
         s.group.rotation.z = 0.04 * Math.sin(tWave * 0.7 + c.n * 0.01);
       }
       s.wake.visible = c.speed > 0.3;
+      if (this.lights.on || s.nav.group.visible) {
+        s.group.updateMatrixWorld();
+        s.nav.update(this.lights.on, s.group.worldToLocal(this.camLocal.copy(this.lights.cam)), this.lights.time);
+      }
       s.wake.scale.set(1, Math.min(1.6, 0.4 + c.speed / 6), 1);
       const p = s.group.position.clone();
       if (!best || dist < best.dist) best = { id: c.id, name: c.name, pos: p, length: sp.L, dist };

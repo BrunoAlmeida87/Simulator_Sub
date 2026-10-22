@@ -43,7 +43,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 ## Instrumentação e controle
 - Sensores com ruído gaussiano, atraso de 1ª ordem e falhas típicas (congelado, deriva, zero, ruído). Sem modelos detalhados de giroscópio e INS.
 - O Doppler usa velocidade em relação à água, que é igual à velocidade sobre o fundo porque não há correntes.
-- Piloto automático PID com ganhos fixos escalonados por U². Não é um controlador de navio real.
+- Piloto automático PID com ganhos fixos escalonados por U². Não é um controlador de navio real. Não há filtro de ondas: na cota periscópica com mar, os lemes de ré acompanham o caturro de cada onda (ângulo pequeno, mas em movimento contínuo).
 
 ## Segurança
 - Limites, alarmes e respostas são **exclusivamente educacionais** e não correspondem a procedimentos ou valores de embarcação real.
@@ -89,3 +89,12 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Sonar passivo e MAGE são **modelos ilustrativos** (perdas esféricas, ruído próprio crescendo com a velocidade, zona cega a ré, emissores por tipo de navio); não há propagação acústica real, camadas de sombra nem classificação por assinatura.
 - O sistema de combate é fictício e não tem armamento.
 - A inclinação da sala (opção) gira a vista de quem anda em torno da cabeça, mantida na vertical; não há equilíbrio, deslizamento nem objetos soltos. Sentado num posto, a câmera é solidária ao navio; a atitude aparece nos instrumentos, na bolha e no pêndulo.
+
+## Rio de Janeiro, sol e luzes (só visual)
+
+- Rio de Janeiro: a batimetria real da Baía de Guanabara e da orla não é usada — o fundo segue a profundidade configurada com a faixa costeira genérica. Lagoas (Rodrigo de Freitas, Jacarepaguá) e ilhotas com menos de ~6 células de 50 m entram como terra ou somem da costa física. A Ponte Rio–Niterói e o Cristo Redentor são só visuais (sem colisão); o traçado da ponte segue a imagem de satélite.
+- A imagem de satélite é de uma única data (agosto/2024, 22–30 m por pixel): de perto a textura fica borrada, e prédios aparecem só como cor sobre o relevo (o modelo de 30 m é de superfície e inclui parte das edificações).
+- Sol: caminho do equinócio (declinação zero) na latitude de −23°, sem estações do ano; sem sombras projetadas. A lua é sempre cheia e oposta ao sol.
+- Luzes da cidade à noite: estimadas pela cor da imagem (áreas cinzentas = urbanas), não por dados reais de iluminação.
+- Luzes de navegação e faróis não interferem na física nem nos sensores; os faróis não espalham luz fora dos feixes desenhados.
+- Submarinos atracados no estaleiro: decorativos (sem colisão).

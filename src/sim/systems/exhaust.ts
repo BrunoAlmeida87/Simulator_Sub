@@ -59,14 +59,14 @@ export function snorkelIntake(v: VesselConfig, s: SimState): number {
 }
 
 /**
- * Saídas da descarga (corpo, m): logo atrás da vela, nos dois bordos, na
- * altura do eixo — abaixo da linha d'água também com o submarino na superfície.
+ * Saídas da descarga (corpo, m): logo atrás da vela, nos dois bordos, um pouco
+ * acima do eixo — abaixo da linha d'água também com o submarino na superfície.
  */
 export function disperserOutlets(v: VesselConfig, radiusAt: (x: number) => number): Vec3[] {
   const x = v.hull.sail.xAft - 1.2;
   const r = radiusAt(x);
-  const z = 0; // z para baixo: na altura do eixo
-  const y = r * 0.99;
+  const z = -0.3 * r; // z para baixo: um pouco acima do eixo, no costado
+  const y = Math.sqrt(r * r - z * z) * 0.99;
   return [
     { x, y: -y, z },
     { x, y, z },

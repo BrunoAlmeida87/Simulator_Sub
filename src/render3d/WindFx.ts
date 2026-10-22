@@ -1,21 +1,21 @@
 /**
  * VENTO APARENTE (só visual; o vento não entra na física).
  *
- * Vento real: soprando no sentido em que as ondas vão, com intensidade
- * típica do estado do mar (escala de Douglas simplificada). Vento aparente =
- * vento real − velocidade do submarino sobre o fundo: com o submarino
- * avançando, ele vem da proa. Mostrado por:
- *  - linhas finas de vento passando acima da água em volta da vela, no
- *    sentido do vento aparente (comprimento e velocidade ∝ intensidade);
- *  - flâmula num pau curto no topo da vela (só com a vela fora d'água),
- *    estendida para sotavento e tremulando mais com mais vento.
+ * Vento real: uma brisa leve no sentido em que as ondas vão, um pouco mais
+ * forte com o mar mais agitado. Vento aparente = vento real − velocidade do
+ * submarino sobre o fundo: com o submarino avançando ele passa a vir da proa,
+ * de encontro ao submarino (sensação de avanço). Mostrado por:
+ *  - poucas linhas finas e discretas passando acima da água perto da vela, no
+ *    sentido do vento aparente (camada "Vento");
+ *  - flâmula opcional num pau curto no topo da vela (camada "Flâmula", só com
+ *    a vela fora d'água), estendida para sotavento.
  */
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { Label3D } from './SubmarineScene';
 
-/** vento típico (m/s) por estado do mar 0…6 */
-export const WIND_BY_SEA_STATE = [1.0, 3.0, 5.0, 7.5, 10.5, 14.0, 18.0];
+/** brisa (m/s) por estado do mar 0…6 — fraca de propósito: o avanço do submarino domina o vento aparente */
+export const WIND_BY_SEA_STATE = [0.4, 0.8, 1.2, 1.6, 2.0, 2.5, 3.0];
 
 /** vento real (m/s), como vetor para onde o ar vai (n, e) */
 export function trueWind(e: SimulationEngine): { n: number; e: number; speed: number } {
@@ -42,12 +42,12 @@ export function apparentWind(e: SimulationEngine): { n: number; e: number; speed
   return { n, e: ee, speed, fromRel: rel };
 }
 
-const N = 130;
+const N = 36;
 /** comprimento da flâmula (m) */
 const FL = 2.6;
-const BOX = 60;
+const BOX = 38;
 /** largura das faixas de vento (m) */
-const WID = 0.16;
+const WID = 0.07;
 
 interface Streak {
   dn: number;
@@ -115,27 +115,27 @@ export class WindFx {
   private spawn(s: Streak, phase = 0): Streak {
     s.dn = (Math.random() * 2 - 1) * BOX;
     s.de = (Math.random() * 2 - 1) * BOX;
-    s.h = 0.8 + Math.random() * Math.random() * 20;
-    s.max = 1.4 + Math.random() * 1.8;
+    s.h = 0.8 + Math.random() * Math.random() * 7;
+    s.max = 1.2 + Math.random() * 1.4;
     s.life = phase * s.max;
     return s;
   }
 
   /**
    * dt: tempo de simulação; pn/pe: origem flutuante (posição do submarino);
-   * on: camada ligada; under: câmera debaixo d'água; sailOut: vela fora d'água
+   * on: camada Vento; under: câmera debaixo d'água; flag: flâmula visível (camada Flâmula e vela fora d'água)
    */
-  update(e: SimulationEngine, dt: number, dtWall: number, pn: number, pe: number, t: number, on: boolean, under: boolean, sailOut: boolean): void {
+  update(e: SimulationEngine, dt: number, dtWall: number, pn: number, pe: number, t: number, on: boolean, under: boolean, flag: boolean): void {
     const aw = apparentWind(e);
-    this.group.visible = on && !under && aw.speed > 0.6;
-    this.pennant.visible = on && sailOut;
+    this.group.visible = on && !under && aw.speed > 0.5;
+    this.pennant.visible = flag;
     this.wall += dtWall;
     const w = e.env.waves;
     if (this.group.visible) {
       const dn = aw.n / Math.max(1e-6, aw.speed);
       const de = aw.e / Math.max(1e-6, aw.speed);
-      const len = Math.min(10, 1.2 + aw.speed * 0.45);
-      const k = Math.min(1, (aw.speed - 0.6) / 8);
+      const len = Math.min(4.5, 0.9 + aw.speed * 0.35);
+      const k = Math.min(1, (aw.speed - 0.5) / 6);
       for (let i = 0; i < N; i++) {
         const s = this.streaks[i];
         s.life += dt;
@@ -167,7 +167,7 @@ export class WindFx {
         this.pos.setXYZ(b + 5, x0 - ax, y + WID, z0 - az);
         this.pos.setXYZ(b + 6, x0 + ax, y - WID, z0 + az);
         this.pos.setXYZ(b + 7, x0 + ax, y + WID, z0 + az);
-        const a = Math.sin((Math.PI * s.life) / s.max) * 0.5 * k;
+        const a = Math.sin((Math.PI * s.life) / s.max) * 0.3 * k;
         for (const q of [0, 1, 4, 5]) this.col.setXYZW(b + q, 1, 1, 1, 0);
         for (const q of [2, 3, 6, 7]) this.col.setXYZW(b + q, 1, 1, 1, a);
       }
