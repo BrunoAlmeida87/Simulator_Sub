@@ -46,6 +46,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Trimagem demonstrável | ✅ Peso deslocável de 5 t sobre trilho, compensação calculada pelos tanques de trim e camada própria de vetores de trim (binários e momento líquido) |
 | Central de operação | ✅ Pilotagem com a cena sempre visível, comandos essenciais fixos, 9 grupos de sistemas expansíveis com resumo, até 2 grupos fixados e controles abertos ao clicar em tanques, lemes, hélice, mastro, bateria, válvulas ou alarmes |
 | Duas janelas | ✅ "⧉ 2ª janela": a cena numa segunda janela/monitor, espelhando a mesma simulação (BroadcastChannel); cliques nela abrem os controles na janela principal |
+| Vários monitores | ✅ "＋ Tela": o simulador completo (todas as abas) em mais janelas — ex.: Pilotagem, cena 3D e Mapa tático em três monitores; os comandos dados em qualquer janela valem para a mesma simulação |
 | Mapa tático | ✅ Posição geográfica (Baía de Sepetiba, EBN da Ilha da Madeira, Itaguaí), derrota, vetor de velocidade, navegação estimada, contatos fictícios com CPA, rota por pontos de passagem com seguimento automático e medição; fundos gratuitos sem chave de API (OpenStreetMap, OpenTopoMap, Sentinel-2/EOX, OpenSeaMap) |
 | Fluxo de energia | ✅ Diagrama animado (largura ∝ potência): geradores → barramento → bateria/consumidores; carga e descarga com tempo estimado |
 | Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |

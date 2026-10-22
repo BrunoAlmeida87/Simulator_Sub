@@ -33,7 +33,7 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 
 A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre visível, com a faixa de indicadores embaixo: profundidade, velocidade vertical, velocidade, rumo, pitch, banda, bateria e flutuabilidade (ou reserva, na superfície). O painel lateral tem rolagem própria.
 
-- **Barra superior (fixa):** executar/pausar, passo, reiniciar, velocidade do tempo, seletor de **cenário** + Carregar, **⧉ 2ª janela** e alarmes. Clicar no alarme abre o sistema afetado na Pilotagem.
+- **Barra superior (fixa):** executar/pausar, passo, reiniciar, velocidade do tempo, seletor de **cenário** + Carregar, **⧉ 2ª janela**, **＋ Tela** e alarmes. Clicar no alarme abre o sistema afetado na Pilotagem.
 - **Comandos essenciais (sempre visíveis no topo do painel):** executar/pausar, telégrafo, lemes de vante, ré e direção, profundidade (MAN/AUTO + ordem) e manobras rápidas (Imergir para X m, Emergir, Manter).
 - **Grupos expansíveis**, com resumo no cabeçalho mesmo recolhidos:
   - *Navegação*: telégrafo com régua, lemes e pilotos de rumo, profundidade e inclinação.
@@ -191,6 +191,18 @@ O passadiço e o drone chegam à 2ª janela: com “Igual ao controle” ela seg
 - a narração dos roteiros automáticos e as manobras.
 
 Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. Em **Camadas (n) ▾** a segunda janela tem o mesmo painel agrupado das outras telas, com **Casco externo** dentro de **Tanques e sistemas**. Os ajustes valem só para ela; um • indica o que foi alterado ali, e "↺ Desfazer ajustes" volta ao conjunto escolhido (3D completo ou camadas do controle). Os navios adicionais, as referências de profundidade e a quantidade de peixes chegam a ela junto com as preferências gráficas.
+
+## Mais telas (três ou mais monitores)
+
+**＋ Tela** (barra superior) abre outra janela com o **simulador completo** — barra superior, todas as abas e todos os controles — espelhando a mesma simulação. Exemplo com três monitores: janela principal na Pilotagem no 1º, **⧉ 2ª janela** com a cena 3D no 2º e **＋ Tela** com o Mapa tático (ou Lastro, Fluxo de energia, Histórico…) no 3º. Cada clique em ＋ Tela abre mais uma (Tela 1, Tela 2…), útil com quatro ou mais monitores.
+
+- **Arraste a janela para o monitor** desejado e use **⛶ Tela cheia** (ou F11). A barra do navegador mostra “Tela N — aba”, para achar a janela certa.
+- **Escolha a aba livremente**: cada tela lembra a sua aba (a primeira abre no Mapa tático) sem mudar a da janela principal.
+- **Os comandos dados na tela valem para a simulação** e entram no histórico e na gravação: lemes, telégrafo, válvulas, bombas, piloto automático, executar/pausar, aceleração, passo, reiniciar, trocar cenário, carregar sessão, manobras rápidas, roteiros automáticos, demonstração, rota no mapa e checklist. Quem calcula é sempre a janela principal; a tela envia o pedido e mostra o resultado (atraso de ~30 ms).
+- Ao abrir, a tela recebe o estado atual, o histórico de gráficos e o registro de comandos e alarmes.
+- **Gravação e reprodução de comandos** e o modo de instrumentação avançada (Segurança) ficam só na janela principal.
+- O selo **“Tela N · espelhando o controle”** confirma a ligação. Sem a janela principal aberta, a tela mostra “aguardando a janela de controle” e não aceita comandos. No botão ＋ Tela da janela principal, ✓ indica que há tela ligada.
+- Mesmos requisitos da 2ª janela: mesmo navegador e mesmo endereço; mantenha a janela principal visível (não minimizada).
 
 Os botões de câmera *Vista tanques* e *Vista forças* (em todas as telas) mudam o enquadramento e já ligam, respectivamente, os tanques e os vetores. As opções de **Camadas** ligam e desligam o que é desenhado; a câmera e a visibilidade têm controles separados. Mantenha a janela principal visível (não minimizada): navegadores pausam a animação de janelas minimizadas, e com isso a simulação também pausa.
 
@@ -370,7 +382,7 @@ Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O p
 ## Celular
 
 A página se adapta à tela do celular, em pé ou deitado (telas de toque pequenas). No PC nada muda, em nenhum tamanho de janela.
-- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a navegação fica presa no topo numa linha só: o botão do **grupo ▾** (ex.: *Sistemas ▾*) seguido das telas desse grupo, que rolam para o lado. O ▾ abre o mapa de **todas as telas**, por grupo, com os atalhos e as marcas de alarme.
+- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, ＋ Tela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a navegação fica presa no topo numa linha só: o botão do **grupo ▾** (ex.: *Sistemas ▾*) seguido das telas desse grupo, que rolam para o lado. O ▾ abre o mapa de **todas as telas**, por grupo, com os atalhos e as marcas de alarme.
 - **Cenas 3D**: os controles de vista, camadas, mar, gráfico e luz ficam no botão **⚙ Vista**, para não cobrir a cena. Com o celular deitado, a cena ocupa a altura da tela (sobra uma faixa para rolar a página).
 - **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
 - Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.
@@ -378,7 +390,7 @@ A página se adapta à tela do celular, em pé ou deitado (telas de toque pequen
 
 ## Aplicativo Windows
 
-Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVEL-WINDOWS.md). O aplicativo inclui a simulação local e mantém os comandos descritos neste guia. O botão **2ª janela** abre uma visualização para outro monitor; ao fechar a janela principal, a visualização também é fechada. Os fundos do mapa precisam de internet.
+Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVEL-WINDOWS.md). O aplicativo inclui a simulação local e mantém os comandos descritos neste guia. O botão **2ª janela** abre uma visualização para outro monitor e **＋ Tela** abre o simulador completo em mais uma janela (ex.: 3º monitor); ao fechar a janela principal, as outras também são fechadas. Os fundos do mapa precisam de internet.
 
 ## Reserva de ar e sopro de emergência
 
