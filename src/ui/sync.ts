@@ -14,7 +14,8 @@ import type { SimRunner } from '../sim/core/runner';
 import { deserializeEngine, serializeEngine, type SaveFile } from '../sim/persistence';
 import type { SimState } from '../sim/core/state';
 import type { SceneLayers } from '../render3d/layers';
-import type { ViewMode } from '../render3d/SubmarineScene';
+import type { BridgeSight, ViewMode } from '../render3d/SubmarineScene';
+import type { DronePose } from '../render3d/drone';
 import type { PickTarget } from './ops/opsBus';
 import { tours } from './tours';
 import { maneuver, MANEUVER_STEPS } from './maneuvers';
@@ -50,6 +51,10 @@ type Msg =
       timeScale: number;
       layers: SceneLayers | null;
       view: ViewMode | null;
+      /** visada do passadiço (só com a vista 'passadico') */
+      bridge?: BridgeSight | null;
+      /** pose do drone (só com a vista 'drone') */
+      drone?: DronePose | null;
       overlay: OverlayData;
       sent: number;
       /** identificação (sem a imagem do emblema) e preferências gráficas da janela de controle */
@@ -73,7 +78,7 @@ type Msg =
   | { type: 'bye' };
 
 /** última configuração visual da cena ativa na janela de controle (escrita pelo Scene3D) */
-export const visualOut: { layers: SceneLayers | null; view: ViewMode | null } = { layers: null, view: null };
+export const visualOut: { layers: SceneLayers | null; view: ViewMode | null; bridge: BridgeSight | null; drone: DronePose | null } = { layers: null, view: null, bridge: null, drone: null };
 
 export const isVisualWindow = typeof location !== 'undefined' && /(^|[#&?])visual\b/.test(location.hash + location.search);
 
@@ -250,6 +255,8 @@ export class SyncMaster {
       timeScale: this.runner.timeScale,
       layers: visualOut.layers,
       view: visualOut.view,
+      bridge: visualOut.bridge,
+      drone: visualOut.drone ? { ...visualOut.drone } : null,
       overlay: this.overlay(),
       sent: now,
       full,
@@ -273,6 +280,10 @@ export class SyncViewer {
   private lastAsk = 0;
   layers: SceneLayers | null = null;
   view: ViewMode | null = null;
+  /** visada do passadiço da janela de controle (vista 'passadico') */
+  bridge: BridgeSight | null = null;
+  /** pose do drone da janela de controle (vista 'drone') */
+  drone: DronePose | null = null;
   overlay: OverlayData = { tour: null, maneuver: null, alarm: null };
   private listeners = new Set<() => void>();
   /** troca de motor local (o replaceEngine do executor é remoto na janela de tela) */
@@ -411,6 +422,8 @@ export class SyncViewer {
       r.alphaOverride = 0;
       this.layers = m.layers;
       this.view = m.view;
+      this.bridge = m.bridge ?? null;
+      this.drone = m.drone ?? null;
       this.overlay = m.overlay;
       if (m.vis) {
         identity.set(m.vis.identity, false);

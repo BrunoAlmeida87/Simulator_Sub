@@ -685,6 +685,7 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .room-pip-opts { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: rgba(10, 22, 34, 0.9); border-bottom: 1px solid var(--line2); }
 .room-peri { position: absolute; inset: 0; z-index: 10; background: #000; cursor: grab; touch-action: none; }
 .room-peri .view3d { height: 100%; min-height: 0; border: 0; border-radius: 0; }
+.room-peri .bridge-bar { bottom: 10px; }
 .room-peri-dark { position: absolute; inset: 0; background: #000; pointer-events: none; }
 .room-reticle { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .room-peri-bar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; background: rgba(0, 0, 0, 0.66); padding: 8px 12px; border-radius: 8px; max-width: 96%; cursor: default; }
@@ -693,14 +694,81 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .room-peri-off { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 6px; color: #ffcf6b; background: rgba(0, 0, 0, 0.8); padding: 14px 22px; border-radius: 8px; text-align: center; }
 .room-peri-tape { position: absolute; left: 0; top: 0; pointer-events: none; }
 .room-peri-ids { position: absolute; inset: 0; pointer-events: none; }
-.room-peri-wash { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(170deg, rgba(40, 90, 110, 0.85) 0 18px, rgba(140, 190, 205, 0.55) 18px 30px, rgba(30, 70, 90, 0.8) 30px 52px); background-size: 100% 200%; animation: peri-wash 1.6s linear infinite; }
-@keyframes peri-wash { from { background-position: 0 0; } to { background-position: 0 104px; } }
+.room-peri-wash { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(172deg, rgba(40, 90, 110, 0) 0, rgba(150, 200, 215, 0.42) 26px, rgba(40, 90, 110, 0) 52px, rgba(30, 70, 90, 0.32) 80px, rgba(40, 90, 110, 0) 110px); background-size: 100% 220px; animation: peri-wash 1.4s linear infinite; }
+@keyframes peri-wash { from { background-position: 0 0; } to { background-position: 0 220px; } }
 .room-peri-status { position: absolute; left: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: #ffcf6b; pointer-events: none; max-width: 46%; text-shadow: 0 1px 2px #000; }
 .room-peri-status .warn { color: #ffb020; font-weight: 600; }
 .room-peri-status .bad { color: #ff5a4a; font-weight: 700; }
 .room-peri-msg { color: #dfffe9; font-size: 13px; text-align: center; max-width: 760px; }
 .room-peri-marks { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: center; color: #ff9f43; font-size: 13px; }
 .room-peri-keys { font-size: 12px; text-align: center; }
+.room-peri-img { position: absolute; inset: 0; will-change: transform; }
+.room-peri-wash { transition: opacity 0.15s; }
+.room-peri-veil { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s; background: linear-gradient(180deg, rgba(190, 235, 240, 0.55), rgba(60, 130, 150, 0.25) 35%, rgba(10, 50, 70, 0.35) 100%); }
+.peri-bubble { position: absolute; border-radius: 50%; border: 1px solid rgba(235, 252, 255, 0.75); background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.85) 0 18%, rgba(200, 240, 255, 0.15) 45%, rgba(255, 255, 255, 0) 70%); animation: peri-bubble 1s ease-in forwards; }
+@keyframes peri-bubble { from { opacity: 0.9; transform: translate(0, 0); } to { opacity: 0; transform: translate(6px, -140px); } }
+.room-peri-sheet { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(180deg, rgba(150, 205, 220, 0) 0%, rgba(150, 205, 220, 0.5) 38%, rgba(70, 130, 150, 0.6) 52%, rgba(150, 205, 220, 0.3) 66%, rgba(150, 205, 220, 0) 100%); background-size: 100% 230%; }
+.room-peri-sheet.run { animation: peri-sheet 0.9s ease-in forwards; }
+@keyframes peri-sheet { from { opacity: 1; background-position: 0 100%; } to { opacity: 0.15; background-position: 0 0; } }
+.room-peri-drops { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.peri-drop { position: absolute; border-radius: 50% 50% 48% 48% / 56% 56% 44% 44%; background: radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.8) 0 7%, rgba(255, 255, 255, 0.14) 20%, rgba(30, 50, 60, 0.16) 58%, rgba(0, 0, 0, 0.38) 76%, rgba(0, 0, 0, 0) 82%); -webkit-backdrop-filter: blur(2.5px) brightness(1.12); backdrop-filter: blur(2.5px) brightness(1.12); animation: peri-drop 4s linear forwards; }
+@keyframes peri-drop { 0% { opacity: 0.95; transform: translateY(0); } 70% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(24px) scale(0.85); } }
+.room-peri-grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.07; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: peri-grain 0.36s steps(3) infinite; }
+@keyframes peri-grain { 0% { background-position: 0 0; } 33% { background-position: -61px 37px; } 66% { background-position: 47px -83px; } 100% { background-position: -29px 71px; } }
+.room-peri-optic { position: absolute; border-radius: 50%; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), inset 0 0 5px 2px rgba(255, 70, 40, 0.38), inset 0 0 13px 6px rgba(40, 130, 255, 0.2), inset 0 0 70px 26px rgba(0, 0, 0, 0.6); }
+.room-reticle .ret { stroke: #0b0b0b; }
+.room-reticle .ret-num { fill: #0b0b0b; font: 600 4.2px monospace; }
+.room-reticle:not(.lit) .ret-ink { filter: drop-shadow(0 0 0.5px rgba(255, 255, 255, 0.55)); }
+.room-reticle.lit .ret { stroke: #ff4b36; }
+.room-reticle.lit .ret-num { fill: #ff6a50; }
+.room-reticle.lit .ret-ink { filter: drop-shadow(0 0 0.8px rgba(255, 75, 54, 0.9)); }
+.room-reticle .ret-dot { fill: #ff4b36; }
+.peri-win .peri-win-bg { fill: rgba(12, 8, 2, 0.78); stroke: rgba(255, 190, 90, 0.55); stroke-width: 0.4; }
+.peri-win line { stroke: #ffc35a; stroke-width: 0.35; }
+.peri-win text { fill: #ffc35a; font: 700 3.4px monospace; }
+.peri-win .peri-win-idx { fill: #ff8a3a; }
+.peri-win .peri-win-lbl { font-size: 3px; fill: rgba(255, 195, 90, 0.85); }
+.peri-win .peri-win-big { font-size: 5px; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.35px; }
+.peri-stad line { stroke: #ffd24a; stroke-width: 2; }
+.peri-stad text { fill: #ffd24a; font: 700 13px monospace; paint-order: stroke; stroke: rgba(0, 0, 0, 0.75); stroke-width: 3px; }
+.room-peri-gauge { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.bridge-hud, .drone-hud { position: absolute; inset: 0; pointer-events: none; }
+.bridge-drag, .drone-drag { position: absolute; inset: 0; pointer-events: auto; cursor: grab; touch-action: none; }
+.bridge-drag:active, .drone-drag:active { cursor: grabbing; }
+.bridge-drag.ro, .drone-drag.ro { cursor: default; }
+.bridge-ids, .bridge-mask, .bridge-ret { position: absolute; left: 0; top: 0; pointer-events: none; }
+.bridge-tape { display: block; max-width: 100%; border-radius: 4px; }
+.bridge-mask { animation: bridge-raise 0.2s ease-out; }
+@keyframes bridge-raise { from { opacity: 0; } to { opacity: 1; } }
+.bridge-ret-num { fill: #0a0a0a; font: 600 11px monospace; paint-order: stroke; stroke: rgba(255, 255, 255, 0.5); stroke-width: 2.5px; }
+.bridge-ret-unit { fill: #0a0a0a; font: 700 12px monospace; paint-order: stroke; stroke: rgba(255, 255, 255, 0.55); stroke-width: 2.5px; }
+.bridge-card-num { fill: #c9ffd9; font: 700 12px monospace; }
+.bridge-card-num.card { fill: #ffcf6b; }
+.bridge-card-read { fill: #ffcf6b; font: 700 16px monospace; paint-order: stroke; stroke: rgba(0, 0, 0, 0.65); stroke-width: 3px; }
+.bridge-bar { position: absolute; left: 8px; bottom: 40px; display: flex; flex-direction: column; gap: 5px; align-items: flex-start; background: rgba(0, 0, 0, 0.6); padding: 6px 10px; border-radius: 8px; max-width: 96%; pointer-events: auto; }
+.bridge-read { display: flex; flex-wrap: wrap; gap: 3px 14px; justify-content: flex-start; color: #ffcf6b; font-size: 13px; text-shadow: 0 1px 2px #000; }
+.bridge-read b { font-size: 16px; }
+.bridge-btns { gap: 4px; flex-wrap: wrap; justify-content: flex-start; }
+.bridge-keys { font-size: 11px; }
+.bridge-flooded { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(2, 10, 18, 0.9); color: #ffcf6b; text-align: center; padding: 16px; pointer-events: none; }
+.bridge-flooded b { font-size: 20px; }
+.bridge-flooded span { max-width: 520px; color: #cfe0ee; font-size: 14px; }
+.bridge-hud.compact .bridge-bar { left: 4px; bottom: 4px; padding: 3px 6px; gap: 3px; }
+.bridge-hud.compact .bridge-read { font-size: 11px; }
+.bridge-hud.compact .bridge-read b { font-size: 12px; }
+.bridge-hud.compact .bridge-btns .seg button { padding: 1px 6px; font-size: 11px; }
+.bridge-hud.compact .bridge-flooded b { font-size: 13px; }
+.drone-box { position: absolute; left: 8px; bottom: 40px; max-width: min(560px, calc(100% - 16px)); display: flex; flex-direction: column; gap: 4px; background: rgba(5, 12, 20, 0.72); border: 1px solid var(--line2); border-radius: 6px; padding: 6px 9px; pointer-events: auto; font-size: 12px; }
+.drone-title { color: var(--accent); font-size: 13px; }
+.drone-read { color: #ffcf6b; }
+.drone-keys { font-size: 11px; }
+.drone-btns { gap: 4px; flex-wrap: wrap; }
+.drone-pad { position: absolute; right: 8px; bottom: 40px; display: grid; grid-template-columns: repeat(3, 48px); gap: 5px; pointer-events: auto; }
+.drone-pad .btn { height: 48px; font-size: 18px; padding: 0; background: rgba(10, 22, 34, 0.78); touch-action: none; }
+.drone-hud.compact .drone-box { left: 4px; bottom: 4px; padding: 2px 6px; font-size: 11px; max-width: calc(100% - 120px); }
+.drone-hud.compact .drone-btns .btn { padding: 1px 5px; font-size: 11px; }
+.drone-hud.compact .drone-pad { grid-template-columns: repeat(3, 30px); gap: 3px; right: 4px; bottom: 4px; }
+.drone-hud.compact .drone-pad .btn { height: 30px; font-size: 13px; }
 .room-side { max-height: calc(100vh - var(--topbar-h, 52px) - var(--nav-h, 34px) - 30px); overflow: auto; position: sticky; top: calc(var(--topbar-h, 52px) + var(--nav-h, 34px) + 10px); }
 .room-info { margin: 0 0 8px; }
 .room-err, .room-loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--muted); }
@@ -722,6 +790,14 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .room-pip.size-G { width: calc(100% - 12px); }
   .room-pip-title { display: none; }
   .room-peri-keys { display: none; }
+  .room-peri-gauge { transform: translateY(-50%) scale(0.72); transform-origin: right center; }
+  .bridge-keys, .drone-keys { display: none; }
+  .bridge-bar { left: auto; right: 8px; bottom: 8px; align-items: flex-end; max-width: calc(100% - 96px); padding: 4px 6px; }
+  .bridge-read { justify-content: flex-end; font-size: 11px; gap: 2px 8px; }
+  .bridge-read b { font-size: 13px; }
+  .bridge-btns { justify-content: flex-end; }
+  .drone-box { left: auto; right: 8px; top: 48px; bottom: auto; max-width: calc(100% - 110px); font-size: 11px; padding: 4px 7px; }
+  .drone-pad { bottom: 8px; }
   .room-peri-status { font-size: 12px; max-width: 70%; }
 }
 .layergroups { display: flex; flex-direction: column; gap: 8px; }
