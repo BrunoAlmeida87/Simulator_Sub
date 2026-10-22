@@ -11,7 +11,7 @@ import { usePersisted } from '../persist';
 import { cmd, runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
-import { SeaControls } from '../components/SeaControls';
+import { seaSections } from '../components/SeaControls';
 import { DepthTape } from '../components/gauges';
 import { NumSet, TELEGRAPH } from '../components/Controls';
 import type { ViewMode } from '../../render3d/SubmarineScene';
@@ -24,13 +24,47 @@ import { OpsStrip } from '../ops/OpsStrip';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { viewSection, type ViewOption } from '../components/OverlayMenu';
 import type { LayerKey } from '../components/LayerPanel';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 
 /** preferências adicionais da Pilotagem (preserva as chaves já salvas) */
 const PILOT_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, trail: true, wind: true, presLight: false, hullOpacity: 0.16, resultantGain: 'auto' as const };
-const PILOT_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'pennant', 'trail', 'markers', 'trimRef', 'ships', 'noWater', 'presLight'];
+const PILOT_LAYER_KEYS: LayerKey[] = [
+  'vectors',
+  'hydroVectors',
+  'trimVectors',
+  'tanks',
+  'pipes',
+  'flows',
+  'labels',
+  'batteryInfo',
+  'airInfo',
+  'wake',
+  'wind',
+  'pennant',
+  'trail',
+  'markers',
+  'trimRef',
+  'ships',
+  'noWater',
+  'presLight',
+];
+
+/** vistas da Pilotagem (os enquadramentos de apresentação já ligam o que mostram) */
+const PILOT_VIEWS: ViewOption[] = [
+  { id: 'piloto', label: 'Lateral' },
+  { id: 'perseguicao', label: 'Perseguição' },
+  { id: 'perspectiva', label: 'Perspectiva', tip: 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa' },
+  { id: 'tanques', label: 'Vista tanques', tip: 'Câmera de perto no corte (liga os tanques)' },
+  { id: 'forcas', label: 'Vista forças', tip: 'Câmera lateral para os vetores (liga peso/empuxo)' },
+  { id: 'calado', label: 'Calado' },
+  { id: 'fixa', label: 'Fixa' },
+  { id: 'passadico', label: 'Passadiço', tip: 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50' },
+  { id: 'drone', label: 'Drone', tip: 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade' },
+  { id: 'livre', label: 'Livre' },
+];
 
 export function useOps() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -200,10 +234,22 @@ export function PilotScreen() {
   const [trimRef, setTrimRef] = usePersisted('pilot.trimRef', false);
   const [ships, setShips] = usePersisted('pilot.ships', true);
   // demais camadas (antes fixas: identificações, tubulações, escoamentos e o rótulo da bateria)
-  const [layOpen, setLayOpen] = usePersisted('pilot.layersOpen', false);
   const [laySaved, setLay] = usePersisted<Partial<SceneLayers>>('pilot.layers', {});
   const lay = { ...PILOT_LAYER_DEFAULTS, ...laySaved };
-  const layerValue: SceneLayers = { ...defaultLayers(), ...lay, tankFilter: tankF, vectors: vec, hydroVectors: hydro, trimVectors: trimV, hiddenVectors: hiddenV, tanks: cut, noWater: dry, markers: marks, trimRef, ships };
+  const layerValue: SceneLayers = {
+    ...defaultLayers(),
+    ...lay,
+    tankFilter: tankF,
+    vectors: vec,
+    hydroVectors: hydro,
+    trimVectors: trimV,
+    hiddenVectors: hiddenV,
+    tanks: cut,
+    noWater: dry,
+    markers: marks,
+    trimRef,
+    ships,
+  };
   const setLayers = (p: Partial<SceneLayers>) => {
     setVecLayers(p);
     if (p.tankFilter !== undefined) setTankF(p.tankFilter);
@@ -248,60 +294,26 @@ export function PilotScreen() {
               </span>
               <span className="subtle">Clique num tanque, leme, hélice, mastro, bateria ou válvula para abrir os controles.</span>
             </div>
-            <OverlayCtl>
-              <SeaControls quality={quality} setQuality={setQuality} />
-              <div className="seg">
-                {(
-                  [
-                    ['piloto', 'Lateral'],
-                    ['perseguicao', 'Perseguição'],
-                    ['perspectiva', 'Perspectiva'],
-                    ['tanques', 'Vista tanques'],
-                    ['forcas', 'Vista forças'],
-                    ['calado', 'Calado'],
-                    ['fixa', 'Fixa'],
-                    ['passadico', 'Passadiço'],
-                    ['drone', 'Drone'],
-                    ['livre', 'Livre'],
-                  ] as [ViewMode, string][]
-                ).map(([v, l]) => (
-                  <button
-                    key={v}
-                    className={view === v ? 'on' : ''}
-                    onClick={() => {
-                      setView(v);
-                      // os enquadramentos de apresentação já ligam o que mostram
-                      if (v === 'tanques') setCut(true);
-                      if (v === 'forcas') setVec(true);
-                      if (v === 'calado') setTrimRef(true);
-                    }}
-                    title={
-                      v === 'tanques'
-                        ? 'Câmera de perto no corte (liga os tanques)'
-                        : v === 'forcas'
-                          ? 'Câmera lateral para os vetores (liga peso/empuxo)'
-                          : v === 'perspectiva'
-                            ? 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa'
-                            : v === 'drone'
-                              ? 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade'
-                              : v === 'passadico'
-                                ? 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50'
-                                : undefined
-                    }
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-              <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} aria-expanded={layOpen} title="Tanques, vetores, identificações e ambiente">
-                Camadas ({PILOT_LAYER_KEYS.filter((k) => !!layerValue[k]).length}) {layOpen ? '▴' : '▾'}
-              </button>
-              {layOpen && (
-                <div className="tanksel-pop scene-layer-pop">
-                  <SceneLayerPanel e={e} keys={PILOT_LAYER_KEYS} value={layerValue} onChange={setLayers} />
-                </div>
-              )}
-            </OverlayCtl>
+            <OverlayCtl
+              persistKey="pilot"
+              sections={[
+                viewSection(PILOT_VIEWS, view, (v) => {
+                  setView(v);
+                  // os enquadramentos de apresentação já ligam o que mostram
+                  if (v === 'tanques') setCut(true);
+                  if (v === 'forcas') setVec(true);
+                  if (v === 'calado') setTrimRef(true);
+                }),
+                {
+                  id: 'camadas',
+                  label: <>Camadas ({PILOT_LAYER_KEYS.filter((k) => !!layerValue[k]).length})</>,
+                  title: 'Tanques, vetores, identificações e ambiente',
+                  className: 'scene-layer-pop',
+                  content: <SceneLayerPanel e={e} keys={PILOT_LAYER_KEYS} value={layerValue} onChange={setLayers} />,
+                },
+                ...seaSections(quality, setQuality),
+              ]}
+            />
             <div className="pres-bottom">
               <ManeuverStatus compact />
             </div>

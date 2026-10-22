@@ -8,7 +8,7 @@ import { useEffect, useReducer, useState } from 'react';
 import { cmd, runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
-import { SeaControls } from '../components/SeaControls';
+import { seaSections } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
@@ -224,9 +224,7 @@ export function PresentationScreen() {
               <ForceHud e={e} gain={gainTxt} />
             </div>
           )}
-          <OverlayCtl>
-            <SeaControls quality={quality} setQuality={setQuality} />
-          </OverlayCtl>
+          <OverlayCtl persistKey="pres" sections={seaSections(quality, setQuality)} />
           <div className="pres-bottom only-wide">{tours.active || tours.finished ? <TourCard /> : <ManeuverStatus />}</div>
         </Scene3D>
         <div className="only-narrow pres-under">
@@ -296,7 +294,7 @@ export function PresentationScreen() {
           </div>
         </Panel>
 
-        <Panel title="Enquadramento">
+        <Panel title="Enquadramento" fold="pres.frames" tag={<span className="subtle panel-val">{FRAMES.find(([v]) => v === p.view)?.[1] ?? ''}</span>}>
           <div className="btngroup">
             {FRAMES.map(([v, l, tip]) => (
               <button key={v} className={`btn sm ${p.view === v ? 'on' : ''}`} onClick={() => pres.setView(v, true)} title={tip}>
@@ -306,7 +304,7 @@ export function PresentationScreen() {
           </div>
         </Panel>
 
-        <Panel title="Camadas">
+        <Panel title="Camadas" fold="pres.layers" foldOpen={false} tag={<span className="subtle panel-val">{LAYER_LIST.filter((k) => !!L[k]).length} ligadas</span>}>
           <SceneLayerPanel e={e} keys={LAYER_LIST} value={L} onChange={(p) => pres.setLayers(p)} hullControl />
           <div className="note mt8">Clique num tanque na lista ou no corte para destacá-lo. Cada grupo reúne a visibilidade e os ajustes dos seus itens.</div>
         </Panel>

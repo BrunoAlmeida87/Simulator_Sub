@@ -4,19 +4,39 @@ import { useSim } from '../store';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
-import { SeaControls } from '../components/SeaControls';
+import { seaSections } from '../components/SeaControls';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
+import { viewSection, type ViewOption } from '../components/OverlayMenu';
 import type { LayerKey } from '../components/LayerPanel';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 
 /** preferências adicionais desta tela (preserva as chaves já salvas) */
 const V3D_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, wind: true, presLight: false, hullOpacity: 0.16, resultantGain: 'auto' as const };
-const V3D_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'pennant', 'trail', 'markers', 'trimRef', 'ships', 'noWater', 'presLight'];
+const V3D_LAYER_KEYS: LayerKey[] = [
+  'vectors',
+  'hydroVectors',
+  'trimVectors',
+  'tanks',
+  'pipes',
+  'flows',
+  'labels',
+  'batteryInfo',
+  'airInfo',
+  'wake',
+  'wind',
+  'pennant',
+  'trail',
+  'markers',
+  'trimRef',
+  'ships',
+  'noWater',
+  'presLight',
+];
 
-const VIEWS: { id: ViewMode; label: string; tip?: string }[] = [
+const VIEWS: ViewOption[] = [
   { id: 'piloto', label: 'Lateral' },
   { id: 'perseguicao', label: 'Perseguição' },
   { id: 'perspectiva', label: 'Perspectiva', tip: 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa' },
@@ -59,10 +79,23 @@ export function View3DScreen() {
   const [trimRef, setTrimRef] = usePersisted('v3d.trimRef', false);
   const [ships, setShips] = usePersisted('v3d.ships', true);
   // demais camadas (antes fixas: identificações, tubulações, escoamentos e o rótulo da bateria)
-  const [layOpen, setLayOpen] = usePersisted('v3d.layersOpen', false);
   const [laySaved, setLay] = usePersisted<Partial<SceneLayers>>('v3d.layers', {});
   const lay = { ...V3D_LAYER_DEFAULTS, ...laySaved };
-  const layerValue: SceneLayers = { ...defaultLayers(), ...lay, tankFilter: tankF, vectors: vec, hydroVectors: hydro, trimVectors: trimV, hiddenVectors: hiddenV, tanks: cut, noWater: dry, markers: marks, trimRef, ships, trail };
+  const layerValue: SceneLayers = {
+    ...defaultLayers(),
+    ...lay,
+    tankFilter: tankF,
+    vectors: vec,
+    hydroVectors: hydro,
+    trimVectors: trimV,
+    hiddenVectors: hiddenV,
+    tanks: cut,
+    noWater: dry,
+    markers: marks,
+    trimRef,
+    ships,
+    trail,
+  };
   const setLayers = (p: Partial<SceneLayers>) => {
     setVecLayers(p);
     if (p.tankFilter !== undefined) setTankF(p.tankFilter);
@@ -79,15 +112,7 @@ export function View3DScreen() {
   const o = e.outputs;
   const s = e.state;
   return (
-    <Scene3D
-      quality={quality}
-      view={view}
-      cutaway={cut}
-      trail={trail}
-      fog={fog}
-      persistKey="v3d"
-      layers={layerValue}
-    >
+    <Scene3D quality={quality} view={view} cutaway={cut} trail={trail} fog={fog} persistKey="v3d" layers={layerValue}>
       <div className="hud tl">
         <div className="line">
           PROF {fmt(o.depthKeel, 1)} m · ALT {fmt(o.altitude, 0)} m
@@ -103,35 +128,26 @@ export function View3DScreen() {
         </div>
         <div className="line">TLP {((Object.values(s.ballast).reduce((a, b) => a + b.water, 0) / e.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0)) * 100).toFixed(0)} % cheios</div>
       </div>
-      <OverlayCtl>
-        <SeaControls quality={quality} setQuality={setQuality} />
-        <div className="seg">
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              className={view === v.id ? 'on' : ''}
-              title={v.tip}
-              onClick={() => {
-                setView(v.id);
-                if (v.id === 'tanques') setCut(true);
-                if (v.id === 'forcas') setVec(true);
-                if (v.id === 'calado') setTrimRef(true);
-                if (v.id === 'navio') setShips(true);
-              }}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-        <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} aria-expanded={layOpen} title="Tanques, vetores, identificações e ambiente">
-          Camadas ({V3D_LAYER_KEYS.filter((k) => !!layerValue[k]).length}) {layOpen ? '▴' : '▾'}
-        </button>
-        {layOpen && (
-          <div className="tanksel-pop scene-layer-pop">
-            <SceneLayerPanel e={e} keys={V3D_LAYER_KEYS} value={layerValue} onChange={setLayers} fog={fog} onFogChange={setFog} />
-          </div>
-        )}
-      </OverlayCtl>
+      <OverlayCtl
+        persistKey="v3d"
+        sections={[
+          viewSection(VIEWS, view, (v) => {
+            setView(v);
+            if (v === 'tanques') setCut(true);
+            if (v === 'forcas') setVec(true);
+            if (v === 'calado') setTrimRef(true);
+            if (v === 'navio') setShips(true);
+          }),
+          {
+            id: 'camadas',
+            label: <>Camadas ({V3D_LAYER_KEYS.filter((k) => !!layerValue[k]).length})</>,
+            title: 'Tanques, vetores, identificações e ambiente',
+            className: 'scene-layer-pop',
+            content: <SceneLayerPanel e={e} keys={V3D_LAYER_KEYS} value={layerValue} onChange={setLayers} fog={fog} onFogChange={setFog} />,
+          },
+          ...seaSections(quality, setQuality),
+        ]}
+      />
       <div className="hud" style={{ bottom: 8, left: 10, color: '#8399b1', fontSize: 11 }}>
         Arraste para girar · roda/pinça para aproximar · botão direito/dois dedos para deslocar. As ondas do 3D são as mesmas da física (estado do mar no seletor).
       </div>
