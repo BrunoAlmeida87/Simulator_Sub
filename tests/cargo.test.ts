@@ -3,6 +3,7 @@ import { buildScenario } from '../src/sim/scenarios';
 import { applyCommand } from '../src/sim/commands';
 import type { CargoLoad } from '../src/sim/core/state';
 import { serializeEngine, deserializeEngine } from '../src/sim/persistence';
+import { compensationBranches, tankCapacityMass } from '../src/sim/systems/internalTanks';
 
 const cargo = (x = 20): CargoLoad => ({ id: 'test', name: 'Carga de ensaio', category: 'carga', quantity: 2, unitMass: 500, position: { x, y: 0, z: 1 } });
 describe('Cargas e resposta hidrostática', () => {
@@ -114,5 +115,32 @@ describe('Painel de cargas: nomes, modelos e posição', () => {
     expect(compartmentOf(e, 17)).toBe('Compartimento de vante');
     expect(compartmentOf(e, 30)).toMatch(/^Proa/);
     expect(compartmentOf(e, -25)).toMatch(/^Popa/);
+  });
+});
+
+describe('Compensação automática das cargas', () => {
+  it('limita o pedido ao que os tanques permitem e a sequência termina', async () => {
+    const { compensationCommand, compensationRoom } = await import('../src/ui/components/cargoUi');
+    for (const dm of [200000, -200000]) {
+      const e = buildScenario('pairando');
+      // tanques perto do limite (vazios para esgotar, cheios para admitir): o pedido de 200 t excede o possível
+      for (const b of compensationBranches(e.vessel.compensation, e.state.compensation, e.vessel.heel, e.state.heel))
+        b.st.mass = dm > 0 ? Math.min(b.st.mass, 400) : Math.max(b.st.mass, tankCapacityMass(b.cfg) - 400);
+      e.computeOutputs();
+      const room = compensationRoom(e);
+      const c = compensationCommand(e, dm)!;
+      expect(c.type).toBe('dosing');
+      if (c.type !== 'dosing') return;
+      expect(c.mode).toBe(dm > 0 ? 'esgotar' : 'admitir');
+      expect(c.kg).toBeLessThan(dm > 0 ? room.water : room.free);
+      applyCommand(e, c);
+      for (let t = 0; t < 600 && e.state.compensation.dosing?.active; t += 5) e.advanceSim(5);
+      expect(e.state.compensation.dosing?.active).toBe(false);
+      expect(e.state.compensation.pump.cmd).toBe(false);
+    }
+  });
+  it('pequenas diferenças não acionam a sequência', async () => {
+    const { compensationCommand } = await import('../src/ui/components/cargoUi');
+    expect(compensationCommand(buildScenario('pairando'), 5)).toBeNull();
   });
 });

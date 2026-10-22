@@ -8,7 +8,6 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import type { CargoLoad } from '../../sim/core/state';
 import type { Vec3 } from '../../sim/core/math';
 import { qToMat3, qFromEuler, DEG, RAD } from '../../sim/core/math';
-import { compensationWater } from '../../sim/systems/internalTanks';
 import { cmd } from '../store';
 import { fmt, fmtMass } from '../format';
 import { usePersisted } from '../persist';
@@ -20,6 +19,9 @@ import {
   CATEGORY_BASE,
   SvgTip,
   cargoMass,
+  compensationCommand,
+  compensationRoom,
+  usableComp,
   cargoTipLines,
   clampInHull,
   compartmentOf,
@@ -50,16 +52,10 @@ function cargoEffect(e: SimulationEngine, next: CargoLoad, old?: CargoLoad) {
   };
 }
 
-/** Sequência automática da compensação para anular dm (kg a mais a bordo ⇒ esgotar). Soma com uma sequência em curso. */
+/** Aciona a compensação para anular dm (kg a mais a bordo ⇒ esgotar), dentro do que os tanques permitem. */
 function compensate(e: SimulationEngine, dm: number) {
-  const d = e.state.compensation.dosing;
-  const pending = d?.active && d.mode !== 'transferir' ? (d.mode === 'esgotar' ? 1 : -1) * Math.max(0, d.target - d.moved) : 0;
-  const total = pending + dm;
-  if (Math.abs(total) < 10) {
-    if (d?.active) cmd({ type: 'dosingAbort', system: 'compensation' });
-    return;
-  }
-  cmd({ type: 'dosing', system: 'compensation', mode: total > 0 ? 'esgotar' : 'admitir', kg: Math.round(Math.abs(total)) });
+  const c = compensationCommand(e, dm);
+  if (c) cmd(c);
 }
 
 type View = 'side' | 'plan';
@@ -352,7 +348,8 @@ export function CargoPanel({ e }: { e: SimulationEngine }) {
   const half = e.vessel.hull.length / 2;
   const depthAt = (x: number) => e.state.body.pos.z + R[6] * x + (R[8] * e.vessel.hull.diameter) / 2;
   const levelMoment = e.hydrostaticMoment(e.outputs.mp, qFromEuler(0, 0, e.outputs.euler.heading * DEG));
-  const compWater = compensationWater(e.vessel.compensation, e.state.compensation, e.vessel.heel, e.state.heel);
+  const room = compensationRoom(e);
+  const compWater = room.water;
   const compBusy = !!e.state.compensation.dosing?.active;
   const suggestions = (['trim', 'heel'] as const).map((system) => {
     const cfg = e.vessel[system];
@@ -707,7 +704,12 @@ export function CargoPanel({ e }: { e: SimulationEngine }) {
             <input type="checkbox" checked={autoComp} onChange={(ev) => setAutoComp(ev.target.checked)} />
             Compensar automaticamente o peso (sequência da compensação)
           </label>
-          {autoComp && effect.dm > compWater + 1 && <span className="badge warn">Água de compensação insuficiente para anular todo o peso ({fmtMass(compWater)} disponíveis).</span>}
+          {autoComp && effect.dm > usableComp(room.water) && (
+            <span className="badge warn">Água de compensação insuficiente: a compensação esgota no máximo {fmtMass(usableComp(room.water))}; o restante fica sem compensar.</span>
+          )}
+          {autoComp && -effect.dm > usableComp(room.free) && (
+            <span className="badge warn">Espaço livre insuficiente na compensação: admite no máximo {fmtMass(usableComp(room.free))}; o restante fica sem compensar.</span>
+          )}
           {autoComp && compBusy && <span className="subtle">Há uma sequência de compensação em curso: o novo ajuste será somado a ela.</span>}
           <div className="row">
             <button className="btn ok on" onClick={apply} disabled={!!draftErr}>

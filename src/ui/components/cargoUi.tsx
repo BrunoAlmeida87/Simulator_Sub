@@ -2,6 +2,8 @@
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { CargoLoad } from '../../sim/core/state';
 import type { Vec3 } from '../../sim/core/math';
+import type { Command } from '../../sim/commands';
+import { compensationBranches, tankCapacityMass } from '../../sim/systems/internalTanks';
 import { fmt } from '../format';
 
 export type CargoCategory = CargoLoad['category'];
@@ -94,6 +96,32 @@ export function cargoTipLines(e: SimulationEngine, l: CargoLoad): string[] {
     `${compartmentOf(e, x)} · ${sideOf(y)} · ${heightOf(z)}`,
     `X ${fmt(x, 1)} m · Y ${fmt(y, 1)} m · Z ${fmt(z, 1)} m`,
   ];
+}
+
+/** Água que a compensação pode esgotar e espaço livre que pode admitir agora (tanque central + ramais de banda). */
+export function compensationRoom(e: SimulationEngine) {
+  const branches = compensationBranches(e.vessel.compensation, e.state.compensation, e.vessel.heel, e.state.heel);
+  return {
+    water: branches.reduce((a, b) => a + b.st.mass, 0),
+    free: branches.reduce((a, b) => a + Math.max(0, tankCapacityMass(b.cfg) - b.st.mass), 0),
+  };
+}
+
+/** A sequência da compensação só termina ao mover a massa pedida: o pedido fica abaixo do que os tanques permitem (com folga). */
+export const usableComp = (kg: number) => Math.max(0, kg * 0.98 - 20);
+
+/**
+ * Comando da compensação para anular dm (kg a mais a bordo ⇒ esgotar), somado a uma sequência em curso e limitado
+ * à água disponível (esgotar) ou ao espaço livre (admitir). null = nada a fazer.
+ */
+export function compensationCommand(e: SimulationEngine, dm: number): Command | null {
+  const d = e.state.compensation.dosing;
+  const pending = d?.active && d.mode !== 'transferir' ? (d.mode === 'esgotar' ? 1 : -1) * Math.max(0, d.target - d.moved) : 0;
+  const wanted = pending + dm;
+  const room = compensationRoom(e);
+  const total = Math.sign(wanted) * Math.min(Math.abs(wanted), usableComp(wanted > 0 ? room.water : room.free));
+  if (Math.abs(total) < 10) return d?.active ? { type: 'dosingAbort', system: 'compensation' } : null;
+  return { type: 'dosing', system: 'compensation', mode: total > 0 ? 'esgotar' : 'admitir', kg: Math.round(Math.abs(total)) };
 }
 
 /** Raio do marcador conforme a massa (visível mesmo para uma pessoa; limitado para cargas grandes). */
