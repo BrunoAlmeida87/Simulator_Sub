@@ -50,7 +50,8 @@ void main() {
     dn -= w.x * w.y * d.x * s;
     de -= w.x * w.y * d.y * s;
   }
-  float dist = length(wp.xz - uCamPos.xz);
+  // distância 3D: ao nível do mar é a horizontal; vista do alto (drone) as ondas somem antes de virar ruído
+  float dist = length(wp.xyz - uCamPos);
   float fade = 1.0 - smoothstep(1800.0, 6000.0, dist);
   wp.y += eta * fade;
   wp.x += hd.y * fade;
@@ -145,7 +146,8 @@ void main() {
     float br = vnoise(q * 0.9 + uTime * 0.08) * 0.55 + vnoise(q * 3.1 - uTime * 0.1) * 0.45;
     float f = uFoam * smoothstep(0.62, 1.05, crest) * smoothstep(0.55, 0.85, br);
     col = mix(col, vec3(0.9, 0.95, 1.0), f * 0.85);
-    col = mix(col, uSkyHorizon, smoothstep(2500.0, 9500.0, dist));
+    // névoa pela distância horizontal: vista do alto (drone) a água logo abaixo não fica esbranquiçada
+    col = mix(col, uSkyHorizon, smoothstep(2500.0, 9500.0, length(vWorld.xz - uCamPos.xz)));
     alpha = mix(0.78, 1.0, max(F, smoothstep(60.0, 600.0, dist)));
   } else {
     // vista de baixo: janela de Snell (≈ 48,6°) e reflexão interna total fora dela

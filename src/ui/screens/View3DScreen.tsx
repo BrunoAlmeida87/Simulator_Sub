@@ -16,10 +16,10 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 const V3D_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, wind: true, presLight: false, hullOpacity: 0.16, resultantGain: 'auto' as const };
 const V3D_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'trail', 'markers', 'trimRef', 'ships', 'noWater', 'presLight'];
 
-const VIEWS: { id: ViewMode; label: string }[] = [
+const VIEWS: { id: ViewMode; label: string; tip?: string }[] = [
   { id: 'piloto', label: 'Lateral' },
   { id: 'perseguicao', label: 'Perseguição' },
-  { id: 'perspectiva', label: 'Perspectiva' },
+  { id: 'perspectiva', label: 'Perspectiva', tip: 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa' },
   { id: 'perfil', label: 'Perfil' },
   { id: 'frente', label: 'Frente' },
   { id: 'topo', label: 'Topo' },
@@ -30,6 +30,8 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'forcas', label: 'Vista forças' },
   { id: 'calado', label: 'Calado' },
   { id: 'navio', label: 'Navio próximo' },
+  { id: 'passadico', label: 'Passadiço (vela)', tip: 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50' },
+  { id: 'drone', label: 'Drone (câmera livre)', tip: 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade' },
   { id: 'livre', label: 'Livre' },
 ];
 
@@ -108,6 +110,7 @@ export function View3DScreen() {
             <button
               key={v.id}
               className={view === v.id ? 'on' : ''}
+              title={v.tip}
               onClick={() => {
                 setView(v.id);
                 if (v.id === 'tanques') setCut(true);

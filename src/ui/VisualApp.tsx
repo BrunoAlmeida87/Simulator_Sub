@@ -24,6 +24,7 @@ const VIEWS: [ViewMode | 'seguir', string][] = [
   ['seguir', 'Igual ao controle'],
   ['piloto', 'Lateral'],
   ['perseguicao', 'Perseguição'],
+  ['perspectiva', 'Perspectiva'],
   ['superficie', 'Superfície'],
   ['submerso', 'Submerso'],
   ['tanques', 'Vista tanques'],
@@ -31,6 +32,8 @@ const VIEWS: [ViewMode | 'seguir', string][] = [
   ['calado', 'Calado'],
   ['navio', 'Navio próximo'],
   ['fixa', 'Fixa'],
+  ['passadico', 'Passadiço'],
+  ['drone', 'Drone (câmera livre)'],
   ['livre', 'Livre'],
 ];
 
@@ -62,7 +65,16 @@ export function VisualApp() {
   }, []);
   return (
     <div className="visual-app">
-      <Scene3D quality={defaultQuality()} view={view} layers={layers} labels={false} persistKey="visual" onPick={(p) => p && v?.pick(p)}>
+      <Scene3D
+        quality={defaultQuality()}
+        view={view}
+        layers={layers}
+        labels={false}
+        persistKey="visual"
+        onPick={(p) => p && v?.pick(p)}
+        bridge={mode === 'seguir' && view === 'passadico' ? (v?.bridge ?? undefined) : undefined}
+        drone={mode === 'seguir' && view === 'drone' ? (v?.drone ?? undefined) : undefined}
+      >
         {!hideUi && (
           <div className="visual-status">
             <span className={`badge ${connected ? 'ok' : 'warn'}`}>{connected ? 'Espelhando a janela de controle' : 'Sem conexão'}</span>

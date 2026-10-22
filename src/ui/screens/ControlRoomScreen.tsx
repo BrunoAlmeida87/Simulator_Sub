@@ -27,6 +27,7 @@ import { defaultQuality } from '../components/Scene3D';
 import type { PeriscopeSight } from '../../render3d/SubmarineScene';
 import { RoomPip } from './RoomPip';
 import { RoomPeriscope, recentMarks } from './RoomPeriscope';
+import { RoomBridge } from './RoomBridge';
 import { periMarks } from './periMarks';
 import { RoomAudio } from './roomAudio';
 import type { SimulationEngine } from '../../sim/core/engine';
@@ -271,7 +272,17 @@ export function ControlRoomScreen() {
   const [tilt, setTilt] = usePersisted('room.tilt', true);
   const tiltRef = useRef(tilt);
   tiltRef.current = tilt;
-  const [peri, setPeri] = useState(false);
+  const [peri, setPeriState] = useState(false);
+  const [bridge, setBridgeState] = useState(false);
+  // periscópio e passadiço são exclusivos (cada um cobre a sala inteira)
+  const setPeri = (on: boolean) => {
+    setPeriState(on);
+    if (on) setBridgeState(false);
+  };
+  const setBridge = (on: boolean) => {
+    setBridgeState(on);
+    if (on) setPeriState(false);
+  };
   const [sight, setSight] = usePersisted<PeriscopeSight>('room.sight', { bearing: 0, elev: 0, fov: 32 });
   const [pip, setPip] = usePersisted('room.pip', false);
   const [lighting, setLighting] = useState<RoomLighting>('normal');
@@ -279,6 +290,8 @@ export function ControlRoomScreen() {
   pipRef.current = pip;
   const periRef = useRef(peri);
   periRef.current = peri;
+  const bridgeRef = useRef(bridge);
+  bridgeRef.current = bridge;
   const lightingRef = useRef(lighting);
   lightingRef.current = lighting;
   const sightRef = useRef(sight);
@@ -345,7 +358,7 @@ export function ControlRoomScreen() {
         ro.observe(box.current);
         setReady(true);
         const loop = () => {
-          if (!periRef.current) {
+          if (!periRef.current && !bridgeRef.current) {
             sc.periBearing = sightRef.current.bearing;
             sc.tilt = tiltRef.current;
             sc.render();
@@ -391,7 +404,7 @@ export function ControlRoomScreen() {
     };
     const MOVE = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
     const down = (ev: KeyboardEvent) => {
-      if (isField(ev.target) || periRef.current) return;
+      if (isField(ev.target) || periRef.current || bridgeRef.current) return;
       if (ev.code === 'Escape') {
         if (menu || optMenu) {
           setMenu(false);
@@ -519,6 +532,9 @@ export function ControlRoomScreen() {
           <button className="btn sm" onClick={() => setPeri(true)} title="Olhar pelo periscópio de ataque">
             Periscópio
           </button>
+          <button className="btn sm" onClick={() => setBridge(true)} title="Subir ao passadiço, no alto da vela: olhar em volta e usar o binóculo 7×50 (com o submarino na superfície)">
+            Subir à vela
+          </button>
           <button className={`btn sm ${pip ? 'on' : ''}`} onClick={() => setPip(!pip)} title="Submarino 3D numa janela sobre a sala (picture-in-picture; tecla P). A 2ª janela continua com a cena completa.">
             ⧉ Submarino 3D
           </button>
@@ -593,7 +609,7 @@ export function ControlRoomScreen() {
                   <b>De perto:</b> toque nos botões das telas e do painel do lastro, nos volantes e no anunciador; arraste os <b>manches</b> e o <b>telégrafo</b>.
                 </li>
                 <li>
-                  “Postos ▾” leva direto a cada posto; “Sair do posto” volta a andar. O <b>periscópio</b> abre a visada externa.
+                  “Postos ▾” leva direto a cada posto; “Sair do posto” volta a andar. O <b>periscópio</b> abre a visada externa; <b>Subir à vela</b> leva ao passadiço (olho nu e binóculo).
                 </li>
               </ul>
             ) : (
@@ -614,7 +630,7 @@ export function ControlRoomScreen() {
                   <b>De perto:</b> os botões das telas, as lâmpadas do painel do lastro, os volantes e o anunciador funcionam com o clique; arraste os <b>manches</b> e o <b>telégrafo</b>.
                 </li>
                 <li>
-                  <b>Esc</b> sai do posto. “Postos ▾” leva direto a cada um. O <b>periscópio</b> abre a visada externa.
+                  <b>Esc</b> sai do posto. “Postos ▾” leva direto a cada um. O <b>periscópio</b> abre a visada externa; <b>Subir à vela</b> leva ao passadiço, no alto da vela (olho nu e binóculo 7×50).
                 </li>
               </ul>
             )}
@@ -674,8 +690,9 @@ export function ControlRoomScreen() {
             {holdBtn('▶', 0, 1, 'Passo para a direita')}
           </div>
         )}
-        {pip && !peri && <RoomPip onClose={() => setPip(false)} />}
+        {pip && !peri && !bridge && <RoomPip onClose={() => setPip(false)} />}
         {peri && <RoomPeriscope sight={sight} setSight={setSight} onExit={() => setPeri(false)} acts={acts} />}
+        {bridge && <RoomBridge onExit={() => setBridge(false)} />}
       </div>
       {focus && panelOpen && <StationPanel id={focus} acts={acts} onClose={() => setPanelOpen(false)} onPeri={() => setPeri(true)} />}
     </div>
