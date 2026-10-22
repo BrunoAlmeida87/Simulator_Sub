@@ -38,6 +38,7 @@ Arquivos de estado no formato antigo (v1), gerados com essa versão, ficam em
 1. **Estado antigo** — Configurações → Carregar arquivo → `tests/fixtures/estado-v1-submerso50.json`: deve aparecer pausado a ~58 m, 30°, piloto em AUTO; ▶ continua.
 2. **Salvar e continuar** — cenário "Submerso 50 m", ordenar 6 nós e uma manobra; Baixar arquivo; recarregar a página; Carregar arquivo; conferir profundidade, rumo, velocidade, tanques, bateria e etapa da manobra; ▶.
 3. **Segunda janela** — "⧉ 2ª janela": a cena, camadas, identificação e navios devem acompanhar a janela de controle.
+   - **Janela de tela** — "＋ Tela": abre no Mapa tático com o selo "Tela 1 · espelhando o controle"; ▶, aceleração, teclas de leme, troca de cenário e "Imergir para" dados nela aparecem na janela principal e no Histórico; o Histórico da tela tem os gráficos desde o início; fechar a principal mostra "aguardando a janela de controle".
 4. **Desempenho** — aba Pilotagem em qualidade alta e baixa: a barra superior não deve mostrar "CPU: tempo reduzido" em 1× e 8×.
 5. **Celular** — em pé e deitado: cabeçalho compacto com ☰, botão ⚙ Vista nas cenas 3D, diagramas com rolagem lateral, sem rolagem horizontal da página em nenhuma aba. No PC, a mesma página deve continuar idêntica.
 

@@ -9,6 +9,9 @@
  */
 import { dieselExhaust, disperserOutlets } from '../sim/systems/exhaust';
 import { WindFx } from './WindFx';
+import { RioLandmarks } from './RioLandmarks';
+import { DEFAULT_DAYLIGHT, NightSky, computeDaylight, navLightsOn, skyPalette, type DaylightSettings } from './daylight';
+import { NavLights, Searchlights, submarineNavLights } from './NavLights';
 import { DepthRefs } from './DepthRefs';
 import { trafficAt, trafficForEnv } from '../sim/traffic';
 import * as THREE from 'three';
@@ -37,13 +40,36 @@ import { ShipyardModel } from './Shipyard';
 import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 import { MarineLife } from './MarineLife';
 import { periscopeCfg, periscopeHeadZ } from '../sim/systems/actuation';
+import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
+import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
 
 /**
- * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'fixa' (parada no
- * mundo: o submarino atravessa o quadro) e enquadramentos rápidos de
- * apresentação ('superficie', 'submerso', 'tanques', 'forcas').
+ * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'perspectiva'
+ * (grande-angular de perto, 3/4 pela proa: a proa, mais próxima, aparece bem
+ * maior que a popa), 'fixa' (parada no mundo: o submarino atravessa o quadro),
+ * enquadramentos rápidos de apresentação ('superficie', 'submerso', 'tanques',
+ * 'forcas') e as vistas em primeira pessoa: 'periscopio' (cabeça do
+ * periscópio) e 'passadico' (no alto da vela, olho nu ou binóculo). 'drone' é
+ * uma câmera livre no MUNDO (não acompanha o submarino): voa pelo mar, orla e cidade.
  */
-export type ViewMode = 'piloto' | 'perseguicao' | 'perspectiva' | 'perfil' | 'frente' | 'topo' | 'livre' | 'fixa' | 'superficie' | 'submerso' | 'tanques' | 'forcas' | 'calado' | 'navio' | 'periscopio';
+export type ViewMode =
+  | 'piloto'
+  | 'perseguicao'
+  | 'perspectiva'
+  | 'perfil'
+  | 'frente'
+  | 'topo'
+  | 'livre'
+  | 'fixa'
+  | 'superficie'
+  | 'submerso'
+  | 'tanques'
+  | 'forcas'
+  | 'calado'
+  | 'navio'
+  | 'periscopio'
+  | 'passadico'
+  | 'drone';
 
 /** Linha de visada do periscópio: marcação relativa à proa (°), elevação (°) e campo de visão vertical (°). */
 export interface PeriscopeSight {
@@ -51,6 +77,9 @@ export interface PeriscopeSight {
   elev: number;
   fov: number;
 }
+
+/** Visada no passadiço (alto da vela): marcação relativa à proa (°), elevação (°) e campo vertical (°: olho nu ou binóculo). */
+export type BridgeSight = PeriscopeSight;
 
 interface Particle {
   n: number;
@@ -118,6 +147,15 @@ export class SubmarineScene {
   private periHead!: THREE.Group;
   /** visada do periscópio usada pela vista 'periscopio' (definida pela interface) */
   periscope: PeriscopeSight = { bearing: 0, elev: 0, fov: 32 };
+  /** visada no passadiço usada pela vista 'passadico' (definida pela interface) */
+  bridge: BridgeSight = { bearing: 0, elev: 0, fov: NAKED_FOV };
+  /** câmera DRONE: pose no mundo (null = começa acima e atrás do submarino) e comandos (definidos pela interface) */
+  drone: DronePose | null = null;
+  droneInput: DroneInput = droneIdle();
+  /** pose recebida de outra janela: o drone a segue suavemente em vez de responder aos comandos */
+  droneTarget: DronePose | null = null;
+  /** velocidade atual do drone (m/s), para o painel */
+  droneSpeedNow = 0;
   /** material das superfícies de controle (cor configurável) */
   private ctrlMat!: THREE.MeshStandardMaterial;
   private deckMat!: THREE.MeshStandardMaterial;
@@ -135,6 +173,8 @@ export class SubmarineScene {
   trimGain = 1;
   /** navios da mesa tática */
   private ships = new ShipsLayer();
+  /** Cristo Redentor, Ponte Rio–Niterói e nomes dos lugares (costa do Rio) */
+  private rio = new RioLandmarks();
   /** fauna decorativa; preferências compartilhadas com a segunda janela */
   readonly marineLife = new MarineLife();
   /** origem geográfica do referencial local (para posicionar os navios como no mapa) */
@@ -157,6 +197,15 @@ export class SubmarineScene {
   private trimVis!: TrimVis;
   private keyLight = new THREE.DirectionalLight(0xffffff, 0);
   private fillLight = new THREE.AmbientLight(0xffffff, 0);
+  /** sol, lua e luzes (Sol e luzes: hora do dia, direção, luar, luzes de navegação, faróis, água escura) — só visual */
+  daylight: DaylightSettings = { ...DEFAULT_DAYLIGHT };
+  private sunLight!: THREE.DirectionalLight;
+  private hemiLight!: THREE.HemisphereLight;
+  private nightSky = new NightSky();
+  private navLights!: NavLights;
+  private searchlights!: Searchlights;
+  private pal = { fog: new THREE.Color(), zenith: new THREE.Color(), hemiSky: new THREE.Color(), hemiGround: new THREE.Color(), sun: new THREE.Color() };
+  private tmpV = new THREE.Vector3();
   private fixedCam: { n: number; e: number; y: number; ln: number; le: number; ly: number } | null = null;
   /** camadas visuais (alteradas pela interface a cada quadro) */
   layers: SceneLayers = defaultLayers();
@@ -177,7 +226,7 @@ export class SubmarineScene {
   /** bolhas da descarga dos diesel-geradores (saídas atrás da vela, abaixo d'água) */
   private exParticles: Particle[] = [];
   private exBubbles: THREE.Points;
-  private static readonly EX_MAX = 1100;
+  private static readonly EX_MAX = 1400;
   /** vento aparente: linhas de vento e flâmula na vela */
   private wind!: WindFx;
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
@@ -195,6 +244,10 @@ export class SubmarineScene {
   private view: ViewMode = 'perspectiva';
   private viewBlend = 1;
   private viewFrom = new THREE.Vector3();
+  /** campo de visão no início da transição de vista (interpolado junto com a posição) */
+  private fovFrom = 50;
+  /** campo de visão da vista livre: mantém o da vista de onde se começou a arrastar (sem "pulo" de zoom) */
+  private freeFov = 50;
   realisticFog = true;
   /** perfil de iluminação (apenas visual) */
   lighting: SceneLighting = 'clara';
@@ -226,14 +279,21 @@ export class SubmarineScene {
     this.controls.minDistance = 12;
     this.controls.maxDistance = 3000;
     this.controls.addEventListener('start', () => {
-      if (this.view !== 'livre') this.view = 'livre';
+      if (this.view !== 'livre') {
+        this.freeFov = Math.max(35, Math.min(75, this.camera.fov));
+        this.view = 'livre';
+      }
     });
 
     // luzes
-    this.scene.add(new THREE.HemisphereLight(0xbfdfff, 0x0b1a26, 1.3));
+    this.hemiLight = new THREE.HemisphereLight(0xbfdfff, 0x0b1a26, 1.3);
+    this.scene.add(this.hemiLight);
     const sun = new THREE.DirectionalLight(0xfff2dd, 2.2);
     sun.position.copy(this.sunDir).multiplyScalar(1000);
+    this.sunLight = sun;
     this.scene.add(sun);
+    // céu noturno (estrelas, lua) e luar
+    this.scene.add(this.nightSky.group, this.nightSky.moonLight);
     // luzes de apresentação (presas à câmera)
     this.keyLight.position.set(0.4, 0.6, 1);
     this.camera.add(this.keyLight, this.fillLight);
@@ -258,6 +318,14 @@ export class SubmarineScene {
     addCaustics(this.sailMat, this.caustics, 14);
     addRim(this.sailMat, this.rim);
     this.buildSubmarine();
+    {
+      // luzes de navegação (superfície) e faróis (submerso), presas ao submarino
+      const v = this.env().vessel;
+      const R = v.hull.diameter / 2;
+      this.navLights = new NavLights(submarineNavLights(v.hull.length, R, v.hull.sail));
+      this.searchlights = new Searchlights(v.hull.length, R, R + v.hull.sail.height);
+      this.sub.add(this.navLights.group, this.searchlights.group);
+    }
     this.scene.add(this.sub);
     this.scene.add(this.trimLines);
     this.forces = new ForceArrows(this.env());
@@ -277,6 +345,7 @@ export class SubmarineScene {
     this.scene.add(this.markers.group);
     this.scene.add(this.ships.group);
     this.scene.add(this.marineLife.group);
+    this.scene.add(this.rio.group);
 
     // oceano: mesmas componentes de onda da física, deslocadas em GPU
     this.ocean = new Ocean(quality, this.sunDir);
@@ -639,8 +708,16 @@ export class SubmarineScene {
 
   setView(v: ViewMode): void {
     this.viewFrom.copy(this.camera.position);
+    this.fovFrom = this.camera.fov;
+    if (v === 'livre' && this.view !== 'livre') this.freeFov = Math.max(35, Math.min(75, this.camera.fov));
+    // das vistas em primeira pessoa a câmera não "voa" de dentro do mastro: começa já no novo enquadramento
+    const fromEye = this.view === 'periscopio' || this.view === 'passadico' || this.view === 'drone';
     this.view = v;
-    this.viewBlend = v === 'livre' ? 1 : 0;
+    this.viewBlend = v === 'livre' || fromEye ? 1 : 0;
+    if (fromEye && v !== 'livre') {
+      this.viewFrom.copy(this.cameraTarget(v));
+      this.fovFrom = this.viewFov(v);
+    }
     if (v === 'fixa') this.fixedCam = null;
   }
 
@@ -848,12 +925,106 @@ export class SubmarineScene {
         return c.add(fwd.multiplyScalar(110)).add(new THREE.Vector3(0, 6, 0));
       case 'topo':
         return c.add(new THREE.Vector3(0, 170, 0)).add(fwd.multiplyScalar(-1));
+      case 'periscopio':
+      case 'passadico':
+      case 'drone':
+        // primeira pessoa: a posição real é a do olho (definida a cada quadro em render())
+        return c.add(new THREE.Vector3(0, 10, 0));
       default:
-        return c
-          .add(fwd.multiplyScalar(-70))
-          .add(stbd.multiplyScalar(75))
-          .add(new THREE.Vector3(0, 32, 0));
+        return this.perspectiveFrame().pos;
     }
+  }
+
+  /** campo de visão vertical (°) do enquadramento de cada vista de 3ª pessoa */
+  private viewFov(v: ViewMode): number {
+    if (v === 'perspectiva') return this.perspectiveFrame().fov;
+    if (v === 'calado') return 16;
+    if (v === 'drone') return 60;
+    if (v === 'livre') return this.freeFov;
+    return 50;
+  }
+
+  private persp: { key: string; f: { pos: THREE.Vector3; target: THREE.Vector3; fov: number } } | null = null;
+
+  /**
+   * PERSPECTIVA VERDADEIRA: grande-angular de perto, 3/4 pela proa a boreste.
+   * A câmera fica a ~20 m da proa (≈ 4× mais perto da proa que da popa), por
+   * isso a proa aparece bem maior que a popa. O campo de visão e a distância
+   * são calculados para o casco inteiro (com a vela) caber no quadro em
+   * qualquer proporção de tela: em retrato a câmera vai mais para vante.
+   */
+  private perspectiveFrame(): { pos: THREE.Vector3; target: THREE.Vector3; fov: number } {
+    const e = this.env();
+    const v = e.vessel;
+    const L = v.hull.length;
+    const R0 = v.hull.diameter / 2;
+    const { fwd, stbd } = this.headingVectors();
+    const c = this.lastSubPos;
+    const asp = Math.max(0.3, this.camera.aspect);
+    const key = `${c.x.toFixed(2)},${c.y.toFixed(2)},${c.z.toFixed(2)},${fwd.x.toFixed(4)},${fwd.z.toFixed(4)},${asp.toFixed(3)}`;
+    if (this.persp?.key === key) return this.persp.f;
+    const up = new THREE.Vector3(0, 1, 0);
+    const at = (x: number, y: number) => c.clone().addScaledVector(fwd, x).addScaledVector(up, y);
+    // pontos de referência do casco: perfil (topo e fundo), proa, popa e topo da vela
+    const pts: THREE.Vector3[] = [];
+    for (const x of [-L / 2, -L * 0.3, -L * 0.1, L * 0.1, L * 0.3, L / 2 - 4, L / 2]) {
+      const r = e.geom.radiusAt(x);
+      pts.push(at(x, r), at(x, -r));
+    }
+    const sv = v.hull.sail;
+    pts.push(at(sv.xAft, R0 + sv.height), at(sv.xFwd, R0 + sv.height));
+    const bow = at(L / 2, 0);
+    // em retrato o casco fica mais "de frente" (estreito na horizontal)
+    const kAsp = Math.min(1, Math.max(0, (asp - 0.55) / 1.1));
+    const az = ((34 + 46 * kAsp) * Math.PI) / 180;
+    let best: { pos: THREE.Vector3; target: THREE.Vector3; fov: number } | null = null;
+    for (const k of [1, 1.2, 1.45, 1.75, 2.1, 2.6, 3.2]) {
+      const d = 19 * k;
+      const pos = bow
+        .clone()
+        .addScaledVector(fwd, Math.cos(az) * d)
+        .addScaledVector(stbd, Math.sin(az) * d)
+        .addScaledVector(up, 4 + 0.22 * d);
+      // direção: bissetriz dos extremos angulares (horizontal e vertical)
+      let yMin = Infinity;
+      let yMax = -Infinity;
+      let aMin = Infinity;
+      let aMax = -Infinity;
+      const toC = c.clone().sub(pos).setY(0).normalize();
+      const side = new THREE.Vector3().crossVectors(toC, up);
+      for (const p of pts) {
+        const q = p.clone().sub(pos);
+        const hz = Math.hypot(q.x, q.z);
+        const a = Math.atan2(q.dot(side), q.clone().setY(0).dot(toC));
+        aMin = Math.min(aMin, a);
+        aMax = Math.max(aMax, a);
+        const el = Math.atan2(q.y, hz);
+        yMin = Math.min(yMin, el);
+        yMax = Math.max(yMax, el);
+      }
+      const yaw = (aMin + aMax) / 2;
+      const pitch = (yMin + yMax) / 2;
+      const hdir = toC.clone().multiplyScalar(Math.cos(yaw)).addScaledVector(side, Math.sin(yaw));
+      const dir = hdir.multiplyScalar(Math.cos(pitch)).addScaledVector(up, Math.sin(pitch)).normalize();
+      // projeção dos pontos no referencial da câmera: campo necessário
+      const right = new THREE.Vector3().crossVectors(dir, up).normalize();
+      const camUp = new THREE.Vector3().crossVectors(right, dir);
+      let tH = 0;
+      let tV = 0;
+      for (const p of pts) {
+        const q = p.clone().sub(pos);
+        const z = Math.max(0.5, q.dot(dir));
+        tH = Math.max(tH, Math.abs(q.dot(right)) / z);
+        tV = Math.max(tV, Math.abs(q.dot(camUp)) / z);
+      }
+      const need = Math.max(tV, tH / asp) * 1.2;
+      const fov = (2 * Math.atan(need) * 180) / Math.PI;
+      const target = pos.clone().addScaledVector(dir, Math.max(15, c.distanceTo(pos)));
+      best = { pos, target, fov: Math.max(40, fov) };
+      if (fov <= 72) break;
+    }
+    this.persp = { key, f: best! };
+    return best!;
   }
 
   /** cria/recria o terreno quando o nível de detalhe muda */
@@ -873,7 +1044,8 @@ export class SubmarineScene {
   render(): Label3D[] {
     const e = this.env();
     const s = e.state;
-    const dtR = Math.min(0.1, this.clock.getDelta());
+    const rawDt = this.clock.getDelta();
+    const dtR = Math.min(0.1, rawDt);
     const a = this.runner.alpha;
     // instante das ondas coerente com a pose interpolada
     const tWave = s.t - e.config.settings.dt * (1 - a);
@@ -926,7 +1098,10 @@ export class SubmarineScene {
     // fundo e terra (reconstruídos ao afastar-se ou quando o fundo/costa mudam)
     const coastOn = !!e.env.cfg.geo?.coast;
     const terrain = this.ensureTerrain();
-    terrain.update(e.env, pn, pe, coastOn);
+    // no drone os níveis de detalhe do terreno se centram na câmera (o grupo é deslocado para a origem flutuante)
+    const tc = this.view === 'drone' && this.drone ? { n: this.drone.n, e: this.drone.e } : { n: pn, e: pe };
+    terrain.update(e.env, tc.n, tc.e, coastOn);
+    terrain.group.position.set(tc.e - pe, 0, -(tc.n - pn));
     // estaleiro e base naval (só com a costa ligada: faz parte da costa, também na física)
     if (coastOn && e.env.cfg.geo) {
       if (!this.shipyard) {
@@ -934,6 +1109,7 @@ export class SubmarineScene {
         this.scene.add(this.shipyard.group);
       }
       this.shipyardDist = this.shipyard.place(e.env.cfg.geo.origin, pn, pe, this.camera.position);
+      this.shipyard.float(e.env.waves, tWave);
     } else if (this.shipyard) this.shipyard.group.visible = false;
 
     // bolhas dos suspiros/embornais (taxa proporcional à vazão de ar simulada)
@@ -971,7 +1147,7 @@ export class SubmarineScene {
         const psi = (e.outputs.euler.heading * Math.PI) / 180;
         const fN = Math.cos(psi);
         const fE = Math.sin(psi);
-        const rate = (16 + 30 * ex.load + (ex.starting ? 24 : 0)) * step; // bolhas/s por saída
+        const rate = (20 + 38 * ex.load + (ex.starting ? 28 : 0)) * step; // bolhas/s por saída
         for (const o of disperserOutlets(v, e.geom.radiusAt)) {
           const src = toWorld(o.x, o.y, o.z);
           if (src.d + wv.elevation(src.n, src.e, tWave) < 0.3) continue; // saída fora d'água: sem bolhas
@@ -1003,7 +1179,6 @@ export class SubmarineScene {
         p.n += p.vn * step + (Math.random() - 0.5) * 0.14;
         p.e += p.ve * step + (Math.random() - 0.5) * 0.14;
         const alive = p.d > -wv.elevation(p.n, p.e, tWave) && p.life > 0;
-        if (!alive && p.life > 0 && Math.random() < 0.35) this.fx.exhaustFoam(p.n, p.e);
         return alive;
       });
       this.particles = this.particles.filter((p) => {
@@ -1054,7 +1229,7 @@ export class SubmarineScene {
       this.sub.updateMatrixWorld();
       const top = this.wind.pennant.getWorldPosition(new THREE.Vector3());
       const sailOut = top.y > e.env.waves.elevation(pn - top.z, pe + top.x, tWave) + 0.3;
-      this.wind.update(e, step, dtR, pn, pe, tWave, this.layers.wind && !this.layers.noWater, this.camera.position.y < 0, sailOut && this.layers.wind && this.layers.hull);
+      this.wind.update(e, step, dtR, pn, pe, tWave, this.layers.wind && !this.layers.noWater, this.camera.position.y < 0, sailOut && this.layers.pennant && this.layers.hull);
     }
     this.markers.update(e, pn, pe, tWave, this.layers.markers);
 
@@ -1073,32 +1248,82 @@ export class SubmarineScene {
 
     // linha de profundidade (superfície ↔ submarino ↔ fundo)
     const bottom = e.env.bottomDepthAt(pn, pe);
-    const dl = this.depthLine.geometry.getAttribute('position') as THREE.BufferAttribute;
-    dl.setXYZ(0, 0, 0, 0);
-    dl.setXYZ(1, 0, -pd, 0);
-    dl.setXYZ(2, 0, -bottom, 0);
-    dl.needsUpdate = true;
+    const dlp = this.depthLine.geometry.getAttribute('position') as THREE.BufferAttribute;
+    dlp.setXYZ(0, 0, 0, 0);
+    dlp.setXYZ(1, 0, -pd, 0);
+    dlp.setXYZ(2, 0, -bottom, 0);
+    dlp.needsUpdate = true;
     this.depthLine.computeLineDistances();
 
-    // câmera: segue o submarino (vista "Calado" usa teleobjetiva)
+    // câmera: segue o submarino (vista "Calado" usa teleobjetiva; "Perspectiva" é grande-angular de perto)
     const sh = this.view === 'navio' ? this.ships.nearest : null;
-    const fov =
+    const delta = subPos.clone().sub(this.lastSubPos);
+    this.lastSubPos.copy(subPos);
+    const eyeView = this.view === 'periscopio' || this.view === 'passadico';
+    const droneView = this.view === 'drone';
+    let fov =
       this.view === 'periscopio'
         ? Math.max(2, Math.min(70, this.periscope.fov))
-        : this.view === 'calado'
-          ? 16
+        : this.view === 'passadico'
+          ? Math.max(2, Math.min(80, this.bridge.fov))
           : sh
             ? Math.max(2.5, Math.min(50, (2 * Math.atan((sh.length * 1.8) / (2 * (sh.dist + 55))) * 180) / Math.PI))
-            : 50;
-    if (this.camera.fov !== fov) {
+            : this.viewFov(this.view);
+    if (!eyeView && !droneView && this.view !== 'livre' && this.view !== 'fixa' && this.viewBlend < 1) {
+      // o campo de visão acompanha a transição da câmera (sem "pulo" de zoom)
+      const kb = Math.min(1, this.viewBlend + dtR * 1.8);
+      fov = this.fovFrom + (fov - this.fovFrom) * (1 - Math.pow(1 - kb, 3));
+    }
+    if (Math.abs(this.camera.fov - fov) > 1e-4) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
     }
-    const delta = subPos.clone().sub(this.lastSubPos);
-    this.lastSubPos.copy(subPos);
-    if (this.view === 'periscopio') this.controls.enabled = false;
+    if (eyeView || droneView) this.controls.enabled = false;
     else if (!this.controls.enabled) this.controls.enabled = true;
-    if (this.view === 'periscopio') {
+    let rollUp: THREE.Vector3 | null = null;
+    if (droneView) {
+      // DRONE: pose no mundo (N/E/altura), convertida para a origem flutuante; voa também com a simulação pausada
+      const d = this.drone ?? (this.drone = droneStart(pn, pe, pd, e.outputs.euler.heading));
+      const tgt = this.droneTarget;
+      if (tgt) {
+        const k = Math.min(1, dtR * 12);
+        d.n += (tgt.n - d.n) * k;
+        d.e += (tgt.e - d.e) * k;
+        d.up += (tgt.up - d.up) * k;
+        d.yaw += (((((tgt.yaw - d.yaw + 180) % 360) + 360) % 360) - 180) * k;
+        d.pitch += (tgt.pitch - d.pitch) * k;
+      } else this.droneSpeedNow = droneStep(d, this.droneInput, Math.min(0.25, rawDt), (n, ee) => -e.env.bottomDepthAt(n, ee));
+      const yaw = (d.yaw * Math.PI) / 180;
+      const pit = (d.pitch * Math.PI) / 180;
+      const pos = new THREE.Vector3(d.e - pe, d.up, -(d.n - pn));
+      const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pit), Math.sin(pit), -Math.cos(yaw) * Math.cos(pit));
+      this.camera.position.copy(pos);
+      this.controls.target.copy(pos).addScaledVector(dir, 60);
+      this.viewFrom.copy(pos);
+    } else if (this.view === 'passadico') {
+      // PASSADIÇO: olho no alto da vela (acompanha arfagem, caturro e balanço do casco);
+      // a linha de visada é estabilizada pelo observador, que ainda sente parte do caturro e do balanço
+      this.sub.updateMatrixWorld();
+      const sv = v.hull.sail;
+      const eye = this.sub.localToWorld(new THREE.Vector3(0, R0 + sv.height + BRIDGE_EYE.above, -(sv.xFwd - BRIDGE_EYE.aft)));
+      const { fwd, stbd } = this.headingVectors();
+      const b = (this.bridge.bearing * Math.PI) / 180;
+      const felt = bridgeFelt(this.bridge.bearing, e.outputs.euler.pitch, e.outputs.euler.roll);
+      const vPitch = (felt.pitch * Math.PI) / 180;
+      const vRoll = (felt.roll * Math.PI) / 180;
+      const el = (Math.max(-60, Math.min(60, this.bridge.elev)) * Math.PI) / 180 + vPitch;
+      const dir = fwd
+        .multiplyScalar(Math.cos(b))
+        .add(stbd.multiplyScalar(Math.sin(b)))
+        .multiplyScalar(Math.cos(el));
+      dir.y = Math.sin(el);
+      dir.normalize();
+      // horizonte inclinado pelo balanço sentido (positivo = lado direito da vista desce)
+      rollUp = new THREE.Vector3(0, 1, 0).applyAxisAngle(dir, -vRoll);
+      this.camera.position.copy(eye);
+      this.controls.target.copy(eye).add(dir.multiplyScalar(100));
+      this.viewFrom.copy(eye);
+    } else if (this.view === 'periscopio') {
       // câmera na cabeça do periscópio; linha de visada estabilizada (horizonte nivelado)
       this.sub.updateMatrixWorld();
       const head = this.sub.localToWorld(new THREE.Vector3(0, -periscopeHeadZ(v, s.periscope?.pos ?? 0) - 0.3, -periscopeCfg(v).x));
@@ -1125,25 +1350,57 @@ export class SubmarineScene {
       const k = 1 - Math.pow(1 - this.viewBlend, 3);
       this.camera.position.lerpVectors(this.viewFrom, target, k);
       this.controls.target.copy(subPos);
+      if (this.view === 'perspectiva') this.controls.target.copy(this.perspectiveFrame().target);
       if (this.view === 'piloto') this.controls.target.add(this.headingVectors().fwd.multiplyScalar(this.pilotLead()));
       if (sh) this.controls.target.copy(sh.pos).add(new THREE.Vector3(0, 8, 0));
       if (this.viewBlend >= 1) this.viewFrom.copy(target);
     }
     this.camera.up.set(0, 1, 0);
+    if (rollUp) this.camera.up.copy(rollUp);
     if (this.view === 'topo') {
       const { fwd } = this.headingVectors();
       this.camera.up.copy(fwd);
     }
     this.controls.update();
 
-    // ambiente subaquático
-    const under = this.camera.position.y < 0;
-    const camDepth = Math.max(0, -this.camera.position.y);
+    // ambiente subaquático. Na cabeça do periscópio e no passadiço a referência é a onda no ponto do olho:
+    // na cota periscópica as cristas passam por cima da cabeça e a vista mergulha e volta
+    const waveAtCam = eyeView || droneView ? e.env.waves.elevation(pn - this.camera.position.z, pe + this.camera.position.x, tWave) : 0;
+    const under = this.camera.position.y < waveAtCam;
+    const camDepth = Math.max(0, waveAtCam - this.camera.position.y);
     this.wallTime += dtR;
     const prof = LIGHTING[this.lighting] ?? LIGHTING.clara;
-    const uw = this.underSky.update(this.camera.position, camDepth, this.wallTime, prof.water);
+    // sol, lua e noite (só visual); sem água a cena fica sempre com a luz padrão de dia
+    const dry0 = this.layers.noWater;
+    const dl = computeDaylight(dry0 ? DEFAULT_DAYLIGHT : this.daylight);
+    const pal = skyPalette(dl, !dry0 && this.daylight.moonlight, this.pal);
+    this.sunLight.position.copy(dl.sunDir).multiplyScalar(1000);
+    this.sunLight.color.copy(this.pal.sun);
+    this.sunLight.intensity = pal.sunI;
+    this.hemiLight.color.copy(this.pal.hemiSky);
+    this.hemiLight.groundColor.copy(this.pal.hemiGround);
+    this.hemiLight.intensity = pal.hemiK;
+    this.sky.material.uniforms.sunPosition.value.copy(dl.sunDir);
+    (this.underSky.material.uniforms.uSunDir.value as THREE.Vector3).copy(dl.sunDir);
+    const uw = this.underSky.update(this.camera.position, camDepth, this.wallTime, prof.water, dl.under, dl.sunK);
     const deepColor = uw.horizon.clone();
+    this.ocean.setLight(dl.sunDir, dl.sunK, dl.moonDir, dl.moonK, this.pal.zenith, this.pal.fog, 0.12 + 0.88 * dl.day, dl.under);
+    // neve marinha: no escuro só se vê de perto (fica discreta)
+    (this.snow.material as THREE.PointsMaterial).opacity = 0.6 * (0.25 + 0.75 * dl.under);
     this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
+    this.nightSky.update(dl, this.camera.position, !under && !dry0, pal.moonI, this.pal.zenith, this.pal.fog);
+    terrain.night = coastOn ? dl.night : 0;
+    // drone no alto: a malha do mar se estende até o horizonte (sem borda visível) e o plano próximo
+    // se afasta (precisão de profundidade: sem "pintas" entre a água e o mar achatado da costa)
+    {
+      const k = droneView ? Math.max(1, this.camera.position.y / 350) : 1;
+      if (this.ocean.mesh.scale.x !== k) this.ocean.mesh.scale.set(k, 1, k);
+      const near = droneView ? Math.min(30, Math.max(0.5, Math.abs(this.camera.position.y) * 0.01)) : 0.5;
+      if (Math.abs(this.camera.near - near) > 0.05) {
+        this.camera.near = near;
+        this.camera.updateProjectionMatrix();
+      }
+    }
     this.sky.position.copy(this.camera.position);
     this.sky.visible = !under;
     this.underSky.mesh.visible = under;
@@ -1151,7 +1408,7 @@ export class SubmarineScene {
     // fundo: debaixo d'água só dentro do alcance de visibilidade (senão vira faixa de névoa) ou perto da costa;
     // acima d'água o oceano cobre o fundo e a terra aparece; níveis grosseiros só acima d'água
     {
-      const nearBottom = e.env.bottomDepthAt(pn, pe) - camDepth < (this.realisticFog ? 330 : 1200);
+      const nearBottom = e.env.bottomDepthAt(tc.n, tc.e) - camDepth < (this.realisticFog ? 330 : 1200);
       terrain.setVisible(under ? nearBottom || terrain.landNear : coastOn, !under && coastOn);
     }
     // sem água: só o submarino (e o que está dentro dele) sobre um fundo neutro
@@ -1172,7 +1429,7 @@ export class SubmarineScene {
       if (this.shipyard) this.shipyard.group.visible = false;
     }
     this.caustics.uTime.value = this.wallTime;
-    this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15);
+    this.caustics.uCaustic.value = Math.min(1, e.env.waves.hs * 0.45 + 0.15) * dl.sunK;
     if (dry) {
       this.scene.background = this.dryBg;
       this.scene.fog = null;
@@ -1181,19 +1438,36 @@ export class SubmarineScene {
       this.scene.background = deepColor;
       this.scene.fog = this.realisticFog ? new THREE.FogExp2(deepColor.getHex(), 0.0032) : new THREE.FogExp2(deepColor.getHex(), 0.0008);
     } else {
-      this.scene.background = new THREE.Color(0x9dbad4);
+      this.scene.background = this.pal.fog.clone();
       // com a costa ligada a névoa vai mais longe: a serra aparece ao fundo
-      this.scene.fog = new THREE.Fog(0x9dbad4, coastOn ? 5000 : 3000, coastOn ? 32000 : 14000);
+      this.scene.fog = new THREE.Fog(this.pal.fog.getHex(), coastOn ? 5000 : 3000, coastOn ? 32000 : 14000);
     }
     // iluminação: exposição, luz presa à câmera (mais fraca acima d'água, onde o sol ilumina) e contorno do casco
     {
       const pres = this.layers.presLight;
-      const k = under ? 1 : 0.5;
+      // à noite e com a água escura a luz presa à câmera também diminui (os faróis passam a mostrar o submarino)
+      const k = (under ? 1 : 0.5) * (dry ? 1 : under ? Math.max(0.2, dl.under) : Math.max(0.3, dl.day));
       this.renderer.toneMappingExposure = under && !dry ? prof.exposureUnder : prof.exposureAbove;
       this.keyLight.intensity = Math.max(pres ? 1.6 : 0, prof.camKey * k);
       this.fillLight.intensity = Math.max(pres ? 0.45 : 0, prof.camFill * k);
       this.rim.uRim.value = this.layers.tanks ? 0 : prof.rim * (under && !dry ? 1 : 0.35);
     }
+    // luzes de navegação (na superfície, do crepúsculo ao amanhecer ou ligadas) e faróis
+    {
+      this.sub.updateMatrixWorld();
+      const wv = e.env.waves;
+      const aboveWater = (p: THREE.Vector3) => {
+        const w = this.sub.localToWorld(this.tmpV.copy(p));
+        return w.y > wv.elevation(pn - w.z, pe + w.x, tWave) + 0.1;
+      };
+      const camLocal = this.sub.worldToLocal(this.camera.position.clone());
+      this.navLights.update(!dry && this.layers.hull && navLightsOn(this.daylight, dl), camLocal, this.wallTime, aboveWater);
+      const bow = this.sub.localToWorld(this.tmpV.set(0, 0, -(v.hull.length / 2 - 3)));
+      const bowUnder = bow.y < wv.elevation(pn - bow.z, pe + bow.x, tWave) - 0.5;
+      this.searchlights.update(!dry && this.daylight.subLights, under, bowUnder);
+    }
+    // navios: luzes de navegação junto com as do submarino
+    this.ships.lights = { on: !dry && navLightsOn(this.daylight, dl), cam: this.camera.position, time: this.wallTime };
     // camadas: casco, tanques/circuitos, vetores
     this.applyHull();
     this.camera.updateMatrixWorld();
@@ -1224,6 +1498,12 @@ export class SubmarineScene {
     this.ships.update(e, pn, pe, tWave, this.geoOrigin, this.shipRange, this.layers.ships && !dry, this.layers.labels ? lbl : null, proj, extra);
     this.marineLife.update(e.env, tWave, pn, pe, !dry);
     if (this.layers.labels) this.wind.label(e, lbl, proj);
+    {
+      const g = e.env.cfg.geo;
+      const origin = g && g.coast ? g.origin : null;
+      this.rio.update(origin, pn, pe, !dry);
+      if (this.layers.labels && !under) this.rio.label(origin, pn, pe, this.camera.position, lbl, proj);
+    }
     if (this.shipyard && this.layers.labels && !dry && coastOn) this.shipyard.label(lbl, proj, this.shipyardDist);
     this.renderer.render(this.scene, this.camera);
 
@@ -1299,6 +1579,9 @@ export class SubmarineScene {
   }
 
   dispose(): void {
+    this.navLights.dispose();
+    this.searchlights.dispose();
+    this.nightSky.dispose();
     this.marineLife.dispose();
     this.wind.dispose();
     this.shipyard?.dispose();

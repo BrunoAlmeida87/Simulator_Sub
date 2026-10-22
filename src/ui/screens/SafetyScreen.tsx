@@ -7,6 +7,7 @@ import { SENSOR_DEFS } from '../../sim/systems/sensors';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import { fmt, fmtTime } from '../format';
 import type { SensorFailMode } from '../../sim/core/state';
+import { isPanelWindow } from '../sync';
 
 export function SafetyScreen() {
   const e = useSim(6);
@@ -113,6 +114,8 @@ export function SafetyScreen() {
           <input
             type="checkbox"
             checked={e.config.settings.advancedInstrumentation}
+            disabled={isPanelWindow}
+            title={isPanelWindow ? 'Ajuste da janela principal' : undefined}
             onChange={(ev) => {
               e.config.settings.advancedInstrumentation = ev.target.checked;
               e.log(`Instrumentação avançada (ruído/atraso): ${ev.target.checked ? 'LIGADA' : 'DESLIGADA'}`, 'Configuração');

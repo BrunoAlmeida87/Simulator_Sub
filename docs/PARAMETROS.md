@@ -65,6 +65,23 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Leme de direção (totalmente móvel) | −31,5 m | 21 m² | 3,0 | ±30° | 4°/s |
 | Vela (efeito hidrodinâmico) | +9 m, z = −5,7 m | 40 m² | 1,0 | — | — |
 
+### Piloto automático (`AP_GAINS` em `systems/autopilot.ts`)
+
+Os ganhos que comandam lemes (rumo, pitch e lemes de vela) são multiplicados por K = min(4, (U₀/U)²), U₀ = 4 m/s; a malha profundidade → pitch ordenado não. e_z = z − z_ref (m), ż em m/s, ângulos em graus.
+
+| Malha | Parâmetro | Valor |
+|---|---|---|
+| Rumo → leme de direção | Kp · Ki · Kd | 2,2 · 0,04 · 25 |
+| Profundidade → pitch ordenado (lemes de ré) | Kz · Ki · Kzd | 1,0 °/m · 0,01 °/(m·s) · 10 °/(m/s) |
+| | θ_max (normal / baixa velocidade) | ±10,5° / ±4° |
+| | integral de profundidade ativo | só com erro de cota < 3 m |
+| Pitch → lemes de ré | Kθ · Ki · Kq | 2,5 · 0,06 · 30 °/(°/s); autoridade ±20° |
+| Lemes de vela (ajuste fino) | Kb · Kbd | 1,0 °/m · 10 °/(m/s) |
+| | faixa fina b / transição f | 3 m / 5 m (a ação sobre ż some com erro de cota > 8 m) |
+| | ajuda na travessia a₀ | 0,7 × Kb·b (≈ 3,5° a 6 nós) |
+| | autoridade (normal / baixa velocidade) | ±10° / ±20° |
+| Alocação a baixa velocidade | U_alto → U_baixo | 2,0 → 1,6 m/s (~3,9 → 3,1 nós) |
+
 ## Hidrodinâmica
 
 | Parâmetro | Valor |

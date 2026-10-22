@@ -4,20 +4,36 @@
  * velocidade dos atuadores e efetividade ∝ U²).
  *
  * Rumo:          δ_r = K·[Kp·e_ψ + Ki·∫e_ψ − Kd·r]
- * Profundidade (cascata):
- *    θ_cmd  = clamp(Kz·e_z + Kzd·ż, ±θ_max)        (e_z = z − z_ref; + ⇒ subir)
+ * Profundidade (cascata — os LEMES DE RÉ fazem a mudança de cota):
+ *    θ_cmd  = clamp(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)   (e_z = z − z_ref; + ⇒ subir)
  *    δ_ré   = K·[Kθ·(θ_cmd − θ) + Ki·∫(θ_cmd − θ) − Kq·q]
- *    δ_vante= K·[Kb·e_z + Kbd·ż]
+ * Lemes de vante (vela) — só AJUSTE FINO da cota, com autoridade reduzida:
+ *    δ_vante = K·[Kb·sat(e_z, ±b)·max(w, a) + Kbd·ż·w],   |δ_vante| ≤ δ_v,max (10°)
+ *    w = 1 até |e_z| = b e cai linearmente a 0 em |e_z| = b + f (perto da cota);
+ *    a = pequena ajuda constante durante a travessia (≈ 3,5° a 6 nós).
  * Atitude:       δ_ré = K·[Kθ·(θ_ref − θ) + Ki·∫ − Kq·q]
  *
+ * Por que assim: os lemes de ré (21 m² a 31,5 m do centro) têm momento de
+ * caturro ~6× maior que os de vela (11 m² a 10,5 m) — são eles que dão o
+ * ângulo, e o ângulo (sustentação do casco) é que leva o submarino à nova cota.
+ * Os lemes de vela geram força vertical direta, pequena e sem atraso: servem
+ * para corrigir pequenos erros e frear a chegada na cota (cota periscópica).
+ *
+ * Alocação a baixa velocidade: perto da velocidade crítica dos lemes de ré
+ * (~3 nós neste modelo) a força direta desses lemes anula a sustentação que
+ * o ângulo produz no casco e eles deixam de mudar a cota. Entre lowSpeed.uHi
+ * (~3,9 nós) e lowSpeed.uLo (~3,1 nós) a fração L = 0 → 1 passa a cota para
+ * os lemes de vela: Kb·(1 + L), a → 1, δ_v,max → 20° e θ_max → θ_max,baixa.
+ *
  * K = escalonamento de ganho com a velocidade: (U₀/U)², limitado a 4×,
- * pois a força dos lemes cresce com U². Abaixo de ~1 m/s os lemes perdem
+ * pois a força dos lemes cresce com U². Abaixo de ~1,5 m/s os lemes perdem
  * efetividade e o controlador indica "BAIXA EFETIVIDADE": a profundidade
  * passa a depender do equilíbrio estático (compensação).
  *
  * Os controladores usam apenas as LEITURAS DOS SENSORES (não o estado real).
- * Anti-windup por integração condicional; transferência sem salto (bumpless)
- * ao entrar em AUTO.
+ * Anti-windup por integração condicional (o integral de profundidade só atua
+ * perto da cota, para não acumular durante a travessia); transferência sem
+ * salto (bumpless) ao entrar em AUTO.
  */
 import type { VesselConfig } from '../config/types';
 import type { PidTelemetry, SimState } from '../core/state';
@@ -27,9 +43,17 @@ const U0 = 4.0; // m/s — velocidade de referência das sintonias
 
 export const AP_GAINS = {
   heading: { kp: 2.2, ki: 0.04, kd: 25 },
-  depthOuter: { kz: 0.7, kzi: 0.006, kzd: 12, thetaMax: 8 },
+  /** malha externa: erro de profundidade (m) → pitch ordenado (°), executado pelos lemes de ré */
+  depthOuter: { kz: 1.0, kzi: 0.01, kzd: 10, thetaMax: 10.5, thetaMaxLow: 4, iBand: 3 },
+  /** malha interna (lemes de ré): erro de pitch (°) → ângulo dos lemes */
   pitch: { kp: 2.5, ki: 0.06, kq: 30 },
-  bow: { kb: 1.0, kbd: 20 },
+  /**
+   * lemes de vante (vela): ajuste fino. band/fade em m (faixa perto da cota),
+   * assist = fração do termo proporcional mantida na travessia, authority em graus
+   */
+  bow: { kb: 1.0, kbd: 10, band: 3, fade: 5, assist: 0.7, authority: 10 },
+  /** velocidades (m/s) entre as quais a alocação passa dos lemes de ré para os de vela */
+  lowSpeed: { uLo: 1.6, uHi: 2.0 },
   /** autoridade máxima do piloto sobre os lemes (graus) — abaixo do ângulo de estol */
   authority: 20,
 };
@@ -47,6 +71,12 @@ export interface ApReadings {
 function schedule(speed: number): { k: number; low: boolean } {
   const U = Math.max(Math.abs(speed), 0.2);
   return { k: Math.min(4, (U0 / U) ** 2), low: Math.abs(speed) < 1.5 };
+}
+
+/** 0 em velocidade normal (lemes de ré principais) → 1 abaixo de lowSpeed.uLo (lemes de vela principais). */
+export function lowSpeedShare(speed: number): number {
+  const { uLo, uHi } = AP_GAINS.lowSpeed;
+  return clamp((uHi - Math.abs(speed)) / Math.max(1e-6, uHi - uLo), 0, 1);
 }
 
 function telemetry(t: PidTelemetry, sp: number, meas: number, err: number, p: number, i: number, d: number, out: number, sat: boolean, low: boolean) {
@@ -86,21 +116,29 @@ export function updateAutopilot(cfg: VesselConfig, s: SimState, r: ApReadings, d
   let thetaCmd: number | null = null;
   if (ap.depthMode === 'AUTO') {
     const g = AP_GAINS.depthOuter;
+    const low = lowSpeedShare(r.speed);
     const ez = r.depth - ap.depthSet;
+    // malha externa → pitch ordenado (lemes de ré); menor a baixa velocidade
+    const thMax = g.thetaMax + low * (g.thetaMaxLow - g.thetaMax);
     const unsat = g.kz * ez + ap.iDepth + g.kzd * r.depthRate;
-    thetaCmd = clamp(unsat, -g.thetaMax, g.thetaMax);
-    const satZ = Math.abs(unsat) >= g.thetaMax;
-    // integral apenas perto da cota (evita acúmulo durante grandes mudanças)
-    if (!satZ && Math.abs(ez) < 15) ap.iDepth = clamp(ap.iDepth + g.kzi * ez * dt, -4, 4);
+    thetaCmd = clamp(unsat, -thMax, thMax);
+    const satZ = Math.abs(unsat) >= thMax;
+    // integral apenas perto da cota (evita acúmulo durante a travessia e a aproximação)
+    if (!satZ && Math.abs(ez) < g.iBand) ap.iDepth = clamp(ap.iDepth + g.kzi * ez * dt, -4, 4);
     telemetry(ap.tDepth, ap.depthSet, r.depth, ez, g.kz * ez, ap.iDepth, g.kzd * r.depthRate, thetaCmd, satZ, sch.low);
-    // lemes de vante: ação direta sobre o movimento vertical
+    // lemes de vante (vela): ajuste fino perto da cota; na travessia, só uma pequena ajuda
     const gb = AP_GAINS.bow;
-    let ob = sch.k * dirSign * (gb.kb * ez + gb.kbd * r.depthRate);
-    const limB = Math.min(bow.maxDeflection, AP_GAINS.authority);
+    const aez = Math.abs(ez);
+    const near = aez <= gb.band ? 1 : aez >= gb.band + gb.fade ? 0 : 1 - (aez - gb.band) / gb.fade;
+    const assist = gb.assist + low * (1 - gb.assist);
+    const pB = gb.kb * (1 + low) * clamp(ez, -gb.band, gb.band) * Math.max(near, assist);
+    const dB = gb.kbd * r.depthRate * near;
+    let ob = sch.k * dirSign * (pB + dB);
+    const limB = Math.min(bow.maxDeflection, gb.authority + low * (AP_GAINS.authority - gb.authority));
     const satB = Math.abs(ob) >= limB;
     ob = clamp(ob, -limB, limB);
     s.surfaces.bow.cmd = ob;
-    telemetry(ap.tBow, ap.depthSet, r.depth, ez, gb.kb * ez, 0, gb.kbd * r.depthRate, ob, satB, sch.low);
+    telemetry(ap.tBow, ap.depthSet, r.depth, ez, pB, 0, dB, ob, satB, sch.low);
   } else if (ap.pitchMode === 'AUTO') {
     thetaCmd = ap.pitchSet;
   }

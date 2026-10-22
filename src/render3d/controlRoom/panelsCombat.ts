@@ -26,7 +26,7 @@ export interface RoomContact extends Contact {
 const wrap180 = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
 
 /** contatos (fixos + tráfego) com marcação e distância a partir do próprio navio */
-export function roomContacts(e: SimulationEngine, act: RoomActions): RoomContact[] {
+export function roomContacts(e: SimulationEngine, act: Pick<RoomActions, 'geoOrigin' | 'traffic'>): RoomContact[] {
   const s = e.state;
   const origin = act.geoOrigin();
   const own = { n: s.body.pos.x, e: s.body.pos.y };
