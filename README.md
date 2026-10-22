@@ -50,7 +50,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Fluxo de energia | ✅ Diagrama animado (largura ∝ potência): geradores → barramento → bateria/consumidores; carga e descarga com tempo estimado |
 | Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |
 | Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6, qualidade gráfica e iluminação (natural, clara, estúdio) ajustáveis |
-| Interface e controles | ✅ 7 telas, mais cenários, auxiliares, validação, guia e modo engenharia; executar, pausar, passo, reiniciar e acelerar |
+| Interface e controles | ✅ Telas organizadas em grupos (Operação, Sistemas, Apresentação, Análise, Ajustes e guia, Sala de comando) com visão geral dos sistemas em cartões e marcas de alarme na navegação; modo engenharia; executar, pausar, passo, reiniciar e acelerar |
 | Configurações | ✅ Aba própria com sessões, gravações, identificação, gráficos, ambiente, fundo, simulação e embarcação; cada grupo indica se é VISUAL, se muda a física AGORA ou se exige REINICIAR |
 | Salvar e continuar | ✅ Sessão completa (estado físico, automações em andamento, aceleração, identificação, posição geográfica) em arquivo compartilhável; carrega pausado; arquivos antigos abrem com conversão |
 | Gravação e reprodução | ✅ Comandos estruturados (operador e automações) com passo fixo e tempo; reprodução exata a partir do estado inicial gravado, com pontos de controle e automações sem duplicar |
@@ -166,6 +166,8 @@ A simulação, a cena 3D e a costa de Sepetiba (dados embutidos) funcionam offli
 
 ## Telas
 
+As telas ficam em **grupos** (navegação em dois níveis: grupo em cima, telas do grupo embaixo): **Operação** (Pilotagem, Central de comando, Governo, Mapa tático), **Sistemas** (Visão geral em cartões, Lastro e compensação, Trim e banda, Propulsão e energia, Fluxo de energia, Segurança, Sistemas auxiliares), **Apresentação** (Apresentação, Visualização 3D, Cenários), **Análise** (Histórico, Validação), **Ajustes e guia** (Configurações, Guia) e, por último, **Sala de comando**. As teclas `0`–`8` abrem as telas numeradas abaixo; detalhes em [docs/OPERACAO.md](docs/OPERACAO.md#navegação-grupos-e-telas).
+
 - **Apresentação:** tela para conduzir demonstrações. Reúne a cena 3D, os vetores de peso, empuxo e resultante, os tanques (clique para destacar um), os comandos de lastro, compensação, trim, banda e máquinas, e os indicadores físicos. Tem situações prontas, pausa, câmera lenta (×0,25), +0,1 s, retorno ao estado inicial, comparação "antes × agora", enquadramentos rápidos (superfície, submerso, tanques, forças, fixa) e camadas que podem ser ligadas separadamente (vetores, tanques, tubulações, escoamentos, identificações, esteira, boias, iluminação).
 
 0. **Pilotagem (tela inicial) — central de operação:** cena 3D sempre visível, faixa de indicadores, comandos essenciais e grupos expansíveis de todos os sistemas (ver docs/OPERACAO.md). Antes era: o submarino em 3D numa vista lateral que acompanha o casco, com os comandos ao lado (telégrafo, lemes, lastro, piloto automático e as manobras rápidas "Imergir para X m", "Emergir" e "Manter profundidade"). Você vê o submarino avançar, alagar os tanques, mergulhar, nivelar e emergir conforme opera os comandos. As referências de movimento (partículas em suspensão, esteira na superfície, bolhas e fita de profundidade) também vêm do estado físico.
@@ -177,7 +179,9 @@ A simulação, a cena 3D e a costa de Sepetiba (dados embutidos) funcionam offli
 6. **Visualização 3D:** câmeras lateral, perseguição, perspectiva, perfil, frente, topo, fixa, livre e os enquadramentos de apresentação; corte com níveis reais dos tanques, tubulações e escoamentos; vetores de força; boias; trajetória; bolhas proporcionais à vazão de ar.
 7. **Histórico:** gráficos sincronizados (grandezas de unidades diferentes em eixos separados, à esquerda e à direita), marcas dos comandos, comparação antes × depois e exportação em CSV.
 
-Também há as telas **Sala de comando** (primeira pessoa dentro da sala de controle: anda-se pela sala e operam-se todos os sistemas pelos painéis em 3D ou pelo painel 2D de cada posto, com periscópio), **Governo** (painel visual de governo com manche, alavancas e instrumentos), **Cenários** (biblioteca: condições iniciais com condição de carga, situações de aula e roteiros automáticos, indicando com costa ou mar aberto), **⚙ Configurações** (sessões salvas e arquivos, gravação e reprodução de comandos, identificação, gráficos, ambiente, fundo e costa, parâmetros), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
+8. **Sala de comando:** primeira pessoa dentro da sala de controle: anda-se pela sala e operam-se todos os sistemas pelos painéis em 3D ou pelo painel 2D de cada posto, com periscópio.
+
+Também há as telas **Sistemas › Visão geral** (um cartão por sistema com os números principais, a cor do pior alarme e atalhos para as telas de detalhe), **Governo** (painel visual de governo com manche, alavancas e instrumentos), **Cenários** (biblioteca: condições iniciais com condição de carga, situações de aula e roteiros automáticos, indicando com costa ou mar aberto), **⚙ Configurações** (sessões salvas e arquivos, gravação e reprodução de comandos, identificação, gráficos, ambiente, fundo e costa, parâmetros), **Sistemas auxiliares** (arquitetura prevista e estado), **Validação** (testes executados no navegador) e **Guia** (procedimento guiado com verificação automática e demonstração automática).
 
 O **modo engenharia** (botão ⓘ ou tecla `I`) permite clicar em tanques, válvulas, bombas, lemes e instrumentos. O painel mostra a função do componente, as variáveis ao vivo, o estado, a influência na dinâmica, as equações, as consequências previstas e um gráfico antes × depois.
 
@@ -195,7 +199,7 @@ O **modo engenharia** (botão ⓘ ou tecla `I`) permite clicar em tanques, válv
 
 O mesmo roteiro está no **Guia → Demonstração automática**. Detalhes em [docs/OPERACAO.md](docs/OPERACAO.md).
 
-Atalhos: `Espaço` executar/pausar · `A`/`D` leme de direção · `W`/`S` lemes de ré · `Q`/`E` lemes de vante · `+`/`−` telégrafo · `1`–`7` telas · `I` modo engenharia.
+Atalhos: `Espaço` executar/pausar · `A`/`D` leme de direção · `W`/`S` lemes de ré · `Q`/`E` lemes de vante · `+`/`−` telégrafo · `0`–`8` telas · `I` modo engenharia.
 
 ---
 

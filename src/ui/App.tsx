@@ -1,4 +1,4 @@
-/** Aplicação: barra superior, navegação entre telas e modo engenharia. */
+/** Aplicação: barra superior, navegação em dois níveis (grupos → telas, ver nav.ts) e modo engenharia. */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { UiContext, useUi, type ScreenId } from './uiContext';
 import { baseConfig, cmd, runner, useSim } from './store';
@@ -39,27 +39,9 @@ import { loadScenario } from './ops/OpsGroups';
 import { SCENARIOS } from '../sim/scenarios';
 import { link } from './link';
 import { openVisualWindow } from './sync';
-
-const TABS: { id: ScreenId; n?: string; label: string }[] = [
-  { id: 'pilotagem', n: '0', label: 'Pilotagem' },
-  { id: 'governo', label: 'Governo' },
-  { id: 'apresentacao', label: 'Apresentação' },
-  { id: 'mapa', label: 'Mapa tático' },
-  { id: 'energia', label: 'Fluxo de energia' },
-  { id: 'comando', n: '1', label: 'Central de comando' },
-  { id: 'lastro', n: '2', label: 'Lastro e compensação' },
-  { id: 'trim', n: '3', label: 'Trim e banda' },
-  { id: 'propulsao', n: '4', label: 'Propulsão e energia' },
-  { id: 'seguranca', n: '5', label: 'Segurança' },
-  { id: 'v3d', n: '6', label: 'Visualização 3D' },
-  { id: 'historico', n: '7', label: 'Histórico' },
-  { id: 'cenarios', label: 'Cenários' },
-  { id: 'config', label: '⚙ Configurações' },
-  { id: 'auxiliares', label: 'Sistemas auxiliares' },
-  { id: 'validacao', label: 'Validação' },
-  { id: 'ajuda', label: 'Guia' },
-  { id: 'sala', n: '8', label: 'Sala de comando' },
-];
+import { NavBar } from './components/NavBar';
+import { SystemsOverview } from './screens/SystemsOverview';
+import { isScreenId, screenForKey } from './nav';
 
 function ScenarioPicker({ current }: { current: string }) {
   const [sel, setSel] = useState(current);
@@ -206,7 +188,7 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           <span className="badge ok">SEM ALARMES</span>
         )}
       </div>
-      <div className="row ph-more" style={{ gap: 6 }}>
+      <div className="row ph-more topbar-modes" style={{ gap: 6 }}>
         <button className={`btn ${ui.eng ? 'on' : ''}`} onClick={() => ui.setEng(!ui.eng)} title="Modo engenharia (I)">
           ⓘ Engenharia
         </button>
@@ -220,13 +202,14 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
 
 export function App() {
   const prefs = storage.getPrefs({ screen: 'pilotagem' as ScreenId, eng: false });
-  const [screen, setScreen] = useState<ScreenId>(prefs.screen);
+  const [screen, setScreen] = useState<ScreenId>(isScreenId(prefs.screen) ? prefs.screen : 'pilotagem');
   const [eng, setEngState] = useState<boolean>(prefs.eng);
   const [inspect, setInspect] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showProcedure, setShowProcedure] = useState(false);
   const [resume, setResume] = useState(() => storage.getAutosave());
   const topRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<number>(0);
 
   const toast = (m: string) => {
@@ -256,12 +239,17 @@ export function App() {
     };
   }, []);
 
-  // altura da barra superior → posição das abas
+  // alturas da barra superior e da navegação → posição e altura das telas (--topbar-h, --nav-h)
   useEffect(() => {
-    const el = topRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${el.offsetHeight}px`));
-    ro.observe(el);
+    const top = topRef.current;
+    const nav = navRef.current;
+    if (!top || !nav) return;
+    const ro = new ResizeObserver(() => {
+      document.documentElement.style.setProperty('--topbar-h', `${top.offsetHeight}px`);
+      document.documentElement.style.setProperty('--nav-h', `${nav.offsetHeight}px`);
+    });
+    ro.observe(top);
+    ro.observe(nav);
     return () => ro.disconnect();
   }, []);
 
@@ -301,7 +289,11 @@ export function App() {
       else if (k === '+' || k === '=') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd + 10 });
       else if (k === '-') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd - 10 });
       else if (k === 'i') setEng(!eng);
-      else if (/^[0-8]$/.test(k)) setScreen(TABS.find((x) => x.n === k)!.id);
+      else if (/^[0-8]$/.test(k)) {
+        // o foco num botão da navegação ficaria marcado num grupo que não é mais o atual
+        if (t?.closest?.('.nav2')) t.blur();
+        setScreen(screenForKey(k) ?? screen);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -315,6 +307,7 @@ export function App() {
     mapa: <TacticalMapScreen />,
     energia: <EnergyFlowScreen />,
     comando: <CommandCenter />,
+    sistemas: <SystemsOverview />,
     lastro: <BallastScreen />,
     trim: <TrimHeelScreen />,
     propulsao: <PropulsionScreen />,
@@ -332,14 +325,7 @@ export function App() {
     <UiContext.Provider value={{ screen, setScreen, eng, setEng, inspect, setInspect, toast, showProcedure, setShowProcedure }}>
       <div className={`app ${eng ? 'eng' : ''}`}>
         <TopBar topRef={topRef} />
-        <nav className="tabs">
-          {TABS.map((t) => (
-            <button key={t.id} className={screen === t.id ? 'active' : ''} onClick={() => setScreen(t.id)}>
-              {t.n && <span className="n">{t.n}</span>}
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <NavBar screen={screen} setScreen={setScreen} navRef={navRef} />
         {resume && (
           <div className="banner">
             <span>
