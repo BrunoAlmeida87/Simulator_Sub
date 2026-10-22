@@ -1,5 +1,6 @@
 /**
- * LINHAS DE PROFUNDIDADE (só visual): a cada 25 m, um anel horizontal bem
+ * LINHAS DE PROFUNDIDADE (só visual): a cada 25 m (ajustável nas
+ * Configurações → Gráficos), um anel horizontal bem
  * leve em volta da câmera, fixo na cota, com o rótulo da profundidade
  * ("25 m", "50 m"…), da primeira cota até o fundo simulado sob a câmera.
  * Olhando na horizontal, cada anel aparece como uma linha suave atravessando
@@ -10,11 +11,11 @@
 import * as THREE from 'three';
 import type { Environment } from '../sim/environment/environment';
 
-export const DEPTH_LINE_SPACING = 25; // m
+export const DEPTH_LINE_SPACING = 25; // m (padrão)
 const RADIUS = 180; // m (raio do anel em volta da câmera)
 const SEGMENTS = 160;
 const LABELS_PER_RING = 4;
-const MAX_LEVELS = 160; // até 4 000 m
+const MAX_LEVELS = 400; // cotas desenhadas no máximo (5 m × 400 = 2 000 m)
 
 interface Level {
   ring: THREE.LineLoop;
@@ -46,6 +47,9 @@ export class DepthLines {
   private levels: Level[] = [];
   private ringGeo: THREE.BufferGeometry;
   private lineMat = new THREE.LineBasicMaterial({ color: 0xc4e6ff, transparent: true, opacity: 0.28, depthWrite: false });
+  /** espaçamento entre as linhas (m); mudar refaz as cotas e os rótulos */
+  spacing = DEPTH_LINE_SPACING;
+  private built = DEPTH_LINE_SPACING;
 
   constructor() {
     this.group.name = 'Linhas de profundidade';
@@ -59,7 +63,7 @@ export class DepthLines {
 
   private level(k: number): Level {
     while (this.levels.length <= k) {
-      const depth = (this.levels.length + 1) * DEPTH_LINE_SPACING;
+      const depth = (this.levels.length + 1) * this.built;
       const ring = new THREE.LineLoop(this.ringGeo, this.lineMat);
       ring.frustumCulled = false;
       ring.scale.setScalar(RADIUS);
@@ -88,8 +92,10 @@ export class DepthLines {
   update(env: Environment, pn: number, pe: number, cam: THREE.Vector3, enabled: boolean): void {
     this.group.visible = enabled;
     if (!enabled) return;
+    if (this.spacing !== this.built) this.rebuild();
+    const sp = this.built;
     const bottom = env.bottomDepthAt(pn - cam.z, pe + cam.x);
-    const n = Math.max(0, Math.min(MAX_LEVELS, Number.isFinite(bottom) ? Math.floor((bottom - 0.5) / DEPTH_LINE_SPACING) : 0));
+    const n = Math.max(0, Math.min(MAX_LEVELS, Number.isFinite(bottom) ? Math.floor((bottom - 0.5) / sp) : 0));
     for (let k = 0; k < Math.max(n, this.levels.length); k++) {
       const on = k < n;
       if (!on) {
@@ -99,7 +105,7 @@ export class DepthLines {
         continue;
       }
       const L = this.level(k);
-      const y = -(k + 1) * DEPTH_LINE_SPACING;
+      const y = -(k + 1) * sp;
       L.ring.visible = true;
       L.ring.position.set(cam.x, y, cam.z);
       L.labels.forEach((s, j) => {
@@ -111,13 +117,25 @@ export class DepthLines {
     }
   }
 
+  /** descarta as cotas do espaçamento anterior (recriadas sob demanda) */
+  private rebuild(): void {
+    this.disposeLevels();
+    this.built = Math.max(1, this.spacing);
+  }
+
+  private disposeLevels(): void {
+    for (const L of this.levels) {
+      this.group.remove(L.ring, ...L.labels);
+      const m = L.labels[0]?.material;
+      m?.map?.dispose();
+      m?.dispose();
+    }
+    this.levels = [];
+  }
+
   dispose(): void {
+    this.disposeLevels();
     this.ringGeo.dispose();
     this.lineMat.dispose();
-    for (const L of this.levels)
-      for (const s of L.labels.slice(0, 1)) {
-        s.material.map?.dispose();
-        s.material.dispose();
-      }
   }
 }

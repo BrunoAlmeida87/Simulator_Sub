@@ -234,6 +234,8 @@ export class SubmarineScene {
   private snow: THREE.Points;
   private depthRefs: DepthRefs;
   private depthLines = new DepthLines();
+  /** espaçamento das linhas de profundidade (m), das preferências gráficas */
+  depthLineSpacing = 25;
   /** referências discretas de profundidade (Configurações → Gráficos) */
   depthRefsOn = true;
   private snowBase: Float32Array;
@@ -1425,6 +1427,7 @@ export class SubmarineScene {
     this.depthRefs.update(e.env, pn, pe, pd, (e.outputs.euler.heading * Math.PI) / 180, e.vessel.hull.length, e.vessel.hull.diameter, this.depthRefsOn && !dry);
     this.depthLine.visible = this.depthRefsOn && this.layers.labels && !dry;
     // linhas de profundidade a cada 25 m (camada própria; somem sem água)
+    this.depthLines.spacing = this.depthLineSpacing;
     this.depthLines.update(e.env, pn, pe, this.camera.position, this.layers.depthLines !== false && !dry);
     if (dry) {
       this.underSky.mesh.visible = false;

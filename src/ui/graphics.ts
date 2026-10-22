@@ -31,6 +31,8 @@ export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings {
   traffic: number;
   /** referências discretas de profundidade no ambiente submarino */
   depthRefs: boolean;
+  /** espaçamento das linhas de profundidade (m; camada “Linhas de profundidade”) */
+  depthLineSpacing: number;
 }
 
 const K_Q = 'sx1.quality.v1';
@@ -48,6 +50,8 @@ function initialQuality(): OceanQuality {
 }
 
 export const TRIM_GAINS = [1, 5, 10, 20, 50];
+/** espaçamentos oferecidos para as linhas de profundidade (m); padrão 25 m */
+export const DEPTH_LINE_SPACINGS = [5, 10, 20, 25, 50, 100];
 
 const num = (v: unknown, lo: number, hi: number, def: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def);
 
@@ -65,6 +69,7 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
     traffic: typeof p?.traffic === 'number' && Number.isFinite(p.traffic) ? Math.max(0, Math.min(MAX_TRAFFIC, Math.round(p.traffic))) : base.traffic,
     depthRefs: typeof p?.depthRefs === 'boolean' ? p.depthRefs : base.depthRefs,
+    depthLineSpacing: typeof p?.depthLineSpacing === 'number' && DEPTH_LINE_SPACINGS.includes(p.depthLineSpacing) ? p.depthLineSpacing : base.depthLineSpacing,
     sunHour: num(p?.sunHour, 0, 24, base.sunHour),
     sunTurn: num(p?.sunTurn, -180, 180, base.sunTurn),
     moonlight: typeof p?.moonlight === 'boolean' ? p.moonlight : base.moonlight,
@@ -91,6 +96,7 @@ class GraphicsStore {
       lighting: 'clara',
       traffic: 0,
       depthRefs: true,
+      depthLineSpacing: 25,
       ...DEFAULT_DAYLIGHT,
     };
     let saved: Partial<GraphicsSettings> | null = null;
