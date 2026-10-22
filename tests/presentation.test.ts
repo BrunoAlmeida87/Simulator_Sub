@@ -201,12 +201,21 @@ describe('Peso deslocável e trimagem', () => {
     expect(Math.abs(e.outputs.massAudit)).toBeLessThan(1);
   });
 
-  it('embarcar/desembarcar a carga entra no balanço de massa', () => {
-    const e = buildScenario('submerso_50');
-    applyCommand(e, { type: 'demoWeight', mass: 8000 });
-    e.advanceSim(2);
+  it('escolher quantas toneladas deslocar não acrescenta peso: só aumenta o binário', () => {
+    const e = buildScenario('pairando');
+    const m0 = e.outputs.mp.internalMass;
+    const nb0 = e.outputs.netBuoyancyKg;
+    applyCommand(e, { type: 'demoWeight', mass: 20000 });
+    applyCommand(e, { type: 'demoWeight', x: 25 });
+    e.advanceSim(30);
+    expect(e.outputs.mp.internalMass).toBeCloseTo(m0, 3);
+    expect(Math.abs(e.outputs.netBuoyancyKg - nb0)).toBeLessThan(300);
     expect(Math.abs(e.outputs.massAudit)).toBeLessThan(1);
-    expect(e.outputs.netBuoyancyKg).toBeLessThan(-2500);
+    expect(trimBalance(e).demo!.momentTm).toBeLessThan(-400); // 20 t × 23 m
+    // não passa da carga existente a bordo
+    applyCommand(e, { type: 'demoWeight', mass: 99000 });
+    expect(trimBalance(e).demo!.mass).toBe(e.vessel.mass.demoWeight!.mass);
+    expect(e.outputs.mp.internalMass).toBeCloseTo(m0, 3);
   });
 });
 

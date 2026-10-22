@@ -55,7 +55,7 @@ export function defaultVessel(): VesselConfig {
       ],
       loadOffset: 0,
       loadOffsetPosition: { x: 3, y: 0, z: 1.0 },
-      demoWeight: { mass: 5000, xNeutral: 2, xMin: -25, xMax: 25, y: 0, z: 1.7, speed: 1.0 },
+      demoWeight: { mass: 30000, initialMass: 5000, xNeutral: 2, xMin: -25, xMax: 25, y: 0, z: 1.7, speed: 1.0 },
     },
     hydro: {
       totalResistanceCoeff: 0.0022,
@@ -237,8 +237,8 @@ export function defaultVessel(): VesselConfig {
     trim: {
       id: 'trim',
       name: 'Sistema de trim longitudinal',
-      tankA: { id: 'TTAV', name: 'TT-AV Trim vante', capacity: 8, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: 21.5, y: 0, z: 2.2 }, initialVolume: 4 },
-      tankB: { id: 'TTAR', name: 'TT-AR Trim ré', capacity: 8, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: -13.0, y: 0, z: 2.2 }, initialVolume: 4 },
+      tankA: { id: 'TTAV', name: 'TT-AV Trim vante', capacity: 12, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: 21.5, y: 0, z: 2.2 }, initialVolume: 6 },
+      tankB: { id: 'TTAR', name: 'TT-AR Trim ré', capacity: 12, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: -13.0, y: 0, z: 2.2 }, initialVolume: 6 },
       valveA: valve('VTAV', 'Isolamento TT-AV', 3),
       valveB: valve('VTAR', 'Isolamento TT-AR', 3),
       directionValve: valve('VDT', 'Seletor de sentido (trim)', 3),

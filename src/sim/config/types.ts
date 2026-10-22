@@ -52,7 +52,10 @@ export interface MassConfig {
 }
 
 export interface DemoWeightConfig {
-  mass: number; // kg
+  /** carga já a bordo (kg), parte da condição de projeto na posição neutra; é o máximo que se pode deslocar */
+  mass: number;
+  /** parcela deslocada no início (kg); padrão = mass */
+  initialMass?: number;
   xNeutral: number; // m (corpo) — posição da condição de projeto
   xMin: number;
   xMax: number;

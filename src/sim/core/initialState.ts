@@ -168,7 +168,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       mass0: 0,
     },
     contact: false,
-    demoWeight: v.mass.demoWeight ? { x: v.mass.demoWeight.xNeutral, xCmd: v.mass.demoWeight.xNeutral, mass: v.mass.demoWeight.mass } : undefined,
+    demoWeight: v.mass.demoWeight ? { x: v.mass.demoWeight.xNeutral, xCmd: v.mass.demoWeight.xNeutral, mass: Math.min(v.mass.demoWeight.mass, v.mass.demoWeight.initialMass ?? v.mass.demoWeight.mass) } : undefined,
   };
 }
 

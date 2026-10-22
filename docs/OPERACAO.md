@@ -292,10 +292,10 @@ Cada etapa tem seis abas:
 
 ## Peso deslocável e trimagem
 
-Uma carga de demonstração de 5 t corre num trilho longitudinal (−25 a +25 m, a 1 m/s). Na posição neutra ela faz parte da condição de projeto (trim nulo).
+Uma carga de 30 t **já a bordo** (parte da condição de projeto, na posição neutra x = 2 m) pode ser deslocada num trilho longitudinal (−25 a +25 m, a 1 m/s). Deslocar não acrescenta peso: a massa total do submarino e a flutuabilidade não mudam, só aparece o binário.
 - **Deslocar:** levá-la para vante ou ré cria um binário: +P na nova posição e −P na original. Pairando a 80 m, o submarino inclina cerca de 10°. Na superfície o efeito é pequeno, porque o plano de flutuação é muito mais rígido.
 - **Compensar com o trim:** transfere a água entre TT-AV e TT-AR que anula o binário, e o submarino volta a nivelar.
-- **Massa da carga:** 0, 2, 5 ou 10 t (entra no balanço de massa). Com 10 t a 25 m, os tanques de trim não bastam, e o painel avisa.
+- **Toneladas deslocadas:** 2, 5, 10, 20 ou 30 t da carga existente (padrão 5 t). Só essa parcela anda no trilho; o restante fica na posição neutra. Com cargas grandes a 25 m, os tanques de trim (12 m³ cada) não bastam, e o painel avisa.
 - **Vetores de trim:** camada própria, que liga e desliga sem afetar as outras. Mostra o binário do peso, a variação de peso em TT-AV e TT-AR e um arco com o momento líquido ("Trim compensado" quando os momentos se anulam).
 - **Onde está o painel:** Apresentação (situação pronta "Trim: deslocar peso e compensar"), Pilotagem e Trim e banda.
 
