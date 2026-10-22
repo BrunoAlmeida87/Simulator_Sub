@@ -407,22 +407,67 @@ export class SystemsVis {
       const y = i % 2 === 0 ? -0.9 : 0.9;
       const color = emergency ? 0xf0a070 : 0xd9cf8f;
       const z = emergency ? zE : zM;
+      const length = emergency ? 1.6 : 3.2;
+      const profile = [
+        [0, -0.5],
+        [0.13, -0.49],
+        [0.22, -0.45],
+        [0.26, -0.38],
+        [0.26, 0.27],
+        [0.24, 0.33],
+        [0.18, 0.39],
+        [0.07, 0.43],
+        [0.07, 0.47],
+        [0, 0.47],
+      ];
+      const bottleGeo = new THREE.LatheGeometry(
+        profile.map(([r, h]) => new THREE.Vector2(r, h * length)),
+        20,
+      );
+      const bodyMat = new THREE.MeshStandardMaterial({ color, emissive: 0x302919, metalness: 0.35, roughness: 0.45 });
+      const metalMat = new THREE.MeshStandardMaterial({ color: 0x9aaab4, metalness: 0.65, roughness: 0.35 });
+      const brassMat = new THREE.MeshStandardMaterial({ color: 0xc5a768, metalness: 0.6, roughness: 0.4 });
+      const bandGeo = new THREE.TorusGeometry(0.265, 0.018, 6, 20);
+      const fittingGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.08, 12);
+      const wheelGeo = new THREE.TorusGeometry(0.1, 0.025, 6, 12);
       const grp = new THREE.Group();
       for (let k = 0; k < 3; k++) {
-        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, emergency ? 1.6 : 3.2, 12), new THREE.MeshStandardMaterial({ color, emissive: 0x3a3418, transparent: true, opacity: 0.9 }));
-        c.rotation.x = Math.PI / 2;
-        c.position.copy(b2l(x, y + (k - 1) * 0.3, 1.5 + (k % 2) * 0.25));
-        c.userData.pick = { kind: 'hp', id: b.id };
-        this.pickables.push(c);
-        grp.add(c);
+        const bottle = new THREE.Group();
+        bottle.add(new THREE.Mesh(bottleGeo, bodyMat));
+        for (const offset of [-0.25, 0.2]) {
+          const band = new THREE.Mesh(bandGeo, metalMat);
+          band.rotation.x = Math.PI / 2;
+          band.position.y = offset * length;
+          bottle.add(band);
+        }
+        const fitting = new THREE.Mesh(fittingGeo, brassMat);
+        fitting.position.y = 0.47 * length;
+        const wheel = new THREE.Mesh(wheelGeo, brassMat);
+        wheel.rotation.x = Math.PI / 2;
+        wheel.position.y = 0.5 * length;
+        bottle.add(fitting, wheel);
+        bottle.rotation.x = Math.PI / 2;
+        const cy = y + (k - 1) * 0.56;
+        const cz = 1.5 + (k % 2) * 0.25;
+        bottle.position.copy(b2l(x, cy, cz));
+        bottle.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.userData.pick = { kind: 'hp', id: b.id };
+            this.pickables.push(obj);
+          }
+        });
+        grp.add(bottle);
+        // A ligação sai do gargalo de cada ampola, na extremidade do corpo.
+        this.pipe([b2l(x - 0.5 * length, cy, cz), b2l(x - 0.5 * length, cy, 0.8), b2l(x - 0.5 * length, y, 0.8)], color, ['HP']);
       }
       // as garrafas são reservatórios: aparecem com o corte, mesmo sem a camada de tubulações
       this.group.add(grp);
       this.hpBottles.push({ id: b.id, grp, at: b2l(x, y * 1.25, 0.9) });
-      const start = b2l(x, y, 1.0);
-      const riser = [start, b2l(x, y, 0.2), b2l(x, 0, z(x))];
+      const neckX = x - 0.5 * length;
+      const start = b2l(neckX, y, 0.8);
+      const riser = [start, b2l(neckX, y, 0.2), b2l(neckX, 0, z(neckX))];
       this.pipe(riser, color, ['HP']);
-      this.valve(b2l(x, y, 0.6), b.valve.name, (en) => en.state.hpAir.banks[b.id].valve, ['HP']);
+      this.valve(b2l(neckX, y, 0.5), b.valve.name, (en) => en.state.hpAir.banks[b.id].valve, ['HP']);
       this.stream(riser, C_HP, ['HP'], (en) => {
         let m = 0;
         for (const t of v.ballast.tanks) m += emergency ? en.state.ballast[t.id].mdotEmergencyBlow : en.state.ballast[t.id].mdotBlow;
