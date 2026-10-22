@@ -83,13 +83,24 @@ code, .mono { font-family: var(--mono); }
 .nav2 .nav2-group { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px 7px; margin-bottom: -1px; font-size: 13px; letter-spacing: 0.02em; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; }
 .nav2 .nav2-group:hover { color: var(--text); background: rgba(255, 255, 255, 0.03); }
 .nav2 .nav2-group.active { color: var(--accent); background: var(--bg2); border-color: var(--line); box-shadow: inset 0 2px 0 var(--accent); }
+/* cores por grupo (--gc vem do NavBar) e divisórias entre grupos e entre telas */
+.nav2 .nav2-group .nav2-ico { color: var(--gc, currentColor); }
+.nav2 .nav2-group + .nav2-group::before { content: ''; position: absolute; left: -3px; top: 8px; bottom: 9px; width: 1px; background: var(--line2); }
+.nav2 .nav2-group.active { color: var(--gc, var(--accent)); background: linear-gradient(180deg, color-mix(in srgb, var(--gc, var(--accent)) 16%, var(--bg2)), var(--bg2) 85%); box-shadow: inset 0 3px 0 var(--gc, var(--accent)); }
+.nav2 .nav2-group.active:not(.last)::before, .nav2 .nav2-group.active + .nav2-group:not(.last)::before { display: none; }
 .nav2 .nav2-group.last { margin-left: 9px; }
-.nav2 .nav2-group.last::before { content: ''; position: absolute; left: -7px; top: 9px; bottom: 9px; width: 1px; background: var(--line2); }
+.nav2 .nav2-group.last::before { content: ''; position: absolute; left: -7px; top: 6px; bottom: 7px; width: 2px; background: var(--line2); }
+.nav2-screens { background: color-mix(in srgb, var(--gc, var(--accent)) 7%, var(--bg2)); box-shadow: inset 4px 0 0 var(--gc, var(--accent)); }
+.nav2-row button { position: relative; }
+.nav2-row button + button::before { content: ''; position: absolute; left: -2px; top: 8px; bottom: 8px; width: 1px; background: var(--line2); }
+.nav2-menu section { border-left: 3px solid var(--gc, var(--line2)); padding-left: 8px; }
+.nav2-menu h4 .nav2-ico { color: var(--gc, currentColor); }
+.nav2-menu section.cur h4 { color: var(--gc, var(--accent)); }
 .nav2-screens { position: relative; z-index: 2; display: flex; align-items: stretch; min-width: 0; }
 .nav2-row { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; padding: 0 8px; }
 .nav2-row button { display: inline-flex; align-items: center; padding: 7px 12px; font-size: 12.5px; border-bottom: 2px solid transparent; }
 .nav2-row button:hover { color: var(--text); }
-.nav2-row button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav2-row button.active { color: var(--gc, var(--accent)); border-bottom-color: var(--gc, var(--accent)); background: color-mix(in srgb, var(--gc, var(--accent)) 12%, transparent); }
 .nav2 .n { font-family: var(--mono); color: var(--dim); margin-right: 5px; }
 .nav2-hint { align-self: center; min-width: 0; padding: 0 8px; color: var(--dim); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav2-keys { align-self: center; flex: none; padding: 0 12px; color: var(--dim); font-family: var(--mono); font-size: 10.5px; cursor: help; }
@@ -634,8 +645,8 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   /* navegação: uma linha só — grupo ▾ (abre o mapa de todas as telas) + telas do grupo, com rolagem lateral */
   .nav2 { top: 0; }
   .nav2-groups, .nav2-keys, .nav2-hint { display: none; }
-  .nav2 .nav2-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; margin: 4px 0 4px 6px; padding: 4px 10px; color: var(--accent); background: rgba(54, 197, 240, 0.08); border: 1px solid var(--line2); border-radius: 16px; font-size: 12.5px; }
-  .nav2 .nav2-chip.on { background: rgba(54, 197, 240, 0.22); border-color: var(--accent); }
+  .nav2 .nav2-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; margin: 4px 0 4px 6px; padding: 4px 10px; color: var(--gc, var(--accent)); background: color-mix(in srgb, var(--gc, var(--accent)) 10%, transparent); border: 1px solid var(--gc, var(--line2)); border-radius: 16px; font-size: 12.5px; }
+  .nav2 .nav2-chip.on { background: color-mix(in srgb, var(--gc, var(--accent)) 24%, transparent); border-color: var(--gc, var(--accent)); }
   .nav2-chip .car { color: var(--muted); font-size: 10px; }
   .nav2-row { padding: 0 4px; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); }
   .nav2-row::-webkit-scrollbar { display: none; }

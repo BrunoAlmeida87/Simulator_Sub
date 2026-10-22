@@ -6,7 +6,7 @@
 import type { SimRunner } from '../sim/core/runner';
 import type { SimulationEngine } from '../sim/core/engine';
 import { buildScenario } from '../sim/scenarios';
-import { applyCommand } from '../sim/commands';
+import { applyCommand, type Command } from '../sim/commands';
 import { deserializeEngine, serializeEngine, type SaveFile } from '../sim/persistence';
 import { verticalBalance, toTf } from '../sim/forceVectors';
 import { tankVolume } from '../sim/systems/internalTanks';
@@ -258,11 +258,11 @@ class PresentationStore {
 export const pres = new PresentationStore();
 
 /** Comando de lastro para um grupo de TLP (vante/ré/todos). */
-export function mbtGroup(e: SimulationEngine, group: 'vante' | 're' | 'todos', what: 'vent' | 'blow', open: boolean): void {
+export function mbtGroup(e: SimulationEngine, group: 'vante' | 're' | 'todos', what: 'vent' | 'blow', open: boolean, send: (c: Command) => void = (c) => applyCommand(e, c)): void {
   const ids = e.vessel.ballast.tanks.filter((t) => group === 'todos' || (group === 'vante' ? t.center.x > 0 : t.center.x < 0)).map((t) => t.id);
   if (group === 'todos') {
-    applyCommand(e, { type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: 'ALL', open });
+    send({ type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: 'ALL', open });
     return;
   }
-  for (const id of ids) applyCommand(e, { type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: id, open });
+  for (const id of ids) send({ type: what === 'vent' ? 'mbtVent' : 'mbtBlow', tank: id, open });
 }

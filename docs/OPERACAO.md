@@ -13,6 +13,7 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 
 - **Linha de cima — grupos**, com ícone: clicar num grupo abre a **última tela usada** nele (na primeira vez, a primeira tela do grupo). A escolha fica guardada no navegador.
 - **Linha de baixo — telas do grupo atual**. O número cinza antes do nome é a tecla de atalho.
+- **Cores e divisórias**: cada grupo tem uma cor — Operação azul, Sistemas verde, Apresentação roxo, Análise âmbar, Ajustes e guia cinza, Sala de comando vermelho. A cor aparece no ícone, na barra do grupo aberto e na faixa da linha de telas (com a tela atual destacada na mesma cor); barras finas separam os grupos e as telas.
 
 | Grupo | Telas (tecla) |
 |---|---|
@@ -33,7 +34,7 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 
 A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre visível, com a faixa de indicadores embaixo: profundidade, velocidade vertical, velocidade, rumo, pitch, banda, bateria e flutuabilidade (ou reserva, na superfície). O painel lateral tem rolagem própria.
 
-- **Barra superior (fixa):** executar/pausar, passo, reiniciar, velocidade do tempo, seletor de **cenário** + Carregar, **⧉ 2ª janela** e alarmes. Clicar no alarme abre o sistema afetado na Pilotagem.
+- **Barra superior (fixa):** executar/pausar, passo, reiniciar, velocidade do tempo, seletor de **cenário** + Carregar, **⧉ 2ª janela**, **＋ Tela** e alarmes. Clicar no alarme abre o sistema afetado na Pilotagem.
 - **Comandos essenciais (sempre visíveis no topo do painel):** executar/pausar, telégrafo, lemes de vante, ré e direção, profundidade (MAN/AUTO + ordem) e manobras rápidas (Imergir para X m, Emergir, Manter).
 - **Grupos expansíveis**, com resumo no cabeçalho mesmo recolhidos:
   - *Navegação*: telégrafo com régua, lemes e pilotos de rumo, profundidade e inclinação.
@@ -192,6 +193,18 @@ O passadiço e o drone chegam à 2ª janela: com “Igual ao controle” ela seg
 
 Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. Em **Camadas (n) ▾** a segunda janela tem o mesmo painel agrupado das outras telas, com **Casco externo** dentro de **Tanques e sistemas**. Os ajustes valem só para ela; um • indica o que foi alterado ali, e "↺ Desfazer ajustes" volta ao conjunto escolhido (3D completo ou camadas do controle). Os navios adicionais, as referências de profundidade e a quantidade de peixes chegam a ela junto com as preferências gráficas.
 
+## Mais telas (três ou mais monitores)
+
+**＋ Tela** (barra superior) abre outra janela com o **simulador completo** — barra superior, todas as abas e todos os controles — espelhando a mesma simulação. Exemplo com três monitores: janela principal na Pilotagem no 1º, **⧉ 2ª janela** com a cena 3D no 2º e **＋ Tela** com o Mapa tático (ou Lastro, Fluxo de energia, Histórico…) no 3º. Cada clique em ＋ Tela abre mais uma (Tela 1, Tela 2…), útil com quatro ou mais monitores.
+
+- **Arraste a janela para o monitor** desejado e use **⛶ Tela cheia** (ou F11). A barra do navegador mostra “Tela N — aba”, para achar a janela certa.
+- **Escolha a aba livremente**: cada tela lembra a sua aba (a primeira abre no Mapa tático) sem mudar a da janela principal.
+- **Os comandos dados na tela valem para a simulação** e entram no histórico e na gravação: lemes, telégrafo, válvulas, bombas, piloto automático, executar/pausar, aceleração, passo, reiniciar, trocar cenário, carregar sessão, manobras rápidas, roteiros automáticos, demonstração, rota no mapa e checklist. Quem calcula é sempre a janela principal; a tela envia o pedido e mostra o resultado (atraso de ~30 ms).
+- Ao abrir, a tela recebe o estado atual, o histórico de gráficos e o registro de comandos e alarmes.
+- **Gravação e reprodução de comandos** e o modo de instrumentação avançada (Segurança) ficam só na janela principal.
+- O selo **“Tela N · espelhando o controle”** confirma a ligação. Sem a janela principal aberta, a tela mostra “aguardando a janela de controle” e não aceita comandos. No botão ＋ Tela da janela principal, ✓ indica que há tela ligada.
+- Mesmos requisitos da 2ª janela: mesmo navegador e mesmo endereço; mantenha a janela principal visível (não minimizada).
+
 Os botões de câmera *Vista tanques* e *Vista forças* (em todas as telas) mudam o enquadramento e já ligam, respectivamente, os tanques e os vetores. As opções de **Camadas** ligam e desligam o que é desenhado; a câmera e a visibilidade têm controles separados. Mantenha a janela principal visível (não minimizada): navegadores pausam a animação de janelas minimizadas, e com isso a simulação também pausa.
 
 ## Modo apresentação
@@ -269,7 +282,7 @@ Na superfície o plano de flutuação resiste à inclinação: a rigidez de trim
 - **Tanques visíveis:** em **Camadas → Tanques e sistemas**, ligue **Tanques (corte)** e abra **Escolher tanques**. Você pode mostrar todos, nenhum (*Nenhum*), só um grupo (lastro principal, compensação, trim, banda) ou tanques individuais — inclusive desmarcar o último. As tubulações e os escoamentos acompanham a seleção.
 - **Filtros da cena 3D recolhíveis (Pilotagem, Visualização 3D, Governo, Apresentação e 2ª janela):** no canto da cena fica só uma fileira de botões compactos, cada um com o valor atual — **Vista: Perspectiva ▾**, **Camadas (n) ▾**, **Mar 3 · Hs 1.0 m ▾** (estado do mar, gráfico e iluminação) e **☀ 07:00 ▾** (sol e luzes). Clicar abre o painel logo abaixo; clicar de novo fecha. Abrir um fecha o outro, para a cena não ficar coberta; o painel aberto fica guardado por tela. Dentro de *Sol e luzes*, **Hora**, **Direção do sol** e **Luzes** também abrem e fecham (o título mostra o valor atual). Na Apresentação, os painéis laterais **Enquadramento** e **Camadas** se recolhem clicando no título (▾/▸). No celular tudo continua atrás do botão **⚙ Vista**.
 - **Camadas (n) ▾ (Pilotagem, Visualização 3D, Governo e 2ª janela):** abre o painel de camadas **em grupos** — Tanques e sistemas, Forças e vetores, Identificações e referências, Cenário e movimento, Ambiente — com um botão por grupo (marca/desmarca o grupo todo) e **☑ Marcar todas** / **☐ Desmarcar todas**; o número mostra quantas estão ligadas. Os controles de tanques, vetores e água ficam apenas neste painel, junto às seleções detalhadas de cada grupo. **Turbidez**, na Visualização 3D, fica em **Ambiente**. Na Apresentação, os mesmos grupos ficam no painel lateral **Camadas** (recolhível).
-- **Vento** (camada *Cenário e movimento*): uma brisa leve sopra no sentido das ondas (≈ 1 nó no mar 0 a 6 nós no mar 6); o vento aparente é essa brisa menos a velocidade do submarino — avançando, ele passa a vir da proa, de encontro ao submarino, dando a sensação de avanço. Aparece como poucas faixas finas e discretas passando acima da água perto da vela. A **flâmula** vermelha no topo da vela é opcional (camada *Flâmula*, desligada por padrão): com a vela fora d'água ela se estende para sotavento (com *Identificações*, o rótulo dá a intensidade e de onde vem). É só visual: o vento não entra na física. Com *Identificações* desligadas somem também os rótulos de superfície, cota e fundo e a linha tracejada entre eles.
+- **Vento** (camada *Cenário e movimento*): uma brisa leve sopra no sentido das ondas (≈ 1 nó no mar 0 a 6 nós no mar 6); o vento aparente é essa brisa menos a velocidade do submarino — avançando, ele passa a vir da proa, de encontro ao submarino, dando a sensação de avanço. Aparece como feixes de fios de ar suaves, com volume, passando no ar em volta da vela (de ~1,5 a 14 m de altura, sem acompanhar as ondas). A **flâmula** vermelha no topo da vela é opcional (camada *Flâmula*, desligada por padrão): com a vela fora d'água ela se estende para sotavento (com *Identificações*, o rótulo dá a intensidade e de onde vem). É só visual: o vento não entra na física. Com *Identificações* desligadas somem também os rótulos de superfície, cota e fundo e a linha tracejada entre eles.
 - **Visualização salva:** Pilotagem, Visualização 3D e Apresentação guardam a câmera, a posição da câmera livre, os botões e a seleção de tanques ao trocar de aba. Também ficam guardados ao recarregar a página.
 
 ## Piloto automático de profundidade — lemes de ré × lemes de vela
@@ -371,7 +384,7 @@ Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O p
 ## Celular
 
 A página se adapta à tela do celular, em pé ou deitado (telas de toque pequenas). No PC nada muda, em nenhum tamanho de janela.
-- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a navegação fica presa no topo numa linha só: o botão do **grupo ▾** (ex.: *Sistemas ▾*) seguido das telas desse grupo, que rolam para o lado. O ▾ abre o mapa de **todas as telas**, por grupo, com os atalhos e as marcas de alarme.
+- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, ＋ Tela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a navegação fica presa no topo numa linha só: o botão do **grupo ▾** (ex.: *Sistemas ▾*) seguido das telas desse grupo, que rolam para o lado. O ▾ abre o mapa de **todas as telas**, por grupo, com os atalhos e as marcas de alarme.
 - **Cenas 3D**: os controles de vista, camadas, mar, gráfico e luz ficam no botão **⚙ Vista**, para não cobrir a cena. Com o celular deitado, a cena ocupa a altura da tela (sobra uma faixa para rolar a página).
 - **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
 - Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.
@@ -379,7 +392,7 @@ A página se adapta à tela do celular, em pé ou deitado (telas de toque pequen
 
 ## Aplicativo Windows
 
-Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVEL-WINDOWS.md). O aplicativo inclui a simulação local e mantém os comandos descritos neste guia. O botão **2ª janela** abre uma visualização para outro monitor; ao fechar a janela principal, a visualização também é fechada. Os fundos do mapa precisam de internet.
+Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVEL-WINDOWS.md). O aplicativo inclui a simulação local e mantém os comandos descritos neste guia. O botão **2ª janela** abre uma visualização para outro monitor e **＋ Tela** abre o simulador completo em mais uma janela (ex.: 3º monitor); ao fechar a janela principal, as outras também são fechadas. Os fundos do mapa precisam de internet.
 
 ## Reserva de ar e sopro de emergência
 

@@ -42,12 +42,14 @@ app.on('web-contents-created', (_event, contents) => {
     }
   });
   contents.setWindowOpenHandler(({ url }) => {
-    if (isAppUrl(url) && new URL(url).hash === '#visual') {
+    // #visual = 2ª janela (cena 3D); #tela=N = janela de tela (simulador completo espelhado)
+    const hash = isAppUrl(url) ? new URL(url).hash : '';
+    if (hash === '#visual' || /^#tela=\d+$/.test(hash)) {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
           width: 1280,
-          height: 760,
+          height: hash === '#visual' ? 760 : 800,
           backgroundColor: '#0a1017',
           autoHideMenuBar: true,
           webPreferences,
