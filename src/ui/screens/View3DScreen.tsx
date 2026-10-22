@@ -1,22 +1,20 @@
 /** Tela 6 — Visualização 3D. */
 import { usePersisted } from '../persist';
-import { TankSelector } from '../components/TankSelector';
-import { VectorSelector } from '../components/VectorSelector';
 import { useSim } from '../store';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
 import { SeaControls } from '../components/SeaControls';
-import { TrimGainSelect } from '../components/TrimGain';
 import { toKnots } from '../../sim/units';
 import { fmt } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
-import { LayerPanel, type LayerKey } from '../components/LayerPanel';
-import type { SceneLayers } from '../../render3d/layers';
+import type { LayerKey } from '../components/LayerPanel';
+import { SceneLayerPanel } from '../components/SceneLayerPanel';
+import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 
-/** camadas sem botão próprio nesta tela (valores de antes: tudo ligado, ar comprimido desligado) */
-const V3D_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, wind: true };
-const V3D_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
+/** preferências adicionais desta tela (preserva as chaves já salvas) */
+const V3D_LAYER_DEFAULTS = { pipes: true, flows: true, labels: true, batteryInfo: true, airInfo: false, wake: true, wind: true, presLight: false, hullOpacity: 0.16, resultantGain: 'auto' as const };
+const V3D_LAYER_KEYS: LayerKey[] = ['vectors', 'hydroVectors', 'trimVectors', 'tanks', 'pipes', 'flows', 'labels', 'batteryInfo', 'airInfo', 'wake', 'wind', 'trail', 'markers', 'trimRef', 'ships', 'noWater', 'presLight'];
 
 const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'piloto', label: 'Lateral' },
@@ -41,7 +39,6 @@ export function View3DScreen() {
   const [view, setView] = usePersisted<ViewMode>('v3d.view', 'perspectiva');
   const [cut, setCut] = usePersisted('v3d.cut', false);
   const [tankF, setTankF] = usePersisted<string[] | null>('v3d.tankFilter', null);
-  const [selOpen, setSelOpen] = usePersisted('v3d.tankSelOpen', true);
   const [quality, setQuality] = useQuality();
   const [trail, setTrail] = usePersisted('v3d.trail', true);
   const [fog, setFog] = usePersisted('v3d.fog', true);
@@ -49,9 +46,7 @@ export function View3DScreen() {
   const [trimV, setTrimV] = usePersisted('v3d.trim', false);
   const [hydro, setHydro] = usePersisted('v3d.hydro', false);
   const [hiddenV, setHiddenV] = usePersisted<string[]>('v3d.hiddenVec', []);
-  const [vecOpen, setVecOpen] = usePersisted('v3d.vecOpen', true);
   const [dry, setDry] = usePersisted('v3d.dry', false);
-  const anyVec = vec || hydro || trimV;
   const setVecLayers = (v: { vectors?: boolean; hydroVectors?: boolean; trimVectors?: boolean; hiddenVectors?: string[] }) => {
     if (v.vectors !== undefined) setVec(v.vectors);
     if (v.hydroVectors !== undefined) setHydro(v.hydroVectors);
@@ -65,9 +60,10 @@ export function View3DScreen() {
   const [layOpen, setLayOpen] = usePersisted('v3d.layersOpen', false);
   const [laySaved, setLay] = usePersisted<Partial<SceneLayers>>('v3d.layers', {});
   const lay = { ...V3D_LAYER_DEFAULTS, ...laySaved };
-  const layerValue: Partial<SceneLayers> = { ...lay, vectors: vec, hydroVectors: hydro, trimVectors: trimV, hiddenVectors: hiddenV, tanks: cut, noWater: dry, markers: marks, trimRef, ships, trail };
+  const layerValue: SceneLayers = { ...defaultLayers(), ...lay, tankFilter: tankF, vectors: vec, hydroVectors: hydro, trimVectors: trimV, hiddenVectors: hiddenV, tanks: cut, noWater: dry, markers: marks, trimRef, ships, trail };
   const setLayers = (p: Partial<SceneLayers>) => {
     setVecLayers(p);
+    if (p.tankFilter !== undefined) setTankF(p.tankFilter);
     if (p.tanks !== undefined) setCut(p.tanks);
     if (p.noWater !== undefined) setDry(p.noWater);
     if (p.markers !== undefined) setMarks(p.markers);
@@ -75,7 +71,7 @@ export function View3DScreen() {
     if (p.ships !== undefined) setShips(p.ships);
     if (p.trail !== undefined) setTrail(p.trail);
     const rest: Partial<SceneLayers> = {};
-    for (const k of Object.keys(V3D_LAYER_DEFAULTS) as (keyof typeof V3D_LAYER_DEFAULTS)[]) if (p[k] !== undefined) rest[k] = p[k];
+    for (const k of Object.keys(V3D_LAYER_DEFAULTS) as (keyof typeof V3D_LAYER_DEFAULTS)[]) if (p[k] !== undefined) Object.assign(rest, { [k]: p[k] });
     if (Object.keys(rest).length) setLay({ ...laySaved, ...rest });
   };
   const o = e.outputs;
@@ -88,18 +84,7 @@ export function View3DScreen() {
       trail={trail}
       fog={fog}
       persistKey="v3d"
-      layers={{
-        tankFilter: tankF,
-        vectors: vec,
-        hydroVectors: hydro,
-        trimVectors: trimV,
-        hiddenVectors: hiddenV,
-        noWater: dry,
-        markers: marks,
-        trimRef,
-        ships,
-        ...lay,
-      }}
+      layers={layerValue}
     >
       <div className="hud tl">
         <div className="line">
@@ -135,69 +120,12 @@ export function View3DScreen() {
             </button>
           ))}
         </div>
-        <div className="btngroup">
-          <button className={`btn sm ${cut ? 'on' : ''}`} onClick={() => setCut(!cut)}>
-            Corte / tanques
-          </button>
-          <button className={`btn sm ${fog ? 'on' : ''}`} onClick={() => setFog(!fog)}>
-            Turbidez
-          </button>
-          <button
-            className={`btn sm ${anyVec ? 'on' : ''}`}
-            onClick={() => {
-              // liga os vetores e abre a escolha; um novo clique desliga todos
-              if (anyVec)
-                setVecLayers({
-                  vectors: false,
-                  hydroVectors: false,
-                  trimVectors: false,
-                });
-              else {
-                setVecLayers({ vectors: true, hydroVectors: true });
-                setVecOpen(true);
-              }
-            }}
-            title="Liga/desliga os vetores e abre a escolha de quais mostrar"
-          >
-            Vetores {anyVec ? '▾' : ''}
-          </button>
-          <button className={`btn sm ${dry ? 'on' : ''}`} onClick={() => setDry(!dry)} title="Tira (ou recoloca) o mar para ver melhor o submarino">
-            {dry ? '💧 Pôr água' : '💧 Tirar água'}
-          </button>
-          <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} title="Todas as camadas, por grupo (vetores, interior, mar e efeitos, rótulos, ambiente), com marcar/desmarcar">
-            Camadas ({V3D_LAYER_KEYS.filter((k) => !!layerValue[k]).length}) {layOpen ? '▴' : '▾'}
-          </button>
-        </div>
+        <button className={`btn sm ${layOpen ? 'on' : ''}`} onClick={() => setLayOpen(!layOpen)} aria-expanded={layOpen} title="Tanques, vetores, identificações e ambiente">
+          Camadas ({V3D_LAYER_KEYS.filter((k) => !!layerValue[k]).length}) {layOpen ? '▴' : '▾'}
+        </button>
         {layOpen && (
-          <div className="tanksel-pop">
-            <LayerPanel keys={V3D_LAYER_KEYS} value={layerValue} onChange={setLayers} />
-          </div>
-        )}
-        {trimRef && <TrimGainSelect />}
-        {anyVec && (
-          <div className="tanksel-pop">
-            <button className="btn sm" onClick={() => setVecOpen(!vecOpen)}>
-              {vecOpen ? '▴ Vetores visíveis' : '▾ Escolher vetores'}
-            </button>
-            {vecOpen && (
-              <VectorSelector
-                value={{
-                  vectors: vec,
-                  hydroVectors: hydro,
-                  trimVectors: trimV,
-                  hiddenVectors: hiddenV,
-                }}
-                onChange={setVecLayers}
-              />
-            )}
-          </div>
-        )}
-        {cut && (
-          <div className="tanksel-pop">
-            <button className="btn sm" onClick={() => setSelOpen(!selOpen)}>
-              {selOpen ? '▴ Tanques visíveis' : `▾ Escolher tanques${tankF ? ` (${tankF.length})` : ''}`}
-            </button>
-            {selOpen && <TankSelector e={e} value={tankF} onChange={setTankF} />}
+          <div className="tanksel-pop scene-layer-pop">
+            <SceneLayerPanel e={e} keys={V3D_LAYER_KEYS} value={layerValue} onChange={setLayers} fog={fog} onFogChange={setFog} />
           </div>
         )}
       </OverlayCtl>
