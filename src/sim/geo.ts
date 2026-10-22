@@ -81,9 +81,47 @@ const CONTACTS: ContactDef[] = [
   { id: 'N1', name: 'Navio-patrulha (fictício)', kind: 'patrulha', a: { n: -40000, e: -14000 }, b: { n: -40000, e: 14000 }, speed: 6.0, phase: 0.8 },
 ];
 
+/**
+ * Contatos fictícios da Baía de Guanabara e da orla do Rio (trechos em
+ * lat/lon, todos em água — ver tests/rio.test.ts). Só entram nas listas com a
+ * origem perto do Rio (contactsLocal) e no mapa tático.
+ */
+const RIO_CONTACTS: { id: string; name: string; kind: Contact['kind']; a: LatLon; b: LatLon; speed: number; phase: number }[] = [
+  { id: 'B1', name: 'Barca Rio–Niterói (fictícia)', kind: 'rebocador', a: { lat: -22.9025, lon: -43.1665 }, b: { lat: -22.8945, lon: -43.1295 }, speed: 6.5, phase: 0.2 },
+  { id: 'M3', name: 'Graneleiro (fictício) — entrada da barra', kind: 'mercante', a: { lat: -23.02, lon: -43.12 }, b: { lat: -22.86, lon: -43.155 }, speed: 4.5, phase: 0.35 },
+  { id: 'R2', name: 'Rebocador (fictício)', kind: 'rebocador', a: { lat: -22.893, lon: -43.158 }, b: { lat: -22.88, lon: -43.142 }, speed: 2.5, phase: 0.7 },
+  { id: 'P2', name: 'Pesqueiro (fictício)', kind: 'pesqueiro', a: { lat: -23.0, lon: -43.19 }, b: { lat: -23.012, lon: -43.235 }, speed: 2.0, phase: 0.1 },
+  { id: 'N2', name: 'Navio-patrulha (fictício)', kind: 'patrulha', a: { lat: -23.005, lon: -43.13 }, b: { lat: -23.005, lon: -43.245 }, speed: 5.0, phase: 0.55 },
+];
+
+/** origem perto do Rio de Janeiro (contatos da Guanabara e da orla) */
+export function nearRio(o: LatLon): boolean {
+  return o.lat > -23.3 && o.lat < -22.5 && o.lon > -43.75 && o.lon < -42.85;
+}
+
+/** contatos do Rio no instante t, com lat/lon */
+export function rioContactsAt(t: number): (Contact & { lat: number; lon: number })[] {
+  return RIO_CONTACTS.map((c) => {
+    const A = latLonToNed(DEFAULT_ORIGIN, c.a);
+    const B = latLonToNed(DEFAULT_ORIGIN, c.b);
+    const dn = B.n - A.n;
+    const de = B.e - A.e;
+    const L = Math.hypot(dn, de);
+    const period = (2 * L) / c.speed;
+    const ph = (((t / period + c.phase) % 1) + 1) % 1;
+    const fwd = ph < 0.5;
+    const f = fwd ? ph * 2 : 2 - ph * 2;
+    const dir = fwd ? 1 : -1;
+    const n = A.n + dn * f;
+    const e = A.e + de * f;
+    const ll = nedToLatLon(DEFAULT_ORIGIN, n, e);
+    return { id: c.id, name: c.name, kind: c.kind, n, e, course: ((Math.atan2(de * dir, dn * dir) * 180) / Math.PI + 360) % 360, speed: c.speed, lat: ll.lat, lon: ll.lon };
+  });
+}
+
 /** Trechos (lat/lon) percorridos pelos contatos fixos — usados para o tráfego adicional não cruzar com eles. */
 export function contactRoutes(): { a: LatLon; b: LatLon }[] {
-  return CONTACTS.map((c) => ({ a: nedToLatLon(DEFAULT_ORIGIN, c.a.n, c.a.e), b: nedToLatLon(DEFAULT_ORIGIN, c.b.n, c.b.e) }));
+  return [...CONTACTS.map((c) => ({ a: nedToLatLon(DEFAULT_ORIGIN, c.a.n, c.a.e), b: nedToLatLon(DEFAULT_ORIGIN, c.b.n, c.b.e) })), ...RIO_CONTACTS.map((c) => ({ a: c.a, b: c.b }))];
 }
 
 /** Área de exercícios fictícia (mar aberto a sul da Restinga da Marambaia). */
@@ -136,9 +174,15 @@ export function cpa(own: { n: number; e: number; vn: number; ve: number }, c: Co
  * lugar, com o mesmo rumo e a mesma velocidade.
  */
 export function contactsLocal(t: number, origin: LatLon): (Contact & { lat: number; lon: number })[] {
-  return contactsAt(t).map((c) => {
+  const base = contactsAt(t).map((c) => {
     const ll = nedToLatLon(DEFAULT_ORIGIN, c.n, c.e);
     const p = latLonToNed(origin, ll);
     return { ...c, n: p.n, e: p.e, lat: ll.lat, lon: ll.lon };
+  });
+  if (!nearRio(origin)) return base;
+  // no Rio: os navios da Guanabara e da orla (os de Sepetiba ficam longe, fora das listas)
+  return rioContactsAt(t).map((c) => {
+    const p = latLonToNed(origin, c);
+    return { ...c, n: p.n, e: p.e };
   });
 }

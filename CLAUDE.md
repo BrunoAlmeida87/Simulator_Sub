@@ -41,7 +41,8 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
   commands.ts         ÚNICA via para alterar a simulação (tipo Command + applyCommand)
   scenarios.ts        cenários iniciais (SCENARIOS)
   forceVectors.ts     vetores de força para exibição (peso/empuxo/resultante, hélice, lemes, trim)
-  geo.ts              lat/lon ↔ NED, contatos fictícios, CPA (mapa tático)
+  geo.ts              lat/lon ↔ NED, contatos fictícios (Sepetiba e Rio), CPA (mapa tático)
+  environment/coast.ts  costa física por regiões (Sepetiba: coastData.ts; Rio: coastDataRio.ts, gerado por scripts/rio)
   traffic.ts          navios adicionais (quantidade em Gráficos), validados contra o fundo simulado
   validation/suite.ts testes de validação física V01…
 src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
@@ -50,6 +51,11 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       + LAYER_INFO (catálogo/nomes), LAYER_GROUPS (grupos do painel), allLayersOn/Off,
                       fullExternalLayers (o "3D completo" da 2ª janela)
   DepthRefs.ts        referências discretas de profundidade (faixas de partículas, sombra no fundo)
+  Terrain.ts          fundo e terra (mesma função da física) + imagem de satélite e luzes da cidade (terrainAssets.ts)
+  RioLandmarks.ts     Cristo Redentor, Ponte Rio–Niterói e nomes dos lugares do Rio
+  Shipyard.ts         estaleiro de Itaguaí (aterro, molhes, shiplift, galpões, submarinos atracados)
+  daylight.ts         sol pela hora do dia, cores do céu/névoa/água, noite (cúpula, estrelas, lua, luar)
+  NavLights.ts        luzes de navegação (setores do RIPEAM) do submarino e dos navios; faróis do submarino
   ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, aspiração do snorkel),
                       WindFx.ts (vento aparente: faixas e flâmula), Markers.ts, Ocean.ts
   controlRoom/        SALA DE COMANDO em 1ª pessoa: ControlRoomScene (sala, câmera, colisão, seleção),
@@ -57,18 +63,24 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       stations.ts (postos e enquadramentos), actions.ts (RoomActions: a cena só monta Commands),
                       periscope.ts (óptica do periscópio: horizonte, contatos à vista, estadímetro)
 src/ui/               INTERFACE (React)
-  App.tsx             abas (TABS) e atalhos de teclado
+  App.tsx             barra superior, telas (screens) e atalhos de teclado
+  nav.ts              NAVEGAÇÃO: SCREEN_IDS/ScreenId, grupos NAV_GROUPS (grupo → telas, teclas 0–8), marcas de alarme
+                      (tela nova = id em SCREEN_IDS + entrada num grupo + componente em App.tsx; Sala de comando sempre a última)
   VisualApp.tsx       segunda janela (só visual) — modo dois monitores
   sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
+                      SystemsOverview (Sistemas › Visão geral: cartões por sistema)
                       sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
   ops/                central de operação da Pilotagem (grupos expansíveis, faixa inferior, opsBus)
-  components/         controles, seletores (TankSelector, VectorSelector, LayerPanel), gráficos, Scene3D
+  components/         controles, seletores (TankSelector, VectorSelector, LayerPanel, LightPanel = Sol e luzes), gráficos, Scene3D
+  graphics.ts         preferências gráficas (qualidade, iluminação, sol e luzes…), salvas e enviadas à 2ª janela,
+                      NavBar (navegação em dois níveis; no celular, grupo ▾ + telas)
   inspector/          modo engenharia (registry.ts = textos e variáveis por componente)
   maneuvers.ts        manobras rápidas (Imergir/Emergir)
   tours.ts            cenários guiados automáticos passo a passo (TOURS)
   demo.ts, presentation.ts, checklist.ts, routeNav.ts
   persist.ts          usePersisted: preferências de UI no localStorage (prefixo 'sx1.ui.')
+scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível
 tests/                validation.test.ts, presentation.test.ts, units.test.ts
 docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, VALIDACAO
 ```

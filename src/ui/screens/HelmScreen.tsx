@@ -23,7 +23,7 @@ import type { SceneLayers } from '../../render3d/layers';
 
 /** camadas da cena do Governo (padrão = como era: boias, esteira e identificações; sem corte, logo sem rótulos internos) */
 const HELM_LAYER_DEFAULTS: Partial<SceneLayers> = { markers: true, wake: true, wind: true, labels: true, trail: true, ships: true, noWater: false, trimRef: false };
-const HELM_LAYER_KEYS: LayerKey[] = ['labels', 'wake', 'wind', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
+const HELM_LAYER_KEYS: LayerKey[] = ['labels', 'wake', 'wind', 'pennant', 'trail', 'markers', 'trimRef', 'ships', 'noWater'];
 
 export function HelmScreen() {
   const e = useSim(20);

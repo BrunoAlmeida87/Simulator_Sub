@@ -7,6 +7,28 @@
 - **Trim e banda** redistribuem pesos e mudam a atitude de equilíbrio estático.
 - **Lemes** produzem forças dinâmicas ∝ U². Sem velocidade não há efeito; com velocidade, mantêm a profundidade mesmo com pequenos desequilíbrios.
 
+## Navegação: grupos e telas
+
+As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores de treinamento, em que se escolhe primeiro o posto ou sistema e depois a tela):
+
+- **Linha de cima — grupos**, com ícone: clicar num grupo abre a **última tela usada** nele (na primeira vez, a primeira tela do grupo). A escolha fica guardada no navegador.
+- **Linha de baixo — telas do grupo atual**. O número cinza antes do nome é a tecla de atalho.
+
+| Grupo | Telas (tecla) |
+|---|---|
+| **Operação** | Pilotagem (0), Central de comando (1), Governo, Mapa tático |
+| **Sistemas** | Visão geral, Lastro e compensação (2), Trim e banda (3), Propulsão e energia (4), Fluxo de energia, Segurança (5), Sistemas auxiliares |
+| **Apresentação** | Apresentação, Visualização 3D (6), Cenários |
+| **Análise** | Histórico (7), Validação |
+| **Ajustes e guia** | ⚙ Configurações, Guia |
+| **Sala de comando** | Sala de comando (8) — sempre a última |
+
+- **Teclas 0–8** abrem as mesmas telas de antes, de qualquer grupo (fora de campos de texto). Passar o mouse sobre um grupo ou tela mostra a descrição e o atalho.
+- **Marcas de alarme:** um ponto vermelho (alarme ativo de prioridade 1–2) ou âmbar (demais alarmes, ou alarme ainda não reconhecido) aparece no grupo e na tela onde o sistema afetado é tratado — por exemplo, falha de bomba em *Sistemas › Lastro e compensação* — e sempre em *Segurança*.
+- **Sistemas › Visão geral:** um cartão por sistema (lastro principal, compensação, trim e banda, ar comprimido, propulsão, energia e snorkel, hidráulica e governo, segurança) com três números principais, o alarme mais grave daquele sistema e a cor do estado (**NORMAL**, **ATENÇÃO**, **ALARME**). Os botões do cartão abrem a tela de detalhe ou o grupo correspondente na Pilotagem. É a visão de conjunto para começar uma explicação ou achar rapidamente o sistema com problema.
+- Botões dentro das telas que levam a outra tela (ex.: *📚 Biblioteca* na Apresentação, *Sistema →* de um alarme) continuam funcionando; a navegação acompanha o grupo da tela aberta.
+- **Barra superior:** no PC, *ⓘ Engenharia* e *Procedimento* ficam na linha dos indicadores (profundidade, velocidade, rumo…), para a barra ocupar duas linhas em vez de três.
+
 ## Pilotagem — central de operação
 
 A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre visível, com a faixa de indicadores embaixo: profundidade, velocidade vertical, velocidade, rumo, pitch, banda, bateria e flutuabilidade (ou reserva, na superfície). O painel lateral tem rolagem própria.
@@ -115,7 +137,7 @@ A aba **Fluxo de energia** desenha o balanço elétrico como um diagrama de flux
 
 *Preparar demonstração* carrega a cota periscópica com mar calmo, piloto de profundidade em 14 m e snorkel içando. Depois é só partir os geradores. Com os diesel em carga, a cena 3D mostra o **ar sendo aspirado** pela cabeça do snorkel (efeito leve) e a **descarga em bolhas** atrás da vela.
 
-**Descarga dos geradores (bolhas atrás da vela):** os geradores só funcionam com tomada de ar — na superfície ou com o snorkel içado e a válvula de cabeça aberta; submerso com o mastro recolhido, um gerador comandado fica **SEM AR** e não há descarga. Como nos submarinos convencionais, o gás **não sai em fumaça pelo mastro**: é descarregado na parte de ré da vela, **abaixo da linha d'água**, nos dois bordos ao longo da estrutura. As bolhas são lançadas para ré, ficam para trás com o avanço, escorrem ao longo do casco e sobem até a superfície, onde deixam um rastro de espuma atrás da vela — é essa a assinatura visual da operação com snorkel (os projetos modernos misturam o gás com água para reduzi-la). O fluxo cresce com o número de geradores e com a carga e é mais denso na partida; ao parar os geradores as bolhas cessam. O mastro de snorkel só **aspira ar**: com o diesel em carga aparece um fluxo leve de ar convergindo para a cabeça do mastro. A lógica dos geradores não foi alterada para os efeitos (ver `src/sim/systems/exhaust.ts`).
+**Descarga dos geradores (bolhas atrás da vela):** os geradores só funcionam com tomada de ar — na superfície ou com o snorkel içado e a válvula de cabeça aberta; submerso com o mastro recolhido, um gerador comandado fica **SEM AR** e não há descarga. Como nos submarinos convencionais, o gás **não sai em fumaça pelo mastro**: é descarregado na parte de ré da vela, **abaixo da linha d'água**, nos dois bordos ao longo da estrutura. As bolhas são lançadas para ré, ficam para trás com o avanço, escorrem ao longo do casco e sobem até a superfície — é essa a assinatura visual da operação com snorkel (os projetos modernos misturam o gás com água para reduzi-la). O fluxo cresce com o número de geradores e com a carga e é mais denso na partida; ao parar os geradores as bolhas cessam. O mastro de snorkel só **aspira ar**: com o diesel em carga aparece um fluxo leve de ar convergindo para a cabeça do mastro. A lógica dos geradores não foi alterada para os efeitos (ver `src/sim/systems/exhaust.ts`).
 
 **Interativo:** clique em qualquer equipamento do diagrama para abrir o painel ao lado com o estado (desligado, partindo, funcionando, parando, sem ar, falha) e os comandos que fazem sentido: partir/parar diesel-geradores (exigem tomada de ar), içar/arriar o snorkel, abrir/fechar o disjuntor da bateria, telégrafo do motor principal, partir/parar as bombas de compensação, trim e banda e o compressor. Elementos sem liga/desliga (combustível, barramento, hidráulica automática, cargas fixas) mostram a explicação do estado. O anel em volta de cada consumidor indica o estado (verde funcionando, âmbar em transição, cinza desligado, vermelho falha/sem energia). Os comandos são os mesmos das outras telas e respeitam as condições físicas (ex.: gerador comandado sem ar fica “SEM AR”).
 
@@ -131,13 +153,23 @@ A costa da Baía de Sepetiba — continente de Itaguaí a Guaratiba, Restinga e 
 - **Corte com a costa ligada**: os níveis distantes do terreno têm um recorte na área próxima ao submarino. Assim, o fundo detalhado prevalece e os tanques continuam visíveis com a câmera fora d'água, sem precisar desligar a costa de Sepetiba.
 - **Estaleiro e Base Naval da Ilha da Madeira (Itaguaí)** no lugar real, traçado de imagens de satélite Sentinel-2 (julho/2026) e conferido com fotografias: aterro com cais a +3 m, quebra-mares de enrocamento (crista a +5 m, talude 1:1,5) com cabeças arredondadas, cais interno, **shiplift** (110 × 20 m, 8 000 t, 34 guinchos) com um submarino içado, trilhos de transferência, galpões (prédio principal do estaleiro de construção, manutenção, oficinas, transferência, administração e apoio), tanques de combustível, guindastes e, a oeste, o píer de minério do Porto Sudeste como referência.
   - **Na física**: aterro, cais, quebra-mares e shiplift são terra (encostar = contato); junto a eles o fundo sobe com o mesmo talude, exceto na **bacia, na entrada e na aproximação, dragadas a 16 m** (estimado). O aterro vale sobre o relevo antigo do morro (que foi cortado e nivelado).
-  - **Só visuais**: galpões, tanques, guindastes, o submarino no shiplift e o Porto Sudeste. Posições e alturas dos galpões são estimadas.
+  - **Só visuais**: galpões, tanques, guindastes, o submarino no shiplift, **dois submarinos atracados a contrabordo dos píeres do shiplift** (flutuando na bacia dragada, sobem e descem com as ondas, com defensas, espias e prancha) e o Porto Sudeste. Posições e alturas dos galpões são estimadas.
   - Com rótulos ligados, a cena mostra “Estaleiro e Base Naval — Itaguaí” e a distância.
 - **No mapa tático**: o botão *Costa do simulador* desenha em laranja a costa usada pela simulação e, por cima, o estaleiro com os mesmos contornos da física e do 3D (aterro, molhes na largura real, shiplift, galpões, área dragada tracejada e o píer do Porto Sudeste), também sem internet. O marcador da base (EBN) fica no centro da bacia.
 - **Cenários**: *Saída da base — Estaleiro e Base Naval de Itaguaí* (superfície, no centro da bacia, aproado à entrada a 214°; baía com fundo de 30 m) e *Aproximação da Restinga da Marambaia* (submerso, fundo subindo, alarmes antes do encalhe) vêm com a costa ligada. Os outros cenários continuam em mar aberto (costa desligada), como antes — partindo da baía, vários encontrariam terra em poucos quilômetros.
 - **Posição geográfica**: *Definir posição* e *Posição inicial* no mapa mudam a posição da simulação (comando registrado); com a costa ligada, o simulador recusa colocar o casco em terra ou sobre o fundo.
 
 Dados: polígonos de terra do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL; pacote geo-maps) corrigidos com o relevo Terrarium (AWS Open Data/Mapzen: SRTM e outros). A batimetria real da baía não é usada: o fundo de mar aberto é o configurado.
+
+**Imagem de satélite e relevo fino no 3D:** com a costa ligada, a terra de Sepetiba e do Rio aparece com a **imagem de satélite em cor verdadeira** (Sentinel-2, 05/08/2024; contém dados Copernicus Sentinel modificados) sobre o **relevo de 30 m** (Copernicus DEM GLO-30). As imagens vêm do próprio site (funcionam sem internet externa) e só são carregadas quando a costa é ligada. A física continua usando a costa embutida (grade de 50 m).
+
+## Rio de Janeiro (Baía de Guanabara e orla)
+
+A orla do Rio, **do Leme ao Pontal**, e a **Baía de Guanabara** também estão embutidas (Configurações → Fundo do mar → Costa):
+- **Na física**: o contorno da costa vem da classe "água" da imagem Sentinel-2 (grade de 50 m; ilhas, Ilha do Governador, Niterói, Ilha Fiscal, Villegagnon e Mocanguê); em terra vale o relevo (Corcovado, Pão de Açúcar, Pedra da Gávea, Tijuca). Encostar é encalhe, como em Sepetiba.
+- **No 3D**: relevo com a imagem de satélite (cidade, matas, praias), **Cristo Redentor** no alto do Corcovado, **Ponte Rio–Niterói** com o vão central alto sobre o canal e, com *Identificações*, os nomes dos lugares (Pão de Açúcar, Corcovado, Pedra da Gávea, Fortaleza de Santa Cruz, Escola Naval, Ilha Fiscal, Arsenal de Marinha, Base de Submarinos — Mocanguê, Santos Dumont, Niterói, Leme, Copacabana, Ipanema, Leblon, São Conrado, Barra, Recreio — Pontal, Cagarras…). À noite, as áreas urbanas da imagem acendem como luzes da cidade.
+- **Navios**: perto do Rio a mesa tática e o 3D mostram contatos próprios da região, todos em rotas na água — barca Rio–Niterói, graneleiro entrando a barra, rebocador, pesqueiro e navio-patrulha ao largo da orla.
+- **Cenários** (acrescentados): *Baía de Guanabara — rumo à barra (Pão de Açúcar e Cristo à vista)* (superfície, entre a Ilha Fiscal e Niterói, aproado à saída da barra) e *Orla do Rio — cota periscópica em frente a Copacabana* (submerso a 4 nós ao largo do Leme–Copacabana).
 
 ## Duas janelas (dois monitores)
 
@@ -225,8 +257,15 @@ Na superfície o plano de flutuação resiste à inclinação: a rigidez de trim
 
 - **Tanques visíveis:** em **Camadas → Tanques e sistemas**, ligue **Tanques (corte)** e abra **Escolher tanques**. Você pode mostrar todos, nenhum (*Nenhum*), só um grupo (lastro principal, compensação, trim, banda) ou tanques individuais — inclusive desmarcar o último. As tubulações e os escoamentos acompanham a seleção.
 - **Camadas (n) ▾ (Pilotagem, Visualização 3D, Governo e 2ª janela):** abre todas as camadas **em grupos** — Tanques e sistemas, Forças e vetores, Identificações e referências, Cenário e movimento, Ambiente — com um botão por grupo (marca/desmarca o grupo todo) e **☑ Marcar todas** / **☐ Desmarcar todas**; o número mostra quantas estão ligadas. Os controles de tanques, vetores e água ficam apenas neste painel, junto às seleções detalhadas de cada grupo. **Turbidez**, na Visualização 3D, fica em **Ambiente**. Na Apresentação, os mesmos grupos ficam no painel lateral **Camadas**.
-- **Vento** (camada *Cenário e movimento*): o vento real sopra no sentido das ondas, com intensidade típica do estado do mar (≈ 2 nós no mar 0 a 35 nós no mar 6); o vento aparente é o vento real menos a velocidade do submarino — avançando, ele vem da proa. Aparece como faixas finas de vento passando acima da água e, com a vela fora d'água, numa **flâmula** vermelha no topo da vela que se estende para sotavento e tremula mais com mais vento (com *Identificações*, o rótulo dá a intensidade e de onde vem). É só visual: o vento não entra na física. Com *Identificações* desligadas somem também os rótulos de superfície, cota e fundo e a linha tracejada entre eles.
+- **Vento** (camada *Cenário e movimento*): uma brisa leve sopra no sentido das ondas (≈ 1 nó no mar 0 a 6 nós no mar 6); o vento aparente é essa brisa menos a velocidade do submarino — avançando, ele passa a vir da proa, de encontro ao submarino, dando a sensação de avanço. Aparece como poucas faixas finas e discretas passando acima da água perto da vela. A **flâmula** vermelha no topo da vela é opcional (camada *Flâmula*, desligada por padrão): com a vela fora d'água ela se estende para sotavento (com *Identificações*, o rótulo dá a intensidade e de onde vem). É só visual: o vento não entra na física. Com *Identificações* desligadas somem também os rótulos de superfície, cota e fundo e a linha tracejada entre eles.
 - **Visualização salva:** Pilotagem, Visualização 3D e Apresentação guardam a câmera, a posição da câmera livre, os botões e a seleção de tanques ao trocar de aba. Também ficam guardados ao recarregar a página.
+
+## Piloto automático de profundidade — lemes de ré × lemes de vela
+
+- **Lemes de ré fazem a mudança de cota.** Em AUTO, o erro de profundidade vira um **ângulo ordenado** (até ±10,5°), que os lemes de ré dão e mantêm; é o ângulo do casco que leva o submarino à nova cota. A 6 nós, 50 → 100 m leva cerca de 2 a 2,5 min até ±2 m, com sobrepasso abaixo de 0,5 m e ângulo máximo ~11°.
+- **Lemes de vela só fazem o ajuste fino** (autoridade ±10°): uma pequena ajuda constante durante a travessia (~3,5° a 6 nós) e, perto da cota (erro < 3 m, desaparecendo até 8 m), corrigem pequenos erros e freiam a chegada com força vertical direta — é o que mantém a cota periscópica.
+- **Abaixo de ~4 nós** os lemes de ré se aproximam da sua velocidade crítica (~3 nós neste modelo): a força do próprio leme anula a sustentação que o ângulo produz no casco e a cota quase não muda. O piloto passa então a cota, aos poucos, para os lemes de vela (até ±20°) e reduz o ângulo ordenado para 4°. A 3 nós, uma mudança de 50 m leva ~8 min. Com "BAIXA EFETIVIDADE", use a compensação.
+- A linha **Cascata de profundidade** (Central de comando e grupo Navegação) mostra o ângulo ordenado → lemes de ré e o ângulo dos lemes de vante.
 
 ## Sequência completa (cenário "Superfície — pronto para imergir")
 
@@ -274,6 +313,15 @@ Reúne as opções alteráveis. Cada grupo traz uma etiqueta com o tipo de efeit
   - **Clara** (padrão): água mais clara, luz suave presa à câmera e contorno do casco realçado — o submarino se destaca do fundo em qualquer profundidade.
   - **Estúdio**: luz forte presa à câmera, para projetor ou sala clara.
   Nenhuma das três altera a física; a escolha fica guardada e chega à 2ª janela.
+- **Sol e luzes** (VISUAL) — também no botão **☀ hora** ao lado de *Luz* nas cenas 3D:
+  - **Hora do dia** (0 h a 24 h): o sol segue o caminho do equinócio no Rio (nasce a leste às 6 h, passa ao norte ao meio-dia a 67°, põe-se a oeste às 18 h); céu, névoa, luz direta, luz ambiente e a cor da água acompanham — amanhecer e pôr do sol em tons quentes, noite escura. Atalhos: Amanhecer, Manhã (padrão, o sol de sempre), Meio-dia, Pôr do sol e Noite.
+  - **Direção do sol**: gira o caminho do sol para escolher de que lado vem a luz (mostra a direção e a altura atuais).
+  - **Luar**: à noite, lua cheia oposta ao sol, com luz azulada fraca, reflexo na água e estrelas no céu. Sem luar a noite fica mais escura.
+  - **Luzes de navegação** (automáticas do crepúsculo ao amanhecer, ligadas ou desligadas), na superfície, pelo RIPEAM: luz de **mastro** branca para vante, **encarnada a BB** e **verde a BE** na vela, **alcançado** branca a ré e a luz **amarela de lampejos rápidos** que identifica submarinos. Cada luz só é vista de dentro do seu setor, como no mar. Os navios também acendem as suas (mastro, bordos e alcançado).
+  - **Faróis do submarino**: dois holofotes de proa, uma luz sob o casco que ilumina o fundo e uma luz suave sobre o casco; debaixo d'água os feixes aparecem na água.
+  - **Água escura (submerso)**: quase sem luz natural debaixo d'água — só os faróis mostram o caminho e o fundo.
+  - **Mergulho noturno** liga noite, faróis e água escura de uma vez; **Padrão** volta ao sol da manhã.
+  Tudo é só visual (vale em todas as cenas 3D e na 2ª janela); a vista *Sem água* usa sempre a luz padrão.
 - **Ambiente** (AGORA): estado do mar, salinidade, temperaturas, termoclina e declinação. *Aplicar agora* mantém o estado; *Usar nos próximos cenários* guarda como padrão.
 - **Fundo do mar** (AGORA): uniforme (padrão de 300 m) ou com relevo. O simulador recusa um fundo que ficaria acima do casco na posição atual.
 - **Simulação** e **Parâmetros da embarcação** (REINICIAR): passo de integração, semente, instrumentação e parâmetros fictícios do casco, propulsão, bombas, lemes e limites.
@@ -311,7 +359,7 @@ Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O p
 ## Celular
 
 A página se adapta à tela do celular, em pé ou deitado (telas de toque pequenas). No PC nada muda, em nenhum tamanho de janela.
-- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a barra de abas fica presa no topo.
+- **Cabeçalho compacto**: nome, ▶ Executar/❚❚ Pausar, relógio e **☰**. O ☰ abre o resto: passo a passo, reiniciar, aceleração do tempo, cenário, 2ª janela, engenharia e procedimento. Abaixo ficam os dados principais (profundidade, velocidade, rumo…) numa linha que rola para o lado. Alarmes ativos continuam sempre visíveis. O cabeçalho rola com a página; a navegação fica presa no topo numa linha só: o botão do **grupo ▾** (ex.: *Sistemas ▾*) seguido das telas desse grupo, que rolam para o lado. O ▾ abre o mapa de **todas as telas**, por grupo, com os atalhos e as marcas de alarme.
 - **Cenas 3D**: os controles de vista, camadas, mar, gráfico e luz ficam no botão **⚙ Vista**, para não cobrir a cena. Com o celular deitado, a cena ocupa a altura da tela (sobra uma faixa para rolar a página).
 - **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
 - Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.

@@ -8,7 +8,7 @@
  *    gerada enquanto U > 0;
  *  - onda de proa e braços de Kelvin: partículas emitidas na proa (∝ U²) que se
  *    afastam lateralmente a 0,36·U (meio-ângulo ≈ 19,5°);
- *  - rastro do hélice: jato ∝ √(T/ρA) a partir do disco do hélice — some quando
+ *  - rastro do hélice (espuma na superfície): jato ∝ √(T/ρA) a partir do disco do hélice — some quando
  *    o empuxo vai a zero, mesmo com o submarino ainda em movimento;
  *  - jato de ar dos suspiros acima da água (∝ vazão de ar) e espuma onde as
  *    bolhas chegam à superfície;
@@ -194,7 +194,6 @@ export class SurfaceFx {
   readonly group = new THREE.Group();
   private foam: PointPool; // proa, Kelvin, espuma de bolhas
   private wash: PointPool; // rastro do hélice na superfície
-  private jet: PointPool; // rastro do hélice submerso
   private spray: PointPool; // jato dos suspiros
   private intake: PointPool; // ar aspirado pela cabeça do snorkel (diesel em carga)
   private wake: WakeSample[] = [];
@@ -209,11 +208,10 @@ export class SurfaceFx {
     const n = (k: number) => Math.max(100, Math.round(k * scale));
     this.foam = new PointPool(n(1800), 0xffffff, dot);
     this.wash = new PointPool(n(900), 0xe6fff6, dot);
-    this.jet = new PointPool(n(700), 0xbfe6ff, dot);
     this.spray = new PointPool(n(900), 0xffffff, dot);
     this.intake = new PointPool(n(500), 0xeef6ff, dot);
     this.group.add(this.intake.points);
-    this.group.add(this.foam.points, this.wash.points, this.jet.points, this.spray.points);
+    this.group.add(this.foam.points, this.wash.points, this.spray.points);
     const g = new THREE.BufferGeometry();
     // 3 vértices por amostra (borda, centro, borda): bordas transparentes, centro denso
     this.wPos = new THREE.Float32BufferAttribute(new Float32Array(MAX_WAKE * 3 * 3), 3);
@@ -241,14 +239,8 @@ export class SurfaceFx {
     this.lastWake = null;
     this.foam.clear();
     this.wash.clear();
-    this.jet.clear();
     this.spray.clear();
     this.intake.clear();
-  }
-
-  /** espuma da descarga do diesel: as bolhas chegam juntas e deixam manchas mais duradouras (o rastro atrás da vela) */
-  exhaustFoam(n: number, e: number): void {
-    this.foam.add({ n, e, max: 12 + Math.random() * 10, size: 1.6, grow: 0.42, alpha: 0.5, drag: 0.6, vn: (Math.random() - 0.5) * 0.5, ve: (Math.random() - 0.5) * 0.5 });
   }
 
   /** espuma onde uma bolha chega à superfície */
@@ -258,7 +250,7 @@ export class SurfaceFx {
 
   update(e: SimulationEngine, step: number, pn: number, pe: number, t: number, pixelScale: number, enabled: boolean): void {
     this.group.visible = enabled;
-    for (const p of [this.foam, this.wash, this.jet, this.spray, this.intake]) p.mat.uniforms.uScale.value = pixelScale;
+    for (const p of [this.foam, this.wash, this.spray, this.intake]) p.mat.uniforms.uScale.value = pixelScale;
     const s = e.state;
     const v = e.vessel;
     const w = e.env.waves;
@@ -335,17 +327,6 @@ export class SurfaceFx {
             this.wash.add({ n: prop.n + rnd() * 2.5, e: prop.e + rnd() * 2.5, vn: fn * vb + ln * rnd() * 1.4, ve: fe * vb + le * rnd() * 1.4, max: 5 + Math.random() * 5, size: 1.5, grow: 0.45, alpha: 0.6, drag: 0.35 });
           }
         }
-        // submerso: turbulência do jato (referência visual de movimento)
-        if (propRel > Rp + 1) {
-          const nJ = Math.min(40, 6 + Tn * 40) * step;
-          for (let k = Math.floor(nJ) + (Math.random() < nJ % 1 ? 1 : 0); k > 0; k--) {
-            const a = Math.random() * Math.PI * 2;
-            const r = Rp * (0.4 + 0.6 * Math.random());
-            const p = toW(-L / 2 - 1.2, Math.cos(a) * r, Math.sin(a) * r);
-            const vb = -(vj * 1.8) * (0.7 + 0.6 * Math.random()) + u * 0.2;
-            this.jet.add({ n: p.n, e: p.e, d: p.d, vn: fn * vb, ve: fe * vb, vd: 0, max: 5 + Math.random() * 3, size: 0.5, grow: 0.08, alpha: 0.55, drag: 0.45, surface: false });
-          }
-        }
       }
       // ---- aspiração do snorkel: ar puxado para a cabeça do mastro (efeito leve, ∝ carga do diesel)
       {
@@ -413,7 +394,6 @@ export class SurfaceFx {
     }
     this.foam.update(step, pn, pe, w, t);
     this.wash.update(step, pn, pe, w, t);
-    this.jet.update(step, pn, pe, w, t);
     this.spray.update(step, pn, pe, w, t);
     this.intake.update(step, pn, pe, w, t);
     this.updateWakeMesh(e, pn, pe, t);
