@@ -344,30 +344,30 @@ export function PresentationScreen() {
         <Panel title="Comandos">
           <div className="subtle mb4">Lastro principal (TLP)</div>
           <div className="btngroup">
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'vent', true, cmd)}>
               Abrir suspiros
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'vent', false), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'vent', false, cmd)}>
               Fechar suspiros
             </button>
-            <button className="btn sm ok" onClick={() => (mbtGroup(e, 'todos', 'blow', true), runner.notify())}>
+            <button className="btn sm ok" onClick={() => mbtGroup(e, 'todos', 'blow', true, cmd)}>
               Soprar TLP
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'blow', false), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'blow', false, cmd)}>
               Fechar sopro
             </button>
           </div>
           <div className="btngroup mt4">
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'vante', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'vante', 'vent', true, cmd)}>
               Suspiros vante
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 're', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 're', 'vent', true, cmd)}>
               Suspiros ré
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'vante', 'blow', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'vante', 'blow', true, cmd)}>
               Soprar vante
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 're', 'blow', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 're', 'blow', true, cmd)}>
               Soprar ré
             </button>
           </div>

@@ -56,7 +56,7 @@ A geração começa automaticamente a cada atualização da branch `main`. Para 
 
 ## Uso do aplicativo
 
-- O botão **2ª janela** abre a visualização em outra janela do aplicativo. Arraste-a para o segundo monitor. Fechar a janela principal também fecha a visualização.
+- O botão **2ª janela** abre a visualização em outra janela do aplicativo. Arraste-a para o segundo monitor. **＋ Tela** abre o simulador completo (todas as abas) em mais uma janela, para um terceiro monitor. Fechar a janela principal também fecha as outras.
 - Os botões de exportar estado e histórico continuam gerando arquivos JSON e CSV.
 - Preferências e estados salvos ficam no perfil local do aplicativo, separado do navegador. No Windows, o perfil fica em `%APPDATA%\simulador-submarino`. A versão portátil também usa esse perfil local; ela não leva automaticamente os estados salvos para outro computador. Use a exportação/importação de JSON para transferi-los.
 - O menu **Exibir** permite ajustar o zoom e entrar em tela cheia.

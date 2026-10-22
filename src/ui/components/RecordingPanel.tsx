@@ -9,6 +9,7 @@ import { parseRecording, recordingToText, type RecordingFile } from '../../sim/r
 import { SIM_VERSION } from '../../sim/version';
 import { scenarioById } from '../../sim/scenarios';
 import { fmtTime } from '../format';
+import { isPanelWindow } from '../sync';
 
 export function useRecorder() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -45,6 +46,13 @@ export function RecordingPanel() {
       ui.toast('Não foi possível carregar: ' + (ex instanceof Error ? ex.message : String(ex)));
     }
   };
+  // a gravação acompanha cada passo da física, que só roda na janela de controle
+  if (isPanelWindow)
+    return (
+      <Panel title="Gravação e reprodução de comandos" className="span-all">
+        <div className="note">Esta é uma janela de tela (espelho). Para gravar ou reproduzir comandos, use a janela de controle — os comandos dados aqui entram na gravação de lá normalmente.</div>
+      </Panel>
+    );
   return (
     <Panel
       title="Gravação e reprodução de comandos"

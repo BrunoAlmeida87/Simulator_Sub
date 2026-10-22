@@ -59,7 +59,9 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
 src/ui/               INTERFACE (React)
   App.tsx             abas (TABS) e atalhos de teclado
   VisualApp.tsx       segunda janela (só visual) — modo dois monitores
-  sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz)
+  sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz); janela de tela
+                      (#tela=N, "＋ Tela"): App completo espelhado, runner remoto (comandos/executar/cenário vão ao mestre)
+  mirror.ts           janela de tela: espelho das automações (manobra, roteiro, demo, rota, checklist) e ações remotas
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
                       sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
   ops/                central de operação da Pilotagem (grupos expansíveis, faixa inferior, opsBus)
@@ -80,6 +82,10 @@ docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, V
 - **Não alterar cenários existentes** (`SCENARIOS`, `TOURS`) ao criar novos — acrescentar.
 - **Duas janelas:** toda camada/flag nova do 3D precisa chegar à segunda janela
   (`VisualApp.tsx` + `sync.ts`). Já houve erro de vetores/tanques sumindo nela.
+- **Janela de tela (＋ Tela):** roda o `App` sem física. Alterações têm de passar por `runner.command`/`cmd`,
+  `runner.running`/`timeScale`/`stepOnce`/`replaceEngine` ou por métodos de automação listados em `mirror.ts`
+  (novos métodos de tours/maneuver/demo/route/checklist chamados pela UI precisam entrar lá). Mexer direto em
+  `runner.engine` (ex.: `applyCommand(runner.engine, …)`) só altera a cópia local da tela.
 - **Camadas novas:** adicionar em `layers.ts` (com valor padrão, entrada em `LAYER_INFO` e num grupo de `LAYER_GROUPS`), tratar em
   `SubmarineScene.ts` e expor nas telas (View3D/Pilot/Helm `*_LAYER_KEYS`, Presentation `LAYER_LIST`,
   VisualApp `LAYER_KEYS`). Toda camada precisa poder ser desligada ("Desmarcar todas").

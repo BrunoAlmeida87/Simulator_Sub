@@ -18,6 +18,7 @@ import { route, mapOrigin, type RouteSnapshot } from './routeNav';
 import { checklist } from './checklist';
 import { identity, type Identity } from './identity';
 import type { LatLon } from '../sim/geo';
+import { link } from './link';
 
 export interface SessionAutomation {
   maneuver?: ManeuverSnapshot;
@@ -70,6 +71,11 @@ function silenceAutomations(): void {
  */
 export function restoreSession(raw: unknown, opts: { automations?: boolean } = {}): RestoreReport {
   const f = migrateSave(raw);
+  // janela de tela: quem carrega a sessão é a janela de controle
+  if (link.viewer?.remote) {
+    link.viewer.call('session.restore', [raw, opts]);
+    return { name: f.name, simTime: f.simTime, migratedFrom: f.migratedFrom, resumed: [] };
+  }
   const e = new SimulationEngine(f.config, f.state);
   silenceAutomations();
   runner.running = false;
