@@ -78,6 +78,10 @@ src/ui/               INTERFACE (React)
   inspector/          modo engenharia (registry.ts = textos e variáveis por componente)
   maneuvers.ts        manobras rápidas (Imergir/Emergir)
   tours.ts            cenários guiados automáticos passo a passo (TOURS)
+  presBuilder/        ESTÚDIO DE APRESENTAÇÕES (aba Apresentação › Estúdio): model.ts (etapas em JSON), variables.ts
+                      (valores ao vivo/condições), actions.ts (catálogo de ações → Commands), player.ts (execução, voltar,
+                      avanço acelerado), library.ts (localStorage, importar/exportar), templates.ts (modelos), richText.ts
+                      tela: screens/StudioScreen.tsx; cartão: components/PresCard.tsx (palco, PresFloating e 2ª janela)
   demo.ts, presentation.ts, checklist.ts, routeNav.ts
   persist.ts          usePersisted: preferências de UI no localStorage (prefixo 'sx1.ui.')
 scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível

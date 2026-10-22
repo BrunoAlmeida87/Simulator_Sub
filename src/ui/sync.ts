@@ -17,6 +17,7 @@ import { visibleAlarms } from '../sim/systems/alarms';
 import { identity, type Identity } from './identity';
 import { recorder } from './recorder';
 import { graphics, type GraphicsSettings } from './graphics';
+import { presPlayer, type PresOverlayData } from './presBuilder/player';
 
 const CH = 'sx1-sync-v1';
 
@@ -26,6 +27,8 @@ export interface OverlayData {
   alarm: { text: string; priority: number } | null;
   /** gravação/reprodução de comandos em andamento */
   rec?: string | null;
+  /** apresentação do Estúdio em andamento: cartão, mostradores e câmera (sem as notas do apresentador) */
+  pres?: PresOverlayData | null;
 }
 
 type Msg =
@@ -129,6 +132,7 @@ export class SyncMaster {
           : null,
       maneuver: maneuver.active ? `${maneuver.active === 'imergir' ? `IMERGIR para ${maneuver.target} m` : 'EMERGIR'} · etapa ${maneuver.step + 1}/${MANEUVER_STEPS[maneuver.active].length}: ${maneuver.phase}` : null,
       alarm: top ? { text: top.def.text, priority: top.def.priority } : null,
+      pres: presPlayer.active || presPlayer.ff ? presPlayer.overlay(e) : null,
       rec: recorder.mode === 'gravando' ? '● GRAVANDO COMANDOS' : recorder.mode === 'reproduzindo' ? `▶ REPRODUÇÃO DE GRAVAÇÃO${recorder.finished ? ' (concluída)' : ''}` : null,
     };
   }

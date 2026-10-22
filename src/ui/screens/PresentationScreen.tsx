@@ -29,7 +29,7 @@ import { useUi } from '../uiContext';
 import type { LayerKey } from '../components/LayerPanel';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 
-const FRAMES: [ViewMode, string, string][] = [
+export const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
   ['submerso', 'Submerso', 'Operação submersa, ao nível do casco'],
   ['tanques', 'Tanques', 'Inspeção dos tanques e circuitos no corte'],
@@ -43,7 +43,7 @@ const FRAMES: [ViewMode, string, string][] = [
 ];
 
 /** camadas da apresentação (nomes no catálogo LAYER_INFO) */
-const LAYER_LIST: LayerKey[] = [
+export const LAYER_LIST: LayerKey[] = [
   'vectors',
   'hydroVectors',
   'trimVectors',

@@ -18,7 +18,7 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 |---|---|
 | **Operação** | Pilotagem (0), Central de comando (1), Governo, Mapa tático |
 | **Sistemas** | Visão geral, Lastro e compensação (2), Trim e banda (3), Propulsão e energia (4), Fluxo de energia, Segurança (5), Sistemas auxiliares |
-| **Apresentação** | Apresentação, Visualização 3D (6), Cenários |
+| **Apresentação** | Apresentação, Estúdio, Visualização 3D (6), Cenários |
 | **Análise** | Histórico (7), Validação |
 | **Ajustes e guia** | ⚙ Configurações, Guia |
 | **Sala de comando** | Sala de comando (8) — sempre a última |
@@ -177,7 +177,8 @@ A orla do Rio, **do Leme ao Pontal**, e a **Baía de Guanabara** também estão 
 - a câmera "Igual ao controle", ou uma câmera própria;
 - o **3D completo** (padrão): vetores de peso/empuxo e do hélice/lemes, esteira e bolhas, vento, navios, boias, trajetória e rótulos — o mesmo em qualquer aba da janela principal (inclusive Governo, Sala de comando e telas sem 3D); ou, em *Camadas do controle*, as camadas da última cena 3D completa aberta na janela principal (Pilotagem, Visualização 3D ou Apresentação);
 - os indicadores principais;
-- a narração dos roteiros automáticos e as manobras.
+- a narração dos roteiros automáticos e as manobras;
+- as apresentações do **Estúdio**: cartão de texto e mostradores ao vivo, seguindo a câmera e as camadas de cada etapa (botão *● Seguindo a apresentação* no alto alterna para a câmera própria da janela). As **notas do apresentador nunca aparecem** nesta janela.
 
 Clicar num objeto na segunda janela abre os controles correspondentes na janela principal. Em **Camadas (n) ▾** a segunda janela tem o mesmo painel agrupado das outras telas, com **Casco externo** dentro de **Tanques e sistemas**. Os ajustes valem só para ela; um • indica o que foi alterado ali, e "↺ Desfazer ajustes" volta ao conjunto escolhido (3D completo ou camadas do controle). Os navios adicionais, as referências de profundidade e a quantidade de peixes chegam a ela junto com as preferências gráficas.
 
@@ -235,6 +236,32 @@ Primeiro roteiro, **Submergir e descer para 50 m** (cerca de 3 min):
 9. Resumo.
 
 Os cenários existentes não são alterados: o roteiro parte do cenário *Superfície*.
+
+## Estúdio de apresentações
+
+Em **Apresentação › Estúdio** você monta as suas próprias apresentações, etapa por etapa, sem programar. Tudo fica salvo no navegador; **⭱ Exportar** gera um arquivo `.json` para levar a outro computador (**⭳ Importar** abre de volta) e **📄 Roteiro** gera um texto com todas as etapas, notas, ações e gatilhos para revisar ou imprimir.
+
+**Modelos prontos** (somente leitura — ao alterar qualquer coisa, o Estúdio cria uma cópia em *Minhas apresentações*):
+- *Submergir e descer para 50 m* — o mesmo conteúdo do roteiro automático, agora editável;
+- *Exemplo: recursos do Estúdio* — apresentação curta na superfície (alagar parte dos TLP, ver o calado e soprar), usando cada recurso: título, cores, mostradores, ação com atraso, gatilhos por tempo, condição e manual.
+
+**Tela do editor**: etapas à esquerda (＋ Etapa, ⧉ duplicar, ↑ ↓ mover, 🗑 excluir; ícones: 👆 manual, ⏱ tempo, ⚑ condição, ⚡ ações, 💾 estado guardado, 🖥 outra tela, ↪ desvio), **palco** no centro — a cena 3D com o cartão exatamente como vai aparecer, já com os valores ao vivo — e o formulário da etapa à direita. **⚙ Apresentação e ponto de partida** (primeiro item da lista) define nome, descrição, autor e de onde a apresentação começa: um **cenário** (com estado do mar e condição de carga), um **estado guardado** ou a **situação atual** do simulador. **↶ Desfazer** volta as últimas alterações.
+
+Cada etapa tem seis abas:
+1. **Texto** — título, texto e “por quê”. Barra de formatação: **negrito**, *itálico*, sublinhado, realce, **cores** (as mesmas da cena: azul = lastro, verde = compensação, laranja = trim, roxo = banda, vermelho = peso, ciano = empuxo, amarelo = resultante), lista, título grande e **＋ Valor ao vivo** (profundidade, velocidade, peso, empuxo, TLP %, bateria… — mais de 40 grandezas). Com *variação Δ* marcado, o valor inserido é a variação desde o início da etapa (ex.: “o peso subiu {Δpeso} tf”). Marcação: `**negrito**`, `*itálico*`, `__sublinhado__`, `==realce==`, `[azul]texto[/azul]`, `# Título`, `- item`, `{prof}`, `{prof:2}` (casas decimais), `{Δpeso}`. **Formato**: estilo *Cartão*, *Título* (texto grande sobre a cena, para abertura e capítulos), *Legenda* (faixa embaixo) ou *Sem texto*; posição (embaixo, em cima, esquerda, direita, centro), tamanho (P, M, G, GG), cor de destaque e se mostra o número da etapa e a linha de status.
+2. **Visualização** — onde mostrar (o palco do Estúdio ou qualquer tela do simulador: mapa tático, lastro, sala de comando…; nesse caso o cartão flutua sobre a tela, com os controles do apresentador), câmera ao entrar (ou manter), posição exata da câmera *Livre*, camadas (manter ou definir — o mesmo painel das outras telas), **mostradores** ao vivo sobre a cena, simulação ao entrar (executar, pausar para congelar a cena, ou manter) e velocidade do tempo. O jeito mais rápido: ajuste a câmera e as camadas no palco e clique **📷 Usar a visualização atual**.
+3. **Ações** — o que acontece ao entrar na etapa, cada uma com atraso opcional (“após N s”): telégrafo, suspiros e sopro dos TLP (todos, vante, ré ou um tanque), sopro de emergência, compensação (admitir/esgotar ou **equilibrar automaticamente**), trim e banda, peso deslocável, lemes, piloto de profundidade/rumo/pitch, snorkel, periscópio, diesel-geradores, compressor, disjuntor, manobras automáticas (imergir/emergir), estado do mar, **falhas** (injetar/remover), reconhecer alarmes, trocar a câmera, ligar/desligar uma camada, destacar um tanque, executar/pausar, velocidade do tempo, marcar/voltar ao “antes”, carregar um cenário, voltar ao início e, no modo avançado, qualquer comando em JSON. **▶** executa a ação na hora, para conferir. As ações que mexem no submarino são comandos registrados no histórico, como os do operador: a resposta é sempre a da física.
+4. **Avançar** — o gatilho para a próxima etapa: **👆 Manual** (→, Page Down, botão *Próxima* ou controle remoto de slides), **⏱ Tempo** (N segundos) ou **⚑ Condição física** (uma ou mais condições, todas ou qualquer uma: “Profundidade > 30 m”, “TLP ≥ 35 %”, “Na superfície: sim”, “Profundidade ≈ 50 ± 1,5 m”…; cada condição mostra o valor de agora e ✓/✗). Opções: manter a condição verdadeira por N s, tempo mínimo de leitura, limite de tempo (ao esgotar: avançar ou continuar aguardando) e texto mostrado enquanto aguarda. **Depois desta etapa**: a próxima, ir para outra etapa (desvios e repetições) ou encerrar.
+5. **Notas** — lembretes só para o apresentador (painel do apresentador); nunca aparecem na 2ª janela.
+6. **Estado** — opcional: guarda a situação da simulação para a etapa começar sempre do mesmo ponto (útil para ensaiar, pular etapas e recomeçar no meio). Cada estado ocupa ~25 KB.
+
+**Ensaiar**: **▷ Testar etapa** roda só a etapa selecionada a partir da situação atual do simulador; **⏩ Desta etapa** parte do ponto de partida e passa pelas etapas anteriores **pela física, em velocidade acelerada**, até chegar na selecionada; **↺ Ponto de partida** coloca o simulador no início da apresentação (para preparar e guardar estados).
+
+**Apresentar** (**▶ Apresentar**, ou *▶ Apresentar* na Biblioteca de cenários): o palco ocupa a tela, com a **barra do apresentador** — ◀ anterior, ❚❚ pausar, *Próxima ▶*, título e status da etapa (“aguardando: TLP ≥ 35 %”, “próxima etapa em 8 s”), ↺ repetir a etapa, ☰ painel, ⛶ tela cheia, ▾ esconder a barra, ✎ editor (a apresentação continua) e ■ encerrar. Teclas: **→ / Page Down** próxima, **← / Page Up** anterior, **Espaço** pausa (na Sala de comando as setas continuam andando; use Page Up/Down). O **painel do apresentador** mostra as notas, a próxima etapa e a lista de etapas (clique para ir: etapa já vista volta com a física daquele momento; etapa adiante é alcançada pela física, acelerada).
+- **Voltar** e **repetir** restauram a física do início da etapa: dá para mostrar de novo o alagamento dos TLP sem recomeçar tudo.
+- Ao final, o resumo informa as etapas concluídas, com tempo esgotado e puladas.
+- Com a **2ª janela** aberta (projetor), ela mostra a cena, o cartão e os mostradores, sem as notas.
+- No celular, o cartão e a barra ficam abaixo da cena (na tela cheia, sobre ela).
 
 ## Peso deslocável e trimagem
 

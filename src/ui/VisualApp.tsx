@@ -16,6 +16,7 @@ import { usePersisted } from './persist';
 import { verticalBalance, toTf } from '../sim/forceVectors';
 import { fmt } from './format';
 import { identity } from './identity';
+import { PresCardView, PresHudView, hudSide } from './components/PresCard';
 
 /** camadas desta janela (o casco tem botão próprio) */
 const LAYER_KEYS: LayerKey[] = [
@@ -60,13 +61,17 @@ export function VisualApp() {
   useEffect(() => v?.subscribe(force), []);
   const [mode, setMode] = usePersisted<ViewMode | 'seguir'>('visual.view', 'seguir');
   const [hideUi, setHideUi] = useState(false);
-  const view: ViewMode = mode === 'seguir' ? (v?.view ?? 'piloto') : mode;
+  // apresentação do Estúdio: esta janela (projetor) segue a câmera e as camadas de cada etapa
+  const [followPres, setFollowPres] = usePersisted('visual.followPres', true);
+  const presOv = v?.overlay.pres ?? null;
+  const presDrive = !!presOv && followPres;
+  const view: ViewMode = presDrive || mode === 'seguir' ? (v?.view ?? 'piloto') : mode;
   // camadas: "3D completo" (padrão) ou as da janela de controle, com as alterações feitas aqui por cima
   const [src, setSrc] = usePersisted<'completo' | 'controle'>('visual.layerSrc', 'completo');
   const [over, setOver] = usePersisted<Partial<SceneLayers>>('visual.layers', {});
   const [layOpen, setLayOpen] = usePersisted('visual.layersOpen', false);
-  const base = src === 'controle' && v?.layers ? v.layers : fullExternalLayers();
-  const layers: SceneLayers = { ...base, ...over };
+  const base = (presDrive || src === 'controle') && v?.layers ? v.layers : fullExternalLayers();
+  const layers: SceneLayers = presDrive && v?.layers ? v.layers : { ...base, ...over };
   const pickView = (k: ViewMode | 'seguir') => {
     setMode(k);
     if (k === 'tanques') setOver({ ...over, tanks: true });
@@ -81,12 +86,17 @@ export function VisualApp() {
   }, []);
   return (
     <div className="visual-app">
-      <Scene3D quality={defaultQuality()} view={view} layers={layers} labels={false} persistKey="visual" onPick={(p) => p && v?.pick(p)}>
+      <Scene3D quality={defaultQuality()} view={view} layers={layers} labels={false} persistKey="visual" onPick={(p) => p && v?.pick(p)} camPose={presDrive ? presOv?.cam : null}>
         {!hideUi && (
           <div className="visual-status">
             <span className={`badge ${connected ? 'ok' : 'warn'}`}>{connected ? 'Espelhando a janela de controle' : 'Sem conexão'}</span>
             {ov?.alarm && <span className={`badge ${ov.alarm.priority <= 2 ? 'alarm blink' : 'warn'}`}>{ov.alarm.text}</span>}
             {ov?.rec && <span className="badge info">{ov.rec}</span>}
+            {presOv && (
+              <button className={`badge ${followPres ? 'ok' : 'off'} st-follow`} onClick={() => setFollowPres(!followPres)} title="Seguir a câmera e as camadas de cada etapa da apresentação (clique para alternar)">
+                {followPres ? '● Seguindo a apresentação' : '○ Câmera desta janela'}
+              </button>
+            )}
             {(layers.vectors || layers.hydroVectors) && (
               <span className="badge info">
                 E {fmt(toTf(vb.buoyancyN, vb.g), 1)} tf · P {fmt(toTf(vb.weightN, vb.g), 1)} tf · E − P {fmt(toTf(vb.netN, vb.g), 2)} tf
@@ -145,7 +155,13 @@ export function VisualApp() {
             </button>
           </div>
         </div>
-        {(ov?.tour || ov?.maneuver) && (
+        {presOv && (
+          <>
+            <PresHudView items={presOv.hud} side={hudSide(presOv.card)} />
+            <PresCardView c={presOv.card} />
+          </>
+        )}
+        {!presOv && (ov?.tour || ov?.maneuver) && (
           <div className="pres-bottom" style={{ justifyContent: 'flex-start' }}>
             <div className="tourcard">
               {ov.tour ? (

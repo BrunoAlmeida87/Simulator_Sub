@@ -41,6 +41,9 @@ import { link } from './link';
 import { openVisualWindow } from './sync';
 import { NavBar } from './components/NavBar';
 import { SystemsOverview } from './screens/SystemsOverview';
+import { StudioScreen } from './screens/StudioScreen';
+import { PresFloating } from './components/PresFloating';
+import { presPlayer } from './presBuilder/player';
 import { isScreenId, screenForKey } from './nav';
 
 function ScenarioPicker({ current }: { current: string }) {
@@ -253,6 +256,16 @@ export function App() {
     return () => ro.disconnect();
   }, []);
 
+  // apresentações do Estúdio: a etapa escolhe a tela; avisos curtos viram mensagens
+  useEffect(() => {
+    presPlayer.onScreen = (s) => setScreen(s === 'palco' ? 'estudio' : s);
+    presPlayer.onNotice = (m) => toast(m);
+    return () => {
+      presPlayer.onScreen = null;
+      presPlayer.onNotice = null;
+    };
+  }, []);
+
   // cliques na janela de visualização abrem os controles aqui
   useEffect(() => {
     if (!link.master) return;
@@ -277,6 +290,25 @@ export function App() {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
       const s = runner.engine.state;
       const k = ev.key.toLowerCase();
+      // apresentação do Estúdio: → / Page Down próxima, ← / Page Up anterior, Espaço pausa (controles remotos de slides)
+      if (presPlayer.active && !presPlayer.ff && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
+        const arrows = screen !== 'sala';
+        if (ev.key === 'PageDown' || (arrows && ev.key === 'ArrowRight')) {
+          ev.preventDefault();
+          presPlayer.next(runner);
+          return;
+        }
+        if (ev.key === 'PageUp' || (arrows && ev.key === 'ArrowLeft')) {
+          ev.preventDefault();
+          presPlayer.prev(runner);
+          return;
+        }
+        if (k === ' ') {
+          ev.preventDefault();
+          presPlayer.pause(runner);
+          return;
+        }
+      }
       // na sala de comando W/A/S/D andam (e Q/E ficam livres): os lemes vão pelos manches
       if (screen === 'sala' && 'wasdqe'.includes(k) && k.length === 1) return;
       if (k === ' ') {
@@ -304,6 +336,7 @@ export function App() {
     governo: <HelmScreen />,
     sala: <ControlRoomScreen />,
     apresentacao: <PresentationScreen />,
+    estudio: <StudioScreen />,
     mapa: <TacticalMapScreen />,
     energia: <EnergyFlowScreen />,
     comando: <CommandCenter />,
@@ -373,6 +406,7 @@ export function App() {
             </div>
           </div>
         )}
+        {screen !== 'estudio' && <PresFloating onStage={() => setScreen('estudio')} />}
         {toastMsg && <div className="toast">{toastMsg}</div>}
       </div>
     </UiContext.Provider>

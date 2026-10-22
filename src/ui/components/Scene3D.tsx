@@ -44,6 +44,8 @@ export interface Scene3DProps {
   periscope?: PeriscopeSight;
   /** false: esta cena não define a vista/camadas da segunda janela (periscópio, miniatura) */
   syncVisual?: boolean;
+  /** posição da câmera livre imposta de fora (apresentações do Estúdio): aplicada quando a chave muda */
+  camPose?: { key: number; pose: CamPose } | null;
 }
 
 type CamPose = { pos: [number, number, number]; target: [number, number, number] };
@@ -66,6 +68,8 @@ export function Scene3D(props: Scene3DProps) {
   const [err, setErr] = useState<string | null>(null);
   const opts = useRef(props);
   opts.current = props;
+  /** chave da última posição de câmera imposta já aplicada */
+  const appliedPose = useRef(-1);
 
   useEffect(() => {
     let raf = 0;
@@ -80,6 +84,7 @@ export function Scene3D(props: Scene3DProps) {
             const sc = new SubmarineScene(box.current!, runner, opts.current.view, opts.current.quality ?? defaultQuality());
             sc.layers = mergedLayers(opts.current);
             sc.realisticFog = opts.current.fog ?? true;
+            appliedPose.current = -1;
             const k = opts.current.persistKey;
             if (k && opts.current.view === 'livre') {
               const pose = loadPersisted<CamPose | null>(`cam.${k}`, null);
@@ -120,6 +125,11 @@ export function Scene3D(props: Scene3DProps) {
             sc.marineLife.settings = graphics.get();
             sc.layers = mergedLayers(opts.current);
             if (opts.current.periscope) sc.periscope = opts.current.periscope;
+            const cp = opts.current.camPose;
+            if (cp && cp.key !== appliedPose.current && sc.viewMode === 'livre') {
+              sc.setCameraPose(cp.pose);
+              appliedPose.current = cp.key;
+            }
             if (!isVisualWindow && opts.current.syncVisual !== false) {
               visualOut.layers = sc.layers;
               visualOut.view = opts.current.view;
@@ -161,7 +171,7 @@ export function Scene3D(props: Scene3DProps) {
     }
     const origin = host.getBoundingClientRect();
     const obstacles: LabelRect[] = [];
-    box.current?.querySelectorAll<HTMLElement>('.overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner').forEach((el) => {
+    box.current?.querySelectorAll<HTMLElement>('.overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar').forEach((el) => {
       const r = el.getBoundingClientRect();
       if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
     });
