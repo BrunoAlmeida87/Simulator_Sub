@@ -14,6 +14,8 @@ import { MAX_WAVE_COMPONENTS } from '../sim/environment/waves';
 export type OceanQuality = 'baixa' | 'media' | 'alta';
 
 const N = MAX_WAVE_COMPONENTS;
+/** raio da malha do mar (m): até o plano distante da câmera, senão além dele aparece o "mar achatado" escuro do terreno */
+const OCEAN_RADIUS = 30000;
 
 const COMMON = /* glsl */ `
 #define MAXW ${N}
@@ -38,13 +40,17 @@ void main() {
   vec2 hd = vec2(0.0);
   float dn = 0.0;
   float de = 0.0;
+  // espaçamento local da malha radial (~7,5 % do raio): ondas mais curtas que ~3 espaçamentos somem
+  // (senão a malha grossa amostra a onda com aliasing e aparecem estrias radiais vistas de longe)
+  float hv = 0.075 * max(length(wp.xz - uCamPos.xz), 4.0);
   for (int i = 0; i < MAXW; i++) {
     if (i >= uCount) break;
     vec4 w = uWave[i];
     vec2 d = uDir[i];
+    float att = 1.0 - smoothstep(1.0, 2.2, w.y * hv);
     float th = w.y * (d.x * nl + d.y * el) + w.z;
-    float c = cos(th);
-    float s = sin(th);
+    float c = cos(th) * att;
+    float s = sin(th) * att;
     eta += w.x * c;
     hd -= uChop * w.x * d * s;
     dn -= w.x * w.y * d.x * s;
@@ -109,12 +115,17 @@ void main() {
     float el = vWorld.x;
     float dn = 0.0;
     float de = 0.0;
+    // filtro pela área do pixel: componente cujo comprimento de onda é menor que ~2 pixels some
+    // (senão vira moiré/cintilação ao longe, onde o pixel cobre vários comprimentos de onda)
+    vec2 fw = fwidth(vWorld.xz);
+    float px = max(fw.x, fw.y);
     for (int i = 0; i < MAXW; i++) {
       if (i >= uCount) break;
       vec4 w = uWave[i];
       vec2 d = uDir[i];
+      float att = 1.0 - smoothstep(0.7, 2.0, w.y * px);
       float th = w.y * (d.x * nl + d.y * el) + w.z;
-      float s = sin(th);
+      float s = sin(th) * att;
       dn -= w.x * w.y * d.x * s;
       de -= w.x * w.y * d.y * s;
     }
@@ -147,10 +158,13 @@ void main() {
     vec3 body = mix(uDeep, uShallow, crest * 0.55 + 0.1);
     col = mix(body, refl, F);
     vec3 H = normalize(uSunDir + V);
-    col += vec3(1.0, 0.95, 0.85) * pow(max(dot(N, H), 0.0), 700.0) * 4.0 * uSunK;
+    // brilho do sol: o lóbulo alarga com a distância (superfície "mais rugosa" ao longe, sem pontinhos cintilando)
+    float sunRough = smoothstep(300.0, 4000.0, dist);
+    float sunExp = mix(700.0, 160.0, sunRough);
+    col += vec3(1.0, 0.95, 0.85) * pow(max(dot(N, H), 0.0), sunExp) * 4.0 * pow(sunExp / 700.0, 0.75) * uSunK;
     // caminho do luar na água
     vec3 Hm = normalize(uMoonDir + V);
-    col += vec3(0.75, 0.82, 1.0) * pow(max(dot(N, Hm), 0.0), 260.0) * 1.6 * uMoonK;
+    col += vec3(0.75, 0.82, 1.0) * pow(max(dot(N, Hm), 0.0), mix(260.0, 90.0, sunRough)) * 1.6 * uMoonK;
     // espuma nas cristas (mar ≥ 3)
     float br = vnoise(q * 0.9 + uTime * 0.08) * 0.55 + vnoise(q * 3.1 - uTime * 0.1) * 0.45;
     float f = uFoam * smoothstep(0.62, 1.05, crest) * smoothstep(0.55, 0.85, br);
@@ -243,7 +257,7 @@ export class Ocean {
         uFragWaves: { value: quality === 'baixa' ? 0 : 1 },
       },
     });
-    this.mesh = new THREE.Mesh(radialGrid(q.rings, q.segs, 12000), this.material);
+    this.mesh = new THREE.Mesh(radialGrid(q.rings, q.segs, OCEAN_RADIUS), this.material);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 2;
   }

@@ -1048,6 +1048,17 @@ export class SubmarineScene {
     }
   }
 
+  /**
+   * Plano próximo da câmera, proporcional à distância ao alvo (3ª pessoa) ou à altura (drone): com a câmera afastada
+   * a razão far/near cai e a água não briga mais com o mar achatado do terreno (precisão de profundidade).
+   * Periscópio e passadiço ficam com 0,5 m (o olho está no próprio submarino).
+   */
+  private nearPlane(droneView: boolean): number {
+    if (droneView) return Math.min(30, Math.max(0.5, Math.abs(this.camera.position.y) * 0.01));
+    if (this.view === 'periscopio' || this.view === 'passadico') return 0.5;
+    return Math.min(30, Math.max(0.5, this.camera.position.distanceTo(this.controls.target) * 0.01));
+  }
+
   /** campo de visão vertical (°) do enquadramento de cada vista de 3ª pessoa */
   private viewFov(v: ViewMode): number {
     if (v === 'perspectiva') return this.perspectiveFrame().fov;
@@ -1543,12 +1554,12 @@ export class SubmarineScene {
     this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
     this.nightSky.update(dl, this.camera.position, !under && !dry0, pal.moonI, this.pal.zenith, this.pal.fog);
     terrain.night = coastOn ? dl.night : 0;
-    // drone no alto: a malha do mar se estende até o horizonte (sem borda visível) e o plano próximo
-    // se afasta (precisão de profundidade: sem "pintas" entre a água e o mar achatado da costa)
+    // drone no alto: a malha do mar se estende até o horizonte (sem borda visível); em todas as vistas o plano próximo
+    // acompanha a distância (precisão de profundidade: sem "pintas" entre a água e o mar achatado da costa)
     {
       const k = droneView ? Math.max(1, this.camera.position.y / 350) : 1;
       if (this.ocean.mesh.scale.x !== k) this.ocean.mesh.scale.set(k, 1, k);
-      const near = droneView ? Math.min(30, Math.max(0.5, Math.abs(this.camera.position.y) * 0.01)) : 0.5;
+      const near = this.nearPlane(droneView);
       if (Math.abs(this.camera.near - near) > 0.05) {
         this.camera.near = near;
         this.camera.updateProjectionMatrix();
