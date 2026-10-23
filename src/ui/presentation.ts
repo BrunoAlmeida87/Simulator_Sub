@@ -51,7 +51,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'sup_8nos',
     sea: 3,
-    name: 'Navegação na superfície a 8 nós',
+    name: 'Navegação na superfície a 8 nós (14.8 km/h)',
     scenario: 'superficie_avante',
     view: 'superficie',
     layers: { trimVectors: false, vectors: false, hydroVectors: true, tanks: false, wake: true, markers: true, labels: true, highlight: null },

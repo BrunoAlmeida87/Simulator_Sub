@@ -2,7 +2,7 @@
  * Instrumentos gráficos (SVG): fita de profundidade, rosa de rumo,
  * indicador de atitude, barras de ângulo e mostradores circulares.
  */
-import { fmt } from '../format';
+import { fmt, fmtKnots } from '../format';
 
 const C = {
   bg: '#0a121b',
@@ -255,7 +255,7 @@ export function Dial(props: { value: number; min: number; max: number; label: st
       })()}
       <line x1={c} y1={c} x2={nx} y2={ny} stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
       <circle cx={c} cy={c} r="5" fill={C.accent} />
-      <text x={c} y={c + 26} textAnchor="middle" fontSize="16" fontWeight="700" fill={C.text} fontFamily="var(--mono)">{fmt(props.value, props.digits ?? 0)}</text>
+      <text x={c} y={c + 26} textAnchor="middle" fontSize={props.unit === 'nós' ? 10 : 16} fontWeight="700" fill={C.text} fontFamily="var(--mono)">{props.unit === 'nós' ? fmtKnots(props.value, props.digits ?? 0) : fmt(props.value, props.digits ?? 0)}</text>
       <text x={c} y={c + 40} textAnchor="middle" fontSize="10" fill={C.tick}>{props.label} ({props.unit})</text>
     </svg>
   );

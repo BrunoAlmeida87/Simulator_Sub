@@ -22,7 +22,7 @@ import type { RoomActions } from '../../render3d/controlRoom/actions';
 import { TARGET_HEIGHT, periHeadAbove, periHeadClearance, periVisible, stadimeter } from '../../render3d/controlRoom/periscope';
 import { periMarks } from './periMarks';
 import { toKnots } from '../../sim/units';
-import { fmt } from '../format';
+import { fmt, fmtKnots } from '../format';
 import { BearingTape, deg3, km, wrap180, wrap360 } from '../components/OpticsHud';
 
 export const PERI_POWERS: { fov: number; label: string }[] = [
@@ -230,7 +230,7 @@ function PeriWater({ raised, fov, img, circle }: { raised: boolean; fov: number;
         spawn(1 + Math.floor(Math.random() * 2));
       }
       wasUnder = under;
-      // vibração do mastro no escoamento (acima de ~4 nós)
+      // vibração do mastro no escoamento (acima de ~4 nós (7.4 km/h))
       const kn = toKnots(Math.abs(e.outputs.speed));
       const amp = o.raised ? Math.min(7, Math.max(0, kn - 4) * 0.45) * (o.fov <= 4 ? 2 : o.fov <= 8 ? 1.3 : 0.5) : 0;
       if (img.current) {
@@ -518,8 +518,8 @@ export function RoomPeriscope({ sight, setSight, onExit, acts }: { sight: Perisc
           </b>
         </span>
         {expo !== null && <span className={expo > 30 ? 'bad' : expo > 15 ? 'warn' : ''}>Exposição {Math.round(expo)} s</span>}
-        {out && kn > 5 && <span className="warn">Esteira do periscópio visível a {fmt(kn, 1)} nós — reduza para ≤ 5 nós</span>}
-        {raised && kn > 6 && <span className="warn">Mastro vibrando no escoamento ({fmt(kn, 0)} nós)</span>}
+        {out && kn > 5 && <span className="warn">Esteira do periscópio visível a {fmtKnots(kn, 1)} — reduza para ≤ 5 nós (9.3 km/h)</span>}
+        {raised && kn > 6 && <span className="warn">Mastro vibrando no escoamento ({fmtKnots(kn, 0)})</span>}
         {out && <span>{cts.length ? `${cts.length} contato(s) dentro do horizonte` : 'Nenhum contato dentro do horizonte'}</span>}
       </div>
       {head !== null && clear !== null && <HeadGauge head={head} clear={clear} />}

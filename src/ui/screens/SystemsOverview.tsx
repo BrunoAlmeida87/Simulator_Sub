@@ -12,8 +12,7 @@ import { compensationWater } from '../../sim/systems/internalTanks';
 import { RHO_NOMINAL } from '../../sim/core/context';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import type { SimulationEngine } from '../../sim/core/engine';
-import { toKnots } from '../../sim/units';
-import { fmt, fmtPower } from '../format';
+import { fmt, fmtPower, fmtSpeed } from '../format';
 import { opsBus, type GroupId } from '../ops/opsBus';
 import { screenLabel, type ScreenId } from '../nav';
 
@@ -120,7 +119,7 @@ const CARDS: SysCard[] = [
     ops: 'nav',
     kpis: (e) => [
       { label: 'Rotação', value: fmt(e.outputs.rpm, 0), unit: 'rpm' },
-      { label: 'Velocidade', value: fmt(toKnots(e.outputs.speed), 1), unit: 'nós' },
+      { label: 'Velocidade', value: fmtSpeed(e.outputs.speed) },
       { label: 'Potência eixo', value: fmtPower(e.state.propulsion.shaftPower) },
     ],
   },

@@ -6,6 +6,7 @@
  * velocidade, rumo, relógio, inclinômetros) e o ANUNCIADOR DE ALARMES.
  * As leituras vêm dos SENSORES (como nos instrumentos reais).
  */
+import { fmtSpeed } from '../../ui/format';
 import type { DrawCtx } from './panel';
 import type { RoomActions } from './actions';
 import { C, angleArc, box, button, clockText, compass, dial, digital, faceBg, lamp, lampButton, plate, rrect, screenBg, stepper, subSilhouette, text } from './draw';
@@ -228,7 +229,7 @@ export function drawConningOfficer(act: RoomActions) {
     });
     digital(g, 22, ty + 108, 200, 56, `${p.rpmCmd.toFixed(0)}`, C.cmd, 'ORDEM rpm');
     digital(g, 230, ty + 108, 200, 56, `${e.outputs.rpm.toFixed(0)}`, C.real, 'EIXO rpm');
-    digital(g, 438, ty + 108, 200, 56, `${toKnots(s.sensors.DVLU.value).toFixed(1)}`, '#7dff9c', 'VELOCIDADE nós');
+    digital(g, 438, ty + 108, 200, 56, `${toKnots(s.sensors.DVLU.value).toFixed(1)}`, '#7dff9c', `VEL nós · ${(s.sensors.DVLU.value * 3.6).toFixed(1)} km/h`);
     text(g, nearestOrder(p.rpmCmd).label, 790, ty + 136, 34, p.rpmCmd < 0 ? C.warn : C.real, 'center', 'bold');
     // manobras e periscópio
     const my = ty + 180;
@@ -305,7 +306,7 @@ export function drawHelmsman(act: RoomActions) {
     const y0 = screenBg(c, 'TIMONEIRO', 'rumo e leme de direção');
     const hdg = s.sensors.GIRO.value;
     compass(g, 246, y0 + 256, 222, hdg, ap.headingMode === 'AUTO' ? ap.headingSet : null, s.sensors.INSW.value);
-    text(g, `vel. ${toKnots(s.sensors.DVLU.value).toFixed(1)} nós`, 246, H - 30, 28, C.text, 'center', 'bold', true);
+    text(g, `vel. ${fmtSpeed(s.sensors.DVLU.value, 1)}`, 246, H - 30, 28, C.text, 'center', 'bold', true);
     const rx = 494;
     box(g, rx, y0, W - rx - 12, 232, 'RUMO');
     digital(g, rx + 12, y0 + 40, 210, 84, `${String(Math.round(((hdg % 360) + 360) % 360)).padStart(3, '0')}°`, '#7dff9c', 'GIRO (verdadeiro)');

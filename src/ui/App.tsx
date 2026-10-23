@@ -6,8 +6,7 @@ import { buildScenario } from '../sim/scenarios';
 import { visibleAlarms, PRIORITY_LABEL } from '../sim/systems/alarms';
 import { captureSession, restoreSession } from './session';
 import { storage } from './storage';
-import { toKnots } from '../sim/units';
-import { fmt, fmtTime } from './format';
+import { fmt, fmtTime, fmtSpeed } from './format';
 import { SimSpeedButtons } from './components/Controls';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
@@ -156,8 +155,8 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           <b>{fmt(0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value), 1)}</b>
         </div>
         <div className="kv">
-          <small>VEL (nós)</small>
-          <b>{fmt(toKnots(s.sensors.DVLU.value), 1)}</b>
+          <small>VELOCIDADE</small>
+          <b>{fmtSpeed(s.sensors.DVLU.value)}</b>
         </div>
         <div className="kv">
           <small>RUMO</small>

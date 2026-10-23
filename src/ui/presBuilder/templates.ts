@@ -302,7 +302,7 @@ export function controleTrimTemplate(): UserPresentation {
         format: F({ accent: 'azul' }),
         visual: V({ view: 'superficie', layers: outside, hud: ['vel', 'prof'], timeScale: 3, run: 'executar' }),
         actions: [newAction('telegrafo', { rpm: 75 })],
-        advance: A({ mode: 'condicao', conditions: [C('vel', '>', 4)], waitText: 'velocidade acima de 4 nós', minDwell: 6, timeout: 400 }),
+        advance: A({ mode: 'condicao', conditions: [C('vel', '>', 4)], waitText: 'velocidade acima de 4 nós (7.4 km/h)', minDwell: 6, timeout: 400 }),
       }),
       S({
         title: 'Mergulho: alagar os tanques de lastro',

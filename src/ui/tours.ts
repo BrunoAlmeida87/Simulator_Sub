@@ -9,6 +9,7 @@
  * a resposta é a da física. Cada etapa só avança quando a condição física é
  * atingida (ou por tempo esgotado, que fica registrado).
  */
+import { fmtSpeed } from './format';
 import type { SimRunner } from '../sim/core/runner';
 import type { SimulationEngine } from '../sim/core/engine';
 import { applyCommand, withCommandSource, type Command } from '../sim/commands';
@@ -99,9 +100,9 @@ export const TOURS: Tour[] = [
         layers: { vectors: false, hydroVectors: true, tanks: false, wake: true, markers: true, labels: true },
         timeScale: 2,
         enter: (_e, c) => c.send({ type: 'telegraph', rpm: 75 }),
-        text: (e) => `Telégrafo em AVANTE MEIA (75 rpm). O hélice empurra com ${f1(hydro(e, 'prop'))} kN e a água resiste com ${f1(hydro(e, 'drag'))} kN. Pela massa de ~${f1(e.outputs.mp.mass / 1000, 0)} t o casco acelera devagar: ${f1(toKnots(e.state.body.vel.x))} nós. Repare na esteira, na onda de proa e no rastro do hélice.`,
+        text: (e) => `Telégrafo em AVANTE MEIA (75 rpm). O hélice empurra com ${f1(hydro(e, 'prop'))} kN e a água resiste com ${f1(hydro(e, 'drag'))} kN. Pela massa de ~${f1(e.outputs.mp.mass / 1000, 0)} t o casco acelera devagar: ${fmtSpeed(e.state.body.vel.x)}. Repare na esteira, na onda de proa e no rastro do hélice.`,
         why: 'Os lemes de profundidade só geram força com escoamento (∝ U²). Por isso o mergulho é feito em movimento.',
-        waitFor: 'velocidade acima de 4 nós',
+        waitFor: 'velocidade acima de 4 nós (7.4 km/h)',
         done: (e) => toKnots(e.state.body.vel.x) > 4,
         minDwell: 12,
         timeout: 400,
@@ -214,7 +215,7 @@ export const TOURS: Tour[] = [
         view: 'submerso',
         layers: { vectors: false, hydroVectors: false, tanks: false, tankFilter: null, markers: true },
         timeScale: 1,
-        text: (e) => `Submarino a ${f1(e.outputs.depthKeel)} m, ${f1(toKnots(e.state.body.vel.x))} nós, pitch ${f1(e.outputs.euler.pitch)}°, resultante ${f1(e.outputs.netBuoyancyKg / 1000, 2)} t. Sequência: seguimento → suspiros abertos (TLP alagados) → suspiros fechados → descida com os lemes → nivelamento → compensação.`,
+        text: (e) => `Submarino a ${f1(e.outputs.depthKeel)} m, ${fmtSpeed(e.state.body.vel.x)}, pitch ${f1(e.outputs.euler.pitch)}°, resultante ${f1(e.outputs.netBuoyancyKg / 1000, 2)} t. Sequência: seguimento → suspiros abertos (TLP alagados) → suspiros fechados → descida com os lemes → nivelamento → compensação.`,
         waitFor: 'leitura',
         done: () => true,
         minDwell: 10,

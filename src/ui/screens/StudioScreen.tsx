@@ -23,7 +23,7 @@ import { LAYER_LIST } from './PresentationScreen';
 import { pres } from '../presentation';
 import { useUi } from '../uiContext';
 import { usePersisted, loadPersisted } from '../persist';
-import { fmt, fmtTime } from '../format';
+import { fmt, fmtTime, fmtSpeed } from '../format';
 import { downloadText } from '../storage';
 import { SCENARIOS, LOAD_LABELS, buildScenario, type LoadCondition } from '../../sim/scenarios';
 import { serializeEngine, deserializeEngine } from '../../sim/persistence';
@@ -1334,7 +1334,7 @@ function stateInfo(f: NonNullable<PresStep['state']>): string {
   try {
     const e = deserializeEngine(f);
     e.computeOutputs();
-    return `t = ${fmtTime(f.simTime)} · ${fmt(e.outputs.depthKeel, 1)} m · ${fmt(e.state.body.vel.x * 1.943844, 1)} nós · cenário ${SCENARIOS.find((s) => s.id === f.scenarioId)?.name ?? f.scenarioId}`;
+    return `t = ${fmtTime(f.simTime)} · ${fmt(e.outputs.depthKeel, 1)} m · ${fmtSpeed(e.state.body.vel.x)} · cenário ${SCENARIOS.find((s) => s.id === f.scenarioId)?.name ?? f.scenarioId}`;
   } catch {
     return `t = ${fmtTime(f.simTime)}`;
   }
@@ -1358,7 +1358,7 @@ function StateTab({ e, step, k, updStep }: { e: SimulationEngine; step: PresStep
         anteriores.
       </div>
       <div className="subtle">
-        Agora no simulador: t = {fmtTime(e.state.t)} · {fmt(e.outputs.depthKeel, 1)} m · {fmt(e.state.body.vel.x * 1.943844, 1)} nós
+        Agora no simulador: t = {fmtTime(e.state.t)} · {fmt(e.outputs.depthKeel, 1)} m · {fmtSpeed(e.state.body.vel.x)}
       </div>
       {step.state ? (
         <>

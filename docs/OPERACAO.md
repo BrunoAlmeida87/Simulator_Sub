@@ -32,6 +32,8 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 
 ## Pilotagem — central de operação
 
+As velocidades em nós também mostram o equivalente em km/h ao lado (1 nó = 1,852 km/h), incluindo instrumentos, mapa, cena 3D e comparações. No histórico, o gráfico apresenta as duas escalas e o CSV inclui ambas as unidades.
+
 A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre visível, com a faixa de indicadores embaixo: profundidade, velocidade vertical, velocidade, rumo, pitch, banda, bateria e flutuabilidade (ou reserva, na superfície). O painel lateral tem rolagem própria.
 
 - **Barra superior (fixa):** executar/pausar, passo, reiniciar, velocidade do tempo, seletor de **cenário** + Carregar, **⧉ 2ª janela**, **＋ Tela** e alarmes. Clicar no alarme abre o sistema afetado na Pilotagem.
