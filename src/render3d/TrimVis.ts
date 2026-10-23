@@ -102,7 +102,8 @@ export class TrimVis {
     this.world.visible = on;
     const showBlock = !!tb.demo && tb.demo.mass > 0 && !!dw;
     this.block.visible = showBlock;
-    this.rail.visible = !!dw;
+    // sem parcela deslocada (massa 0) o trilho também some: não confunde com as cargas a bordo
+    this.rail.visible = showBlock;
     this.ghost.visible = showBlock && on && Math.abs(tb.demo!.x - tb.demo!.xNeutral) > 0.3;
     this.arcUp.visible = false;
     this.arcDown.visible = false;
@@ -155,10 +156,11 @@ export class TrimVis {
       if (layers.labels) labels.push({ id: 'tv' + name, text: `${name} ${dm > 0 ? '+' : '−'}${fmtT(Math.abs(dm))}`, color: C_TRIM_CSS, small: true, prio: 1, ...proj(dm > 0 ? a.tip() : base.clone().add(new THREE.Vector3(0, -L - 1.2, 0))) });
     }
     // momento líquido
-    const ref = Math.max(5, Math.abs(tb.demo?.momentTm ?? 0) * 0.05);
+    const shiftTm = (tb.demo?.momentTm ?? 0) + tb.loadsTm;
+    const ref = Math.max(5, Math.abs(shiftTm) * 0.05);
     const top = lw(2, -this.R - 1.5);
     let txt: string;
-    if (Math.abs(tb.netTm) <= ref && (Math.abs(tb.demo?.momentTm ?? 0) > ref || Math.abs(tb.tanks.momentTm) > ref)) {
+    if (Math.abs(tb.netTm) <= ref && (Math.abs(shiftTm) > ref || Math.abs(tb.tanks.momentTm) > ref)) {
       this.arcOk.visible = true;
       this.arcOk.position.copy(b2l(2, 0, -this.R));
       txt = 'Trim compensado: momentos se anulam';
@@ -171,7 +173,7 @@ export class TrimVis {
       labels.push({
         id: 'tmN',
         text: txt,
-        sub: `peso ${fmtTm(tb.demo?.momentTm ?? 0)} · tanques de trim ${fmtTm(tb.tanks.momentTm)} · θ ${tb.pitch.toFixed(1)}° (equilíbrio ${tb.pitchEq.toFixed(1)}°)`,
+        sub: `${Math.abs(tb.loadsTm) > 0.05 ? `cargas ${fmtTm(tb.loadsTm)} · ` : ''}${Math.abs(tb.demo?.momentTm ?? 0) > 0.05 || Math.abs(tb.loadsTm) <= 0.05 ? `peso ${fmtTm(tb.demo?.momentTm ?? 0)} · ` : ''}tanques de trim ${fmtTm(tb.tanks.momentTm)} · θ ${tb.pitch.toFixed(1)}° (equilíbrio ${tb.pitchEq.toFixed(1)}°)`,
         color: C_NET_CSS,
         prio: 0,
         ...proj(top),

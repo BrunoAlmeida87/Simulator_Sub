@@ -7,6 +7,8 @@
  *  - "Exemplo: recursos do Estúdio": apresentação curta que usa cada recurso
  *    (título, texto colorido, mostradores, ação com atraso, gatilhos por tempo,
  *    por condição e manual, troca de câmera).
+ *  - "Controle de trim": mergulho a 50 m, parada, cargas a bordo levadas para
+ *    vante (pitch ~6°), cálculo e transferência de água de trim, pitch zero.
  *
  * O roteiro automático original (tours.ts) continua igual.
  */
@@ -235,4 +237,208 @@ export function recursosTemplate(): UserPresentation {
   };
 }
 
-export const BUILTIN_PRESENTATIONS: UserPresentation[] = [submergir50Template(), recursosTemplate()];
+// ------------------------------------------------------------ controle de trim
+const TRIM_TANKS = [vessel.trim.tankA.id, vessel.trim.tankB.id];
+const LOADS = vessel.mass.shiftLoads ?? [];
+const load = (id: string) => LOADS.find((l) => l.id === id)!;
+const nf = (x: number, d = 1) => x.toLocaleString('pt-BR', { maximumFractionDigits: d, minimumFractionDigits: d });
+/** destino de cada carga na apresentação (m, corpo): torpedos nos tubos, tripulantes e mantimentos no compartimento de vante */
+const TRIM_DEST: Record<string, number> = { torpedos: 22, tripulantes: 15, mantimentos: 12 };
+const loadT = (id: string) => (load(id).quantity * load(id).unitMass) / 1000;
+const loadD = (id: string) => TRIM_DEST[id] - load(id).home.x;
+const loadM = (id: string) => loadT(id) * loadD(id);
+/** pose da câmera livre em relação ao submarino (rumo 090°: x = proa, z = boreste, y = para cima) */
+const CAM = (pos: [number, number, number], target: [number, number, number]) => ({ pos, target });
+
+export function controleTrimTemplate(): UserPresentation {
+  n = 200;
+  const tA = vessel.trim.tankA;
+  const tB = vessel.trim.tankB;
+  const arm = tA.center.x - tB.center.x;
+  const pumpLs = vessel.trim.pump.ratedFlow * 1000;
+  const totM = ['torpedos', 'tripulantes', 'mantimentos'].reduce((a, id) => a + loadM(id), 0);
+  const outside = L({ markers: false, wake: true, labels: true, depthLines: true });
+  const cut = (p: Partial<SceneLayers> = {}) =>
+    L({ tanks: true, pipes: true, flows: true, labels: true, tankFilter: TRIM_TANKS, hullOpacity: 0.22, pitchAngle: true, depthLines: false, wake: false, trail: false, ships: false, ...p });
+  const side = (p: Partial<SceneLayers> = {}) => L({ labels: true, pitchAngle: true, wake: false, trail: false, ships: false, depthLines: true, ...p });
+  const HUD_TRIM = ['trimAV', 'trimAR', 'trimTransf', 'pitch'];
+  const T = load('torpedos');
+  const P = load('tripulantes');
+  const M = load('mantimentos');
+  return {
+    format: PRES_FORMAT,
+    version: PRES_VERSION,
+    id: 'modelo-controle-trim',
+    name: 'Controle de trim (modelo)',
+    description:
+      'Mergulho até 50 m, parada na cota e casco transparente com os tanques de trim. Torpedos, tripulantes e mantimentos são levados para vante: o momento inclina a proa ~6°. O cálculo da transferência, a água passando de TT-AV para TT-AR e o submarino de volta a pitch zero.',
+    author: 'Simulador SX-1',
+    createdAt: T0,
+    updatedAt: T0,
+    builtin: true,
+    start: { mode: 'cenario', scenario: 'superficie', sea: 1, load: 'normal', precompensated: true, state: null },
+    steps: [
+      S({
+        title: 'Abertura',
+        text: '# Controle de trim\nO equilíbrio longitudinal do submarino',
+        notes: 'Etapa de título: avance quando quiser (→, Page Down ou “Próxima”).',
+        format: F({ style: 'titulo', position: 'centro', size: 'GG', accent: 'laranja', showProgress: false, showStatus: false }),
+        visual: V({ view: 'superficie', layers: outside, timeScale: 1, run: 'executar' }),
+        advance: A({ mode: 'manual' }),
+      }),
+      S({
+        title: 'Na superfície',
+        text: 'O submarino está parado na superfície, com o trim acertado: **pitch {pitch}°**.\nVamos mergulhar até **50 m**, parar e ver o que acontece quando cargas mudam de lugar a bordo, e como os [laranja]**tanques de trim**[/laranja] devolvem o equilíbrio.',
+        why: 'Trim é o equilíbrio longitudinal: o ângulo entre o eixo do casco e a horizontal (pitch).',
+        format: F({ accent: 'laranja' }),
+        visual: V({ view: 'superficie', layers: outside, hud: ['prof', 'pitch'], timeScale: 1, run: 'executar' }),
+        advance: A({ mode: 'tempo', seconds: 12 }),
+      }),
+      S({
+        title: 'Mergulho: ganhar seguimento',
+        text: 'Telégrafo em **AVANTE MEIA**. Os lemes de profundidade só funcionam com o submarino em movimento: **{vel} nós**.',
+        format: F({ accent: 'azul' }),
+        visual: V({ view: 'superficie', layers: outside, hud: ['vel', 'prof'], timeScale: 3, run: 'executar' }),
+        actions: [newAction('telegrafo', { rpm: 75 })],
+        advance: A({ mode: 'condicao', conditions: [C('vel', '>', 4)], waitText: 'velocidade acima de 4 nós', minDwell: 6, timeout: 400 }),
+      }),
+      S({
+        title: 'Mergulho: alagar os tanques de lastro',
+        text: 'Suspiros abertos: o ar sai por cima e a água do mar entra nos [azul]TLP[/azul] (**{tlp} %**). O submarino perde a reserva de flutuabilidade e afunda até ficar todo submerso.',
+        format: F({ accent: 'azul' }),
+        visual: V({ view: 'superficie', layers: outside, hud: ['tlp', 'prof'], timeScale: 3, run: 'executar' }),
+        actions: [newAction('suspiros', { alvo: 'ALL', abrir: true })],
+        advance: A({ mode: 'condicao', conditions: [C('tlp', '>', 97)], waitText: 'TLP acima de 97 %', minDwell: 6, timeout: 400 }),
+      }),
+      S({
+        title: 'Mergulho: descer até 50 m',
+        text: 'Suspiros fechados e piloto de profundidade em **50 m**. Os lemes inclinam a proa para baixo e o submarino desce: **{prof} m**, pitch {pitch}°.',
+        why: 'Durante a descida, o ângulo vem dos lemes (força hidrodinâmica). Na cota o piloto nivela o casco.',
+        format: F({ accent: 'azul' }),
+        visual: V({ view: 'piloto', layers: L({ hydroVectors: true, depthLines: true, labels: true, wake: true }), hud: ['prof', 'vz', 'pitch'], timeScale: 4, run: 'executar' }),
+        actions: [newAction('suspiros', { alvo: 'ALL', abrir: false }), newAction('pilotoProf', { cota: 50 }), newAction('piloto', { canal: 'heading', auto: true })],
+        advance: A({ mode: 'condicao', conditions: [C('prof', '≈', 50, 1.5), C('vz', '≈', 0, 0.099), C('pitch', '≈', 0, 0.99)], waitText: 'a 50 m, estável e nivelado', minDwell: 6, timeout: 900 }),
+      }),
+      S({
+        title: 'Na cota: parar o submarino',
+        text: 'A **50 m**: telégrafo em **RÉ MEIA** para tirar o seguimento ({vel} nós).\nA compensação faz o ajuste fino do peso (tema de outra apresentação): com peso igual ao empuxo, parado, o submarino **fica na mesma profundidade**.',
+        why: 'Parado, os lemes não geram força. Só pesos e empuxo atuam: é assim que se vê o efeito puro das cargas no trim.',
+        format: F({ accent: 'ciano' }),
+        visual: V({ view: 'piloto', layers: side({ pitchAngle: false }), hud: ['vel', 'prof', 'pitch'], timeScale: 3, run: 'executar' }),
+        actions: [newAction('equilibrar', { tol: 50 }), newAction('telegrafo', { rpm: -60 })],
+        advance: A({ mode: 'condicao', conditions: [C('vel', '<', 0.15), C('dosagem', '=', 0)], waitText: 'submarino parado e compensação concluída', minDwell: 4, timeout: 500 }),
+      }),
+      S({
+        title: 'Parado a 50 m, nivelado',
+        text: 'Hélice parado, piloto desligado e lemes a 0°. Profundidade **{prof} m**, velocidade {vel} nós.\nAs linhas mostram a **horizontal** (tracejada) e o **eixo do casco**: coincidem, pitch **{pitch}°**.',
+        why: 'Submerso, o empuxo atua no centro de carena B, acima do centro de gravidade G (BG = {bg:2} m). Quando o casco inclina, esse binário o traz de volta: é a rigidez de trim.',
+        format: F({ accent: 'verde' }),
+        visual: V({ view: 'livre', camPose: CAM([2, -6, 88], [2, -13, 0]), layers: side(), hud: ['prof', 'vel', 'pitch'], timeScale: 2, run: 'executar' }),
+        actions: [
+          newAction('telegrafo', { rpm: 0 }),
+          newAction('piloto', { canal: 'depth', auto: false }),
+          newAction('leme', { id: 'bow', ang: 0 }),
+          newAction('leme', { id: 'stern', ang: 0 }),
+          newAction('equilibrar', { tol: 100 }),
+          newAction('pesoMassa', { t: 0 }),
+          newAction('trimNivelar', { tol: 0.03 }, 10),
+          newAction('trimReferencia', {}, 20),
+        ],
+        advance: A({ mode: 'condicao', conditions: [C('pitch', '≈', 0, 0.07), C('dosagem', '=', 0)], waitText: 'casco nivelado e estável', hold: 10, minDwell: 22, timeout: 300 }),
+      }),
+      S({
+        title: 'Casco transparente: os tanques de trim',
+        text: `Os dois [laranja]**tanques de trim**[/laranja] ficam nas pontas do casco:\n- **${tA.name}** a ${nf(tA.center.x)} m à vante do centro: **{trimAV} m³**\n- **${tB.name}** a ${nf(-tB.center.x)} m à ré: **{trimAR} m³**\nDistância entre eles: **${nf(arm)} m**. A bomba de trim (BT, ${nf(pumpLs, 0)} L/s) leva água de um para o outro.\nEm [magenta]rosa[/magenta], cargas que vão mudar de lugar: torpedos, tripulantes e mantimentos.`,
+        why: 'Mudar água de lugar não muda o peso total, só a posição do centro de gravidade: o submarino continua equilibrado em peso e empuxo.',
+        notes: 'Etapa manual: apresente TT-AV, TT-AR, a bomba e a tubulação (laranja).',
+        format: F({ accent: 'laranja', position: 'esquerda', size: 'G' }),
+        visual: V({ view: 'livre', camPose: CAM([4, 14, 64], [4, -1, 0]), layers: cut(), hud: ['trimAV', 'trimAR', 'pitch'], timeScale: 1, run: 'executar' }),
+        advance: A({ mode: 'manual' }),
+      }),
+      S({
+        title: 'Torpedos levados para os tubos',
+        text: `**${T.quantity} torpedos** (${nf(loadT('torpedos'))} t) saem das estantes (x = ${nf(T.home.x, 0)} m) para os tubos de lançamento na proa (x = ${TRIM_DEST.torpedos} m): ${nf(loadD('torpedos'), 0)} m para vante.\nMomento das cargas: [magenta]**{momCargas} t·m**[/magenta] · pitch **{pitch}°**.`,
+        why: 'O peso não mudou, mudou só o lugar: o centro de gravidade vai para vante e a proa começa a descer.',
+        format: F({ accent: 'magenta' }),
+        visual: V({ view: 'livre', camPose: CAM([8, 12, 62], [6, -1, 0]), layers: cut({ trimVectors: true }), hud: ['momCargas', 'pitch'], timeScale: 2, run: 'executar' }),
+        actions: [newAction('cargaDeslocar', { id: 'torpedos', x: TRIM_DEST.torpedos })],
+        advance: A({ mode: 'condicao', conditions: [C('cargasNoDestino', '=', 1)], waitText: 'torpedos nos tubos', minDwell: 5, timeout: 300 }),
+      }),
+      S({
+        title: 'Tripulantes vão para vante',
+        text: `**${P.quantity} tripulantes** (${P.quantity} × ${P.unitMass} kg = ${nf(loadT('tripulantes'), 2)} t) vão da praça de máquinas (x = ${nf(P.home.x, 0)} m) para o compartimento de vante (x = ${TRIM_DEST.tripulantes} m).\nMomento das cargas: [magenta]**{momCargas} t·m**[/magenta] · pitch **{pitch}°**.`,
+        format: F({ accent: 'magenta' }),
+        visual: V({ view: 'livre', camPose: CAM([4, 12, 62], [3, -1, 0]), layers: cut({ trimVectors: true }), hud: ['momCargas', 'pitch'], timeScale: 2, run: 'executar' }),
+        actions: [newAction('cargaDeslocar', { id: 'tripulantes', x: TRIM_DEST.tripulantes })],
+        advance: A({ mode: 'condicao', conditions: [C('cargasNoDestino', '=', 1)], waitText: 'tripulantes a vante', minDwell: 4, timeout: 300 }),
+      }),
+      S({
+        title: 'Mantimentos levados para vante',
+        text: `**Mantimentos** (${M.quantity} caixas × ${M.unitMass} kg = ${nf(loadT('mantimentos'))} t) vão do paiol (x = ${nf(M.home.x, 0)} m) para a cozinha de vante (x = ${TRIM_DEST.mantimentos} m).\nMomento total das cargas: [magenta]**{momCargas} t·m**[/magenta], proa para baixo · pitch **{pitch}°**.`,
+        format: F({ accent: 'magenta' }),
+        visual: V({ view: 'livre', camPose: CAM([4, 12, 62], [3, -1, 0]), layers: cut({ trimVectors: true }), hud: ['momCargas', 'pitch'], timeScale: 2, run: 'executar' }),
+        actions: [newAction('cargaDeslocar', { id: 'mantimentos', x: TRIM_DEST.mantimentos })],
+        advance: A({ mode: 'condicao', conditions: [C('cargasNoDestino', '=', 1), C('pitch', '<', -5.5)], waitText: 'cargas no lugar e a proa inclinada', minDwell: 10, timeout: 300 }),
+      }),
+      S({
+        title: 'O ângulo de pitch',
+        text: 'O submarino ficou **inclinado de proa**: o eixo do casco faz [laranja]**{pitch}°**[/laranja] com a horizontal.\nO casco gira até o binário do empuxo equilibrar o momento das cargas:\nθ ≈ M ÷ (W·BG) = {momCargas} t·m ÷ {rigidezTrim} t·m = **{pitchEq}°** (previsto) · medido **{pitch}°**',
+        why: 'W·BG é a rigidez de trim submerso: peso × distância vertical entre o centro de carena e o centro de gravidade. Com BG de só {bg:2} m, poucas toneladas mudadas de lugar já inclinam o casco vários graus.',
+        notes: 'Etapa manual: deixe o público ver o ângulo. As linhas: tracejada = horizontal; laranja = eixo do casco; arco com marcas a cada grau.',
+        format: F({ accent: 'laranja', position: 'baixo', size: 'G' }),
+        visual: V({ view: 'livre', camPose: CAM([2, -6, 88], [2, -13, 0]), layers: side(), hud: ['pitch', 'pitchEq', 'momCargas', 'prof'], timeScale: 1, run: 'executar' }),
+        advance: A({ mode: 'manual' }),
+      }),
+      S({
+        title: 'Cálculo da transferência',
+        text: `Para nivelar, a água de trim tem de criar um momento **igual e contrário** ao das cargas:\n- momento das cargas: M = ${nf(loadT('torpedos'))} t × ${nf(loadD('torpedos'), 0)} m + ${nf(loadT('tripulantes'), 2)} t × ${nf(loadD('tripulantes'), 0)} m + ${nf(loadT('mantimentos'))} t × ${nf(loadD('mantimentos'), 0)} m = **{momCargas} t·m**\n- distância entre TT-AV e TT-AR: d = **{bracoTrim} m**\n- água a transferir: m = M ÷ d = {momCargas} ÷ {bracoTrim} = [laranja]**{trimCalc} t ≈ {trimCalcM3} m³**[/laranja]\nSentido: de **vante para ré** (TT-AV → TT-AR), para levantar a proa.`,
+        why: `Cada tonelada levada de TT-AV para TT-AR muda o momento em ${nf(arm)} t·m: o braço é a distância entre os dois tanques.`,
+        notes: `Conferência: ${nf(totM)} t·m ÷ ${nf(arm)} m = ${nf(totM / arm, 2)} t. Etapa manual.`,
+        format: F({ accent: 'laranja', position: 'esquerda', size: 'G' }),
+        visual: V({ view: 'livre', camPose: CAM([4, 14, 64], [4, -1, 0]), layers: cut({ trimVectors: true }), hud: ['momCargas', 'bracoTrim', 'trimCalc', 'pitch'], timeScale: 1, run: 'executar' }),
+        advance: A({ mode: 'manual' }),
+      }),
+      S({
+        title: 'Bomba ligada: a água sai do TT-AV',
+        text: 'A bomba de trim aspira do [laranja]**TT-AV**[/laranja] e manda para ré. Nível do TT-AV: **{trimAV} m³** · já transferido: **{trimTransf} t** · falta: {trimCalc} t.',
+        format: F({ accent: 'laranja', position: 'topo' }),
+        visual: V({ view: 'livre', camPose: CAM([20, -3, -17], [21.5, -4.5, 0]), layers: cut({ highlight: tA.id, pitchAngle: false }), hud: HUD_TRIM, timeScale: 3, run: 'executar' }),
+        actions: [newAction('trimCompensar', {})],
+        advance: A({ mode: 'tempo', seconds: 18 }),
+      }),
+      S({
+        title: 'Pela tubulação, passando pela bomba',
+        text: 'A água corre pela tubulação no fundo do casco e passa pela **bomba de trim (BT)**. Já transferido: **{trimTransf} t** · pitch **{pitch}°**.',
+        format: F({ accent: 'laranja', position: 'topo' }),
+        visual: V({ view: 'livre', camPose: CAM([7, -2.5, -14], [8, -3.8, 0]), layers: cut({ pitchAngle: false }), hud: HUD_TRIM, timeScale: 3, run: 'executar' }),
+        advance: A({ mode: 'tempo', seconds: 14 }),
+      }),
+      S({
+        title: 'A água chega ao TT-AR',
+        text: 'O [laranja]**TT-AR**[/laranja] enche: **{trimAR} m³**. O momento da água cresce ({momTrim} t·m) e vai anulando o das cargas ({momCargas} t·m): a proa sobe, pitch **{pitch}°**.',
+        format: F({ accent: 'laranja', position: 'topo' }),
+        visual: V({ view: 'livre', camPose: CAM([-11.5, -0.5, -17], [-13, -1.5, 0]), layers: cut({ highlight: tB.id, pitchAngle: false }), hud: HUD_TRIM, timeScale: 3, run: 'executar' }),
+        advance: A({ mode: 'condicao', conditions: [C('dosagem', '=', 0), C('pitch', '≈', 0, 0.07)], waitText: 'transferência concluída e casco nivelado', hold: 20, minDwell: 8, timeout: 900 }),
+      }),
+      S({
+        title: 'Equilibrado: pitch zero',
+        text: 'Transferência concluída: **{trimTransf} t** de água foram de vante para ré.\nMomento das cargas [magenta]{momCargas} t·m[/magenta] = momento da água [laranja]{momTrim} t·m[/laranja], em sentidos contrários.\nO submarino está **nivelado**: pitch [verde]**{pitch}°**[/verde], a **{prof} m**.',
+        why: 'As cargas continuam a vante; a água a ré equilibra o momento delas. O peso total não mudou: a profundidade se manteve.',
+        notes: 'Etapa manual: mostre o casco de lado, com a horizontal e o eixo do casco coincidindo.',
+        format: F({ accent: 'verde' }),
+        visual: V({ view: 'livre', camPose: CAM([2, -6, 88], [2, -13, 0]), layers: side(), hud: ['pitch', 'prof', 'momCargas', 'momTrim'], timeScale: 1, run: 'executar' }),
+        advance: A({ mode: 'manual' }),
+      }),
+      S({
+        title: 'Resumo',
+        text: 'Controle de trim:\n- cargas mudando de lugar (torpedos, pessoas, mantimentos) criam um **momento**\n- o casco inclina até o binário do empuxo (W·BG) equilibrar esse momento\n- água a transferir = **momento ÷ distância entre os tanques**\n- a bomba de trim leva a água para o lado oposto e o pitch volta a **zero**, sem mudar o peso total',
+        notes: 'Última etapa: encerre quando terminar as perguntas (→ ou ■ Encerrar).',
+        format: F({ accent: 'verde', size: 'G' }),
+        visual: V({ view: 'livre', camPose: CAM([2, -6, 88], [2, -13, 0]), layers: side(), hud: ['pitch', 'prof'], timeScale: 1, run: 'executar' }),
+        advance: A({ mode: 'manual', next: NEXT_END }),
+      }),
+    ],
+  };
+}
+
+export const BUILTIN_PRESENTATIONS: UserPresentation[] = [submergir50Template(), recursosTemplate(), controleTrimTemplate()];

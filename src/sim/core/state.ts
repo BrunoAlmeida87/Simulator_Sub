@@ -280,6 +280,8 @@ export interface SimState {
   /** peso deslocável de demonstração: posição (m, corpo), posição ordenada e massa (kg) */
   cargoLoads?: CargoLoad[]; // cargas adicionais; ausente em salvamentos antigos
   demoWeight?: { x: number; xCmd: number; mass: number };
+  /** cargas deslocáveis a bordo: posição longitudinal atual e ordenada (m, corpo) por id */
+  shiftLoads?: Record<string, { x: number; xCmd: number }>;
   /** massas de referência dos tanques de trim (condição inicial do cenário) para os vetores de trim */
   trimRef?: { a: number; b: number };
 }

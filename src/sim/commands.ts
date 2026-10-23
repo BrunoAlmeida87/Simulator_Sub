@@ -67,6 +67,10 @@ export type Command =
   | { type: 'cargoRemove'; id: string }
   | { type: 'environment'; patch: EnvironmentPatch }
   | { type: 'demoWeight'; x?: number; mass?: number }
+  /** desloca uma carga a bordo (id ou 'ALL' com home) para x, ou de volta à estiva (home) */
+  | { type: 'shiftLoad'; id: string; x?: number; home?: boolean }
+  /** referência dos vetores de trim (variação de água nos tanques de trim) = condição atual */
+  | { type: 'trimReference' }
   | { type: 'failure'; target: string; active: boolean; param?: number | string };
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
@@ -410,6 +414,28 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
         const m = Math.max(0, Math.min(dwc.mass, c.mass));
         log(`Peso deslocável: parcela deslocada ${(Math.min(d.mass, dwc.mass) / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (de ${(dwc.mass / 1000).toFixed(0)} t a bordo; massa total inalterada)`, 'Trim');
         d.mass = m;
+      }
+      break;
+    }
+    case 'trimReference':
+      s.trimRef = { a: s.trim.tankA.mass, b: s.trim.tankB.mass };
+      log(`Referência dos vetores de trim: condição atual (TT-AV ${(s.trim.tankA.mass / 1000).toFixed(2)} t, TT-AR ${(s.trim.tankB.mass / 1000).toFixed(2)} t)`, 'Trim');
+      break;
+    case 'shiftLoad': {
+      const list = v.mass.shiftLoads ?? [];
+      const st = (s.shiftLoads ??= {});
+      const targets = c.id === 'ALL' ? list : list.filter((l) => l.id === c.id);
+      if (!targets.length || (!c.home && (c.x === undefined || !Number.isFinite(c.x)))) {
+        log('Deslocamento de carga recusado: carga desconhecida ou posição inválida.', 'Trim');
+        break;
+      }
+      for (const lc of targets) {
+        const l = (st[lc.id] ??= { x: lc.home.x, xCmd: lc.home.x });
+        const x = c.home ? lc.home.x : Math.max(lc.xMin, Math.min(lc.xMax, c.x!));
+        l.xCmd = x;
+        const mass = lc.quantity * lc.unitMass;
+        const where = Math.abs(x - lc.home.x) < 0.05 ? 'posição de estiva' : x > lc.home.x ? 'para vante' : 'para ré';
+        log(`${lc.name} (${lc.quantity} × ${lc.unitMass} kg = ${(mass / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} t): deslocar para x = ${x.toFixed(1)} m (${where}; massa total inalterada)`, 'Trim');
       }
       break;
     }

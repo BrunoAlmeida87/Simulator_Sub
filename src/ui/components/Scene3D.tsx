@@ -232,9 +232,9 @@ export function Scene3D(props: Scene3DProps) {
         slot = { el, line, key: '', w: 0, h: 0 };
         pool.current.set(l.id, slot);
       }
-      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.callout ? 1 : 0}`;
+      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.big ? 1 : 0}|${l.callout ? 1 : 0}`;
       if (slot.key !== key) {
-        slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.color ? ' col' : ''}${l.callout ? ' callout' : ''}`;
+        slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.big ? ' big' : ''}${l.color ? ' col' : ''}${l.callout ? ' callout' : ''}`;
         slot.el.style.borderColor = l.color ?? '';
         slot.el.style.color = l.color ?? '';
         slot.el.innerHTML = '';

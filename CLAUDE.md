@@ -59,6 +59,8 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       (dolly-zoom) nas vistas de 3ª pessoa; graphics.deepPersp/deepLevel; seção na fileira (SeaControls)
   daylight.ts         sol pela hora do dia, cores do céu/névoa/água, noite (cúpula, estrelas, lua, luar)
   NavLights.ts        luzes de navegação (setores do RIPEAM) do submarino e dos navios; faróis do submarino
+  CargoVis.ts         cargas deslocáveis a bordo (torpedos, tripulantes, mantimentos; mass.shiftLoads / comando shiftLoad)
+  PitchAngle.ts       camada pitchAngle: horizontal × eixo do casco, arco graduado e θ
   ForceArrows.ts, TrimVis.ts, Systems.ts (tubulações/escoamentos), SurfaceFx.ts (esteira, aspiração do snorkel),
                       WindFx.ts (vento aparente: faixas e flâmula), Markers.ts, Ocean.ts
   controlRoom/        SALA DE COMANDO em 1ª pessoa: ControlRoomScene (sala, câmera, colisão, seleção),

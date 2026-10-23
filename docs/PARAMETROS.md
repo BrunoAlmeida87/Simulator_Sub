@@ -33,6 +33,11 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Combustível (100 m³, tanque compensado de 120 m³) | 84 t + 20,5 t de água | −2 m |
 | Condição de carga leve / pesada | −6 t / +6 t | +3 m |
 | Peso deslocável (carga existente; desloca-se 2 a 30 t, padrão 5 t, sem mudar a massa total) | 30 t | +2 m (neutra), trilho −25 a +25 m |
+| Cargas deslocáveis: torpedos de reserva (2 × 1,6 t; 0,25 m/s) | 3,2 t | +13 m (estiva), +11 a +22 m |
+| Cargas deslocáveis: tripulantes (16 × 85 kg; 0,8 m/s) | 1,36 t | −10 m (estiva), −14 a +22 m |
+| Cargas deslocáveis: mantimentos (12 × 50 kg; 0,4 m/s) | 0,6 t | −3 m (estiva), −14 a +22 m |
+
+As cargas deslocáveis (`mass.shiftLoads`) entram na condição de projeto na posição de estiva — o peso leve automático as desconta, então massa total e centro de gravidade não mudam —; deslocadas, só criam momento de trim. Arquivos salvos antes delas continuam sem elas.
 
 ## Tanques
 
