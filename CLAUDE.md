@@ -19,6 +19,10 @@ documentação em **português do Brasil**.
 - `npm run typecheck`
 - Formatação: Prettier com `--single-quote --print-width 220` (não usar o padrão de aspas duplas).
 
+## Evolução planejada
+Antes de tarefas de evolução (gráficos, desempenho, terreno, estaleiro), leia `docs/EVOLUCAO.md`: tem diagnósticos,
+ordem das tarefas e modelo/esforço sugeridos. Faça **uma tarefa por conversa** e pare para validação do Bruno.
+
 ## Fluxo de trabalho (git)
 - Branch principal: **`main`**. A publicação no GitHub Pages roda a cada push na `main`
   (`.github/workflows/deploy.yml`: testes → build → branch `gh-pages`).

@@ -3,6 +3,29 @@
 Registro vivo das decisões e ideias discutidas para evoluir o SX-1. Atualizado a cada rodada de conversa.
 Nada aqui foi implementado ainda, exceto onde indicado.
 
+## Como trabalhar neste documento
+
+- **Uma tarefa por conversa**, com escopo explícito, partindo da `main` atualizada (ver `CLAUDE.md`). Ao terminar: testes, build, capturas antes/depois quando for visual, e parar para o Bruno validar.
+- **O Bruno valida cada tarefa** antes de pedir a próxima. Não emendar tarefas sem essa validação.
+- **Modelo e esforço** são escolhidos por quem abre a conversa; este arquivo só sugere. Se a conversa estiver com configuração abaixo da sugerida para a tarefa, o modelo deve avisar antes de começar e deixar o Bruno decidir.
+- Só dados **públicos e gratuitos**; nada de imagem comercial. Licença incerta = não incluir.
+- Não alterar cenários existentes (`SCENARIOS`, `TOURS`); a física não depende da exibição.
+
+| # | Tarefa | Modelo | Esforço |
+|---|---|---|---|
+| 1 | Artefatos de água/terreno no zoom out (seção 3) | Sonnet 5.5 | médio |
+| 2 | Escala de resolução, qualidade dinâmica, medidor de FPS | Sonnet 5.5 | médio a alto |
+| 3 | Teste visual automático (Playwright, capturas de referência) | Sonnet 5.5 | médio |
+| 4 | Sensação de escala: FOV, névoa atmosférica, referências humanas | Sonnet 5.5 | alto |
+| 5 | Sombras do sol e pós-processamento por perfil de qualidade | Opus 5.5 | alto |
+| 6 | Física em Web Worker; dividir `SubmarineScene.ts` | Opus 5.5 | alto |
+| 7 | Terreno: LOD contínuo; dados abertos (após licenças confirmadas) | Opus 5.5 | alto |
+| 8 | Estaleiro: escala humana, detalhes, planta com ortofoto aberta | Sonnet 5.5 | alto |
+| 9 | Modo palco, gravação, cenários de falha | Sonnet 5.5 | médio a alto |
+| – | Decisões de arquitetura ou revisão ampla | Fable 5.1 | alto |
+
+Evitar Haiku neste projeto (código grande e física delicada). Esforço máximo raramente compensa: se travar, dividir a tarefa.
+
 ## 1. Tecnologia: Three.js ou outro motor?
 
 **Decisão: continuar com Three.js. Não migrar para o Godot.**
@@ -131,3 +154,13 @@ Resolução atual (perfil alto): malha do terreno 20 m (anel próximo, 6 km), 60
 1. Abrir o item do Mosaico 2024 no DATA.RIO e confirmar a licença (ou escrever ao IPP).
 2. Perguntar ao IPP se há MDT/LiDAR publicado.
 3. Procurar ortofoto/LiDAR de Itaguaí no INEA/IBGE.
+
+## 8. Melhorias gerais (além das seções 3 a 7)
+
+- **Apresentação:** modo palco (tela limpa, atalhos, controle remoto pelo celular), câmera cinematográfica como ação do Estúdio, gravação de vídeo, estado completo salvo por etapa, PWA offline.
+- **Física:** calibração com dados publicados (ex.: DARPA SUBOFF), superfície livre nos tanques, correntes e vento na física, interação hélice–leme e águas rasas, acústica com camada térmica, cenários de falha e emergência, regressão física por curvas de referência.
+- **Desempenho/arquitetura:** física em Web Worker, telemetria de FPS, carregamento sob demanda (Rio, estaleiro, sala de comando), dividir `SubmarineScene.ts`.
+- **Qualidade:** testes visuais automáticos, testes de interface, acessibilidade, internacionalização (inglês).
+- **Conteúdo:** novos locais pelo pipeline de `scripts/rio`, tráfego com comportamento, modo instrutor, modo multiusuário em rede.
+
+Ordem de prioridade: artefatos → escala de resolução/FPS → teste visual → sensação de escala → sombras e pós-processamento → Worker → terreno e estaleiro → palco, gravação e falhas.
