@@ -591,9 +591,42 @@ export class ShipyardModel {
     labels.push({ id: 'estaleiro', text: 'Estaleiro e Base Naval — Itaguaí', sub: `${(dist / 1852).toFixed(1)} mn`, color: '#ffd166', small: true, prio: 2, ...proj(p) });
   }
 
+  /**
+   * Troca o casco desenhado dos submarinos atracados pela versão leve do modelo
+   * .glb do SX-1 (só visual). Sem o arquivo, fica o desenho de mooredSub (reserva).
+   * As malhas do arquivo são compartilhadas com o cache do carregador: não são
+   * descartadas no dispose().
+   */
+  useSubModel(src: THREE.Object3D): void {
+    for (const m of this.moored) {
+      for (const c of [...m.g.children]) {
+        m.g.remove(c);
+        c.traverse((o) => (o as THREE.Mesh).isMesh && (o as THREE.Mesh).geometry.dispose());
+      }
+      const sub = src.clone(true);
+      sub.name = 'SX1_Modelo_atracado';
+      sub.userData.sharedModel = true;
+      sub.rotation.y = -Math.PI / 2; // no arquivo a proa é −Z; no grupo atracado, +X
+      sub.traverse((o) => {
+        o.castShadow = false;
+        o.receiveShadow = false;
+      });
+      m.g.add(sub);
+    }
+  }
+
+  /** submarinos atracados usam o modelo .glb (e não o desenho de reserva) */
+  get mooredUsesModel(): boolean {
+    return this.moored.length > 0 && this.moored.every((m) => m.g.children.some((c) => c.userData.sharedModel));
+  }
+
   dispose(): void {
+    const shared = (o: THREE.Object3D) => {
+      for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p.userData.sharedModel) return true;
+      return false;
+    };
     this.group.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose();
+      if ((o as THREE.Mesh).isMesh && !shared(o)) (o as THREE.Mesh).geometry.dispose();
     });
     for (const m of this.mats) m.dispose();
     for (const t of this.texs) t.dispose();

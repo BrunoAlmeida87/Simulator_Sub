@@ -128,6 +128,8 @@ export class SubModelRig {
   readonly shell: THREE.Object3D[] = [];
   readonly pickables: THREE.Object3D[] = [];
   readonly draftMarks: THREE.Object3D[] = [];
+  /** material próprio dos lemes (vela e popa): recebe a "Cor dos lemes" da identidade; mantém o relevo */
+  readonly finMaterial: THREE.MeshStandardMaterial | null = null;
   private sailPlanes: Moving[] = [];
   private sternFins: Moving[] = [];
   private prop: Moving;
@@ -199,6 +201,19 @@ export class SubModelRig {
       o.userData.pick = { kind: 'fin', id: sn > c + 0.2 ? 'rudder' : 'stern' } satisfies PickTag;
       this.pickables.push(o);
     });
+    // lemes com material próprio (tingido pela "Cor dos lemes"; sem o mapa de cor, com o relevo)
+    {
+      const finMeshes: THREE.Mesh[] = [];
+      for (const m of [...this.sailPlanes, ...this.sternFins]) m.obj.traverse((o) => (o as THREE.Mesh).isMesh && finMeshes.push(o as THREE.Mesh));
+      const base = finMeshes.map((m) => m.material).find((x) => x instanceof THREE.MeshStandardMaterial) as THREE.MeshStandardMaterial | undefined;
+      if (base) {
+        const fm = base.clone();
+        fm.map = null;
+        fm.name = 'SX1_Lemes';
+        for (const m of finMeshes) m.material = fm;
+        (this as { finMaterial: THREE.MeshStandardMaterial | null }).finMaterial = fm;
+      }
+    }
     const prop = find(SUB_PARTS.propeller)!;
     this.prop = mk(prop, axisInParent(prop, Z));
     prop.userData.pick = { kind: 'prop', id: 'prop' } satisfies PickTag;
@@ -245,6 +260,13 @@ export class SubModelRig {
       for (const x of Array.isArray(m.material) ? m.material : [m.material]) set.add(x);
     });
     return [...set];
+  }
+
+  /** cor dos lemes (mesma regra do desenho atual: cor + leve emissão) */
+  setFinColor(color: THREE.Color, emissive: THREE.Color): void {
+    if (!this.finMaterial) return;
+    this.finMaterial.color.copy(color);
+    this.finMaterial.emissive.copy(emissive);
   }
 
   private turn(m: Moving, angle: number): void {

@@ -117,6 +117,31 @@ describe('Estaleiro: 3D e mapa = física', () => {
     model.dispose();
   });
 
+  it('submarinos atracados usam o modelo .glb (proa para +x) sem descartar as malhas compartilhadas', () => {
+    const model = new ShipyardModel('baixa');
+    expect(model.mooredUsesModel).toBe(false); // reserva: casco desenhado
+    const src = new THREE.Group();
+    const bow = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+    bow.name = 'SX1_Casco';
+    bow.position.set(0, 0, -35); // proa do arquivo (−Z)
+    src.add(bow);
+    let disposed = 0;
+    bow.geometry.dispose = () => void disposed++;
+    model.useSubModel(src);
+    expect(model.mooredUsesModel).toBe(true);
+    const moored = model.group.children.filter((o) => o.name === 'Submarino atracado');
+    expect(moored.length).toBe(2);
+    for (const g of moored) {
+      const sub = g.getObjectByName('SX1_Modelo_atracado')!;
+      sub.updateMatrixWorld(true);
+      const p = new THREE.Vector3().setFromMatrixPosition(sub.getObjectByName('SX1_Casco')!.matrixWorld).applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert());
+      expect(p.x).toBeCloseTo(35, 6);
+      expect(Math.abs(p.z)).toBeLessThan(1e-6);
+    }
+    model.dispose();
+    expect(disposed).toBe(0);
+  });
+
   it('o mapa desenha os mesmos contornos (aterro idêntico; molhes com a largura da física)', () => {
     const o = shipyardOutlines();
     expect(o.platform.length).toBe(SHIPYARD_DATA.platform.length);

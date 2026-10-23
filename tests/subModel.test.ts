@@ -129,6 +129,17 @@ describe('modelo 3D .glb — peças e mistura dos lemes', () => {
     expect(ma).not.toBe(mb);
   });
 
+  it('os lemes têm material próprio que segue a "Cor dos lemes" sem tingir o casco', () => {
+    const rig = new SubModelRig(fakeModel());
+    const mat = (n: string) => (rig.root.getObjectByName(n) as THREE.Mesh).material;
+    expect(rig.finMaterial).not.toBeNull();
+    for (const n of [SUB_PARTS.sailPlanePort, SUB_PARTS.sailPlaneStbd, SUB_PARTS.sternPlanePort, SUB_PARTS.rudderUpper]) expect(mat(n)).toBe(rig.finMaterial);
+    expect(mat(SUB_PARTS.hull)).not.toBe(rig.finMaterial);
+    rig.setFinColor(new THREE.Color('#e8892b'), new THREE.Color(0x111111));
+    expect(rig.finMaterial!.color.getHexString()).toBe(new THREE.Color('#e8892b').getHexString());
+    expect((mat(SUB_PARTS.hull) as THREE.MeshStandardMaterial).color.getHexString()).toBe('ffffff');
+  });
+
   it('a qualidade gráfica escolhe a versão do arquivo', () => {
     expect(subModelLevel('baixa')).toBe('leve');
     expect(subModelLevel('media')).toBe('alta');

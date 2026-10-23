@@ -705,6 +705,7 @@ export class SubmarineScene {
       this.draftMarks = rig.draftMarks;
     }
     this.model = rig;
+    rig.setFinColor(this.ctrlMat.color, this.ctrlMat.emissive);
     // força reaplicar corte/opacidade/visibilidade às peças novas
     this.hullState = { ...this.hullState, op: -1 };
   }
@@ -723,6 +724,7 @@ export class SubmarineScene {
     this.appRev = rev;
     this.ctrlMat.color.set(a.finColor);
     this.ctrlMat.emissive.set(a.finColor).multiplyScalar(0.22);
+    this.model?.setFinColor(this.ctrlMat.color, this.ctrlMat.emissive);
     this.decals?.update(a);
     if (a.textures !== this.texDetail) {
       this.texDetail = a.textures;
@@ -1203,8 +1205,15 @@ export class SubmarineScene {
     // estaleiro e base naval (só com a costa ligada: faz parte da costa, também na física)
     if (coastOn && e.env.cfg.geo) {
       if (!this.shipyard) {
-        this.shipyard = new ShipyardModel(this.quality);
-        this.scene.add(this.shipyard.group);
+        const sy = new ShipyardModel(this.quality);
+        this.shipyard = sy;
+        this.scene.add(sy.group);
+        // submarinos atracados com a versão leve do modelo .glb; sem o arquivo fica o desenho (reserva)
+        loadSubModel(subModelUrl('leve'), this.renderer)
+          .then((src) => {
+            if (!this.disposed && this.shipyard === sy) sy.useSubModel(src);
+          })
+          .catch(() => undefined);
       }
       this.shipyardDist = this.shipyard.place(e.env.cfg.geo.origin, pn, pe, this.camera.position);
       this.shipyard.float(e.env.waves, tWave);
