@@ -326,7 +326,7 @@ export function controleTrimTemplate(): UserPresentation {
         text: 'A **50 m**: telégrafo em **RÉ MEIA** para tirar o seguimento ({vel} nós).\nA compensação faz o ajuste fino do peso (tema de outra apresentação): com peso igual ao empuxo, parado, o submarino **fica na mesma profundidade**.',
         why: 'Parado, os lemes não geram força. Só pesos e empuxo atuam: é assim que se vê o efeito puro das cargas no trim.',
         format: F({ accent: 'ciano' }),
-        visual: V({ view: 'piloto', layers: side({ pitchAngle: false, markers: true }), hud: ['vel', 'prof', 'pitch'], timeScale: 3, run: 'executar' }),
+        visual: V({ view: 'piloto', layers: side({ pitchAngle: false, markers: true, trail: true }), hud: ['vel', 'prof', 'pitch'], timeScale: 3, run: 'executar' }),
         actions: [newAction('equilibrar', { tol: 50 }), newAction('telegrafo', { rpm: -60 })],
         advance: A({ mode: 'condicao', conditions: [C('vel', '<', 0.15), C('dosagem', '=', 0)], waitText: 'submarino parado e compensação concluída', minDwell: 4, timeout: 500 }),
       }),
@@ -335,7 +335,7 @@ export function controleTrimTemplate(): UserPresentation {
         text: 'Hélice parado, piloto desligado e lemes a 0°. Profundidade **{prof} m**, velocidade {vel} nós.\nAs linhas mostram a **horizontal** (tracejada) e o **eixo do casco**: coincidem, pitch **{pitch}°**.',
         why: 'Submerso, o empuxo atua no centro de carena B, acima do centro de gravidade G (BG = {bg:2} m). Quando o casco inclina, esse binário o traz de volta: é a rigidez de trim.',
         format: F({ accent: 'verde' }),
-        visual: V({ view: 'livre', camPose: CAM([2, -6, 88], [2, -13, 0]), layers: side({ markers: true }), hud: ['prof', 'vel', 'pitch'], timeScale: 2, run: 'executar' }),
+        visual: V({ view: 'livre', camPose: CAM([2, -6, 88], [2, -13, 0]), layers: side({ markers: true, trail: true }), hud: ['prof', 'vel', 'pitch'], timeScale: 2, run: 'executar' }),
         actions: [
           newAction('telegrafo', { rpm: 0 }),
           newAction('piloto', { canal: 'depth', auto: false }),
