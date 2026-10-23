@@ -10,7 +10,7 @@ import { periscopeHeadZ } from '../src/sim/systems/actuation';
 
 const D = Math.PI / 180;
 
-/** modelo mínimo com os nomes fixos (como sairia do Blender), popa em X */
+/** modelo mínimo com os nomes fixos (como sairia do Blender), popa em cruz */
 function fakeModel(opts: { skip?: string } = {}): THREE.Group {
   const root = new THREE.Group();
   const box = () => new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
@@ -27,10 +27,10 @@ function fakeModel(opts: { skip?: string } = {}): THREE.Group {
   add(SUB_PARTS.sailPlanePort, -1, 5.8, -10.5);
   add(SUB_PARTS.sailPlaneStbd, 1, 5.8, -10.5);
   const r = 1.8;
-  add(SUB_PARTS.sternStbdUpper, r, r, 31.5);
-  add(SUB_PARTS.sternPortUpper, -r, r, 31.5);
-  add(SUB_PARTS.sternPortLower, -r, -r, 31.5);
-  add(SUB_PARTS.sternStbdLower, r, -r, 31.5);
+  add(SUB_PARTS.sternPlaneStbd, r, 0, 31.5);
+  add(SUB_PARTS.sternPlanePort, -r, 0, 31.5);
+  add(SUB_PARTS.rudderUpper, 0, r, 31.5);
+  add(SUB_PARTS.rudderLower, 0, -r, 31.5);
   add(SUB_PARTS.propeller, 0, 0, 35.6);
   add(SUB_PARTS.snorkelMast, 0, 6, -8);
   const pm = add(SUB_PARTS.periscopeMast, 0, 5, -12);
@@ -101,12 +101,12 @@ describe('modelo 3D .glb — peças e mistura dos lemes', () => {
     expect(get(SUB_PARTS.periscopeMast).position.y - restPm).toBeCloseTo(periscopeHeadZ(v, 0) - periscopeHeadZ(v, 1));
     expect(mastLift(v, s).snorkel).toBeCloseTo(v.hull.snorkelMast.extension);
     expect(new THREE.Euler().setFromQuaternion(get(SUB_PARTS.periscopeHead).quaternion).y).toBeCloseTo(-90 * D);
-    // lemes de popa a zero sem comando; com profundor, cada leme gira em torno do seu eixo radial
-    rig.update(v, s, 0, 10 * D, 0, 25 * D, 0, false);
-    const fin = get(SUB_PARTS.sternStbdUpper);
-    const axis = new THREE.Vector3(1, 1, 0).normalize();
-    const expected = new THREE.Quaternion().setFromAxisAngle(axis, 10 * D * Math.cos(45 * D));
-    expect(fin.quaternion.angleTo(expected)).toBeLessThan(1e-6);
+    // popa em cruz: profundor gira os dois lemes horizontais em torno de +X; direção gira os verticais em torno de +Y
+    rig.update(v, s, 0, 10 * D, -6 * D, 25 * D, 0, false);
+    const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 10 * D);
+    const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -6 * D);
+    for (const n of [SUB_PARTS.sternPlanePort, SUB_PARTS.sternPlaneStbd]) expect(get(n).quaternion.angleTo(qx)).toBeLessThan(1e-6);
+    for (const n of [SUB_PARTS.rudderUpper, SUB_PARTS.rudderLower]) expect(get(n).quaternion.angleTo(qy)).toBeLessThan(1e-6);
     expect(get(SUB_PARTS.periscopeMast).visible).toBe(false);
   });
 
@@ -118,6 +118,9 @@ describe('modelo 3D .glb — peças e mistura dos lemes', () => {
     expect(names).toEqual([SUB_PARTS.hull, SUB_PARTS.sail].sort());
     const picks = a.pickables.map((p) => (p.userData.pick as { kind: string; id: string }).kind);
     expect(picks.filter((k) => k === 'fin')).toHaveLength(6);
+    const ids = a.pickables.map((p) => (p.userData.pick as { id: string }).id);
+    expect(ids.filter((i) => i === 'stern')).toHaveLength(2);
+    expect(ids.filter((i) => i === 'rudder')).toHaveLength(2);
     expect(picks).toContain('prop');
     expect(picks).toContain('mast');
     // o corte troca o material de uma cena sem mexer na outra

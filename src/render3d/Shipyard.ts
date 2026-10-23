@@ -211,7 +211,7 @@ const MOORED_AXIS = -1.8;
 
 /**
  * Submarino atracado (só visual): casco de revolução (proa elíptica, cone de
- * popa), vela com lemes de vela, lemes em X e hélice. Eixo maior = +x (proa).
+ * popa), vela com lemes de vela, popa em cruz e hélice. Eixo maior = +x (proa).
  */
 function mooredSub(L: number, R: number, hull: THREE.Material, deck: THREE.Material): THREE.Group {
   const g = new THREE.Group();
@@ -251,8 +251,8 @@ function mooredSub(L: number, R: number, hull: THREE.Material, deck: THREE.Mater
   const sp = new THREE.BoxGeometry(2.2, 0.22, 7.4);
   sp.translate(15.6, R + 3.6, 0);
   g.add(new THREE.Mesh(sp, hull));
-  // lemes em X e hélice
-  for (const a of [Math.PI / 4, -Math.PI / 4]) {
+  // popa em cruz (Scorpène original) e hélice
+  for (const a of [0, Math.PI / 2]) {
     const f = new THREE.BoxGeometry(4.2, 0.3, 8.4);
     f.rotateX(a);
     f.translate(-L / 2 + 5, 0, 0);
@@ -393,7 +393,7 @@ export class ShipyardModel {
       B.add(hull, place(body, mid, yC, brg));
       const sail = place(box(9, 6, 2.4), [mid[0] + u[0] * 14, mid[1] + u[1] * 14], yC + R + 2.6, brg);
       B.add(hull, sail);
-      for (const a of [Math.PI / 4, -Math.PI / 4]) {
+      for (const a of [0, Math.PI / 2]) {
         const fin = new THREE.BoxGeometry(5, 0.4, 9);
         fin.rotateX(a);
         B.add(hull, place(fin, [mid[0] - u[0] * (subL / 2 - 4), mid[1] - u[1] * (subL / 2 - 4)], yC, brg));

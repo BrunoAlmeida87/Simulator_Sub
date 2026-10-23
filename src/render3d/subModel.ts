@@ -13,6 +13,7 @@
  *    grupo do submarino em SubmarineScene;
  *  - cada peça móvel tem a ORIGEM sobre o eixo de giro (madre do leme, eixo do
  *    hélice) e está na posição de repouso: lemes a zero, mastros arriados;
+ *  - popa em cruz como no Scorpène original (decidido com o usuário; a física já é em cruz);
  *  - lemes: o eixo de giro é radial (do eixo do casco para a peça) — o código o
  *    calcula pela posição da origem; a orientação local do objeto é livre.
  */
@@ -30,11 +31,11 @@ export const SUB_PARTS = {
   /** lemes horizontais de vela (pivô na madre, eixo transversal) */
   sailPlanePort: 'SX1_LemeVela_BB',
   sailPlaneStbd: 'SX1_LemeVela_BE',
-  /** popa em X: quatro lemes em diagonal (pivô na madre, eixo radial a 45°) */
-  sternStbdUpper: 'SX1_LemePopa_BE_Sup',
-  sternPortUpper: 'SX1_LemePopa_BB_Sup',
-  sternPortLower: 'SX1_LemePopa_BB_Inf',
-  sternStbdLower: 'SX1_LemePopa_BE_Inf',
+  /** popa em CRUZ (Scorpène original): lemes horizontais de ré (BB/BE) e leme de direção (superior/inferior, o inferior mais curto) */
+  sternPlanePort: 'SX1_LemePopa_BB',
+  sternPlaneStbd: 'SX1_LemePopa_BE',
+  rudderUpper: 'SX1_LemePopa_Sup',
+  rudderLower: 'SX1_LemePopa_Inf',
   /** hélice de 7 pás (pivô no eixo do hélice) */
   propeller: 'SX1_Helice',
   /** mastro do snorkel (arriado; sobe pelo curso da física) */
@@ -44,7 +45,7 @@ export const SUB_PARTS = {
   periscopeHead: 'SX1_Periscopio_Cabeca',
 } as const;
 
-/** Prefixo comum dos lemes de popa (em X ou em cruz: a mistura usa a posição de cada um). */
+/** Prefixo comum dos lemes de popa (a mistura usa a posição de cada um: serve para cruz e, se um dia mudar, para X). */
 export const STERN_PREFIX = 'SX1_LemePopa_';
 /** Prefixo opcional das marcas de calado do modelo (se existir, as marcas geradas pelo código somem). */
 export const DRAFT_MARKS_PREFIX = 'SX1_MarcasCalado';
@@ -55,10 +56,10 @@ export const REQUIRED_PARTS: string[] = [
   SUB_PARTS.sail,
   SUB_PARTS.sailPlanePort,
   SUB_PARTS.sailPlaneStbd,
-  SUB_PARTS.sternStbdUpper,
-  SUB_PARTS.sternPortUpper,
-  SUB_PARTS.sternPortLower,
-  SUB_PARTS.sternStbdLower,
+  SUB_PARTS.sternPlanePort,
+  SUB_PARTS.sternPlaneStbd,
+  SUB_PARTS.rudderUpper,
+  SUB_PARTS.rudderLower,
   SUB_PARTS.propeller,
   SUB_PARTS.snorkelMast,
   SUB_PARTS.periscopeMast,
