@@ -1,6 +1,7 @@
 /** Tela 2 — Lastro principal, ar AP e compensação de peso. */
 import { useMemo, useState } from 'react';
 import { cmd, useSim } from '../store';
+import { CompensationCircuitPanel } from '../components/CompensationCircuitPanel';
 import { Panel } from '../components/Panel';
 import { Readout, KindTag } from '../components/Readout';
 import { AirBottleGlyph, Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../components/Schematic';
@@ -278,6 +279,7 @@ export function BallastScreen() {
         <Diagram e={e} />
         <QuickBallast e={e} />
       </Panel>
+      <CompensationCircuitPanel e={e} />
       <Panel title="Tanques de lastro principal (TLP)" className="span2" inspect="mbt">
         <div className="scroll">
           <table className="t">

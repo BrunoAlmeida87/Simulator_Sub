@@ -134,6 +134,9 @@ describe('Catálogo de ações', () => {
       expect(actionProblem(newAction('comando', { json: bad })), bad).not.toBeNull();
     }
     const good: Record<string, unknown> = {
+      compensationRoute: { source: 'TBBB', destination: 'TC' },
+      compensationTransferPump: { run: false },
+      compensationDirection: { position: 'inversa' },
       mbtVent: { tank: 'ALL', open: true },
       mbtBlow: { tank: 'ALL', open: false },
       emergencyBlow: {},

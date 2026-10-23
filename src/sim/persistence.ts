@@ -130,6 +130,7 @@ const CONFIG_OPTIONAL = new Set([
   'environment.geo',
   // sessões gravadas antes do conjunto de compensação de três tanques e dos tanques abaulados mantêm o arranjo gravado
   'vessel.compensation.heelBranches',
+  'vessel.compensation.transfer',
   ...(['heel', 'trim'] as const).flatMap((sys) => (['tankA', 'tankB'] as const).flatMap((t) => [`vessel.${sys}.${t}.width`, `vessel.${sys}.${t}.hullRadius`])),
 ]);
 /** campos opcionais do estado que não devem ser criados */

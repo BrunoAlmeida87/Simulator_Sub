@@ -2,6 +2,7 @@
 import { useId, useState } from 'react';
 import { useUi } from '../uiContext';
 import { cmd, useSim } from '../store';
+import { CompensationCircuitPanel } from '../components/CompensationCircuitPanel';
 import { Panel } from '../components/Panel';
 import { Readout } from '../components/Readout';
 import { Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../components/Schematic';
@@ -378,6 +379,7 @@ export function TrimHeelScreen() {
           {Math.abs(o.euler.roll - o.staticRollEq) < 0.05 ? 'em equilíbrio.' : `retorna para ${fmt(o.staticRollEq, 2)}°.`}
         </div>
       </Panel>
+      <CompensationCircuitPanel e={e} />
       <Panel title="Banda: comandos" inspect="heel">
         <TransferControls e={e} sys="heel" />
       </Panel>

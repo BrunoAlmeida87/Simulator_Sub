@@ -13,6 +13,7 @@
  */
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
+import { buildCompensationCircuit, circuitEdgeFlow, selectorValve } from '../sim/systems/compensationCircuit';
 import { tankVolume } from '../sim/systems/internalTanks';
 import { tankFill, tankOutline, tankSection } from '../sim/systems/tankShape';
 import type { InternalTankConfig } from '../sim/config/types';
@@ -86,6 +87,7 @@ interface Stream {
 interface ValveVis {
   /** grupo da válvula (corpo, flanges, haste, alavanca e anel de estado); eixo x local = eixo do tubo */
   mesh: THREE.Group;
+  directional?: boolean;
   /** alavanca: paralela ao tubo = aberta, atravessada = fechada (gira com a posição real) */
   lever: THREE.Object3D;
   /** materiais coloridos pelo estado (anel e alavanca) e os de metal (corpo) */
@@ -481,6 +483,7 @@ export class SystemsVis {
     const seg = new THREE.Line3();
     const q = new THREE.Vector3();
     for (const v of this.valves) {
+      if (v.directional) continue;
       const p = v.mesh.position;
       let best = Infinity;
       const dir = new THREE.Vector3(1, 0, 0);
@@ -751,6 +754,47 @@ export class SystemsVis {
       });
     }
 
+    // Mesmas arestas da física e do 2D; cada tanque usa sua posição transversal real.
+    if (cmp.transfer && this.e0.state.compensation.transfer) {
+      const tanks = [v.heel.tankA, ...cmp.tanks, v.heel.tankB];
+      const ids = tanks.map(t => t.id);
+      const nodes: Record<string, THREE.Vector3> = {
+        'header:A': b2l(0, 0, 2.1), 'header:B': b2l(5.5, 0, 2.1),
+        'vdc:A': b2l(1.9, -0.35, 2.1), 'vdc:B': b2l(1.9, 0.35, 2.1),
+        'vdc:P': b2l(3.1, -0.35, 2.1), 'vdc:T': b2l(3.1, 0.35, 2.1),
+        'pump:in': b2l(4.5, 0.4, 2.5), 'pump:out': b2l(4.5, -0.4, 2.5),
+      };
+      tanks.forEach(t => { nodes[`tank:${t.id}`] = b2l(t.center.x, t.center.y, t.center.z + t.height / 2 - 0.15); });
+      const circuitOf = (en: SimulationEngine) => buildCompensationCircuit(en.state.compensation, ids);
+      const edges = circuitOf(this.e0).edges;
+      edges.forEach(edge => {
+        let points = [nodes[edge.from], nodes[edge.to]];
+        const tank = tanks.find(t => edge.from === `tank:${t.id}`);
+        if (tank) {
+          const x = edge.to === 'header:A' ? 0 : 5.5;
+          points = [nodes[edge.from], b2l(x, tank.center.y, 1.9), nodes[edge.to]];
+          this.valve(points[0].clone().lerp(points[1], 0.45), `${tank.id} → coletor ${edge.to.slice(-1)}`,
+            en => selectorValve(en.state.compensation.transfer!, tank.id, edge.to === 'header:A' ? 'A' : 'B'), [tank.id, 'compensacao']);
+        }
+        this.pipe(points, edge.id === 'discharge' ? 0xba7635 : 0x168a70, ['compensacao'], 0.07);
+        this.stream(points, new THREE.Color(0x9dffc8), ['compensacao'], en =>
+          sq(circuitEdgeFlow(circuitOf(en), edge.id, en.state.compensation.transfer!.pump.flow) / 0.010));
+      });
+      this.pump(b2l(4.5, 0, 2.5), cmp.transfer.pump.name, en => en.state.compensation.transfer!.pump, ['compensacao']);
+      // Corpo da direcional com as quatro portas conectadas, em vez de uma esfera solta.
+      const material = new THREE.MeshStandardMaterial({ color: 0x8ee9cc, emissive: 0x245c50, metalness: 0.5, roughness: 0.4, transparent: true, fog: false });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.45, 1.6), material);
+      const group = new THREE.Group();
+      group.position.copy(b2l(2.5, 0, 2.1));
+      const lever = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.08, 0.12), material);
+      lever.position.y = 0.36;
+      group.add(body, lever);
+      group.traverse(o => { o.renderOrder = 13; });
+      group.userData.pick = { kind: 'valve', id: 'VDC 4/2', sys: 'compensacao' };
+      this.pipeGroup.add(group);
+      this.valves.push({ mesh: group, lever, directional: true, stateMats: [material], metalMats: [], get: en => en.state.compensation.transfer!.direction, name: 'VDC 4/2 · A/B/P/T', owners: ['compensacao'] });
+    }
+
     // --- trim: tanque A ↔ bomba ↔ tanque B (sentido pelo seletor)
     const transfer = (sys: 'trim' | 'heel', path: THREE.Vector3[], pp: THREE.Vector3, color: number, flowColor: number, qMax: number) => {
       const c = v[sys];
@@ -892,7 +936,7 @@ export class SystemsVis {
     for (const v of this.valves) {
       const st = v.get(e);
       const moving = Math.abs(st.cmd - st.pos) > 0.02;
-      const col = st.stuck ? 0xff00ff : moving ? 0xffc040 : st.pos > 0.5 ? 0x3ddc84 : 0xff4d4d;
+      const col = st.stuck ? 0xff00ff : moving ? 0xffc040 : v.directional || st.pos > 0.5 ? 0x3ddc84 : 0xff4d4d;
       const op = ownedDim(v.owners) ? 1 : 0.15;
       for (const m of v.stateMats) {
         m.color.set(col);

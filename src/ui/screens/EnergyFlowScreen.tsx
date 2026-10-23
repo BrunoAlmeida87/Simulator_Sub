@@ -21,6 +21,7 @@ const LOAD_INFO: Record<string, { name: string; color: string }> = {
   NAV: { name: 'Navegação e sensores', color: '#9fe3b0' },
   HID: { name: 'Planta hidráulica', color: '#ffb347' },
   COMP: { name: 'Compressor de ar AP', color: '#e6dba0' },
+  BTC: { name: 'Bomba de transferência de compensação', color: '#7fffc0' },
   BC: { name: 'Bomba de compensação', color: '#22d47a' },
   BT: { name: 'Bomba de trim', color: '#ffa62b' },
   BB: { name: 'Bomba de banda', color: '#c77dff' },

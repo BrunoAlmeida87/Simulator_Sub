@@ -13,6 +13,7 @@ import { PropulsionDiagram } from '../components/PropulsionDiagram';
 
 const LOAD_NAMES: Record<string, string> = {
   MEP: 'Motor elétrico principal',
+  BTC: 'Bomba de transferência de compensação',
   BC: 'Bomba de compensação',
   BT: 'Bomba de trim',
   BB: 'Bomba de banda',
