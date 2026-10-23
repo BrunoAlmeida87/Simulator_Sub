@@ -67,8 +67,8 @@ def radius_at(x):
 
 
 LEVELS = {
-    'alta': dict(seg=160, mid_step=0.8, stern_n=48, bow_n=36, tex=2048, tex_small=512, fin_k=24, prop_ns=16, prop_kc=14, slots=True),
-    'leve': dict(seg=56, mid_step=2.5, stern_n=20, bow_n=16, tex=1024, tex_small=256, fin_k=12, prop_ns=8, prop_kc=7, slots=False),
+    'alta': dict(seg=160, mid_step=0.8, stern_n=48, bow_n=36, tex=2048, tex_small=512, fin_k=24, prop_ns=16, prop_kc=14, slots=True, ao_samples=96),
+    'leve': dict(seg=56, mid_step=2.5, stern_n=20, bow_n=16, tex=1024, tex_small=256, fin_k=12, prop_ns=8, prop_kc=7, slots=False, ao_samples=48),
 }
 
 
@@ -222,11 +222,12 @@ def tile_textures(n):
     fine = periodic_noise(rng, n, n / 1.5)
     h = bevel * (1 + 0.05 * rnd[tid]) + 0.025 * noise * bevel + 0.01 * fine
     nrm = height_to_normal(h, n / 160)
-    base = 0.032 + 0.006 * (rnd2[tid] - 0.5) + 0.004 * noise  # preto fosco (linear ≈ 0,03)
-    base = np.where(d < groove, 0.024, base)
+    base = 0.042 + 0.007 * (rnd2[tid] - 0.5) + 0.004 * noise  # grafite muito escuro (linear ≈ 0,04)
+    base = np.where(d < groove, 0.03, base)
     col_rgb = np.stack([base * 0.98, base, base * 1.04], axis=-1)
-    rough = np.clip(0.72 + 0.07 * (rnd[tid] - 0.5) + 0.04 * noise, 0, 1)
-    rough = np.where(d < groove, 0.78, rough)
+    # acetinado (revestimento levemente molhado): o reflexo do céu desenha a curvatura do casco
+    rough = np.clip(0.46 + 0.08 * (rnd[tid] - 0.5) + 0.05 * noise, 0, 1)
+    rough = np.where(d < groove, 0.58, rough)
     orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=-1)
     return col_rgb, nrm, orm
 
@@ -317,15 +318,15 @@ def build_materials(cfg):
     )
     M = {}
     m, b = principled('SX1_Casco', (0.02, 0.02, 0.021), 0.8)
-    hook_textures(m, b, img['tile_c'], img['tile_n'], img['tile_orm'], 0.6)
+    hook_textures(m, b, img['tile_c'], img['tile_n'], img['tile_orm'], 0.4)
     M['casco'] = m
-    m, b = principled('SX1_Conves', (0.045, 0.046, 0.048), 0.9)
+    m, b = principled('SX1_Conves', (0.045, 0.046, 0.048), 0.6)
     hook_textures(m, b, None, img['deck_n'], None, 0.7)
     M['conves'] = m
     m, b = principled('SX1_Grade', (0.02, 0.02, 0.02), 0.7, 0.2)
     hook_textures(m, b, img['grate_c'], img['grate_n'], None, 1.0)
     M['grade'] = m
-    m, b = principled('SX1_Sonar', (0.03, 0.03, 0.032), 0.7, 0.1)
+    m, b = principled('SX1_Sonar', (0.035, 0.035, 0.038), 0.5, 0.1)
     hook_textures(m, b, None, img['grate_n'], None, 0.35)
     M['sonar'] = m
     M['porta'] = principled('SX1_Porta', (0.016, 0.016, 0.017), 0.45, 0.2)[0]
@@ -808,6 +809,64 @@ def build_masts(cfg, M):
     return sn, pm
 
 
+# ------------------------------------------------------------------ oclusão ambiente (cores de vértice)
+AO_DISTANCE = 2.5  # m: alcance das sombras de contato (junções vela/casco, raiz dos lemes, bordas)
+AO_STRENGTH = 0.85  # 0 = sem efeito, 1 = oclusão inteira
+AO_BOTTOM = 0.8  # fator na face de baixo do casco (luz vem de cima); 1 no topo
+AO_MIN = 0.25
+
+
+def bake_ao(cfg):
+    """Calcula no Cycles a oclusão ambiente de TODAS as malhas juntas (uma peça sombreia a outra) e grava
+    no atributo de cor "AO" (exportado como COLOR_0: multiplica a cor base no site)."""
+    sc = bpy.context.scene
+    sc.render.engine = 'CYCLES'
+    sc.cycles.device = 'CPU'
+    sc.cycles.samples = cfg['ao_samples']
+    sc.cycles.use_denoising = False
+    sc.cycles.seed = 0
+    w = sc.world or bpy.data.worlds.new('SX1_Mundo')
+    sc.world = w
+    w.light_settings.distance = AO_DISTANCE
+    meshes = [o for o in bpy.data.objects if o.type == 'MESH']
+    for o in meshes:
+        ca = o.data.color_attributes
+        if 'AO' in ca:
+            ca.remove(ca['AO'])
+        ca.active_color = ca.new('AO', 'BYTE_COLOR', 'CORNER')
+    for o in bpy.context.view_layer.objects:
+        o.select_set(o in meshes)
+    bpy.context.view_layer.objects.active = meshes[0]
+    bpy.ops.object.bake(type='AO', target='VERTEX_COLORS')
+    # suaviza, inclui a luz vinda de cima e limita o escuro
+    lo = 1.0
+    for o in meshes:
+        me = o.data
+        n = len(me.loops)
+        if not n:
+            continue
+        col = np.empty(n * 4, dtype=np.float32)
+        me.color_attributes['AO'].data.foreach_get('color', col)
+        ao = col.reshape(-1, 4)[:, 0]
+        nrm = np.empty(n * 3, dtype=np.float32)
+        me.corner_normals.foreach_get('vector', nrm)
+        up = nrm.reshape(-1, 3)[:, 2]  # as peças não têm rotação: normal local = normal no mundo
+        # mastros: arriados ficam dentro da vela (escuros); içados precisam da cor cheia — sem sombra de contato
+        top = o
+        while top.parent is not None:
+            top = top.parent
+        if top.name.startswith(('SX1_Mastro', 'SX1_Periscopio')):
+            ao = np.ones_like(ao)
+        f = (1 - AO_STRENGTH * (1 - ao)) * (AO_BOTTOM + (1 - AO_BOTTOM) * (0.5 + 0.5 * up))
+        f = np.clip(f, AO_MIN, 1.0)
+        lo = min(lo, float(f.min()))
+        out = np.repeat(f[:, None], 4, axis=1)
+        out[:, 3] = 1.0
+        me.color_attributes['AO'].data.foreach_set('color', out.ravel())
+        me.update()
+    return lo
+
+
 # ------------------------------------------------------------------ montagem e exportação
 def build(level):
     cfg = LEVELS[level]
@@ -820,8 +879,9 @@ def build(level):
     build_propeller(cfg, M)
     build_masts(cfg, M)
     bpy.context.view_layer.update()
+    ao_min = bake_ao(cfg)
     tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in bpy.data.objects if o.type == 'MESH')
-    return dict(level=level, hull_err=err, tris=tris, objects=len(bpy.data.objects))
+    return dict(level=level, hull_err=err, tris=tris, objects=len(bpy.data.objects), ao_min=round(ao_min, 3))
 
 
 def export(path):
@@ -837,6 +897,10 @@ def export(path):
         export_normals=True,
         export_tangents=False,
         export_materials='EXPORT',
+        export_vertex_color='NAME',
+        export_vertex_color_name='AO',
+        export_all_vertex_colors=False,
+        export_active_vertex_color_when_no_material=False,
         export_cameras=False,
         export_lights=False,
         export_animations=False,

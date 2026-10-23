@@ -11,11 +11,14 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const URL = process.argv[2] ?? 'http://localhost:4173/';
+/** URL_ANTES (opcional): servidor com a versão anterior; o "antes" usa esse site em vez de bloquear o .glb */
+const URL_ANTES = process.env.URL_ANTES ?? null;
 const OUT = process.argv[3] ?? join('build', 'prints');
 
 /** preferências gravadas antes de abrir (mesmas chaves que a interface usa) */
-function prefs({ screen = 'v3d', view = 'perspectiva', cut = false, dry = true, quality = 'alta' }) {
+function prefs({ screen = 'v3d', view = 'perspectiva', cut = false, dry = true, quality = 'alta', graphics = null }) {
   return {
+    ...(graphics ? { 'sx1.graphics.v1': JSON.stringify({ quality, ...graphics }) } : {}),
     'sx1.prefs.v2': JSON.stringify({ screen, eng: false }),
     'sx1.quality.v1': quality,
     'sx1.ui.v3d.view': JSON.stringify(view),
@@ -50,7 +53,7 @@ async function shot(browser, mode, s) {
   // no contexto inteiro: vale também para a 2ª janela
   await ctx.route('**/models/*.glb', (r) => {
     glb.push(r.request().url());
-    return mode === 'antes' ? r.abort() : r.continue();
+    return mode === 'antes' && !URL_ANTES ? r.abort() : r.continue();
   });
   const kv = prefs(s.p);
   await page.addInitScript((kv) => {
@@ -59,7 +62,8 @@ async function shot(browser, mode, s) {
     localStorage.clear();
     for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v);
   }, kv);
-  await page.goto(URL, { waitUntil: 'networkidle' });
+  const base = mode === 'antes' && URL_ANTES ? URL_ANTES : URL;
+  await page.goto(base, { waitUntil: 'networkidle' });
   if (s.scenario) {
     await page.selectOption('select[aria-label="Cenário"]', s.scenario);
     await page.getByRole('button', { name: 'Carregar', exact: true }).click();
@@ -89,7 +93,7 @@ async function shot(browser, mode, s) {
   if (s.visual) {
     // 2ª janela (só visual), espelhando a mesma simulação pelo BroadcastChannel
     target = await ctx.newPage();
-    await target.goto(URL + '#visual', { waitUntil: 'networkidle' });
+    await target.goto(base + '#visual', { waitUntil: 'networkidle' });
     await target.waitForTimeout(6000);
   }
   for (const b of s.buttons ?? []) {

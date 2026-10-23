@@ -119,6 +119,36 @@ describe.each(['alta', 'leve'])('modelo 3D sx1-%s.glb', (nivel) => {
     expect(xmin).toBeCloseTo(-v.hull.length / 2, 2);
   });
 
+  it('tem oclusão ambiente nas cores de vértice (casco, vela e lemes), sem escurecer os mastros', () => {
+    const stats = (name: string) => {
+      const n = nodeByName(docs[nivel], name)!;
+      const mesh =
+        n.getMesh() ??
+        n
+          .listChildren()
+          .find((c) => c.getMesh())!
+          .getMesh()!;
+      const c = mesh.listPrimitives()[0].getAttribute('COLOR_0');
+      expect(c, name).not.toBeNull();
+      const el: number[] = [];
+      let mn = Infinity;
+      let sum = 0;
+      for (let i = 0; i < c!.getCount(); i++) {
+        c!.getElement(i, el);
+        mn = Math.min(mn, el[0]);
+        sum += el[0];
+      }
+      return { min: mn, mean: sum / c!.getCount() };
+    };
+    for (const n of [SUB_PARTS.hull, SUB_PARTS.sail, SUB_PARTS.rudderUpper]) {
+      const s = stats(n);
+      expect(s.min, n).toBeGreaterThanOrEqual(0.24); // nunca preto
+      expect(s.mean, n).toBeGreaterThan(0.6);
+      expect(s.mean, n).toBeLessThan(0.98); // há sombra de contato
+    }
+    for (const n of [SUB_PARTS.snorkelMast, SUB_PARTS.periscopeMast]) expect(stats(n).min, n).toBeGreaterThan(0.75);
+  });
+
   it('a hierarquia funciona no SubModelRig (peças, seleção e casco externo)', () => {
     // reconstrói os nós do arquivo em Three (malhas como caixas: só a hierarquia importa aqui)
     const root = new THREE.Group();
