@@ -48,6 +48,37 @@ function arc(R: number, from: number, to: number, color: number): THREE.Group {
   return g;
 }
 
+/** textura de lingotes de chumbo empilhados, com moldura rosa */
+function ingotTexture(): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 128;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#2b3036';
+  g.fillRect(0, 0, 256, 128);
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      const x = 8 + col * 61 + (row % 2) * 14 - 7;
+      const y = 8 + row * 29;
+      const grd = g.createLinearGradient(0, y, 0, y + 24);
+      grd.addColorStop(0, '#9aa3ad');
+      grd.addColorStop(1, '#5d656e');
+      g.fillStyle = grd;
+      g.fillRect(x, y, 54, 24);
+      g.strokeStyle = '#1b1f24';
+      g.lineWidth = 2;
+      g.strokeRect(x, y, 54, 24);
+    }
+  }
+  g.strokeStyle = '#ff5ec4';
+  g.lineWidth = 8;
+  g.strokeRect(4, 4, 248, 120);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export class TrimVis {
   /** filhos do grupo do submarino (bloco, trilho, arcos) */
   readonly local = new THREE.Group();
@@ -67,7 +98,9 @@ export class TrimVis {
 
   constructor(e: SimulationEngine) {
     const dw = e.vessel.mass.demoWeight;
-    const blockMat = new THREE.MeshStandardMaterial({ color: C_DEMO, emissive: C_DEMO, emissiveIntensity: 0.5, roughness: 0.4, transparent: true, depthTest: false, depthWrite: false });
+    // lingotes de chumbo empilhados (textura), com borda rosa: o rosa identifica o peso deslocável
+    const ingots = ingotTexture();
+    const blockMat = new THREE.MeshStandardMaterial({ color: ingots ? 0xffffff : C_DEMO, map: ingots ?? undefined, emissive: C_DEMO, emissiveIntensity: 0.12, metalness: 0.55, roughness: 0.45, transparent: true, depthTest: false, depthWrite: false });
     this.block = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 2.2), blockMat);
     this.block.renderOrder = 9;
     this.block.userData.pick = { kind: 'demoWeight', id: 'demoWeight' };

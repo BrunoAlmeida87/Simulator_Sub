@@ -22,6 +22,8 @@ export interface SceneLayers {
   wind: boolean;
   /** flâmula no topo da vela (vento aparente), na superfície */
   pennant: boolean;
+  /** bandeira no mastro da vela, tremulando com o vento (submarino na superfície) */
+  flag: boolean;
   /** trajetória */
   trail: boolean;
   /** luzes adicionais de apresentação */
@@ -66,6 +68,7 @@ export const defaultLayers = (): SceneLayers => ({
   wake: true,
   wind: true,
   pennant: false,
+  flag: false,
   trail: true,
   presLight: false,
   resultantGain: 'auto',
@@ -103,6 +106,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   airInfo: { label: 'Ar comprimido', title: 'Pressão e quantidade de ar de cada grupo de garrafas, junto às garrafas (com o corte/tanques)' },
   wake: { label: 'Esteira', title: 'Esteira, onda de proa, espuma, rastro do hélice, bolhas da descarga dos diesel e aspiração do snorkel' },
   wind: { label: 'Vento', title: 'Vento aparente: poucas linhas de vento acima da água; com o submarino avançando, vêm da proa' },
+  flag: { label: 'Bandeira', title: 'Bandeira no mastro da vela, tremulando com o vento aparente (some quando a vela submerge)' },
   pennant: { label: 'Flâmula', title: 'Flâmula no topo da vela mostrando o vento aparente (submarino na superfície)' },
   markers: { label: 'Boias/marcos', title: 'Boias e marcos de distância fixos no cenário' },
   trail: { label: 'Trajetória', title: 'Rastro do caminho percorrido' },
@@ -145,7 +149,7 @@ export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exc
     title: 'Nomes, bateria, ar comprimido, referências de calado/trim, ângulo de pitch e linhas de profundidade',
     keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef', 'pitchAngle', 'depthLines'],
   },
-  { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'ships', 'markers', 'trail'] },
+  { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'flag', 'ships', 'markers', 'trail'] },
   { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['noWater', 'presLight'] },
 ];
 

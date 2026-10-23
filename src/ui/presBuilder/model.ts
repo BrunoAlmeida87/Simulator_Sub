@@ -25,7 +25,7 @@ export const PRES_FORMAT = 'sx1-apresentacao';
 export const PRES_VERSION = 1;
 
 export type CardStyle = 'cartao' | 'titulo' | 'legenda' | 'oculto';
-export type CardPosition = 'baixo' | 'topo' | 'esquerda' | 'direita' | 'centro';
+export type CardPosition = 'baixo' | 'topo' | 'esquerda' | 'direita' | 'centro' | 'baixo-esquerda' | 'baixo-direita';
 export type CardSize = 'P' | 'M' | 'G' | 'GG';
 export type RunMode = 'manter' | 'executar' | 'pausar';
 export type AdvanceMode = 'manual' | 'tempo' | 'condicao';
@@ -251,7 +251,7 @@ export function clonePresentation(p: UserPresentation, name?: string): UserPrese
 
 // ------------------------------------------------------------ validação
 const STYLES: CardStyle[] = ['cartao', 'titulo', 'legenda', 'oculto'];
-const POSITIONS: CardPosition[] = ['baixo', 'topo', 'esquerda', 'direita', 'centro'];
+const POSITIONS: CardPosition[] = ['baixo', 'topo', 'esquerda', 'direita', 'centro', 'baixo-esquerda', 'baixo-direita'];
 const SIZES: CardSize[] = ['P', 'M', 'G', 'GG'];
 const RUNS: RunMode[] = ['manter', 'executar', 'pausar'];
 const MODES: AdvanceMode[] = ['manual', 'tempo', 'condicao'];
