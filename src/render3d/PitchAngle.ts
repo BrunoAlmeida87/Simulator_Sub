@@ -29,6 +29,18 @@ export function pitchText(pitch: number): { value: string; sense: string; level:
   return { value, sense: level ? 'nivelado: proa e popa na mesma profundidade' : pitch < 0 ? 'proa abaixo da horizontal' : 'proa acima da horizontal', level };
 }
 
+/** amostras do arco e máximo de marcas de grau */
+const ARC_N = 64;
+const MAX_TICKS = 30;
+
+/** geometria plana (plano z = 0 do transferidor) com n vértices, atualizada no lugar */
+function plane(n: number): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * n), 3).setUsage(THREE.DynamicDrawUsage));
+  g.setDrawRange(0, 0);
+  return g;
+}
+
 const basic = (color: number, opacity = 1) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthTest: false, depthWrite: false, toneMapped: false, fog: false, side: THREE.DoubleSide });
 
 export class PitchAngle {
@@ -36,13 +48,17 @@ export class PitchAngle {
   /** plano do transferidor: x = proa na horizontal, y = para cima */
   private frame = new THREE.Group();
   private axis: THREE.Mesh;
-  private arc: THREE.Mesh | null = null;
-  private ticks: THREE.Mesh | null = null;
-  private fan: THREE.Mesh | null = null;
+  // arco, marcas e setor: buffers alocados uma vez e só atualizados (sem criar geometria a cada quadro)
+  private arc = plane(2 * (ARC_N + 1));
+  private ticks = plane(6 * (MAX_TICKS + 1));
+  private fan = plane(3 * ARC_N);
   private axisMat = basic(C_AXIS);
   private arcMat = basic(C_AXIS);
   private fanMat = basic(C_AXIS, 0.22);
   private builtTh = NaN;
+  private arcMesh: THREE.Mesh;
+  private tickMesh: THREE.Mesh;
+  private fanMesh: THREE.Mesh;
 
   constructor() {
     // horizontal: traços de 2,4 m a cada 4 m
@@ -55,6 +71,14 @@ export class PitchAngle {
     }
     this.axis = new THREE.Mesh(new THREE.BoxGeometry(2 * HALF, 0.34, 0.34), this.axisMat);
     this.frame.add(this.axis);
+    // faixa do arco: dois triângulos por amostra (vértices interno/externo alternados)
+    const idx: number[] = [];
+    for (let i = 0; i < ARC_N; i++) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+    this.arc.setIndex(idx);
+    this.fanMesh = new THREE.Mesh(this.fan, this.fanMat);
+    this.arcMesh = new THREE.Mesh(this.arc, this.arcMat);
+    this.tickMesh = new THREE.Mesh(this.ticks, this.arcMat);
+    this.frame.add(this.fanMesh, this.arcMesh, this.tickMesh);
     this.frame.traverse((o) => {
       o.renderOrder = 23;
       o.frustumCulled = false;
@@ -63,45 +87,51 @@ export class PitchAngle {
     this.group.visible = false;
   }
 
-  /** arco, marcas e setor de 0 a th (rad); refeitos só quando o ângulo muda */
+  /** arco (faixa plana), marcas a cada grau (maiores a cada 5°) e setor de 0 a th (rad), nos buffers fixos */
   private build(th: number): void {
-    for (const m of [this.arc, this.ticks, this.fan]) {
-      if (m) {
-        this.frame.remove(m);
-        m.geometry.dispose();
-      }
-    }
-    this.arc = this.ticks = this.fan = null;
     this.builtTh = th;
-    if (Math.abs(th) < 0.02 * DEG) return;
-    const N = Math.max(4, Math.ceil(Math.abs(th) / DEG) * 4);
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= N; i++) {
-      const a = (th * i) / N;
-      pts.push(new THREE.Vector3(R * Math.cos(a), R * Math.sin(a), 0));
+    const on = Math.abs(th) >= 0.02 * DEG;
+    const ap = this.arc.getAttribute('position') as THREE.BufferAttribute;
+    const fp = this.fan.getAttribute('position') as THREE.BufferAttribute;
+    const tp = this.ticks.getAttribute('position') as THREE.BufferAttribute;
+    let prevX = R;
+    let prevY = 0;
+    for (let i = 0; i <= ARC_N; i++) {
+      const a = (th * i) / ARC_N;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      ap.setXYZ(2 * i, (R - 0.22) * c, (R - 0.22) * sn, 0);
+      ap.setXYZ(2 * i + 1, (R + 0.22) * c, (R + 0.22) * sn, 0);
+      if (i > 0) {
+        const k = 3 * (i - 1);
+        fp.setXYZ(k, 0, 0, 0);
+        fp.setXYZ(k + 1, prevX, prevY, 0);
+        fp.setXYZ(k + 2, R * c, R * sn, 0);
+      }
+      prevX = R * c;
+      prevY = R * sn;
     }
-    this.arc = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), N * 2, 0.2, 6, false), this.arcMat);
-    // marcas a cada grau (maiores a cada 5°)
-    const geos: THREE.BufferGeometry[] = [];
-    const nT = Math.min(30, Math.floor(Math.abs(th) / DEG + 1e-6));
+    const nT = on ? Math.min(MAX_TICKS, Math.floor(Math.abs(th) / DEG + 1e-6)) : -1;
     for (let d = 0; d <= nT; d++) {
       const a = Math.sign(th) * d * DEG;
-      const g = new THREE.BoxGeometry(d % 5 === 0 ? 5 : 2.6, 0.16, 0.16);
-      g.translate(R, 0, 0);
-      g.rotateZ(a);
-      geos.push(g);
+      const half = d % 5 === 0 ? 2.5 : 1.3;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      // retângulo radial de R − half a R + half, 0,16 m de largura
+      const w = 0.08;
+      const pts: [number, number][] = [
+        [R - half, -w],
+        [R + half, -w],
+        [R + half, w],
+        [R - half, w],
+      ].map(([r, t]) => [r * c - t * sn, r * sn + t * c]);
+      const k = 6 * d;
+      for (const [j, q] of [0, 1, 2, 0, 2, 3].entries()) tp.setXYZ(k + j, pts[q][0], pts[q][1], 0);
     }
-    this.ticks = new THREE.Mesh(mergeBoxes(geos), this.arcMat);
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    for (const p of pts) shape.lineTo(p.x, p.y);
-    shape.lineTo(0, 0);
-    this.fan = new THREE.Mesh(new THREE.ShapeGeometry(shape), this.fanMat);
-    for (const m of [this.fan, this.arc, this.ticks]) {
-      m.renderOrder = 23;
-      m.frustumCulled = false;
-      this.frame.add(m);
-    }
+    for (const a of [ap, fp, tp]) a.needsUpdate = true;
+    this.arc.setDrawRange(0, on ? 6 * ARC_N : 0);
+    this.fan.setDrawRange(0, on ? 3 * ARC_N : 0);
+    this.ticks.setDrawRange(0, 6 * (nT + 1));
   }
 
   /**
@@ -134,18 +164,4 @@ export class PitchAngle {
     labels.push({ id: 'pAngH', text: 'horizontal (0°)', color: '#ffffff', small: true, prio: 2, ...proj(at(-HALF + 5, 2.4)) });
     if (!t.level) labels.push({ id: 'pAngA', text: 'eixo do casco', color: C_AXIS_CSS, small: true, prio: 2, ...proj(at(-(HALF - 5) * Math.cos(th), -(HALF - 5) * Math.sin(th) - 2.4)) });
   }
-}
-
-/** junta geometrias de caixa (só posições) numa só */
-function mergeBoxes(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const pos: number[] = [];
-  for (const g of geos) {
-    const ng = g.index ? g.toNonIndexed() : g;
-    pos.push(...(ng.getAttribute('position').array as Float32Array));
-    if (ng !== g) ng.dispose();
-    g.dispose();
-  }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  return out;
 }
