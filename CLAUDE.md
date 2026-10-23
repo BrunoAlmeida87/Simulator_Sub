@@ -47,6 +47,8 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
   validation/suite.ts testes de validação física V01…
 src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   SubmarineScene.ts   cena principal: casco, lemes, câmeras, pick(), modo sem água
+  subModel.ts         modelo .glb do SX-1 (public/models/sx1-leve|alta.glb): nomes fixos das peças (SUB_PARTS),
+                      SubModelRig liga lemes/hélice/mastros ao estado; sem o arquivo fica o casco gerado (reserva)
   layers.ts           SceneLayers: flags de camadas (vetores, tanques, escoamentos, vento, noWater, hiddenVectors…)
                       + LAYER_INFO (catálogo/nomes), LAYER_GROUPS (grupos do painel), allLayersOn/Off,
                       fullExternalLayers (o "3D completo" da 2ª janela)

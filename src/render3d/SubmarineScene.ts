@@ -48,6 +48,7 @@ import { ShipyardModel } from './Shipyard';
 import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 import { MarineLife } from './MarineLife';
 import { periscopeCfg, periscopeHeadZ } from '../sim/systems/actuation';
+import { SubModelRig, loadSubModel, subModelLevel, subModelUrl } from './subModel';
 import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
 import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
 import { BASE_FOV, DEEP_VIEWS, dollyRatio } from './deepPerspective';
@@ -198,6 +199,9 @@ export class SubmarineScene {
   private texDetail: Appearance['textures'] | null = null;
   private tileTex: { hull: { map: THREE.Texture; bump: THREE.Texture } | null; sail: { map: THREE.Texture; bump: THREE.Texture } | null } = { hull: null, sail: null };
   private hullMesh!: THREE.Mesh;
+  /** modelo detalhado (.glb, subModel.ts) quando carregado; null = casco gerado pelo código (reserva) */
+  private model: SubModelRig | null = null;
+  private disposed = false;
   private pickables: THREE.Object3D[] = [];
   private dryBg = new THREE.Color(0x5a6b7e);
   private profile!: THREE.LineSegments;
@@ -352,6 +356,7 @@ export class SubmarineScene {
       this.sub.add(this.navLights.group, this.searchlights.group);
     }
     this.scene.add(this.sub);
+    this.loadModel();
     this.scene.add(this.trimLines);
     this.forces = new ForceArrows(this.env());
     this.scene.add(this.forces.group);
@@ -682,6 +687,55 @@ export class SubmarineScene {
     });
   }
 
+  /** Busca o .glb da qualidade escolhida; se faltar ou falhar, fica o casco gerado pelo código. */
+  private loadModel(): void {
+    const url = subModelUrl(subModelLevel(this.quality));
+    loadSubModel(url, this.renderer)
+      .then((src) => {
+        if (!this.disposed) this.attachModel(src);
+      })
+      .catch((err: unknown) => console.info(`[SX-1] modelo 3D ${url} indisponível; mantido o casco gerado pelo código (${err instanceof Error ? err.message : String(err)})`));
+  }
+
+  /** Troca casco, vela, lemes, hélice e mastros gerados pelo código pelas peças do .glb (só visual). */
+  private attachModel(src: THREE.Object3D): void {
+    let rig: SubModelRig;
+    try {
+      rig = new SubModelRig(src);
+    } catch (err) {
+      console.warn(`[SX-1] modelo 3D recusado; mantido o casco gerado pelo código (${err instanceof Error ? err.message : String(err)})`);
+      return;
+    }
+    const old = new Set<THREE.Object3D>([...this.shell, ...Object.values(this.fins), this.prop, this.mast, this.periMast]);
+    const fromOld = (o: THREE.Object3D) => {
+      for (let p: THREE.Object3D | null = o; p; p = p.parent) if (old.has(p)) return true;
+      return false;
+    };
+    this.pickables = this.pickables.filter((p) => !fromOld(p));
+    for (const o of old) o.parent?.remove(o);
+    for (const m of rig.materials())
+      if (m instanceof THREE.MeshStandardMaterial) {
+        addCaustics(m, this.caustics, 14);
+        addRim(m, this.rim);
+      }
+    this.sub.add(rig.root);
+    this.shell = [...rig.shell];
+    this.pickables.push(...rig.pickables);
+    if (rig.draftMarks.length) {
+      for (const m of this.draftMarks) m.parent?.remove(m);
+      this.draftMarks = rig.draftMarks;
+    }
+    this.model = rig;
+    rig.setFinColor(this.ctrlMat.color, this.ctrlMat.emissive);
+    // força reaplicar corte/opacidade/visibilidade às peças novas
+    this.hullState = { ...this.hullState, op: -1 };
+  }
+
+  /** true quando o modelo detalhado (.glb) está em uso. */
+  get detailedModel(): boolean {
+    return this.model !== null;
+  }
+
   /**
    * Aplica a aparência (identificação e detalhe das texturas). Chamado a cada
    * quadro pela interface; só refaz algo quando rev muda. Puramente visual.
@@ -691,6 +745,7 @@ export class SubmarineScene {
     this.appRev = rev;
     this.ctrlMat.color.set(a.finColor);
     this.ctrlMat.emissive.set(a.finColor).multiplyScalar(0.22);
+    this.model?.setFinColor(this.ctrlMat.color, this.ctrlMat.emissive);
     this.decals?.update(a);
     if (a.textures !== this.texDetail) {
       this.texDetail = a.textures;
@@ -876,6 +931,12 @@ export class SubmarineScene {
     for (const m of this.draftMarks) m.visible = !cut && shell;
     // no corte o casco é desenhado depois do oceano (fica visível abaixo da linha d'água)
     this.hullMesh.renderOrder = cut ? 5 : 0;
+    // modelo .glb: no corte usa o material transparente do casco gerado (sem texturas); fora dele, o do arquivo
+    if (this.model)
+      for (const m of this.model.shellMeshes) {
+        m.material = cut ? this.hullMat : (m.userData.baseMaterial as THREE.Material);
+        m.renderOrder = cut ? 5 : 0;
+      }
     // sem o casco, o contorno lateral fica como referência da forma
     this.profile.visible = cut || !shell;
     this.hullState = { cut, op, pres, light, shell };
@@ -1124,26 +1185,38 @@ export class SubmarineScene {
     this.sub.position.copy(subPos);
 
     // superfícies de controle (ângulos geométricos reais)
-    for (const f of e.vessel.fins) {
-      const st = s.surfaces[f.id];
-      if (!st) continue;
-      const g = st.actual * f.commandSign * DEG;
-      if (f.orientation === 'horizontal') {
-        for (const k of ['L', 'R']) if (this.fins[f.id + k]) this.fins[f.id + k].rotation.x = g;
-      } else {
-        for (const k of ['U', 'D']) if (this.fins[f.id + k]) this.fins[f.id + k].rotation.y = g;
+    if (this.model) {
+      const ang = (id: string) => {
+        const f = e.vessel.fins.find((x) => x.id === id);
+        const st = s.surfaces[id];
+        return f && st ? st.actual * f.commandSign * DEG : 0;
+      };
+      const maxStern = (e.vessel.fins.find((x) => x.id === 'stern')?.maxDeflection ?? 25) * DEG;
+      const pos = s.periscope?.pos ?? 0;
+      this.model.update(e.vessel, s, ang('bow'), ang('stern'), ang('rudder'), maxStern, this.periscope.bearing, pos > 0.005 && this.view !== 'periscopio');
+    } else
+      for (const f of e.vessel.fins) {
+        const st = s.surfaces[f.id];
+        if (!st) continue;
+        const g = st.actual * f.commandSign * DEG;
+        if (f.orientation === 'horizontal') {
+          for (const k of ['L', 'R']) if (this.fins[f.id + k]) this.fins[f.id + k].rotation.x = g;
+        } else {
+          for (const k of ['U', 'D']) if (this.fins[f.id + k]) this.fins[f.id + k].rotation.y = g;
+        }
       }
-    }
-    this.prop.rotation.z = -s.propulsion.shaftAngle;
     const v = e.vessel;
     const R0 = v.hull.diameter / 2;
-    this.mast.position.y = R0 + v.hull.sail.height - v.hull.snorkelMast.extension / 2 - 0.5 + s.snorkel.pos * v.hull.snorkelMast.extension;
-    {
-      const pc = periscopeCfg(v);
-      this.periMast.position.y = -periscopeHeadZ(v, s.periscope?.pos ?? 0) - pc.extension / 2 - 0.65;
-      this.periHead.rotation.y = (-this.periscope.bearing * Math.PI) / 180;
-      // arriado fica fora da cena (não aparece no corte nem sem casco); na vista do periscópio a câmera está dentro da cabeça
-      this.periMast.visible = (s.periscope?.pos ?? 0) > 0.005 && this.view !== 'periscopio';
+    if (!this.model) {
+      this.prop.rotation.z = -s.propulsion.shaftAngle;
+      this.mast.position.y = R0 + v.hull.sail.height - v.hull.snorkelMast.extension / 2 - 0.5 + s.snorkel.pos * v.hull.snorkelMast.extension;
+      {
+        const pc = periscopeCfg(v);
+        this.periMast.position.y = -periscopeHeadZ(v, s.periscope?.pos ?? 0) - pc.extension / 2 - 0.65;
+        this.periHead.rotation.y = (-this.periscope.bearing * Math.PI) / 180;
+        // arriado fica fora da cena (não aparece no corte nem sem casco); na vista do periscópio a câmera está dentro da cabeça
+        this.periMast.visible = (s.periscope?.pos ?? 0) > 0.005 && this.view !== 'periscopio';
+      }
     }
 
     // fundo e terra (reconstruídos ao afastar-se ou quando o fundo/costa mudam)
@@ -1156,8 +1229,15 @@ export class SubmarineScene {
     // estaleiro e base naval (só com a costa ligada: faz parte da costa, também na física)
     if (coastOn && e.env.cfg.geo) {
       if (!this.shipyard) {
-        this.shipyard = new ShipyardModel(this.quality);
-        this.scene.add(this.shipyard.group);
+        const sy = new ShipyardModel(this.quality);
+        this.shipyard = sy;
+        this.scene.add(sy.group);
+        // submarinos atracados com a versão leve do modelo .glb; sem o arquivo fica o desenho (reserva)
+        loadSubModel(subModelUrl('leve'), this.renderer)
+          .then((src) => {
+            if (!this.disposed && this.shipyard === sy) sy.useSubModel(src);
+          })
+          .catch(() => undefined);
       }
       this.shipyardDist = this.shipyard.place(e.env.cfg.geo.origin, pn, pe, this.camera.position);
       this.shipyard.float(e.env.waves, tWave);
@@ -1556,14 +1636,15 @@ export class SubmarineScene {
     this.sub.updateMatrixWorld();
     const hull = e.vessel.hull;
     const rHull = hull.diameter / 2;
-    const corners = [-rHull, rHull].flatMap((x) => [-rHull, rHull + hull.sail.height].flatMap((y) =>
-      [-hull.length / 2, hull.length / 2].map((z) => proj(this.sub.localToWorld(new THREE.Vector3(x, y, z))))));
-    this.labelBounds = corners.every((p) => p.visible) ? {
-      x0: Math.min(...corners.map((p) => p.x)) - 10,
-      x1: Math.max(...corners.map((p) => p.x)) + 10,
-      y0: Math.min(...corners.map((p) => p.y)) - 10,
-      y1: Math.max(...corners.map((p) => p.y)) + 10,
-    } : null;
+    const corners = [-rHull, rHull].flatMap((x) => [-rHull, rHull + hull.sail.height].flatMap((y) => [-hull.length / 2, hull.length / 2].map((z) => proj(this.sub.localToWorld(new THREE.Vector3(x, y, z))))));
+    this.labelBounds = corners.every((p) => p.visible)
+      ? {
+          x0: Math.min(...corners.map((p) => p.x)) - 10,
+          x1: Math.max(...corners.map((p) => p.x)) + 10,
+          y0: Math.min(...corners.map((p) => p.y)) - 10,
+          y1: Math.max(...corners.map((p) => p.y)) + 10,
+        }
+      : null;
     this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
@@ -1656,6 +1737,7 @@ export class SubmarineScene {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.navLights.dispose();
     this.searchlights.dispose();
     this.nightSky.dispose();

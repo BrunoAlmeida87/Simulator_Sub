@@ -22,6 +22,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 - [Arquitetura](#arquitetura)
 - [Telas](#telas)
 - [Operação rápida](#operação-rápida)
+- [Modelo 3D (Blender)](#modelo-3d-blender)
 - [Testes e validação](#testes-e-validação)
 - [Documentação técnica](#documentação-técnica)
 - [Simplificações e limitações](#simplificações-e-limitações)
@@ -40,6 +41,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Lemes de direção e de profundidade | ✅ Lemes de vante na vela, lemes de ré e direção totalmente móveis (sem estabilizadores fixos), atuadores limitados em velocidade; força proporcional a U² e estol. No 3D, perfil de asa NACA com afilamento, enflechamento e ponta arredondada |
 | Indicadores | ✅ Profundidade, rumo, velocidade, pitch, banda e muitos outros, classificados como MED, CALC ou CMD |
 | Modelo 3D animado | ✅ Three.js com corte dos tanques (TLP em seção "D" que acompanha o casco), tubulações, válvulas, bombas e escoamentos animados pelas vazões simuladas; hélice, lemes, bolhas e fundo |
+| Modelo 3D detalhado | ✅ Casco do SX-1 feito no Blender a partir do exterior público do Scorpène / S-BR (classe Riachuelo), sobre o perfil exato da física: vela alta, popa em cruz, hélice de 7 pás com saia, revestimento anecoico, sonar de flanco, embornais dos TLP, mastros móveis. Duas versões (`sx1-alta.glb` e `sx1-leve.glb`, meshopt + WebP), também nos submarinos atracados do estaleiro; sem o arquivo, volta o casco gerado pelo código |
 | Vetores de força | ✅ Peso (em G), empuxo (em B) e resultante E − P com ampliação declarada; empuxo do hélice, resistência da água e forças dos lemes — valores do último passo do motor |
 | Percepção de movimento | ✅ Esteira persistente fixa no mundo, onda de proa e braços de Kelvin (∝ U²), rastro do hélice (∝ empuxo), jato de ar dos suspiros, boias e marcadores de distância, câmera fixa |
 | Roteiros automáticos | ✅ Roteiros narrados, etapa por etapa (primeiro: "Submergir e descer para 50 m"), com valores ao vivo, câmera e camadas por etapa e tempo de leitura |
@@ -207,6 +209,10 @@ O mesmo roteiro está no **Guia → Demonstração automática**. Detalhes em [d
 Atalhos: `Espaço` executar/pausar · `A`/`D` leme de direção · `W`/`S` lemes de ré · `Q`/`E` lemes de vante · `+`/`−` telégrafo · `0`–`8` telas · `I` modo engenharia.
 
 ---
+
+## Modelo 3D (Blender)
+
+O modelo do SX-1 é reprodutível: `scripts/blender/build_sx1.py` monta tudo (casco, vela, lemes, hélice, mastros, detalhes e texturas) a partir das medidas da física e exporta as duas versões; `npm run modelo:otimizar` comprime as malhas (meshopt) e grava `public/models/`. Passo a passo em [`scripts/blender/README.md`](scripts/blender/README.md). O teste `tests/subModelFile.test.ts` confere os nomes das peças, os pivôs, o casco sobre `radiusAt` e o tamanho dos arquivos.
 
 ## Testes e validação
 

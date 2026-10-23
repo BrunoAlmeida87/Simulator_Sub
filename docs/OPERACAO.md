@@ -185,6 +185,18 @@ Nas listas de vistas (Visualização 3D, Pilotagem, Apresentação, 2ª janela e
 
 O passadiço e o drone chegam à 2ª janela: com “Igual ao controle” ela segue a visada do passadiço e o voo do drone da janela de controle; com a vista própria, cada janela tem a sua. São apenas visuais: não alteram a simulação.
 
+## Modelo 3D detalhado do SX-1
+
+O casco das cenas 3D é um **modelo feito no Blender** (`public/models/sx1-alta.glb` e `sx1-leve.glb`), inspirado no exterior **público** do Scorpène e da versão brasileira S-BR (classe Riachuelo). O submarino continua fictício: sem marcas, numerais de casco ou brasões reais. **Só visual**: a física não muda.
+- **Medidas da física**: casco de 70 × 6,2 m exatamente sobre o perfil da simulação (proa elíptica de 9 m, corpo cilíndrico, popa parabólica de 20 m). Por isso o corte com os tanques continua encaixado no casco. Vela alta e estreita de x = 4 a 14 m, 5,2 m acima do casco, com o bordo de ataque quase vertical e o bordo de fuga inclinado, como nas fotos. Lemes de vela a meia altura. **Popa em cruz**, com o leme inferior mais curto, e **hélice de 7 pás com saia**.
+- **Detalhes**: preto fosco com **revestimento anecoico** (placas com relevo discreto), topo do casco liso com escotilhas e cabeços retráteis, **sonar de flanco**, portas dos tubos na proa, **embornais dos TLP** no fundo do casco (na posição dos tanques do corte), janelas do passadiço e mastros e carenagens no topo da vela.
+- **Peças móveis ligadas ao estado**: lemes de vela, lemes de popa (horizontais e de direção), hélice, **mastro do snorkel** (curso de 4,5 m) e **periscópio de ataque** (curso de 5,0 m, com a cabeça girando com a marcação). A seleção por clique (lemes, hélice, snorkel) funciona como antes.
+- **Versões**: com a qualidade gráfica **baixa** entra a versão leve (menos polígonos, texturas de 1K); com **média/alta**, a detalhada (texturas de 2K). Os dois submarinos **atracados no estaleiro de Itaguaí** usam a versão leve.
+- **Reserva**: se o arquivo faltar ou não carregar, a cena usa o casco desenhado pelo código, como antes.
+- **Corte, camadas e pintura**: *Tanques (corte)*, *Sem água*, todas as camadas e *Desmarcar todas* valem também para o modelo. A pintura da vela (emblema e inscrição) e a **Cor dos lemes** (Configurações › Identificação) aparecem sobre o modelo. Tudo chega à 2ª janela, às telas extras e ao submarino 3D da sala de comando.
+
+Para refazer o modelo, veja `scripts/blender/README.md`.
+
 ## Duas janelas (dois monitores)
 
 **⧉ 2ª janela** abre a cena numa nova janela, que pode ir para o outro monitor (use *Tela cheia*). A física roda só na janela principal. A segunda espelha o estado pelo canal de comunicação entre janelas do navegador (BroadcastChannel; é preciso o mesmo navegador e o mesmo endereço). O que ela mostra:
