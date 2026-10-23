@@ -22,6 +22,39 @@ export const GROUP_TITLE: Record<GroupId, string> = {
   guiados: 'Roteiros automáticos',
 };
 
+/** ícone e cor de cada grupo (identificação rápida na lista lateral) */
+export const GROUP_ICON: Record<GroupId, string> = {
+  nav: '🧭',
+  lastro: '🌊',
+  comp: '💧',
+  trim: '⚖️',
+  ar: '💨',
+  energia: '⚡',
+  falhas: '🚨',
+  ambiente: '🌦️',
+  guiados: '🎬',
+};
+
+export const GROUP_COLOR: Record<GroupId, string> = {
+  nav: '#4ade80',
+  lastro: '#3b82f6',
+  comp: '#2dd4bf',
+  trim: '#b794ff',
+  ar: '#7dd3fc',
+  energia: '#fbbf24',
+  falhas: '#f87171',
+  ambiente: '#fb923c',
+  guiados: '#f472b6',
+};
+
+/** seções da lista lateral (mesma ordem de GROUP_ORDER) */
+export const GROUP_SECTIONS: { title: string; groups: GroupId[] }[] = [
+  { title: 'Manobra', groups: ['nav'] },
+  { title: 'Flutuabilidade e equilíbrio', groups: ['lastro', 'comp', 'trim'] },
+  { title: 'Sistemas auxiliares', groups: ['ar', 'energia'] },
+  { title: 'Segurança e cenário', groups: ['falhas', 'ambiente', 'guiados'] },
+];
+
 /** objeto selecionado na cena 3D */
 export interface PickTarget {
   kind: 'tank' | 'fin' | 'prop' | 'mast' | 'battery' | 'generator' | 'hp' | 'valve' | 'pump' | 'demoWeight';
