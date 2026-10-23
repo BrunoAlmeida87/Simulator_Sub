@@ -13,6 +13,7 @@ import { DEFAULT_MARINE_LIFE, type MarineLifeSettings } from '../render3d/marine
 import { MAX_TRAFFIC } from '../sim/traffic';
 import type { DeepLevel } from '../render3d/deepPerspective';
 import { DEFAULT_TRAIL_STYLE, type TrailStyle } from '../render3d/trailStyle';
+import { parseRenderScale, type RenderScaleSetting } from '../render3d/renderPerf';
 
 export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings, TrailStyle {
   quality: OceanQuality;
@@ -39,6 +40,10 @@ export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings, 
   deepLevel: DeepLevel;
   /** espaçamento das linhas de profundidade (m; camada “Linhas de profundidade”) */
   depthLineSpacing: number;
+  /** resolução da imagem: fração da nativa ou 'auto' (o simulador ajusta sozinho conforme o desempenho) */
+  renderScale: RenderScaleSetting;
+  /** medidor de FPS e contadores sobre as cenas 3D */
+  fpsMeter: boolean;
 }
 
 const K_Q = 'sx1.quality.v1';
@@ -81,6 +86,8 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     deepPersp: typeof p?.deepPersp === 'boolean' ? p.deepPersp : base.deepPersp,
     deepLevel: p?.deepLevel === 'leve' || p?.deepLevel === 'media' || p?.deepLevel === 'forte' ? p.deepLevel : base.deepLevel,
     depthLineSpacing: typeof p?.depthLineSpacing === 'number' && DEPTH_LINE_SPACINGS.includes(p.depthLineSpacing) ? p.depthLineSpacing : base.depthLineSpacing,
+    renderScale: parseRenderScale(p?.renderScale, base.renderScale),
+    fpsMeter: typeof p?.fpsMeter === 'boolean' ? p.fpsMeter : base.fpsMeter,
     sunHour: num(p?.sunHour, 0, 24, base.sunHour),
     sunTurn: num(p?.sunTurn, -180, 180, base.sunTurn),
     moonlight: typeof p?.moonlight === 'boolean' ? p.moonlight : base.moonlight,
@@ -111,6 +118,9 @@ class GraphicsStore {
       deepPersp: false,
       deepLevel: 'media',
       depthLineSpacing: 25,
+      // celular e telas pequenas começam no automático; no computador a resolução é a nativa, como sempre foi
+      renderScale: q === 'baixa' ? 'auto' : 1,
+      fpsMeter: false,
       ...DEFAULT_DAYLIGHT,
     };
     let saved: Partial<GraphicsSettings> | null = null;

@@ -34,6 +34,7 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import { cpa } from '../../sim/geo';
 import { nearestOrder } from '../../sim/telegraph';
 import { fmt, fmtSpeed } from '../format';
+import { FpsMeter, useRenderPerf } from '../components/FpsMeter';
 
 function maneuverText(): string | null {
   if (!maneuver.active) return null;
@@ -257,6 +258,7 @@ export function ControlRoomScreen() {
   const box = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ControlRoomScene | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const perf = useRenderPerf();
   const [ready, setReady] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
   const [frame, setFrame] = useState<FrameInfo | null>(null);
@@ -357,7 +359,9 @@ export function ControlRoomScreen() {
         ro.observe(box.current);
         setReady(true);
         const loop = () => {
+          const scale = perf.frame(() => sc.renderStats());
           if (!periRef.current && !bridgeRef.current) {
+            sc.setRenderScale(scale);
             sc.periBearing = sightRef.current.bearing;
             sc.tilt = tiltRef.current;
             sc.render();
@@ -381,7 +385,7 @@ export function ControlRoomScreen() {
       sc?.dispose();
       sceneRef.current = null;
     };
-  }, [acts]);
+  }, [acts, perf.frame]);
 
   // som e anúncios (1MC): leem o estado algumas vezes por segundo
   useEffect(() => {
@@ -501,6 +505,7 @@ export function ControlRoomScreen() {
           onPointerCancel={(ev) => sceneRef.current?.pointerUp(ev.clientX, ev.clientY)}
           onPointerLeave={() => setHover(null)}
         />
+        {perf.show && <FpsMeter meterRef={perf.meterRef} />}
         {err && <div className="room-err">{err}</div>}
         {!ready && !err && <div className="room-loading">Montando a sala de comando…</div>}
         <div className="room-hud">

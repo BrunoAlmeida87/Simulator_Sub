@@ -11,6 +11,7 @@ import { graphics } from '../graphics';
 import { DEEP_FOVS } from '../../render3d/deepPerspective';
 import { appearanceRev, currentAppearance } from '../appearance';
 import { TrimGainBanner } from './TrimGain';
+import { FpsMeter, useRenderPerf } from './FpsMeter';
 import { geoOriginOf } from '../routeNav';
 import { BridgeHud } from './BridgeHud';
 import { bridgeSight, useBridgeSight } from '../bridgeSight';
@@ -88,6 +89,7 @@ export function Scene3D(props: Scene3DProps) {
   const pool = useRef(new Map<string, { el: HTMLDivElement; line: HTMLDivElement; key: string; w: number; h: number }>());
   const labelWidth = useRef(0);
   const [err, setErr] = useState<string | null>(null);
+  const perf = useRenderPerf();
   const opts = useRef(props);
   opts.current = props;
   /** chave da última posição de câmera imposta já aplicada */
@@ -171,6 +173,7 @@ export function Scene3D(props: Scene3DProps) {
               visualOut.drone = droneOn ? sc.drone : null;
             }
             sc.realisticFog = opts.current.fog ?? true;
+            sc.setRenderScale(perf.frame(() => sc.renderStats()));
             drawLabels(sc.render(), sc.labelBounds);
             if (droneOn) {
               droneCtl.pose = sc.drone;
@@ -214,7 +217,7 @@ export function Scene3D(props: Scene3DProps) {
     }
     const origin = host.getBoundingClientRect();
     const obstacles: LabelRect[] = [];
-    box.current?.querySelectorAll<HTMLElement>('.overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar').forEach((el) => {
+    box.current?.querySelectorAll<HTMLElement>('.overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter').forEach((el) => {
       const r = el.getBoundingClientRect();
       if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
     });
@@ -315,6 +318,7 @@ export function Scene3D(props: Scene3DProps) {
       {err && <div style={{ padding: 20 }}>{err}</div>}
       <div className="lbl3d-host" ref={lblBox} />
       <TrimGainBanner />
+      {perf.show && <FpsMeter meterRef={perf.meterRef} />}
       {props.view === 'passadico' && props.hud !== 'none' && <BridgeLayer p={props} />}
       {props.view === 'drone' && props.hud !== 'none' && <DroneHud compact={props.hud === 'compact'} keyboard={props.hudKeys !== false} follow={!!props.drone} />}
       {props.children}

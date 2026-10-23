@@ -90,6 +90,27 @@ Capturas em `docs/img/evolucao-3-artefatos/` (`antes_*` e `depois_*`, mesmos ân
 - Não consegui um ângulo rasante em Sepetiba e no Rio com a órbita livre sem entrar na água: o enquadramento rasante com costa só foi capturado em Itaguaí (`e5`, `e7`).
 - A água distante ficou mais lisa (menos textura de onda a mais de ~500 m). É o efeito esperado do filtro; se ficar liso demais, os limites estão em `Ocean.ts` (`smoothstep(0.7, 2.0, …)` no fragment e `smoothstep(1.0, 2.2, …)` no vertex).
 
+## 3.1 Resolução, qualidade dinâmica e medidor de FPS (tarefa 2)
+
+Implementado em `src/render3d/renderPerf.ts` (lógica pura, com testes em `tests/renderPerf.test.ts`), nas duas cenas 3D (`SubmarineScene` e `ControlRoomScene`, cada uma com `setRenderScale()` e `renderStats()`) e em `src/ui/components/FpsMeter.tsx`. Capturas em `docs/img/evolucao-2-resolucao/`.
+
+- **Escala de resolução:** preferência gráfica `renderScale` = 100 % (padrão no computador, igual ao que já era), 75 %, 50 % ou Automática (padrão no celular e em telas pequenas). A cena é desenhada com `pixelRatio × escala` e o navegador amplia a imagem. Em Configurações → Qualidade gráfica e em **Mar ▾ → Resolução**; vale para a cena externa e para a Sala de comando; é salva e chega à 2ª janela junto com as demais preferências gráficas.
+- **Qualidade dinâmica (Automática):** a cada janela de 1,5 s, se o tempo médio de quadro passa de 26 ms desce um degrau (90, 75, 60, 50 %); se fica abaixo de 19 ms por 6 s sobe um degrau. Se descer não melhora o tempo em pelo menos 8 % (o limite é a tela ou o navegador, não os pixels), volta ao degrau anterior e não desce por 30 s; se subir força descer logo, espera o dobro (até 60 s) para tentar de novo. Só muda a resolução: não troca a qualidade do oceano nem do terreno (isso exigiria reconstruir a cena).
+- **Medidor de FPS** (desligado por padrão; Configurações ou **Mar ▾ → Medidor de FPS**): FPS, tempo de quadro, resolução desenhada e escala, chamadas de desenho, triângulos e geometrias/texturas em memória (`renderer.info`). Escrito direto no DOM a cada ~0,5 s. Serve para fazer o "antes e depois" de desempenho pedido na seção 3.
+- Nada disso toca a física, os cenários ou os comandos.
+
+**Medições (Chromium com renderização por software, 1280×1000, cena Superfície):** ruidosas e não representativas de uma GPU real; ficam como prova de que os controles e o medidor funcionam.
+
+| Tela | Resolução | Quadro | FPS |
+|---|---|---|---|
+| Visualização 3D | 100 % (1258×878) | 801 ms | 1 |
+| Visualização 3D | 50 % (629×439) | 482 ms | 2 |
+| Pilotagem | 100 % (808×708) | 372 ms | 3 |
+
+Em outra rodada, em 1258×678, 100 %, 75 % e 50 % deram tempos parecidos (~610, 690 e 930 ms): com renderização por software o custo não é só de pixels (124 mil triângulos, malha do mar com 24 ondas por vértice, CPU), então **o ganho com a escala depende de a GPU estar limitada por pixels** (o shader da água é pesado por pixel, o que é o caso comum em GPUs de celular e integradas, mas **não medi isso em hardware real**). Sala de comando: 50 % deu 791 ms contra 912 ms a 100 % em uma rodada. Na Automática, ao fim de 75 s de espera o ajuste tinha descido só um degrau (90 %), coerente com esse ganho pequeno.
+
+**Não feito / pendente:** medir em GPU real (o Bruno pode ligar o medidor e comparar 100 %, 75 %, 50 % e Automática no computador e no celular); memória medida só pelos contadores de geometrias e texturas do `renderer.info`, não pelo uso real de GPU; qualidade dinâmica de oceano/terreno/sombras (a mudança de nível exige reconstruir a cena, fica para a tarefa de LOD); 2ª janela e janela de tela (＋ Tela) não foram testadas no navegador, só leem as mesmas preferências gráficas.
+
 ## 4. O que tornaria tudo mais realista
 
 Visual (maior retorno primeiro):
