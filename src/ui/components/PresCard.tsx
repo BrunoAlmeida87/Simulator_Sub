@@ -136,4 +136,5 @@ export function PresHudView({ items, side }: { items: HudItem[]; side?: 'esq' | 
 }
 
 /** lado dos mostradores: oposto ao cartão quando o cartão fica em cima ou à esquerda */
-export const hudSide = (c: CardData | null): 'esq' | 'dir' => (c && c.format.style === 'cartao' && (c.format.position === 'esquerda' || c.format.position === 'topo') ? 'dir' : 'esq');
+export const hudSide = (c: CardData | null): 'esq' | 'dir' =>
+  c && c.format.style === 'cartao' && (c.format.position === 'esquerda' || c.format.position === 'topo' || c.format.position === 'baixo-esquerda') ? 'dir' : 'esq';

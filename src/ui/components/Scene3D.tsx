@@ -138,6 +138,7 @@ export function Scene3D(props: Scene3DProps) {
           if (sc) {
             sc.setAppearance(currentAppearance(), appearanceRev());
             sc.trimGain = graphics.get().trimGain;
+            sc.trailStyle = graphics.get();
             sc.geoOrigin = geoOriginOf(runner.engine);
             sc.shipRange = graphics.get().shipRange;
             sc.trafficCount = graphics.get().traffic;
@@ -232,9 +233,9 @@ export function Scene3D(props: Scene3DProps) {
         slot = { el, line, key: '', w: 0, h: 0 };
         pool.current.set(l.id, slot);
       }
-      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.callout ? 1 : 0}`;
+      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.big ? 1 : 0}|${l.callout ? 1 : 0}`;
       if (slot.key !== key) {
-        slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.color ? ' col' : ''}${l.callout ? ' callout' : ''}`;
+        slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.big ? ' big' : ''}${l.color ? ' col' : ''}${l.callout ? ' callout' : ''}`;
         slot.el.style.borderColor = l.color ?? '';
         slot.el.style.color = l.color ?? '';
         slot.el.innerHTML = '';
@@ -320,3 +321,4 @@ export function Scene3D(props: Scene3DProps) {
     </div>
   );
 }
+

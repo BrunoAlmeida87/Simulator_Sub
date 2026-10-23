@@ -48,6 +48,37 @@ function arc(R: number, from: number, to: number, color: number): THREE.Group {
   return g;
 }
 
+/** textura de lingotes de chumbo empilhados, com moldura rosa */
+function ingotTexture(): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 128;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#2b3036';
+  g.fillRect(0, 0, 256, 128);
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      const x = 8 + col * 61 + (row % 2) * 14 - 7;
+      const y = 8 + row * 29;
+      const grd = g.createLinearGradient(0, y, 0, y + 24);
+      grd.addColorStop(0, '#9aa3ad');
+      grd.addColorStop(1, '#5d656e');
+      g.fillStyle = grd;
+      g.fillRect(x, y, 54, 24);
+      g.strokeStyle = '#1b1f24';
+      g.lineWidth = 2;
+      g.strokeRect(x, y, 54, 24);
+    }
+  }
+  g.strokeStyle = '#ff5ec4';
+  g.lineWidth = 8;
+  g.strokeRect(4, 4, 248, 120);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export class TrimVis {
   /** filhos do grupo do submarino (bloco, trilho, arcos) */
   readonly local = new THREE.Group();
@@ -67,7 +98,9 @@ export class TrimVis {
 
   constructor(e: SimulationEngine) {
     const dw = e.vessel.mass.demoWeight;
-    const blockMat = new THREE.MeshStandardMaterial({ color: C_DEMO, emissive: C_DEMO, emissiveIntensity: 0.5, roughness: 0.4, transparent: true, depthTest: false, depthWrite: false });
+    // lingotes de chumbo empilhados (textura), com borda rosa: o rosa identifica o peso deslocável
+    const ingots = ingotTexture();
+    const blockMat = new THREE.MeshStandardMaterial({ color: ingots ? 0xffffff : C_DEMO, map: ingots ?? undefined, emissive: C_DEMO, emissiveIntensity: 0.12, metalness: 0.55, roughness: 0.45, transparent: true, depthTest: false, depthWrite: false });
     this.block = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 2.2), blockMat);
     this.block.renderOrder = 9;
     this.block.userData.pick = { kind: 'demoWeight', id: 'demoWeight' };
@@ -102,7 +135,8 @@ export class TrimVis {
     this.world.visible = on;
     const showBlock = !!tb.demo && tb.demo.mass > 0 && !!dw;
     this.block.visible = showBlock;
-    this.rail.visible = !!dw;
+    // sem parcela deslocada (massa 0) o trilho também some: não confunde com as cargas a bordo
+    this.rail.visible = showBlock;
     this.ghost.visible = showBlock && on && Math.abs(tb.demo!.x - tb.demo!.xNeutral) > 0.3;
     this.arcUp.visible = false;
     this.arcDown.visible = false;
@@ -155,10 +189,11 @@ export class TrimVis {
       if (layers.labels) labels.push({ id: 'tv' + name, text: `${name} ${dm > 0 ? '+' : '−'}${fmtT(Math.abs(dm))}`, color: C_TRIM_CSS, small: true, prio: 1, ...proj(dm > 0 ? a.tip() : base.clone().add(new THREE.Vector3(0, -L - 1.2, 0))) });
     }
     // momento líquido
-    const ref = Math.max(5, Math.abs(tb.demo?.momentTm ?? 0) * 0.05);
+    const shiftTm = (tb.demo?.momentTm ?? 0) + tb.loadsTm;
+    const ref = Math.max(5, Math.abs(shiftTm) * 0.05);
     const top = lw(2, -this.R - 1.5);
     let txt: string;
-    if (Math.abs(tb.netTm) <= ref && (Math.abs(tb.demo?.momentTm ?? 0) > ref || Math.abs(tb.tanks.momentTm) > ref)) {
+    if (Math.abs(tb.netTm) <= ref && (Math.abs(shiftTm) > ref || Math.abs(tb.tanks.momentTm) > ref)) {
       this.arcOk.visible = true;
       this.arcOk.position.copy(b2l(2, 0, -this.R));
       txt = 'Trim compensado: momentos se anulam';
@@ -171,7 +206,7 @@ export class TrimVis {
       labels.push({
         id: 'tmN',
         text: txt,
-        sub: `peso ${fmtTm(tb.demo?.momentTm ?? 0)} · tanques de trim ${fmtTm(tb.tanks.momentTm)} · θ ${tb.pitch.toFixed(1)}° (equilíbrio ${tb.pitchEq.toFixed(1)}°)`,
+        sub: `${Math.abs(tb.loadsTm) > 0.05 ? `cargas ${fmtTm(tb.loadsTm)} · ` : ''}${Math.abs(tb.demo?.momentTm ?? 0) > 0.05 || Math.abs(tb.loadsTm) <= 0.05 ? `peso ${fmtTm(tb.demo?.momentTm ?? 0)} · ` : ''}tanques de trim ${fmtTm(tb.tanks.momentTm)} · θ ${tb.pitch.toFixed(1)}° (equilíbrio ${tb.pitchEq.toFixed(1)}°)`,
         color: C_NET_CSS,
         prio: 0,
         ...proj(top),

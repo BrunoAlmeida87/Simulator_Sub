@@ -4,7 +4,7 @@
  * fazem a apresentação avançar. Tudo lido do estado calculado pelo motor.
  */
 import type { SimulationEngine } from '../../sim/core/engine';
-import { verticalBalance, hydroArrows, toTf } from '../../sim/forceVectors';
+import { verticalBalance, hydroArrows, toTf, trimBalance } from '../../sim/forceVectors';
 import { tankVolume } from '../../sim/systems/internalTanks';
 import { toKnots } from '../../sim/units';
 import { visibleAlarms } from '../../sim/systems/alarms';
@@ -73,6 +73,28 @@ export const PRES_VARS: PresVar[] = [
   // energia e ar
   { id: 'bateria', label: 'Carga da bateria', unit: '%', dec: 1, group: 'Energia e ar', get: (e) => e.state.electrical.soc * 100 },
   { id: 'arAP', label: 'Ar AP no coletor', unit: 'bar', dec: 0, group: 'Energia e ar', get: (e) => e.outputs.hpManifoldBar },
+  // trim e cargas deslocadas
+  { id: 'momCargas', label: 'Momento das cargas deslocadas (valor)', unit: 't·m', dec: 1, group: 'Trim e cargas', get: (e) => Math.abs(trimBalance(e).loadsTm) },
+  { id: 'momTrim', label: 'Momento da água de trim transferida (valor)', unit: 't·m', dec: 1, group: 'Trim e cargas', get: (e) => Math.abs(trimBalance(e).tanks.momentTm) },
+  { id: 'momLiq', label: 'Momento de trim líquido (+ proa acima)', unit: 't·m', dec: 1, group: 'Trim e cargas', get: (e) => trimBalance(e).netTm },
+  { id: 'bracoTrim', label: 'Distância entre os tanques de trim', unit: 'm', dec: 1, group: 'Trim e cargas', get: (e) => trimBalance(e).arm },
+  { id: 'trimCalc', label: 'Água de trim a transferir (calculada)', unit: 't', dec: 2, group: 'Trim e cargas', get: (e) => trimBalance(e).compensate.kg / 1000 },
+  { id: 'trimCalcM3', label: 'Água de trim a transferir (volume)', unit: 'm³', dec: 2, group: 'Trim e cargas', get: (e) => trimBalance(e).compensate.kg / 1025 },
+  {
+    id: 'trimTransf',
+    label: 'Água de trim levada de vante para ré',
+    unit: 't',
+    dec: 2,
+    group: 'Trim e cargas',
+    get: (e) => {
+      const t = trimBalance(e).tanks;
+      return (t.dB - t.dA) / 2 / 1000;
+    },
+  },
+  { id: 'pitchEq', label: 'Pitch de equilíbrio previsto (+ proa acima)', unit: '°', dec: 1, group: 'Trim e cargas', get: (e) => e.outputs.staticPitchEq },
+  { id: 'rigidezTrim', label: 'Rigidez de trim W·BG (por radiano)', unit: 't·m', dec: 0, group: 'Trim e cargas', get: (e) => e.outputs.pitchStiffness / e.env.cfg.gravity / 1000 },
+  { id: 'bg', label: 'Distância BG (empuxo acima do centro de gravidade)', unit: 'm', dec: 2, group: 'Trim e cargas', get: (e) => e.outputs.BG },
+  { id: 'cargasNoDestino', label: 'Cargas deslocáveis paradas (no destino)', unit: '', dec: 0, group: 'Situação (sim/não)', bool: true, get: (e) => b(trimBalance(e).loads.every((l) => Math.abs(l.xCmd - l.x) < 0.05)) },
   // situações (sim/não)
   { id: 'naSuperficie', label: 'Na superfície', unit: '', dec: 0, group: 'Situação (sim/não)', bool: true, get: (e) => b(e.outputs.surfaced) },
   { id: 'suspirosFechados', label: 'Todos os suspiros fechados', unit: '', dec: 0, group: 'Situação (sim/não)', bool: true, get: (e) => b(e.vessel.ballast.tanks.every((t) => e.state.ballast[t.id].vent.pos < 0.03)) },

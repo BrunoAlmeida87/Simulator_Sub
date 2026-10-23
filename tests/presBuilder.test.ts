@@ -10,7 +10,8 @@ import { fillTemplate, testCondition, describeCondition, unknownPlaceholders, PR
 import { ACTION_TYPES, ADVANCED_COMMAND_TYPES, describeAction, runAction, actionProblem, parseCommandJson, type ActionCtx } from '../src/ui/presBuilder/actions';
 import { normalizePresentation, newPresentation, newStep, newAction, clonePresentation, presentationProblems, NEXT_END, droneToStep, droneFromStep } from '../src/ui/presBuilder/model';
 import { PresPlayer } from '../src/ui/presBuilder/player';
-import { submergir50Template, recursosTemplate, BUILTIN_PRESENTATIONS } from '../src/ui/presBuilder/templates';
+import { submergir50Template, recursosTemplate, controleTrimTemplate, BUILTIN_PRESENTATIONS } from '../src/ui/presBuilder/templates';
+import { trimBalance } from '../src/sim/forceVectors';
 import { scriptMarkdown, exportText } from '../src/ui/presBuilder/library';
 import { serializeEngine } from '../src/sim/persistence';
 
@@ -126,6 +127,8 @@ describe('Catálogo de ações', () => {
       '{"type":"mbtVent","tank":"ALL"}',
       '{"type":"dosing","system":"trim","mode":"transferir","kg":0}',
       '{"type":"demoWeight"}',
+      '{"type":"shiftLoad","id":"torpedos"}',
+      '{"type":"shiftLoad","id":"torpedos","x":"22"}',
       '[1]',
       'null',
       '{"rpm":40}',
@@ -159,6 +162,8 @@ describe('Catálogo de ações', () => {
       seaState: { value: 2 },
       environment: { patch: { salinity: 35 } },
       demoWeight: { x: 10 },
+      shiftLoad: { id: 'torpedos', x: 20 },
+      trimReference: {},
       failure: { target: 'pump:trim', active: true },
     };
     expect(Object.keys(good).sort()).toEqual([...ADVANCED_COMMAND_TYPES].sort());
@@ -234,6 +239,63 @@ describe('Execução das apresentações pela física', () => {
     expect(Math.abs(r.engine.outputs.depthKeel - 50)).toBeLessThan(2);
     expect(Math.abs(r.engine.outputs.netBuoyancyKg)).toBeLessThan(300);
     expect(pl.sent.some((c) => /suspiro/i.test(c.text))).toBe(true);
+  });
+
+  it('modelo “Controle de trim”: cargas a vante inclinam ~6°, a transferência calculada nivela, sem sair de 50 m', () => {
+    const r = new SimRunner(buildScenario('superficie'));
+    const pl = new PresPlayer();
+    expect(pl.start(r, controleTrimTemplate())).toBe(true);
+    const dt = r.engine.config.settings.dt;
+    let n = 0;
+    let wait = 0;
+    let k = -1;
+    let minPitch = 0;
+    let minDepth = Infinity;
+    let maxDepth = 0;
+    let parked = false;
+    while (pl.active && n < 2_000_000) {
+      if (pl.k !== k) {
+        k = pl.k;
+        wait = 0;
+      }
+      const st = pl.pres!.steps[pl.k];
+      // etapas manuais: o apresentador avança depois de 20 s
+      if (st.advance.mode === 'manual' && (wait += dt) > 20) {
+        if (pl.k === pl.pres!.steps.length - 1) {
+          pl.next(r);
+          break;
+        }
+        pl.next(r);
+        continue;
+      }
+      if (r.running) r.engine.step();
+      pl.tick(r, dt / r.timeScale);
+      const o = r.engine.outputs;
+      if (st.title.startsWith('Casco transparente')) parked = true;
+      if (parked) {
+        minPitch = Math.min(minPitch, o.euler.pitch);
+        minDepth = Math.min(minDepth, o.depthKeel);
+        maxDepth = Math.max(maxDepth, o.depthKeel);
+      }
+      n++;
+    }
+    const e = r.engine;
+    const tb = trimBalance(e);
+    expect(pl.active).toBe(false);
+    expect(pl.outcome.every((o) => o === 'concluída')).toBe(true);
+    // cargas deslocadas: 3,2 t × 9 m + 1,36 t × 25 m + 0,6 t × 15 m
+    expect(Math.abs(tb.loadsTm)).toBeCloseTo(71.8, 1);
+    expect(minPitch).toBeLessThan(-5.5);
+    expect(minPitch).toBeGreaterThan(-7.5);
+    // água transferida = momento ÷ distância entre os tanques (34,5 m)
+    expect((tb.tanks.dB - tb.tanks.dA) / 2).toBeCloseTo(71.8e3 / 34.5, -1);
+    expect(Math.abs(tb.netTm)).toBeLessThan(1);
+    expect(Math.abs(e.outputs.euler.pitch)).toBeLessThan(0.1);
+    // parado, com o peso equilibrado: fica perto de 50 m durante toda a demonstração
+    expect(minDepth).toBeGreaterThan(47);
+    expect(maxDepth).toBeLessThan(52);
+    expect(Math.abs(e.state.body.vel.x)).toBeLessThan(0.1);
+    expect(pl.sent.some((c) => /Torpedos/.test(c.text))).toBe(true);
   });
 
   it('modelo “Exemplo: recursos” percorre todas as etapas (avanço acelerado) e volta à superfície', () => {

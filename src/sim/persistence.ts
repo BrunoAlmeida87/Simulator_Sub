@@ -126,6 +126,7 @@ function fillMissing(target: Record<string, unknown>, defaults: Record<string, u
 const CONFIG_OPTIONAL = new Set([
   'environment.waves',
   'vessel.mass.demoWeight',
+  'vessel.mass.shiftLoads',
   'environment.bottom.mode',
   'environment.geo',
   // sessões gravadas antes do conjunto de compensação de três tanques e dos tanques abaulados mantêm o arranjo gravado

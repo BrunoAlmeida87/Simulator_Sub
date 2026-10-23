@@ -72,6 +72,7 @@ export function resolveLightship(cfg: VesselConfig, geom?: HullGeometry): Resolv
   for (const l of cfg.mass.variableLoads) others.push({ m: l.mass, p: l.position });
   const dw = cfg.mass.demoWeight;
   if (dw) others.push({ m: dw.mass, p: { x: dw.xNeutral, y: dw.y, z: dw.z } });
+  for (const l of cfg.mass.shiftLoads ?? []) others.push({ m: l.quantity * l.unitMass, p: l.home });
   const fuel = fuelTankMass(cfg, cfg.electrical.fuel.initialFuel);
   others.push({ m: fuel.mass, p: cfg.electrical.fuel.position });
   const Tb = cfg.hpAir.temperature + 273.15;
@@ -118,6 +119,13 @@ export function computeMassProps(cfg: VesselConfig, s: SimState, light: Resolved
     if (m > 0) items.push({ id: 'pesoMovel', name: 'Peso deslocável (parcela deslocada)', group: 'cargas', mass: m, pos: { x: s.demoWeight.x, y: dw.y, z: dw.z } });
     if (dw.mass - m > 0) items.push({ id: 'pesoMovelResto', name: 'Peso deslocável (parcela na posição neutra)', group: 'cargas', mass: dw.mass - m, pos: { x: dw.xNeutral, y: dw.y, z: dw.z } });
     internalMass += dw.mass;
+  }
+  for (const l of cfg.mass.shiftLoads ?? []) {
+    // carga já a bordo: na estiva faz parte da condição de projeto; deslocada, leva o seu peso para a nova posição
+    const mass = l.quantity * l.unitMass;
+    const x = s.shiftLoads?.[l.id]?.x ?? l.home.x;
+    items.push({ id: 'desl_' + l.id, name: l.name, group: 'cargas', mass, pos: { x, y: l.home.y, z: l.home.z } });
+    internalMass += mass;
   }
   for (const t of cfg.ballast.tanks) {
     const st = s.ballast[t.id];

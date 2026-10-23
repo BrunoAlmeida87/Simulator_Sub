@@ -18,6 +18,10 @@ import { trafficAt, trafficForEnv } from '../sim/traffic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { DEFAULT_TRAIL_STYLE, type TrailStyle } from './trailStyle';
 import { Ocean, UnderwaterSky, addCaustics, type OceanQuality } from './Ocean';
 import { LIGHTING, addRim, type RimUniforms, type SceneLighting } from './lighting';
 import type { SimulationEngine } from '../sim/core/engine';
@@ -28,6 +32,9 @@ import { ForceArrows } from './ForceArrows';
 import { SurfaceFx } from './SurfaceFx';
 import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
+import { CargoVis } from './CargoVis';
+import { PitchAngle } from './PitchAngle';
+import { Ensign } from './Ensign';
 import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
 import type { LabelRect } from './labelLayout';
@@ -102,6 +109,8 @@ export interface Label3D {
   sub?: string;
   color?: string;
   small?: boolean;
+  /** destaque grande (ex.: valor do ângulo de pitch) */
+  big?: boolean;
   /** identificação de componente: fica fora do casco, com linha até a âncora */
   callout?: boolean;
   /** prioridade de posicionamento (0 = mais importante; ≥ 3 pode ser omitido se não couber) */
@@ -201,6 +210,9 @@ export class SubmarineScene {
   private fx: SurfaceFx;
   private markers!: Markers;
   private trimVis!: TrimVis;
+  private cargoVis!: CargoVis;
+  private pitchAngle = new PitchAngle();
+  private ensign!: Ensign;
   private keyLight = new THREE.DirectionalLight(0xffffff, 0);
   private fillLight = new THREE.AmbientLight(0xffffff, 0);
   /** sol, lua e luzes (Sol e luzes: hora do dia, direção, luar, luzes de navegação, faróis, água escura) — só visual */
@@ -247,7 +259,8 @@ export class SubmarineScene {
   private static readonly SNOW_N = 1400;
   private static readonly SNOW_BOX = { h: 140, v: 60 };
   private bubbles: THREE.Points;
-  private trail: THREE.Line;
+  private trail: Line2;
+  trailStyle: TrailStyle = { ...DEFAULT_TRAIL_STYLE };
   private depthLine: THREE.Line;
   private lastSubPos = new THREE.Vector3();
   private view: ViewMode = 'perspectiva';
@@ -350,6 +363,10 @@ export class SubmarineScene {
     this.trimVis = new TrimVis(this.env());
     this.sub.add(this.trimVis.local);
     this.scene.add(this.trimVis.world);
+    this.cargoVis = new CargoVis(this.env());
+    this.sub.add(this.cargoVis.local);
+    this.scene.add(this.cargoVis.world);
+    this.scene.add(this.pitchAngle.group);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
     {
@@ -357,6 +374,8 @@ export class SubmarineScene {
       this.wind = new WindFx(v.hull.diameter / 2 + v.hull.sail.height, v.hull.sail.xAft + 0.9);
       this.scene.add(this.wind.group);
       this.sub.add(this.wind.pennant);
+      this.ensign = new Ensign(v.hull.diameter / 2 + v.hull.sail.height, v.hull.sail.xAft + 2.6);
+      this.sub.add(this.ensign.group);
     }
     this.markers = new Markers(this.env(), this.dot);
     this.scene.add(this.markers.group);
@@ -403,9 +422,11 @@ export class SubmarineScene {
     this.scene.add(this.depthLines.group);
 
     // trajetória e linha de profundidade
-    const tg = new THREE.BufferGeometry();
-    tg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(1600 * 3), 3));
-    this.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.8 }));
+    const tg = new LineGeometry();
+    tg.setPositions(new Float32Array(1600 * 3));
+    tg.instanceCount = 0;
+    // Espessura em pixels, independente da distância da câmera e do suporte a linhas WebGL.
+    this.trail = new Line2(tg, new LineMaterial({ color: this.trailStyle.trailColor, linewidth: this.trailStyle.trailWidth, transparent: true, opacity: this.trailStyle.trailOpacity, depthWrite: false, fog: false, toneMapped: false }));
     this.trail.frustumCulled = false;
     this.scene.add(this.trail);
     const dg = new THREE.BufferGeometry();
@@ -769,6 +790,7 @@ export class SubmarineScene {
     const w = Math.max(10, this.container.clientWidth);
     const h = Math.max(10, this.container.clientHeight);
     this.renderer.setSize(w, h, false);
+    this.trail.material.resolution.set(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -800,6 +822,8 @@ export class SubmarineScene {
   }
 
   setCameraPose(c: { pos: [number, number, number]; target: [number, number, number] }): void {
+    // posição atual do submarino (a cena pode não ter desenhado desde um avanço acelerado ou troca de motor)
+    this.lastSubPos.copy(P(0, 0, this.env().state.body.pos.z));
     this.camera.position.set(...c.pos).add(this.lastSubPos);
     this.controls.target.set(...c.target).add(this.lastSubPos);
     this.viewFrom.copy(this.camera.position);
@@ -1337,21 +1361,28 @@ export class SubmarineScene {
       const top = this.wind.pennant.getWorldPosition(new THREE.Vector3());
       const sailOut = top.y > e.env.waves.elevation(pn - top.z, pe + top.x, tWave) + 0.3;
       this.wind.update(e, step, dtR, pn, pe, tWave, this.layers.wind && !this.layers.noWater, this.camera.position.y < 0, sailOut && this.layers.pennant && this.layers.hull);
+      // bandeira: some quando o topo da vela entra na água
+      this.ensign.update(e, dtR, sailOut && !!this.layers.flag && this.layers.hull);
     }
     this.markers.update(e, pn, pe, tWave, this.layers.markers);
 
     // trajetória
-    const tp = this.trail.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const starts = this.trail.geometry.getAttribute('instanceStart') as THREE.InterleavedBufferAttribute;
+    const ends = this.trail.geometry.getAttribute('instanceEnd') as THREE.InterleavedBufferAttribute;
     const tr = s.nav.trail;
     const nT = Math.min(tr.length, 1599);
     for (let i = 0; i < nT; i++) {
       const p = tr[tr.length - nT + i];
-      tp.setXYZ(i, p.e - pe, -p.z, -(p.n - pn));
+      const next = i + 1 < nT ? tr[tr.length - nT + i + 1] : { e: pe, n: pn, z: pd };
+      starts.setXYZ(i, p.e - pe, -p.z, -(p.n - pn));
+      ends.setXYZ(i, next.e - pe, -next.z, -(next.n - pn));
     }
-    tp.setXYZ(nT, 0, -pd, 0);
-    tp.needsUpdate = true;
-    this.trail.geometry.setDrawRange(0, nT + 1);
-    this.trail.visible = this.layers.trail;
+    starts.data.needsUpdate = true;
+    this.trail.geometry.instanceCount = nT;
+    this.trail.material.linewidth = this.trailStyle.trailWidth;
+    this.trail.material.color.set(this.trailStyle.trailColor);
+    this.trail.material.opacity = this.trailStyle.trailOpacity;
+    this.trail.visible = this.layers.trail && nT > 0;
 
     // linha de profundidade (superfície ↔ submarino ↔ fundo)
     const bottom = e.env.bottomDepthAt(pn, pe);
@@ -1617,6 +1648,8 @@ export class SubmarineScene {
     this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
+    this.cargoVis.update(e, this.sub, this.layers, lbl, proj);
+    this.pitchAngle.update(!!this.layers.pitchAngle, e, this.sub, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
     // tráfego adicional (quantidade nas Configurações): mesmos navios do mapa tático
     const extra = this.trafficCount > 0 && this.layers.ships && !dry ? trafficAt(e.state.t, trafficForEnv(e.env, this.geoOrigin, this.trafficCount), this.geoOrigin) : [];
@@ -1710,6 +1743,7 @@ export class SubmarineScene {
     this.nightSky.dispose();
     this.marineLife.dispose();
     this.wind.dispose();
+    this.ensign.dispose();
     this.shipyard?.dispose();
     this.controls.dispose();
     this.renderer.dispose();
@@ -1723,3 +1757,4 @@ export class SubmarineScene {
     this.renderer.domElement.remove();
   }
 }
+

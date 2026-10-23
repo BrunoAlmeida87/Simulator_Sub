@@ -279,6 +279,17 @@ export class SimulationEngine {
       const stepMax = dwc.speed * dt;
       d.x += Math.abs(dx) <= stepMax ? dx : Math.sign(dx) * stepMax;
     }
+    // cargas deslocáveis a bordo (torpedos, tripulantes, mantimentos): andam até a posição ordenada
+    if (cfg.mass.shiftLoads && s.shiftLoads) {
+      for (const lc of cfg.mass.shiftLoads) {
+        const l = s.shiftLoads[lc.id];
+        if (!l) continue;
+        l.xCmd = Math.max(lc.xMin, Math.min(lc.xMax, l.xCmd));
+        const dx = l.xCmd - l.x;
+        const stepMax = lc.speed * dt;
+        l.x += Math.abs(dx) <= stepMax ? dx : Math.sign(dx) * stepMax;
+      }
+    }
 
     // 7–8. massa e corpo rígido
     const mp = computeMassProps(cfg, s, this.light, ctx.rhoLocal);

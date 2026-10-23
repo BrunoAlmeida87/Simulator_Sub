@@ -22,6 +22,8 @@ export interface SceneLayers {
   wind: boolean;
   /** flâmula no topo da vela (vento aparente), na superfície */
   pennant: boolean;
+  /** bandeira no mastro da vela, tremulando com o vento (submarino na superfície) */
+  flag: boolean;
   /** trajetória */
   trail: boolean;
   /** luzes adicionais de apresentação */
@@ -50,6 +52,8 @@ export interface SceneLayers {
   hull: boolean;
   /** linhas de profundidade: anel leve a cada 25 m, com a cota, da superfície até o fundo */
   depthLines: boolean;
+  /** ângulo de pitch: linha horizontal × eixo do casco, arco graduado e valor de θ */
+  pitchAngle: boolean;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -64,6 +68,7 @@ export const defaultLayers = (): SceneLayers => ({
   wake: true,
   wind: true,
   pennant: false,
+  flag: false,
   trail: true,
   presLight: false,
   resultantGain: 'auto',
@@ -78,6 +83,7 @@ export const defaultLayers = (): SceneLayers => ({
   airInfo: false,
   hull: true,
   depthLines: true,
+  pitchAngle: false,
 });
 
 /** camadas liga/desliga (as demais chaves de SceneLayers são ajustes, não camadas) */
@@ -100,11 +106,13 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   airInfo: { label: 'Ar comprimido', title: 'Pressão e quantidade de ar de cada grupo de garrafas, junto às garrafas (com o corte/tanques)' },
   wake: { label: 'Esteira', title: 'Esteira, onda de proa, espuma, rastro do hélice, bolhas da descarga dos diesel e aspiração do snorkel' },
   wind: { label: 'Vento', title: 'Vento aparente: poucas linhas de vento acima da água; com o submarino avançando, vêm da proa' },
+  flag: { label: 'Bandeira', title: 'Bandeira no mastro da vela, tremulando com o vento aparente (some quando a vela submerge)' },
   pennant: { label: 'Flâmula', title: 'Flâmula no topo da vela mostrando o vento aparente (submarino na superfície)' },
   markers: { label: 'Boias/marcos', title: 'Boias e marcos de distância fixos no cenário' },
   trail: { label: 'Trajetória', title: 'Rastro do caminho percorrido' },
   trimRef: { label: 'Calado/trim', title: 'Calados AV/AR e linha d’água do casco × nível do mar' },
   depthLines: { label: 'Linhas de profundidade', title: 'Linha leve a cada 25 m, com a profundidade, da superfície até o fundo' },
+  pitchAngle: { label: 'Ângulo de pitch', title: 'Linha horizontal, eixo do casco e o ângulo θ entre eles (arco graduado a cada grau)' },
   ships: { label: 'Navios', title: 'Contatos da mesa tática como navios no mar' },
   presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
   noWater: { label: 'Sem água', title: 'Esconde o mar para ver o submarino isolado', mode: true },
@@ -135,8 +143,13 @@ export const fullExternalLayers = (): SceneLayers => ({
 export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exclude<BoolLayer, 'hull'>[] }[] = [
   { id: 'interior', label: 'Tanques e sistemas', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows'] },
   { id: 'vetores', label: 'Forças e vetores', title: 'Forças sobre o submarino', keys: ['vectors', 'hydroVectors', 'trimVectors'] },
-  { id: 'refs', label: 'Identificações e referências', title: 'Nomes, bateria, ar comprimido, referências de calado/trim e linhas de profundidade', keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef', 'depthLines'] },
-  { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'ships', 'markers', 'trail'] },
+  {
+    id: 'refs',
+    label: 'Identificações e referências',
+    title: 'Nomes, bateria, ar comprimido, referências de calado/trim, ângulo de pitch e linhas de profundidade',
+    keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef', 'pitchAngle', 'depthLines'],
+  },
+  { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'flag', 'ships', 'markers', 'trail'] },
   { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['noWater', 'presLight'] },
 ];
 

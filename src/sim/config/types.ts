@@ -49,6 +49,29 @@ export interface MassConfig {
    * cria um momento de trim que pode ser compensado pelos tanques de trim.
    */
   demoWeight?: DemoWeightConfig;
+  /**
+   * Cargas a bordo que podem ser deslocadas ao longo do casco (torpedos,
+   * tripulantes, mantimentos). Na posição de estiva fazem parte da condição
+   * de projeto (o peso leve automático as desconta); deslocá-las não muda a
+   * massa total, só cria um momento de trim.
+   */
+  shiftLoads?: ShiftLoadConfig[];
+}
+
+export interface ShiftLoadConfig {
+  id: string;
+  name: string;
+  category: 'pessoas' | 'carga' | 'torpedos' | 'equipamentos';
+  quantity: number;
+  /** massa unitária (kg) */
+  unitMass: number;
+  /** posição de estiva (corpo, m): onde a carga fica na condição de projeto */
+  home: Vec3;
+  /** limites do deslocamento longitudinal (m, corpo) */
+  xMin: number;
+  xMax: number;
+  /** velocidade do deslocamento (m/s) */
+  speed: number;
 }
 
 export interface DemoWeightConfig {

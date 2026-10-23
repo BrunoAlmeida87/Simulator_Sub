@@ -10,6 +10,7 @@
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { SimRunner } from '../../sim/core/runner';
 import { failureCatalog, type Command } from '../../sim/commands';
+import { trimBalance } from '../../sim/forceVectors';
 import { SCENARIOS } from '../../sim/scenarios';
 import type { SceneLayers, BoolLayer } from '../../render3d/layers';
 import { LAYER_INFO } from '../../render3d/layers';
@@ -140,6 +141,8 @@ const ALL_TANKS = (e: SimulationEngine): [string, string][] => [
   [e.vessel.heel.tankB.id, e.vessel.heel.tankB.name],
 ];
 
+const SHIFT_LOADS = (e: SimulationEngine): [string, string][] => (e.vessel.mass.shiftLoads ?? []).map((l) => [l.id, `${l.name} (${l.quantity} × ${l.unitMass} kg)`] as [string, string]);
+
 const SENSOR_MODES: [string, string][] = [
   ['congelado', 'congelado'],
   ['deriva', 'deriva'],
@@ -236,6 +239,69 @@ export const ACTION_TYPES: ActionType[] = [
     defaults: { dir: true, kg: 1000 },
     describe: (p) => `Trim: transferir ${f(num(p, 'kg'))} kg ${bool(p, 'dir') ? 'AV → AR' : 'AR → AV'}`,
     run: (p, c) => c.send({ type: 'dosing', system: 'trim', mode: 'transferir', kg: Math.abs(num(p, 'kg', 1000)), dir: bool(p, 'dir') ? 'AtoB' : 'BtoA' }),
+  },
+  {
+    id: 'trimCompensar',
+    group: 'Compensação, trim e banda',
+    label: 'Trim: compensar o momento (quantidade calculada)',
+    hint: 'Calcula, na hora, a água que anula o momento das cargas deslocadas (momento ÷ distância entre os tanques de trim) e transfere para o lado certo.',
+    fields: [],
+    defaults: {},
+    describe: () => 'Trim: transferir a água calculada para anular o momento',
+    run: (_p, c) => {
+      const k = trimBalance(c.r.engine).compensate;
+      if (k.dir && k.kg >= 1) c.send({ type: 'dosing', system: 'trim', mode: 'transferir', kg: Math.round(Math.min(k.kg, k.limitKg)), dir: k.dir });
+    },
+  },
+  {
+    id: 'trimNivelar',
+    group: 'Compensação, trim e banda',
+    label: 'Trim: nivelar (pitch de equilíbrio zero)',
+    hint: 'Transfere a água que leva o pitch de equilíbrio estático a zero (ajuste fino do trim).',
+    fields: [{ key: 'tol', label: 'Só se o pitch de equilíbrio passar de', type: 'number', unit: '°', min: 0, max: 5, step: 0.05 }],
+    defaults: { tol: 0.05 },
+    describe: (p) => `Trim: nivelar (se |pitch de equilíbrio| > ${f(num(p, 'tol', 0.05), 2)}°)`,
+    run: (p, c) => {
+      const e = c.r.engine;
+      const eq = e.outputs.staticPitchEq;
+      if (Math.abs(eq) <= num(p, 'tol', 0.05)) return;
+      const t = e.vessel.trim;
+      const kg = (e.outputs.pitchStiffness * eq * (Math.PI / 180)) / e.env.cfg.gravity / (t.tankA.center.x - t.tankB.center.x);
+      // proa acima (eq > 0): água de ré para vante; proa abaixo: de vante para ré
+      c.send({ type: 'dosing', system: 'trim', mode: 'transferir', kg: Math.max(1, Math.round(Math.abs(kg))), dir: eq > 0 ? 'BtoA' : 'AtoB' });
+    },
+  },
+  {
+    id: 'trimReferencia',
+    group: 'Compensação, trim e banda',
+    label: 'Trim: zerar a referência dos vetores',
+    hint: 'A água transferida e o momento dos tanques de trim passam a ser contados a partir de agora.',
+    fields: [],
+    defaults: {},
+    describe: () => 'Trim: referência dos vetores = condição atual',
+    run: (_p, c) => c.send({ type: 'trimReference' }),
+  },
+  {
+    id: 'cargaDeslocar',
+    group: 'Compensação, trim e banda',
+    label: 'Cargas a bordo: deslocar (torpedos, tripulantes, mantimentos)',
+    hint: 'A carga já está a bordo: a massa total não muda, só o momento de trim (x maior = mais para vante).',
+    fields: [
+      { key: 'id', label: 'Carga', type: 'select', options: SHIFT_LOADS },
+      { key: 'x', label: 'Posição x de destino', type: 'number', unit: 'm', min: -14, max: 22, step: 0.5 },
+    ],
+    defaults: { id: 'torpedos', x: 22 },
+    describe: (p, e) => `${optLabel(ACTION_FIELD('cargaDeslocar', 'id'), str(p, 'id'), e)}: deslocar para x = ${f(num(p, 'x'), 1)} m`,
+    run: (p, c) => c.send({ type: 'shiftLoad', id: str(p, 'id', 'torpedos'), x: num(p, 'x') }),
+  },
+  {
+    id: 'cargasEstiva',
+    group: 'Compensação, trim e banda',
+    label: 'Cargas a bordo: voltar à posição de estiva',
+    fields: [{ key: 'id', label: 'Carga', type: 'select', options: (e) => [['ALL', 'todas as cargas'], ...SHIFT_LOADS(e)] }],
+    defaults: { id: 'ALL' },
+    describe: (p, e) => `${str(p, 'id') === 'ALL' ? 'Todas as cargas' : optLabel(ACTION_FIELD('cargaDeslocar', 'id'), str(p, 'id'), e)}: voltar à estiva`,
+    run: (p, c) => c.send({ type: 'shiftLoad', id: str(p, 'id', 'ALL'), home: true }),
   },
   {
     id: 'banda',
@@ -714,6 +780,8 @@ const COMMAND_FIELDS: Record<string, Record<string, FieldCheck>> = {
   seaState: { value: isNum, direction: opt(isNum) },
   environment: { patch: isObj },
   demoWeight: { x: opt(isNum), mass: opt(isNum) },
+  shiftLoad: { id: isStr, x: opt(isNum), home: opt(isBool) },
+  trimReference: {},
   failure: { target: isStr, active: isBool, param: opt((v) => isNum(v) || isStr(v)) },
 };
 
@@ -734,6 +802,8 @@ export function parseCommandJson(text: string): Command | null {
   for (const [k, check] of Object.entries(fields)) if (!check(c[k])) return null;
   // peso deslocável: ao menos posição ou massa
   if (c.type === 'demoWeight' && c.x === undefined && c.mass === undefined) return null;
+  // carga deslocável: posição ou volta à estiva
+  if (c.type === 'shiftLoad' && c.x === undefined && c.home !== true) return null;
   return c as unknown as Command;
 }
 

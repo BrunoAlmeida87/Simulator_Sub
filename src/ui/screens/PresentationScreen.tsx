@@ -60,11 +60,13 @@ export const LAYER_LIST: LayerKey[] = [
   'wake',
   'wind',
   'pennant',
+  'flag',
   'markers',
   'trail',
   'presLight',
   'noWater',
   'trimRef',
+  'pitchAngle',
   'depthLines',
   'ships',
 ];
