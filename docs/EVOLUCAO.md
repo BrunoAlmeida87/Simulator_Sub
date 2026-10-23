@@ -93,3 +93,41 @@ Mudanças propostas (a testar com capturas):
 4. Sombras do sol e pós-processamento com perfil de qualidade.
 5. Mover a física para um Web Worker.
 6. Avaliar `WebGPURenderer`.
+
+## 7. Terreno e base naval: dados abertos (Rio e Sepetiba)
+
+Foco: **Sepetiba/Itaguaí e Rio**. Regra: só dados **públicos e gratuitos**; nada que precise ser comprado, e nada de imagem comercial (Google, Bing, Maxar, Planet), cujos termos proíbem reutilização. Nenhum dado novo foi baixado ou incluído no projeto ainda.
+
+Resolução atual (perfil alto): malha do terreno 20 m (anel próximo, 6 km), 60 m (médio, 24 km), 233 m (distante, 70 km); costa ~50 m (OpenStreetMap); relevo fino 200 m; estaleiro traçado sobre Sentinel-2 de 10 m (±10 m).
+
+### Rio de Janeiro
+- **Mosaico de trueortofotos 2024, IPP/Prefeitura do Rio** — RGB, 15 cm, 1º semestre de 2024, servido por ArcGIS ImageServer (`pgeo3.rio.rj.gov.br/.../Imagens/Mosaico_2024/ImageServer`). É, de longe, o melhor candidato: resolução ~70× melhor que a atual.
+  - **Licença NÃO confirmada.** Uma busca indicou o campo de licença em branco; outra indicou CC BY 4.0. O host é bloqueado neste ambiente, então não consegui abrir a página. **Pendente: o Bruno abrir o item e ler a licença, ou perguntar ao IPP.**
+  - Os termos da camada de edificações do IPP dizem: uso livre citando a fonte (IPP/Prefeitura do Rio); um geógrafo do IPP confirmou CC BY 4.0 para essa camada (isso é sobre edificações, não sobre ortofoto).
+  - Portal: DATA.RIO (gerido pelo IPP).
+- **Edificações do IPP** (importadas no OpenStreetMap): úteis para modelar prédios em 3D com crédito ao IPP.
+- **LiDAR/MDT/MDS do Rio:** não encontrei página de download. Só um termo de referência do IPP (2016) prevê voo de 10 cm e perfilamento laser em 262 km². **Pendente: perguntar ao IPP se os produtos foram publicados.** (São Paulo publica MDT/MDS em LAZ; o Rio não apareceu.)
+
+### Sepetiba / Itaguaí
+- Não encontrei ortofoto nem LiDAR abertos de Itaguaí ou da Baía de Sepetiba (INEA, estado, IBGE). **Pendente: checar o geoportal do INEA, IBGE e o portal de dados do estado do RJ.** A busca devolveu apenas "Itagüí", da Colômbia (não confundir).
+- Hoje o mais provável é continuar com Sentinel-2 (10 m), OpenStreetMap e modelagem própria do estaleiro.
+
+### Batimetria
+- **Baía de Sepetiba:** o IBGE publica o *Atlas Mar – Batimetria da Baía de Sepetiba*, derivado da **carta náutica 1622 da Marinha** (3ª ed., 2003, 1:40.000), com serviço WMS (visualização). Dá para consultar como mapa; o uso dos valores como dado exige conferir a licença do IBGE e da Marinha.
+- **Baía de Guanabara:** nenhum download aberto encontrado.
+- GEBCO/EMODnet: cobertura de águas brasileiras costeiras não confirmada; a GEBCO é grossa demais para as baías de qualquer modo.
+
+### O que dá para fazer SEM novos dados (só técnica)
+- Textura de detalhe procedural sem repetição visível, mistura por tipo de solo (classes do OpenStreetMap/MapBiomas), sombras e oclusão ambiente no relevo.
+- LOD contínuo (quadtree/clipmap) no lugar dos três anéis fixos.
+- Estaleiro: pessoas, veículos, cabos, defensas, iluminação de cais; escala humana ajuda a sensação de grandeza.
+
+### Cuidados
+- O estaleiro é instalação sensível: usar apenas dados públicos; não usar plantas ou documentos internos.
+- Imagens de 15 cm do Rio são enormes: carregar por tiles, só perto da câmera, e só nos perfis Alto/Ultra. Com licença confirmada, o site precisa mostrar o crédito.
+- Se a licença for incerta, não incluir; perguntar ao IPP antes.
+
+### Pendências para o Bruno
+1. Abrir o item do Mosaico 2024 no DATA.RIO e confirmar a licença (ou escrever ao IPP).
+2. Perguntar ao IPP se há MDT/LiDAR publicado.
+3. Procurar ortofoto/LiDAR de Itaguaí no INEA/IBGE.
