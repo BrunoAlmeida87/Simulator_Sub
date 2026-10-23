@@ -48,6 +48,7 @@ A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre vis�
   - *Falhas e segurança*: alarmes, reconhecimento, injeção e remoção de falhas.
   - *Ambiente e configuração*: mar, condições da água, cenário e acesso aos parâmetros avançados.
   - *Roteiros automáticos*.
+- **Ícones, cores e seções**: cada grupo tem ícone e cor próprios — 🧭 Navegação (verde), 🌊 Lastro (azul), 💧 Compensação (turquesa), ⚖️ Trim e banda (lilás), 💨 Ar comprimido (azul-claro), ⚡ Energia (amarelo), 🚨 Falhas (vermelho), 🌦️ Ambiente (laranja), 🎬 Roteiros (rosa). Os grupos ficam em seções: *Manobra*, *Flutuabilidade e equilíbrio*, *Sistemas auxiliares* e *Segurança e cenário*. A fileira de ícones acima da lista abre o grupo e rola até ele (ícone sublinhado = grupo aberto).
 - **📌 Fixar**: até dois grupos ficam sempre abertos no topo, por exemplo Lastro + Ar comprimido. *Recolher todos* fecha os demais.
 - **Controles ligados à cena:**
   - clicar num **tanque** abre o grupo do tanque, destaca a linha dele e realça as suas conexões;

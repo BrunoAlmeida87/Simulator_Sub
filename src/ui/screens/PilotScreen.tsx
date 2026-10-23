@@ -6,7 +6,7 @@
  * garrafas, válvulas, bombas) abre o grupo correspondente. Tudo usa os mesmos
  * comandos e o mesmo estado das outras telas.
  */
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { Fragment, useEffect, useReducer, useRef, useState, type CSSProperties } from 'react';
 import { usePersisted } from '../persist';
 import { cmd, runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
@@ -18,7 +18,7 @@ import type { ViewMode } from '../../render3d/SubmarineScene';
 import { navStatus } from '../navStatus';
 import { maneuver } from '../maneuvers';
 import { ManeuverStatus } from '../components/ManeuverStatus';
-import { opsBus, GROUP_ORDER, GROUP_TITLE, type GroupId } from '../ops/opsBus';
+import { opsBus, GROUP_TITLE, GROUP_ICON, GROUP_COLOR, GROUP_SECTIONS, type GroupId } from '../ops/opsBus';
 import { GROUPS } from '../ops/OpsGroups';
 import { OpsStrip } from '../ops/OpsStrip';
 import type { SimulationEngine } from '../../sim/core/engine';
@@ -105,9 +105,12 @@ function OpsGroupBox({ id, e }: { id: GroupId; e: SimulationEngine }) {
   const warn = g.warn?.(e);
   const Body = g.Body;
   return (
-    <section ref={ref} className={`ops-group ${open ? 'open' : ''} ${pinned ? 'pinned' : ''} ${flash ? 'flash' : ''} ${warn ? 'warn' : ''}`}>
+    <section ref={ref} className={`ops-group ${open ? 'open' : ''} ${pinned ? 'pinned' : ''} ${flash ? 'flash' : ''} ${warn ? 'warn' : ''}`} style={{ '--gc': GROUP_COLOR[id] } as CSSProperties}>
       <header onClick={() => ops.toggle(id)} title={pinned ? 'Grupo fixado' : open ? 'Recolher' : 'Expandir'}>
         <span className="chev">{open ? '▾' : '▸'}</span>
+        <span className="ico" aria-hidden>
+          {GROUP_ICON[id]}
+        </span>
         <b>{GROUP_TITLE[id]}</b>
         <span className="sum">{g.summary(e)}</span>
         <button
@@ -283,7 +286,6 @@ export function PilotScreen() {
   const st = navStatus(e);
   const L = e.vessel.limits;
   const pinned = ops.st.pinned;
-  const rest = GROUP_ORDER.filter((g) => !pinned.includes(g));
   return (
     <div className="ops">
       <div className="ops-main">
@@ -349,12 +351,29 @@ export function PilotScreen() {
             Recolher todos
           </button>
         </div>
+        <div className="ops-jump" role="toolbar" aria-label="Ir para o sistema">
+          {GROUP_SECTIONS.flatMap((s) => s.groups).map((g) => (
+            <button key={g} className={ops.isOpen(g) ? 'on' : ''} style={{ '--gc': GROUP_COLOR[g] } as CSSProperties} onClick={() => ops.focus(g)} title={GROUP_TITLE[g]}>
+              {GROUP_ICON[g]}
+            </button>
+          ))}
+        </div>
+        {pinned.length > 0 && <div className="ops-sec">📌 Fixados</div>}
         {pinned.map((g) => (
           <OpsGroupBox key={g} id={g} e={e} />
         ))}
-        {rest.map((g) => (
-          <OpsGroupBox key={g} id={g} e={e} />
-        ))}
+        {GROUP_SECTIONS.map((s) => {
+          const gs = s.groups.filter((g) => !pinned.includes(g));
+          if (!gs.length) return null;
+          return (
+            <Fragment key={s.title}>
+              <div className="ops-sec">{s.title}</div>
+              {gs.map((g) => (
+                <OpsGroupBox key={g} id={g} e={e} />
+              ))}
+            </Fragment>
+          );
+        })}
       </aside>
     </div>
   );
