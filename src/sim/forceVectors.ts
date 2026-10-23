@@ -117,10 +117,16 @@ export interface TrimBalance {
   g: number;
   /** peso deslocável: binário (+P na posição atual, −P na neutra); momento em t·m (+ proa para cima) */
   demo: { mass: number; x: number; xCmd: number; xNeutral: number; z: number; momentTm: number } | null;
+  /** cargas a bordo deslocadas da estiva (torpedos, tripulantes, mantimentos): binário de cada uma (t·m, + proa para cima) */
+  loads: { id: string; name: string; category: string; quantity: number; mass: number; x: number; xCmd: number; xHome: number; y: number; z: number; momentTm: number }[];
+  /** soma dos momentos das cargas deslocadas (t·m) */
+  loadsTm: number;
   /** tanques de trim: variação de massa (kg) em relação à condição inicial e momento do binário (t·m) */
   tanks: { xA: number; xB: number; zA: number; zB: number; dA: number; dB: number; momentTm: number };
-  /** desequilíbrio das cargas deslocadas = peso + tanques (t·m) */
+  /** desequilíbrio das cargas deslocadas = peso deslocável + cargas + tanques (t·m) */
   netTm: number;
+  /** distância longitudinal entre os centros de TT-AV e TT-AR (m) */
+  arm: number;
   pitch: number; // graus
   pitchEq: number; // graus (equilíbrio estático previsto)
   stiffness: number; // N·m/rad
@@ -143,6 +149,13 @@ export function trimBalance(e: SimulationEngine): TrimBalance {
   const dwc = v.mass.demoWeight;
   const d = s.demoWeight;
   const demo = dwc && d ? { mass: demoMovedMass(dwc, d), x: d.x, xCmd: d.xCmd, xNeutral: dwc.xNeutral, z: dwc.z, momentTm: (-demoMovedMass(dwc, d) * (d.x - dwc.xNeutral)) / 1000 } : null;
+  const loads = (v.mass.shiftLoads ?? []).map((l) => {
+    const st = s.shiftLoads?.[l.id];
+    const mass = l.quantity * l.unitMass;
+    const x = st?.x ?? l.home.x;
+    return { id: l.id, name: l.name, category: l.category, quantity: l.quantity, mass, x, xCmd: st?.xCmd ?? l.home.x, xHome: l.home.x, y: l.home.y, z: l.home.z, momentTm: (-mass * (x - l.home.x)) / 1000 };
+  });
+  const loadsTm = loads.reduce((a, l) => a + l.momentTm, 0);
   const ref = s.trimRef ?? { a: s.trim.tankA.mass, b: s.trim.tankB.mass };
   const tA = v.trim.tankA;
   const tB = v.trim.tankB;
@@ -152,7 +165,7 @@ export function trimBalance(e: SimulationEngine): TrimBalance {
   // compensação: transferência cujo binário anula o desequilíbrio das cargas deslocadas
   // (binário de Δm entre A e B = −g·Δm·(x_A − x_B); netTm < 0 = proa para baixo ⇒ levar água para ré)
   const arm = tA.center.x - tB.center.x;
-  const netTm = (demo?.momentTm ?? 0) + tanksM;
+  const netTm = (demo?.momentTm ?? 0) + loadsTm + tanksM;
   const kgRaw = (Math.abs(netTm) * 1000) / arm;
   const dir: 'AtoB' | 'BtoA' | null = Math.abs(netTm) < 0.5 ? null : netTm < 0 ? 'AtoB' : 'BtoA';
   const RHO = 1025;
@@ -162,6 +175,9 @@ export function trimBalance(e: SimulationEngine): TrimBalance {
   return {
     g,
     demo,
+    loads,
+    loadsTm,
+    arm,
     tanks: { xA: tA.center.x, xB: tB.center.x, zA: tA.center.z, zB: tB.center.z, dA, dB, momentTm: tanksM },
     netTm,
     pitch: o.euler.pitch,

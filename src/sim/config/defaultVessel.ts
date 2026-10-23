@@ -56,6 +56,12 @@ export function defaultVessel(): VesselConfig {
       loadOffset: 0,
       loadOffsetPosition: { x: 3, y: 0, z: 1.0 },
       demoWeight: { mass: 30000, initialMass: 5000, xNeutral: 2, xMin: -25, xMax: 25, y: 0, z: 1.7, speed: 1.0 },
+      // cargas a bordo deslocáveis (parte da condição de projeto na posição de estiva; massa total inalterada ao deslocar)
+      shiftLoads: [
+        { id: 'torpedos', name: 'Torpedos de reserva', category: 'torpedos', quantity: 2, unitMass: 1600, home: { x: 13, y: 0, z: 1.3 }, xMin: 11, xMax: 22, speed: 0.25 },
+        { id: 'tripulantes', name: 'Tripulantes', category: 'pessoas', quantity: 16, unitMass: 85, home: { x: -10, y: 0, z: 0.9 }, xMin: -14, xMax: 22, speed: 0.8 },
+        { id: 'mantimentos', name: 'Mantimentos', category: 'carga', quantity: 12, unitMass: 50, home: { x: -3, y: 0, z: 1.4 }, xMin: -14, xMax: 22, speed: 0.4 },
+      ],
     },
     hydro: {
       totalResistanceCoeff: 0.0022,

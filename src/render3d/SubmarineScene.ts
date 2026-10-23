@@ -28,6 +28,8 @@ import { ForceArrows } from './ForceArrows';
 import { SurfaceFx } from './SurfaceFx';
 import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
+import { CargoVis } from './CargoVis';
+import { PitchAngle } from './PitchAngle';
 import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
 import type { LabelRect } from './labelLayout';
@@ -101,6 +103,8 @@ export interface Label3D {
   sub?: string;
   color?: string;
   small?: boolean;
+  /** destaque grande (ex.: valor do ângulo de pitch) */
+  big?: boolean;
   /** identificação de componente: fica fora do casco, com linha até a âncora */
   callout?: boolean;
   /** prioridade de posicionamento (0 = mais importante; ≥ 3 pode ser omitido se não couber) */
@@ -197,6 +201,8 @@ export class SubmarineScene {
   private fx: SurfaceFx;
   private markers!: Markers;
   private trimVis!: TrimVis;
+  private cargoVis!: CargoVis;
+  private pitchAngle = new PitchAngle();
   private keyLight = new THREE.DirectionalLight(0xffffff, 0);
   private fillLight = new THREE.AmbientLight(0xffffff, 0);
   /** sol, lua e luzes (Sol e luzes: hora do dia, direção, luar, luzes de navegação, faróis, água escura) — só visual */
@@ -345,6 +351,10 @@ export class SubmarineScene {
     this.trimVis = new TrimVis(this.env());
     this.sub.add(this.trimVis.local);
     this.scene.add(this.trimVis.world);
+    this.cargoVis = new CargoVis(this.env());
+    this.sub.add(this.cargoVis.local);
+    this.scene.add(this.cargoVis.world);
+    this.scene.add(this.pitchAngle.group);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
     {
@@ -745,6 +755,8 @@ export class SubmarineScene {
   }
 
   setCameraPose(c: { pos: [number, number, number]; target: [number, number, number] }): void {
+    // posição atual do submarino (a cena pode não ter desenhado desde um avanço acelerado ou troca de motor)
+    this.lastSubPos.copy(P(0, 0, this.env().state.body.pos.z));
     this.camera.position.set(...c.pos).add(this.lastSubPos);
     this.controls.target.set(...c.target).add(this.lastSubPos);
     this.viewFrom.copy(this.camera.position);
@@ -1536,6 +1548,8 @@ export class SubmarineScene {
     this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
+    this.cargoVis.update(e, this.sub, this.layers, lbl, proj);
+    this.pitchAngle.update(!!this.layers.pitchAngle, e, this.sub, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
     // tráfego adicional (quantidade nas Configurações): mesmos navios do mapa tático
     const extra = this.trafficCount > 0 && this.layers.ships && !dry ? trafficAt(e.state.t, trafficForEnv(e.env, this.geoOrigin, this.trafficCount), this.geoOrigin) : [];

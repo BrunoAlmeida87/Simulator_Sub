@@ -22,6 +22,7 @@ export const TEXT_COLORS: Record<string, { css: string; hint: string }> = {
   amarelo: { css: '#ffe14d', hint: 'resultante' },
   branco: { css: '#ffffff', hint: 'destaque neutro' },
   cinza: { css: '#9fb2c6', hint: 'texto secundário' },
+  magenta: { css: '#ff7ad1', hint: 'cargas deslocadas' },
 };
 
 export interface Inline {

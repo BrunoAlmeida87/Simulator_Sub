@@ -169,6 +169,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       mass0: 0,
     },
     contact: false,
+    shiftLoads: v.mass.shiftLoads ? Object.fromEntries(v.mass.shiftLoads.map((l) => [l.id, { x: l.home.x, xCmd: l.home.x }])) : undefined,
     demoWeight: v.mass.demoWeight ? { x: v.mass.demoWeight.xNeutral, xCmd: v.mass.demoWeight.xNeutral, mass: Math.min(v.mass.demoWeight.mass, v.mass.demoWeight.initialMass ?? v.mass.demoWeight.mass) } : undefined,
   };
 }

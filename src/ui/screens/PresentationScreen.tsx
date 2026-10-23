@@ -65,6 +65,7 @@ export const LAYER_LIST: LayerKey[] = [
   'presLight',
   'noWater',
   'trimRef',
+  'pitchAngle',
   'depthLines',
   'ships',
 ];
