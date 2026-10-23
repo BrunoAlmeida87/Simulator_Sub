@@ -210,9 +210,13 @@ export class SimulationEngine {
     s.ledger.airCompressed += comp.added;
 
     // 4. tanques internos e alagamento
-    const rc = updateCompensation(cfg.compensation, s.compensation, ctx);
     const rt = updateTransfer(cfg.trim, s.trim, ctx);
     const rh = updateTransfer(cfg.heel, s.heel, ctx);
+    s.heel.tankA.flow = -s.heel.flow;
+    s.heel.tankB.flow = s.heel.flow;
+    const rc = updateCompensation(cfg.compensation, s.compensation, ctx, [
+      { cfg: cfg.heel.tankA, st: s.heel.tankA }, { cfg: cfg.heel.tankB, st: s.heel.tankB },
+    ]);
     s.ledger.seaIn += rc.seaIn;
     s.ledger.seaOut += rc.seaOut;
     strokes += rc.strokes + rt.strokes + rh.strokes;
@@ -279,7 +283,8 @@ export class SimulationEngine {
     const genAvail = updateGenerators(cfg.electrical, s, ctx);
     const demands: Record<string, number> = {
       MEP: s.propulsion.elecPower,
-      BC: rc.power,
+      BC: s.compensation.pump.power,
+      BTC: s.compensation.transfer?.pump.power ?? 0,
       BT: rt.power,
       BB: rh.power,
       HID: hydPower,
@@ -349,7 +354,13 @@ export class SimulationEngine {
       checkValve(sys.directionValve.name, st.direction);
     }
     for (const b of cfg.hpAir.banks) checkValve(b.valve.name, s.hpAir.banks[b.id].valve);
+    if (cfg.compensation.transfer && s.compensation.transfer) {
+      checkValve(cfg.compensation.transfer.directionValve.name, s.compensation.transfer.direction);
+      checkValve('Isolamento BTC A', s.compensation.transfer.valveA);
+      checkValve('Isolamento BTC B', s.compensation.transfer.valveB);
+    }
     const failedPumps: string[] = [];
+    if (s.compensation.transfer?.pump.failed) failedPumps.push('Bomba de transferência de compensação (BTC)');
     if (s.compensation.pump.failed) failedPumps.push(cfg.compensation.pump.name);
     if (s.trim.pump.failed) failedPumps.push(cfg.trim.pump.name);
     if (s.heel.pump.failed) failedPumps.push(cfg.heel.pump.name);
@@ -512,6 +523,7 @@ export class SimulationEngine {
     const demands: Record<string, number> = {
       MEP: s.propulsion.elecPower,
       BC: s.compensation.pump.power,
+      BTC: s.compensation.transfer?.pump.power ?? 0,
       BT: s.trim.pump.power,
       BB: s.heel.pump.power,
       HID: s.hydraulics.power,

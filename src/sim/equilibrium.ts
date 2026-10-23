@@ -50,7 +50,7 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
   const vDisp = hs.volume - cfg.hull.compressibility * dp * engine.compressibleVolume * hs.immersedFraction;
   const Mreq = rho * vDisp;
   const xB = hs.center.x;
-  const compIds = cfg.compensation.tanks.map((t) => t.id);
+  const compIds = cfg.compensation.tanks.filter((t) => t.automaticCompensation !== false).map((t) => t.id);
   const capC = (id: string) => cfg.compensation.tanks.find((t) => t.id === id)!.capacity * RHO_NOMINAL;
   let clamped = false;
   for (let it = 0; it < 6; it++) {
@@ -90,7 +90,7 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
   const sol: CompensationSolution = {
     ok: !clamped && Math.abs(Mreq - mpF.mass) < 5,
     message: '',
-    compensation: Object.fromEntries(compIds.map((id) => [id, s.compensation.tanks[id].mass])),
+    compensation: Object.fromEntries(cfg.compensation.tanks.map((t) => [t.id, s.compensation.tanks[t.id].mass])),
     trimA: s.trim.tankA.mass,
     trimB: s.trim.tankB.mass,
     heelA: s.heel.tankA.mass,

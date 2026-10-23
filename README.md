@@ -211,3 +211,5 @@ Resumo (lista completa em [docs/LIMITACOES.md](docs/LIMITACOES.md)):
 - **Fase 2:** navegação inercial com deriva, distribuição elétrica com disjuntores e rejeição de cargas, soprador de baixa pressão, mais sensores redundantes e cenários de falhas combinadas.
 - **Fase 3:** ondas e correntes, sucção de superfície, superfície livre nos tanques, atmosfera interna (O₂/CO₂), refrigeração, esgoto, controle de avarias, hidrodinâmica refinada e WebAssembly, se houver ganho comprovado.
 
+
+O circuito de compensação também permite transferir água entre os tanques de banda BB e BE e o tanque central TC-0, por meio da bomba BTC e da válvula direcional VDC 4/2, com posições direta e inversa. Os controles ficam em **Lastro e compensação**, com diagrama e escoamentos 3D vinculados à física, conservação de massa e consumo elétrico.

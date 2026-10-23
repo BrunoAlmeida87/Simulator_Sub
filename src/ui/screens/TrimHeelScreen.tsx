@@ -1,6 +1,7 @@
 /** Tela 3 — Trim longitudinal e banda. */
 import { useState } from 'react';
 import { cmd, useSim } from '../store';
+import { CompensationCircuitPanel } from '../components/CompensationCircuitPanel';
 import { Panel } from '../components/Panel';
 import { Readout } from '../components/Readout';
 import { Pipe, PumpGlyph, TankGlyph, ValveGlyph } from '../components/Schematic';
@@ -241,6 +242,7 @@ export function TrimHeelScreen() {
           Arquitetura <b>fictícia</b> de tanques laterais. Submerso, a estabilidade transversal vem de BG (G abaixo de B): momento restaurador ≈ W·BG·sen φ. Tendência de retorno: {Math.abs(o.euler.roll - o.staticRollEq) < 0.05 ? 'em equilíbrio.' : `retorna para ${fmt(o.staticRollEq, 2)}°.`}
         </div>
       </Panel>
+      <CompensationCircuitPanel e={e} />
       <Panel title="Banda: comandos" inspect="heel">
         <TransferControls e={e} sys="heel" />
       </Panel>

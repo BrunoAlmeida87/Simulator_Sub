@@ -18,6 +18,7 @@ import type { CompensationConfig, InternalTankConfig, TransferSystemConfig } fro
 import type { CompensationState, DosingState, InternalTankState, TransferState } from '../core/state';
 import { RHO_NOMINAL, type StepContext } from '../core/context';
 import type { Vec3 } from '../core/math';
+import { buildCompensationCircuit } from './compensationCircuit';
 import { pumpFlow, pumpFlowWithLine, pumpPower, updatePumpSpeed, updateValve } from './components';
 
 export const tankVolume = (st: InternalTankState) => st.mass / RHO_NOMINAL;
@@ -57,7 +58,8 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
   const d = st.dosing;
   if (!d || !d.active) return;
   d.timer += ctx.dt;
-  const tankIds = cfg.tankValves.map((v) => v.id);
+  const tankIds = cfg.tankValves.filter((_, i) => cfg.tanks[i].automaticCompensation !== false).map((v) => v.id);
+  cfg.tankValves.forEach((v, i) => { if (cfg.tanks[i].automaticCompensation === false) st.tankValves[v.id].cmd = 0; });
   if (d.phase === 'alinhando') {
     for (const id of tankIds) st.tankValves[id].cmd = 1;
     if (d.mode === 'admitir') {
@@ -103,7 +105,7 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
   }
 }
 
-export function updateCompensation(cfg: CompensationConfig, st: CompensationState, ctx: StepContext): InternalStepResult {
+export function updateCompensation(cfg: CompensationConfig, st: CompensationState, ctx: StepContext, connectedTanks: { cfg: InternalTankConfig; st: InternalTankState }[] = []): InternalStepResult {
   const dt = ctx.dt;
   const hyd = ctx.hydraulicFactor > 0;
   const zConn = ctx.depthOf(cfg.seaConnection);
@@ -173,7 +175,48 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
   st.pump.dp = dpOut;
   st.pump.power = pumpPower(cfg.pump, st.pump.speed, st.qOut, dpOut);
   if (st.dosing && st.dosing.active && st.dosing.phase !== 'alinhando') st.dosing.moved += Math.abs(mIn - mOut);
-  return { seaIn: mIn, seaOut: mOut, strokes, power: st.pump.power };
+  // Resolve o caminho pela VDC e pela bomba antes de movimentar qualquer massa.
+  const tr = st.transfer;
+  let transferPower = 0;
+  if (cfg.transfer && tr) {
+    // Recupera comandos de centro fechado salvos na versão anterior com VDC 4/3.
+    // A 4/2 só admite os dois fins de curso; retomar um arquivo não parte a bomba.
+    if (tr.direction.cmd !== 0 && tr.direction.cmd !== 1) {
+      tr.direction.cmd = tr.direction.pos > 0.5 ? 1 : 0;
+      tr.pump.cmd = false;
+      tr.valveA.cmd = tr.valveB.cmd = 0;
+    }
+    strokes += updateValve(cfg.transfer.isolationValve, tr.valveA, dt, hyd);
+    strokes += updateValve(cfg.transfer.isolationValve, tr.valveB, dt, hyd);
+    strokes += updateValve(cfg.transfer.directionValve, tr.direction, dt, hyd);
+    updatePumpSpeed(cfg.transfer.pump, tr.pump, dt, ctx.busPowered);
+    const endpoints = [...cfg.tanks.map(t => ({ cfg: t, st: st.tanks[t.id] })), ...connectedTanks];
+    const circuit = buildCompensationCircuit(st, endpoints.map(t => t.cfg.id));
+    const a = endpoints.find(t => t.cfg.id === circuit.route?.source);
+    const b = endpoints.find(t => t.cfg.id === circuit.route?.destination);
+    tr.pump.deadhead = tr.pump.speed > 0.05 && (!circuit.route || !!b && b.st.mass >= tankCapacityMass(b.cfg));
+    tr.pump.noSuction = tr.pump.speed > 0.05 && !!a && a.st.mass <= 0.5;
+    let q = 0;
+    let head = 0;
+    if (a && b && circuit.route) {
+      head = RHO_NOMINAL * ctx.env.cfg.gravity * (levelDepth(a.cfg, a.st, ctx) - topDepth(b.cfg, ctx));
+      if (tr.pump.speed > 0 && !tr.pump.deadhead && !tr.pump.noSuction) {
+        q = pumpFlowWithLine(cfg.transfer.pump, tr.pump.speed, head, cfg.transfer.lineLoss) * Math.min(1, Math.min(tr.valveA.pos, tr.valveB.pos) / 0.3);
+        const m = Math.max(0, Math.min(q * RHO_NOMINAL * dt, a.st.mass, tankCapacityMass(b.cfg) - b.st.mass));
+        a.st.mass -= m;
+        b.st.mass += m;
+        q = m / (RHO_NOMINAL * dt);
+        a.st.flow = (a.st.flow ?? 0) - q;
+        b.st.flow = (b.st.flow ?? 0) + q;
+      }
+    }
+    tr.flow = q === 0 ? 0 : circuit.route?.source === tr.source ? q : -q;
+    tr.pump.flow = q;
+    tr.pump.dp = Math.max(0, head) + cfg.transfer.lineLoss * (q / cfg.transfer.pump.ratedFlow) ** 2;
+    tr.pump.power = pumpPower(cfg.transfer.pump, tr.pump.speed, q, tr.pump.dp);
+    transferPower = tr.pump.power;
+  }
+  return { seaIn: mIn, seaOut: mOut, strokes, power: st.pump.power + transferPower };
 }
 
 // ------------------------------------------------------------------ transferência
@@ -219,7 +262,7 @@ function runTransferDosing(cfg: TransferSystemConfig, st: TransferState, ctx: St
   }
 }
 
-export function updateTransfer(cfg: TransferSystemConfig, st: TransferState, ctx: StepContext): InternalStepResult {
+export function updateTransfer(cfg: TransferSystemConfig, st: TransferState, ctx: StepContext, flowEnabled = true): InternalStepResult {
   const dt = ctx.dt;
   const hyd = ctx.hydraulicFactor > 0;
   runTransferDosing(cfg, st, ctx);
@@ -237,9 +280,9 @@ export function updateTransfer(cfg: TransferSystemConfig, st: TransferState, ctx
   const g = ctx.env.cfg.gravity;
   const head = RHO_NOMINAL * g * (levelDepth(src.c, src.s, ctx) - topDepth(dst.c, ctx));
   let q = 0;
-  st.pump.deadhead = st.pump.speed > 0.05 && (open < 0.02 || (!aToB && !bToA));
+  st.pump.deadhead = st.pump.speed > 0.05 && (!flowEnabled || open < 0.02 || (!aToB && !bToA) || dst.s.mass >= tankCapacityMass(dst.c));
   st.pump.noSuction = st.pump.speed > 0.05 && src.s.mass <= 0.5;
-  if (st.pump.speed > 0 && !st.pump.deadhead && !st.pump.noSuction) {
+  if (flowEnabled && (aToB || bToA) && st.pump.speed > 0 && !st.pump.deadhead && !st.pump.noSuction) {
     q = pumpFlowWithLine(cfg.pump, st.pump.speed, Math.max(-cfg.pump.shutoffPressure * 0.2, head), cfg.lineLoss) * Math.min(1, open / 0.3);
     const maxM = Math.min(src.s.mass, tankCapacityMass(dst.c) - dst.s.mass);
     const m = Math.max(0, Math.min(q * RHO_NOMINAL * dt, maxM));

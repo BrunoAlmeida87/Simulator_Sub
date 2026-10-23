@@ -80,6 +80,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
     ballast,
     hpAir: { banks, compressorCmd: false, compressorRunning: false, manifoldPressure: v.hpAir.banks[0].initialPressure },
     compensation: {
+      transfer: v.compensation.transfer ? { source: v.heel.tankA.id, destination: v.heel.tankB.id, valveA: newValve(), valveB: newValve(), direction: newValve(), pump: newPump(), flow: 0, dosing: null } : undefined,
       tanks: compTanks,
       tankValves,
       inlet: newValve(),

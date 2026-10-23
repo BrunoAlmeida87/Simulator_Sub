@@ -37,6 +37,7 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 |---|---|---|---|
 | TLP-1 BB / BE | 58 m³ cada | (28,0; ∓1,35; 0) | suspiro 350 cm², embornais 0,6 m², sopro 3 cm² |
 | TLP-2 BB / BE | 46 m³ cada | (−23,5; ∓1,15; 0) | suspiro 280 cm², embornais 0,5 m², sopro 2,5 cm² |
+| TC-0 central de banda | 4 m³; altura 1,3 m; inicialmente vazio | (2,0; 0; 1,0), entre BB e BE | |
 | TC-1 / TC-2 (compensação) | 12 m³ cada | (6,0 / −1,0; 0; 2,3) | |
 | TT-AV / TT-AR (trim) | 8 m³ cada | (21,5 / −13,0; 0; 2,2) | braço de 34,5 m |
 | TB-BB / TB-BE (banda, fictícios) | 4 m³ cada | (2,0; ∓2,4; 1,0) | braço de 4,8 m |
@@ -107,3 +108,7 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Fundo | 420 m na origem; declividades de +6 m/km (N) e −3 m/km (E); relevo de ±25 m |
 | Declinação magnética | −21,5° |
 | Passo de integração | 0,02 s (50 Hz) |
+
+### Transferência de banda pelo circuito de compensação
+
+BTC: 10 L/s a Δp = 0, shutoff 5 bar, eficiência 0,60, potência em vazio 2 kW, partida 3 s. VDC 4/2 (quatro vias, duas posições) e isolamentos: curso 3 s, atuação hidráulica. Posições reais da VDC: 0 direta (A→T/P→B) e 1 inversa (B→T/P→A). Não há posição central estável; o fluxo é interrompido durante a comutação. T = sucção e P = descarga da BTC. Perda da linha: 0,6 bar na vazão nominal. Rotas: BB ↔ BE, BB ↔ TC-0 central, BE ↔ TC-0 central. O TC-0 está no mesmo plano longitudinal e vertical dos tanques de banda, com y = 0. O nível de origem, a cota de descarga e a atitude do casco determinam a carga estática.

@@ -12,6 +12,7 @@ import { solveNeutralCompensation } from '../../sim/equilibrium';
 import { R_AIR } from '../../sim/core/context';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtMass } from '../format';
+import { CompensationCircuitPanel } from '../components/CompensationCircuitPanel';
 import { QuickBallast } from '../components/Controls';
 
 const VS = (st: { cmd: number; pos: number; stuck: boolean }) => {
@@ -48,7 +49,7 @@ export function Diagram({ e }: { e: SimulationEngine }) {
   const seaY = 268;
   const wl = Y(-s.body.pos.z);
   const manY = Y(R) + 26;
-  const tcPos = comp.tanks.map((t) => X(t.center.x));
+  const tcPos = comp.tanks.map((t, i) => 410 + (t.id === 'TC1' ? 2 : t.id === 'TC0' ? 1 : i === 1 ? 0 : i) * 80);
   const conX = X(comp.seaConnection.x);
   return (
     <svg viewBox="0 -30 860 330" className="svgbox">
@@ -143,7 +144,7 @@ export function Diagram({ e }: { e: SimulationEngine }) {
         return (
           <g key={t.id}>
             <TankGlyph x={x0} y={y0} w={w} h={h} fill={tankVolume(st) / t.capacity} label={t.id} sub={`${tankVolume(st).toFixed(2)} m³`} color="#2a7fd4" inspect={'comp:' + t.id} />
-            <Pipe d={`M${tcPos[i]},${y0 + h} L${tcPos[i]},${manY}`} flow={s.compensation.tankValves[comp.tankValves[i].id].pos > 0.02 ? s.compensation.qIn - s.compensation.qOut : 0} width={2.5} />
+            <Pipe d={`M${tcPos[i]},${y0 + h} L${tcPos[i]},${manY}`} flow={(st.flow ?? 0) + (s.compensation.transfer ? (t.id === s.compensation.transfer.source ? s.compensation.transfer.flow : t.id === s.compensation.transfer.destination ? -s.compensation.transfer.flow : 0) : 0)} width={2.5} />
             <ValveGlyph x={tcPos[i]} y={y0 + h + 12} st={s.compensation.tankValves[comp.tankValves[i].id]} vertical size={5} label={comp.tankValves[i].id} onToggle={() => cmd({ type: 'valve', system: 'compensation', valve: comp.tankValves[i].id, open: s.compensation.tankValves[comp.tankValves[i].id].cmd < 0.5 })} inspect={'comp:' + t.id} />
           </g>
         );
@@ -188,6 +189,7 @@ export function BallastScreen() {
         <Diagram e={e} />
         <QuickBallast e={e} />
       </Panel>
+      <CompensationCircuitPanel e={e} />
       <Panel title="Tanques de lastro principal (TLP)" className="span2" inspect="mbt">
         <div className="scroll">
           <table className="t">

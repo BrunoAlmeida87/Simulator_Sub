@@ -166,3 +166,13 @@ Na tela **Segurança**, injete:
 ## Modo engenharia
 
 Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O painel mostra função, variáveis ao vivo (MED/CALC/CMD/VERD), equações, consequências previstas, gráfico antes × depois e a decomposição de forças e momentos (por que sobe, por que muda o pitch, por que guina, por que aderna).
+
+### Transferência entre banda BB, central e banda BE
+
+Em **Lastro e compensação** ou **Trim e banda**, use o painel **Compensação e banda — circuito de transferência revisado**. Escolha os tanques A e B e comande **Partir BTC**. A bomba de transferência fecha as conexões de admissão/descarga de mar e aguarda seu fechamento real. Os isolamentos do par selecionado abrem com o tempo de curso hidráulico. A VDC é uma válvula de quatro vias e duas posições (4/2). **Direta · A → B** liga A→T e P→B; **Inversa · B → A** liga B→T e P→A. Não há posição central bloqueada; para parar a transferência, use **Parar BTC**. T conecta a sucção da BTC e P conecta sua descarga. A bomba mantém o sentido de rotação. Durante o curso da válvula o fluxo fica bloqueado. **Parar BTC** desliga a bomba e fecha os isolamentos. Aguarde a parada e o fechamento real dos seletores para mudar o par.
+
+Os três pares BB/BE, BB/TC-0 e BE/TC-0 permitem transferência nos dois sentidos. O tanque central TC-0 fica entre os dois tanques de banda e é reservado à transferência manual; o cálculo de neutralidade e as dosagens automáticas de compensação continuam usando TC-1 e TC-2. A transferência conserva massa a bordo, redistribui o centro de gravidade e produz banda conforme o momento transversal. O motor calcula vazão, pressão e consumo a partir da curva da bomba, níveis, atitude e perdas de carga. Tanque vazio/cheio, falta de energia e falhas de bomba/válvula limitam a operação. O diagrama e os escoamentos 3D usam as vazões calculadas, sem indicar descarga ao mar durante transferência interna.
+
+O circuito existente de banda continua disponível na aba **Trim e banda**. O tanque central e a BTC são preservados ao salvar e sincronizar a simulação entre janelas; arquivos antigos mantêm sua configuração original.
+
+A rede de conexões em `compensationCircuit.ts` é compartilhada pela física, pelo diagrama e pelo 3D. Somente um caminho contínuo pela sucção, pela bomba, pela descarga e pelas portas alinhadas da VDC permite mover água. Cada tanque tem uma via selecionável para cada coletor; as portas não selecionadas ficam isoladas. No esquema, pontos indicam uniões e pontes indicam cruzamentos sem conexão.

@@ -13,6 +13,7 @@
  */
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
+import { buildCompensationCircuit, circuitEdgeFlow, selectorValve } from '../sim/systems/compensationCircuit';
 import { tankVolume } from '../sim/systems/internalTanks';
 import type { ValveState } from '../sim/core/state';
 import { TANK_STYLE, type SceneLayers, type TankCategory } from './layers';
@@ -444,11 +445,52 @@ export class SystemsVis {
       const tankB = b2l(t.center.x, 0.2, t.center.z + t.height / 2 - 0.2);
       this.pipe([vc, b2l(t.center.x, 0.2, zc), tankB], 0x168a52, [t.id, 'compensacao']);
       this.valve(b2l(t.center.x, yc * 0.6, zc), cmp.tankValves[i].name, (en) => en.state.compensation.tankValves[cmp.tankValves[i].id], [t.id, 'compensacao']);
+      const seaFlow = (en: SimulationEngine) => {
+        const tr = en.state.compensation.transfer;
+        const internal = tr ? (tr.source === t.id ? -tr.flow : tr.destination === t.id ? tr.flow : 0) : 0;
+        return (en.state.compensation.tanks[t.id].flow ?? 0) - internal;
+      };
       const toTank = [seaIn, vam, b2l(sc.x, yc, zc), vc, b2l(t.center.x, 0.2, zc), tankB];
-      this.stream(toTank, new THREE.Color(0x9dffc8), [t.id, 'compensacao'], (en) => sq(Math.max(0, en.state.compensation.tanks[t.id].flow ?? 0) / 0.012));
+      this.stream(toTank, new THREE.Color(0x9dffc8), [t.id, 'compensacao'], (en) => sq(Math.max(0, seaFlow(en)) / 0.012));
       const fromTank = [tankB, b2l(t.center.x, 0.2, zc), vc, pumpP, vdm, seaOut];
-      this.stream(fromTank, new THREE.Color(0x9dffc8), [t.id, 'compensacao'], (en) => sq(Math.max(0, -(en.state.compensation.tanks[t.id].flow ?? 0)) / 0.012));
+      this.stream(fromTank, new THREE.Color(0x9dffc8), [t.id, 'compensacao'], (en) => sq(Math.max(0, -seaFlow(en)) / 0.012));
     });
+
+    // Mesmas arestas da física e do 2D; cada tanque usa sua posição transversal real.
+    if (cmp.transfer && this.e0.state.compensation.transfer) {
+      const tanks = [v.heel.tankA, ...cmp.tanks.filter(t => t.id === 'TC0'), v.heel.tankB];
+      const ids = tanks.map(t => t.id);
+      const nodes: Record<string, THREE.Vector3> = {
+        'header:A': b2l(0, 0, 2.1), 'header:B': b2l(5.5, 0, 2.1),
+        'vdc:A': b2l(1.9, -0.35, 2.1), 'vdc:B': b2l(1.9, 0.35, 2.1),
+        'vdc:P': b2l(3.1, -0.35, 2.1), 'vdc:T': b2l(3.1, 0.35, 2.1),
+        'pump:in': b2l(4.5, 0.4, 2.5), 'pump:out': b2l(4.5, -0.4, 2.5),
+      };
+      tanks.forEach(t => { nodes[`tank:${t.id}`] = b2l(t.center.x, t.center.y, t.center.z + t.height / 2 - 0.15); });
+      const circuitOf = (en: SimulationEngine) => buildCompensationCircuit(en.state.compensation, ids);
+      const edges = circuitOf(this.e0).edges;
+      edges.forEach(edge => {
+        let points = [nodes[edge.from], nodes[edge.to]];
+        const tank = tanks.find(t => edge.from === `tank:${t.id}`);
+        if (tank) {
+          const x = edge.to === 'header:A' ? 0 : 5.5;
+          points = [nodes[edge.from], b2l(x, tank.center.y, 1.9), nodes[edge.to]];
+          this.valve(points[0].clone().lerp(points[1], 0.45), `${tank.id} → coletor ${edge.to.slice(-1)}`,
+            en => selectorValve(en.state.compensation.transfer!, tank.id, edge.to === 'header:A' ? 'A' : 'B'), [tank.id, 'compensacao']);
+        }
+        this.pipe(points, edge.id === 'discharge' ? 0xba7635 : 0x168a70, ['compensacao'], 0.07);
+        this.stream(points, new THREE.Color(0x9dffc8), ['compensacao'], en =>
+          sq(circuitEdgeFlow(circuitOf(en), edge.id, en.state.compensation.transfer!.pump.flow) / 0.010));
+      });
+      this.pump(b2l(4.5, 0, 2.5), cmp.transfer.pump.name, en => en.state.compensation.transfer!.pump, ['compensacao']);
+      // Corpo da direcional com as quatro portas conectadas, em vez de uma esfera solta.
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.45, 1.6), new THREE.MeshBasicMaterial({ color: 0x8ee9cc, depthTest: false, transparent: true, opacity: 0.85, fog: false }));
+      body.position.copy(b2l(2.5, 0, 2.1));
+      body.renderOrder = 13;
+      body.userData.pick = { kind: 'valve', id: 'VDC 4/2', sys: 'compensacao' };
+      this.pipeGroup.add(body);
+      this.valves.push({ mesh: body, get: en => en.state.compensation.transfer!.direction, name: 'VDC 4/2 · A/B/P/T', owners: ['compensacao'] });
+    }
 
     // --- trim e banda: tanque A ↔ bomba ↔ tanque B (sentido pelo seletor)
     const transfer = (sys: 'trim' | 'heel', ya: number, za: number, pumpAt: V3, color: number, flowColor: number, qMax: number) => {

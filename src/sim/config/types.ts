@@ -159,6 +159,7 @@ export interface HpAirConfig {
 }
 
 export interface InternalTankConfig {
+  automaticCompensation?: boolean; // false: tanque reservado à transferência manual
   id: string;
   name: string;
   capacity: number; // m³
@@ -169,6 +170,7 @@ export interface InternalTankConfig {
 
 export interface CompensationConfig {
   tanks: InternalTankConfig[];
+  transfer?: { pump: PumpConfig; directionValve: ValveConfig; isolationValve: ValveConfig; lineLoss: number };
   tankValves: ValveConfig[]; // uma por tanque (mesma ordem)
   inletValve: ValveConfig;
   dischargeValve: ValveConfig;

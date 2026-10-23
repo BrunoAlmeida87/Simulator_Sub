@@ -216,8 +216,10 @@ export function defaultVessel(): VesselConfig {
       tanks: [
         { id: 'TC1', name: 'TC-1 Compensação vante', capacity: 12, height: 1.4, center: { x: 6.0, y: 0, z: 2.3 }, initialVolume: 6 },
         { id: 'TC2', name: 'TC-2 Compensação ré', capacity: 12, height: 1.4, center: { x: -1.0, y: 0, z: 2.3 }, initialVolume: 6 },
+        { id: 'TC0', automaticCompensation: false, name: 'TC-0 Central de banda', capacity: 4, height: 1.3, center: { x: 2.0, y: 0, z: 1.0 }, initialVolume: 0 },
       ],
-      tankValves: [valve('VC1', 'Válvula TC-1', 4), valve('VC2', 'Válvula TC-2', 4)],
+      transfer: { pump: pump('BTC', 'Bomba de transferência de compensação (BTC)', 0.010, 5, 0.6, 2e3, 3), directionValve: valve('VDC', 'Válvula direcional 4/2 de compensação (VDC)', 3), isolationValve: valve('VIC', 'Isolamento de transferência', 3), lineLoss: 0.6 * BAR },
+      tankValves: [valve('VC1', 'Válvula TC-1', 4), valve('VC2', 'Válvula TC-2', 4), valve('VC0', 'Válvula TC-0', 4)],
       inletValve: valve('VAM', 'Admissão de mar (V-AM)', 5),
       dischargeValve: valve('VDM', 'Descarga ao mar (V-DM)', 5),
       inletArea: 2.5e-3,

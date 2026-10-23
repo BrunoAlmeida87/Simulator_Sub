@@ -63,7 +63,11 @@ export interface DosingState {
   message: string;
 }
 
+/** VDC da compensação: VDC 4/2: posição 0 = direta, 1 = inversa; valores intermediários são trânsito. */
+export type CompensationTransferState = Omit<TransferState, 'tankA' | 'tankB'> & { source: string; destination: string };
+
 export interface CompensationState {
+  transfer?: CompensationTransferState;
   tanks: Record<string, InternalTankState>;
   tankValves: Record<string, ValveState>;
   inlet: ValveState;

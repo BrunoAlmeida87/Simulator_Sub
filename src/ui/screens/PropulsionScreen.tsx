@@ -12,6 +12,7 @@ import { qToMat3 } from '../../sim/core/math';
 
 const LOAD_NAMES: Record<string, string> = {
   MEP: 'Motor elétrico principal',
+  BTC: 'Bomba de transferência de compensação',
   BC: 'Bomba de compensação',
   BT: 'Bomba de trim',
   BB: 'Bomba de banda',
