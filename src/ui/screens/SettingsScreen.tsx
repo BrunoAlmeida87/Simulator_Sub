@@ -34,8 +34,7 @@ import { useScenarioOptions } from './ScenarioScreen';
 import { demo } from '../demo';
 import { maneuver } from '../maneuvers';
 import { tours } from '../tours';
-import { toKnots } from '../../sim/units';
-import { fmt, fmtTime } from '../format';
+import { fmt, fmtTime, fmtSpeed } from '../format';
 
 // ------------------------------------------------------------ tipo de efeito
 type KindId = 'visual' | 'agora' | 'reiniciar';
@@ -90,7 +89,7 @@ function SessionPanel() {
       <div className="sess-now">
         <span className={`badge ${runner.running ? 'ok' : 'warn'}`}>{runner.running ? 'EM EXECUÇÃO' : 'PAUSADA'}</span>
         <span className="mono">
-          {scenarioById(s.scenarioId).name} · t = {fmtTime(s.t)} · {fmt(e.outputs.depthKeel, 1)} m · {fmt(toKnots(s.body.vel.x), 1)} nós · {fmt(e.outputs.euler.heading, 0)}° · bateria {fmt(s.electrical.soc * 100, 0)} %
+          {scenarioById(s.scenarioId).name} · t = {fmtTime(s.t)} · {fmt(e.outputs.depthKeel, 1)} m · {fmtSpeed(s.body.vel.x, 1)} · {fmt(e.outputs.euler.heading, 0)}° · bateria {fmt(s.electrical.soc * 100, 0)} %
         </span>
       </div>
       <div className="row mt8">

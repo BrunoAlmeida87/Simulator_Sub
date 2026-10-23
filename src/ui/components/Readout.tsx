@@ -1,5 +1,5 @@
 import { useUi, useInspectable } from '../uiContext';
-import { fmt } from '../format';
+import { fmt, fmtKnots } from '../format';
 
 export type Kind = 'MED' | 'CALC' | 'CMD' | 'VERD';
 
@@ -31,20 +31,21 @@ export function Readout(props: {
 }) {
   const ui = useUi();
   const insp = useInspectable(props.inspect ?? '');
-  const v = typeof props.value === 'number' ? fmt(props.value, props.digits ?? 1) : props.value;
+  const speed = props.unit === 'nós';
+  const v = typeof props.value === 'number' ? (speed ? fmtKnots(props.value, props.digits ?? 1) : fmt(props.value, props.digits ?? 1)) : props.value;
   return (
     <div className={`ro ${props.status ?? ''}`} {...(props.inspect ? insp : {})} title={props.title}>
       <div className="lbl">
         <span>{props.label}</span>
         <KindTag kind={props.kind} />
       </div>
-      <div className="val">
+      <div className={`val ${speed ? 'speed-value' : ''}`}>
         {v}
-        {props.unit && <small>{props.unit}</small>}
+        {props.unit && !speed && <small>{props.unit}</small>}
       </div>
       {ui.eng && props.truth !== undefined && (
         <div className="truth" title={KIND_TITLE.VERD}>
-          real: {fmt(props.truth, (props.digits ?? 1) + 1)} {props.unit}
+          real: {speed ? fmtKnots(props.truth, (props.digits ?? 1) + 1) : `${fmt(props.truth, (props.digits ?? 1) + 1)} ${props.unit ?? ''}`}
         </div>
       )}
     </div>

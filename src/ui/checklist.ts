@@ -22,7 +22,7 @@ export interface ProcStep {
 const tanksFill = (e: SimulationEngine) => e.vessel.ballast.tanks.reduce((a, t) => a + e.state.ballast[t.id].water, 0) / e.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
 
 export const PROCEDURE: ProcStep[] = [
-  { title: 'Preparar: ordenar seguimento (≥ 4 nós)', hint: 'Telégrafo AV MEIA (75 rpm). Os lemes precisam de escoamento para atuar.', ok: (e) => e.state.body.vel.x > 4 * KNOT },
+  { title: 'Preparar: ordenar seguimento ≥ 4 nós (7.4 km/h)', hint: 'Telégrafo AV MEIA (75 rpm). Os lemes precisam de escoamento para atuar.', ok: (e) => e.state.body.vel.x > 4 * KNOT },
   { title: 'Abrir os suspiros dos TLP', hint: 'Lastro → "Abrir suspiros". O ar escapa e a água entra pelos embornais.', ok: (e) => e.vessel.ballast.tanks.some((t) => e.state.ballast[t.id].vent.pos > 0.9) || tanksFill(e) > 0.95 },
   { title: 'TLP alagados (> 95 %)', hint: 'A reserva de flutuabilidade desaparece; o submarino fica próximo do neutro.', ok: (e) => tanksFill(e) > 0.95 },
   { title: 'Descer com os lemes abaixo de 20 m', hint: 'Lemes de vante a DESCER e de ré levemente a DESCER (ou piloto de profundidade).', ok: (e) => e.outputs.depthKeel > 20 },

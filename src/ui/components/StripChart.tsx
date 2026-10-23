@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { HistoryRecorder } from '../../sim/history';
+import { fmtKnots } from '../format';
 import { CHANNELS } from '../../sim/history';
 
 type Listener = () => void;
@@ -256,7 +257,7 @@ export function StripChart(props: {
               <span key={s.id}>
                 <i style={{ background: s.color }} />
                 {s.axis === 'right' ? '▸ ' : ''}
-                {c?.label}: <b className="mono" style={{ color: '#d8e4f0' }}>{Number.isFinite(v) ? v.toFixed(Math.abs(v) >= 100 ? 0 : 2) : '—'}</b> {c?.unit}
+                {c?.label}: <b className="mono" style={{ color: '#d8e4f0' }}>{c?.unit === 'nós' ? fmtKnots(v, 2) : Number.isFinite(v) ? v.toFixed(Math.abs(v) >= 100 ? 0 : 2) : '—'}</b> {c?.unit !== 'nós' && c?.unit}
               </span>
             );
           })}

@@ -9,8 +9,7 @@
  */
 import type { SimulationEngine } from '../../sim/core/engine';
 import { runner } from '../store';
-import { toKnots } from '../../sim/units';
-import { fmt } from '../format';
+import { fmt, fmtSpeed } from '../format';
 import { WideDiagram } from './WideDiagram';
 
 const kw = (w: number) => (Math.abs(w) >= 1e6 ? `${fmt(w / 1e6, 2)} MW` : `${fmt(w / 1000, 0)} kW`);
@@ -151,7 +150,7 @@ export function PropulsionDiagram({ e }: { e: SimulationEngine }) {
         </g>
         {/* rodapé de valores */}
         <text x={20} y={288} className="pd-s">
-          {status} · velocidade {fmt(toKnots(s.body.vel.x), 1)} nós · torque do hélice {fmt(p.propTorque / 1000, 0)} kN·m · J = {fmt(p.advance, 2)} · rendimento elétrico→eixo{' '}
+          {status} · velocidade {fmtSpeed(s.body.vel.x, 1)} · torque do hélice {fmt(p.propTorque / 1000, 0)} kN·m · J = {fmt(p.advance, 2)} · rendimento elétrico→eixo{' '}
           {Number.isFinite(eta) ? `${fmt(eta * 100, 0)} %` : '—'}
         </text>
         <defs>

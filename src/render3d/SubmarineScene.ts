@@ -7,6 +7,7 @@
  * Mapeamento NED → Three.js (Y para cima): X₃ = Leste, Y₃ = −profundidade,
  * Z₃ = −Norte. Origem flutuante na posição horizontal do submarino.
  */
+import { fmtSpeed } from '../ui/format';
 import { dieselExhaust, disperserOutlets } from '../sim/systems/exhaust';
 import { WindFx } from './WindFx';
 import { RioLandmarks } from './RioLandmarks';
@@ -1670,7 +1671,7 @@ export class SubmarineScene {
       const ps = proj(new THREE.Vector3(0, 0, 0));
       lbl.push({ id: 'surf', text: 'superfície', ...ps });
       const psub = proj(subPos.clone().add(new THREE.Vector3(0, 12, 0)));
-      lbl.push({ id: 'sub', text: `${e.outputs.depthKeel.toFixed(1)} m · ${(e.state.body.vel.x / 0.5144).toFixed(1)} nós`, ...psub });
+      lbl.push({ id: 'sub', text: `${e.outputs.depthKeel.toFixed(1)} m · ${fmtSpeed(e.state.body.vel.x, 1)}`, ...psub });
       const pb = proj(new THREE.Vector3(0, -bottom, 0));
       lbl.push({ id: 'bot', text: `fundo ${bottom.toFixed(0)} m (altitude ${e.outputs.altitude.toFixed(0)} m)`, ...pb });
     }

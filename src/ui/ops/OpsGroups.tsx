@@ -20,8 +20,7 @@ import type { SensorFailMode, ValveState } from '../../sim/core/state';
 import { visibleAlarms, PRIORITY_LABEL } from '../../sim/systems/alarms';
 import { SEA_STATES } from '../../sim/environment/waves';
 import { SCENARIOS, buildScenario } from '../../sim/scenarios';
-import { toKnots } from '../../sim/units';
-import { fmt } from '../format';
+import { fmt, fmtSpeed } from '../format';
 import { baseConfig } from '../store';
 import { useUi } from '../uiContext';
 import { opsBus, ALARM_GROUP, type GroupId } from './opsBus';
@@ -590,7 +589,7 @@ export const GROUPS: Record<GroupId, GroupDef> = {
   nav: {
     summary: (e) => {
       const ap = e.state.autopilot;
-      return `${fmt(toKnots(e.state.body.vel.x), 1)} nós · ${fmt(e.outputs.rpm, 0)} rpm · prof. ${ap.depthMode === 'AUTO' ? `AUTO ${fmt(ap.depthSet, 0)} m` : 'MAN'} · rumo ${ap.headingMode === 'AUTO' ? `AUTO ${fmt(ap.headingSet, 0)}°` : 'MAN'}`;
+      return `${fmtSpeed(e.state.body.vel.x, 1)} · ${fmt(e.outputs.rpm, 0)} rpm · prof. ${ap.depthMode === 'AUTO' ? `AUTO ${fmt(ap.depthSet, 0)} m` : 'MAN'} · rumo ${ap.headingMode === 'AUTO' ? `AUTO ${fmt(ap.headingSet, 0)}°` : 'MAN'}`;
     },
     Body: NavBody,
   },

@@ -21,8 +21,7 @@ import { Environment } from '../../sim/environment/environment';
 import { coastMasks } from '../../sim/environment/coast';
 import { shipyardOutlines } from '../../sim/environment/shipyard';
 import { bearingRange, contactsAt, contactsLocal, rioContactsAt, cpa, DEFAULT_ORIGIN, EBN_ITAGUAI, EXERCISE_AREA, fmtLat, fmtLon, latLonToNed, NM, nedToLatLon, OFFSHORE_ORIGIN, type LatLon } from '../../sim/geo';
-import { toKnots } from '../../sim/units';
-import { fmt, fmtTime } from '../format';
+import { fmt, fmtTime, fmtSpeed } from '../format';
 import { useIdentity } from '../appearance';
 
 type Mode = 'nav' | 'rota' | 'medir' | 'origem';
@@ -266,7 +265,7 @@ export function TacticalMapScreen() {
       }
     // próprio navio
     L.marker(ll(pos), { icon: ownIcon(), zIndexOffset: 1000 })
-      .bindTooltip(`${id.name} · ${o.depthKeel.toFixed(0)} m · ${toKnots(st.body.vel.x).toFixed(1)} nós · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
+      .bindTooltip(`${id.name} · ${o.depthKeel.toFixed(0)} m · ${fmtSpeed(st.body.vel.x, 1)} · ${o.euler.heading.toFixed(0)}°`, { permanent: true, direction: 'right', className: 'tm-tip own' })
       .addTo(g);
     // contatos fixos e tráfego adicional (os mesmos navios da cena 3D)
     const all = [
@@ -371,13 +370,13 @@ export function TacticalMapScreen() {
               <tr>
                 <td>Rumo / velocidade</td>
                 <td className="mono">
-                  {fmt(o.euler.heading, 0)}° · {fmt(toKnots(s.body.vel.x), 1)} nós
+                  {fmt(o.euler.heading, 0)}° · {fmtSpeed(s.body.vel.x, 1)}
                 </td>
               </tr>
               <tr>
                 <td>Rumo / vel. no fundo</td>
                 <td className="mono">
-                  {fmt(o.courseOverGround, 0)}° · {fmt(toKnots(sog), 1)} nós
+                  {fmt(o.courseOverGround, 0)}° · {fmtSpeed(sog, 1)}
                 </td>
               </tr>
               <tr>
@@ -435,7 +434,7 @@ export function TacticalMapScreen() {
                       <td className="mono">{fmt(br.brg, 0)}°</td>
                       <td className="mono">{fmt(br.rng / NM, 1)} mn</td>
                       <td className="mono">
-                        {fmt(c.course, 0)}° · {fmt(toKnots(c.speed), 0)} nós
+                        {fmt(c.course, 0)}° · {fmtSpeed(c.speed, 0)}
                       </td>
                       <td className={`mono ${danger ? 'tm-danger' : ''}`}>
                         {fmt(cp.dcpa / NM, 1)} mn · {cp.tcpa > 0 ? fmtTime(cp.tcpa) : 'afastando'}

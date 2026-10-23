@@ -7,6 +7,7 @@
  *
  * Apenas visual: os navios não colidem nem interagem com a física.
  */
+import { fmtSpeed } from '../ui/format';
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import { contactsLocal, NM, type Contact, type LatLon } from '../sim/geo';
@@ -285,7 +286,7 @@ export class ShipsLayer {
         labels.push({
           id: 'ship' + c.id,
           text: `${c.id} · ${c.name}`,
-          sub: `${(dist / NM).toFixed(1)} mn · rumo ${c.course.toFixed(0)}° · ${(c.speed / 0.5144).toFixed(0)} nós`,
+          sub: `${(dist / NM).toFixed(1)} mn · rumo ${c.course.toFixed(0)}° · ${fmtSpeed(c.speed, 0)}`,
           color: c.kind === 'patrulha' ? '#49a7ff' : '#4cd964',
           small: true,
           prio: 2,

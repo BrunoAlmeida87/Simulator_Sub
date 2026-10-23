@@ -23,8 +23,7 @@ import { maneuver } from '../maneuvers';
 import { verticalBalance, toTf } from '../../sim/forceVectors';
 import { tankVolume } from '../../sim/systems/internalTanks';
 import type { SimulationEngine } from '../../sim/core/engine';
-import { fmt, fmtTime } from '../format';
-import { toKnots } from '../../sim/units';
+import { fmt, fmtTime, fmtSpeed, fmtKnots } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { useUi } from '../uiContext';
 import type { LayerKey } from '../components/LayerPanel';
@@ -101,7 +100,7 @@ function ForceHud({ e, gain }: { e: SimulationEngine; gain: string }) {
         V = {fmt(vb.displacedM3, 1)} m³ · {fmt(vb.immersedFraction * 100, 1)} % imerso · m = {fmt(vb.massKg / 1000, 1)} t
       </div>
       <div className="subtle">
-        {fmt(e.outputs.depthKeel, 1)} m · {e.outputs.verticalSpeed >= 0 ? 'desce' : 'sobe'} {fmt(Math.abs(e.outputs.verticalSpeed), 2)} m/s · {fmt(toKnots(e.state.body.vel.x), 1)} nós · θ {fmt(e.outputs.euler.pitch, 1)}°
+        {fmt(e.outputs.depthKeel, 1)} m · {e.outputs.verticalSpeed >= 0 ? 'desce' : 'sobe'} {fmt(Math.abs(e.outputs.verticalSpeed), 2)} m/s · {fmtSpeed(e.state.body.vel.x, 1)} · θ {fmt(e.outputs.euler.pitch, 1)}°
       </div>
       <div className="subtle">Escala: peso inicial = 14 m · resultante: {gain}</div>
     </div>
@@ -192,12 +191,12 @@ function Compare({ e }: { e: SimulationEngine }) {
             <tr key={m.id} className={sig ? 'chg' : ''}>
               <td>{m.label}</td>
               <td className="mono">
-                {fmt(b.metrics[m.id], m.dec)} {m.unit}
+                {m.unit === 'nós' ? fmtKnots(b.metrics[m.id], m.dec) : `${fmt(b.metrics[m.id], m.dec)} ${m.unit}`}
               </td>
               <td className="mono">
-                {fmt(now[m.id], m.dec)} {m.unit}
+                {m.unit === 'nós' ? fmtKnots(now[m.id], m.dec) : `${fmt(now[m.id], m.dec)} ${m.unit}`}
               </td>
-              <td className="mono">{sig ? `${d > 0 ? '+' : ''}${fmt(d, m.dec)}` : '—'}</td>
+              <td className="mono">{sig ? `${d > 0 ? '+' : ''}${m.unit === 'nós' ? fmtKnots(d, m.dec) : fmt(d, m.dec)}` : '—'}</td>
             </tr>
           );
         })}

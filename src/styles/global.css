@@ -1122,3 +1122,8 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .cargo-name:hover span { color: var(--accent); }
 .cargo-table td.nowrap { white-space: nowrap; }
 @media (max-width: 760px) { .cargo-where { grid-template-columns: 1fr; } }
+
+/* As duas unidades de velocidade cabem também nos painéis estreitos. */
+.ro .val.speed-value, .ops-tile b.speed-value { font-size: 13px; white-space: normal; }
+
+.ops-tile b .speed-equivalent { display: inline-block; font: inherit; color: inherit; white-space: nowrap; overflow: visible; }

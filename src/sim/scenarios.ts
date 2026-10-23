@@ -43,7 +43,7 @@ export const SCENARIOS: ScenarioDef[] = [
     name: 'Superfície — pronto para imergir',
     description: 'Submarino flutuando com os tanques de lastro principal (TLP) soprados, suspiros fechados, compensação pré-calculada para ~40 m. Ponto de partida da sequência completa de mergulho.',
     objectives: [
-      'Ordenar velocidade (ex.: 6 nós) e abrir os suspiros dos TLP',
+      'Ordenar velocidade (ex.: 6 nós (11.1 km/h)) e abrir os suspiros dos TLP',
       'Acompanhar o alagamento e a perda de flutuabilidade de reserva',
       'Usar lemes de vante/ré para estabelecer a profundidade e fechar os suspiros',
       'Ajustar compensação e trim até o equilíbrio hidrostático',
@@ -54,7 +54,7 @@ export const SCENARIOS: ScenarioDef[] = [
   },
   {
     id: 'superficie_avante',
-    name: 'Superfície — navegando a 8 nós',
+    name: 'Superfície — navegando a 8 nós (14.8 km/h)',
     description: 'Navegação na superfície com propulsão elétrica; resistência de ondas aumentada próxima à superfície.',
     objectives: ['Observar a velocidade máxima reduzida na superfície', 'Executar o mergulho em movimento'],
     pose: { depth: 2.2, heading: 45, speed: 8 * KNOT },
@@ -63,7 +63,7 @@ export const SCENARIOS: ScenarioDef[] = [
   },
   {
     id: 'submerso_50',
-    name: 'Submerso equilibrado a 50 m — 6 nós',
+    name: 'Submerso equilibrado a 50 m — 6 nós (11.1 km/h)',
     description: 'Condição de cruzeiro submersa com flutuabilidade neutra, trim nulo e banda nula.',
     objectives: ['Alterar rumo com o leme de direção', 'Testar trim por pesos × atitude por lemes', 'Ensaiar o piloto automático'],
     pose: { depth: 46.9, heading: 0, speed: 6 * KNOT },
@@ -147,7 +147,7 @@ export const SCENARIOS: ScenarioDef[] = [
   {
     id: 'alagamento',
     name: 'Emergência: alagamento a 120 m',
-    description: 'Submerso a 120 m a 6 nós. Rombo fictício de 20 cm² na praça de máquinas. Avaliar a taxa de entrada de água e executar a subida de emergência (sopro dos TLP, lemes a subir, velocidade).',
+    description: 'Submerso a 120 m a 6 nós (11.1 km/h). Rombo fictício de 20 cm² na praça de máquinas. Avaliar a taxa de entrada de água e executar a subida de emergência (sopro dos TLP, lemes a subir, velocidade).',
     objectives: ['Identificar o alarme de alagamento', 'Executar sopro de emergência e lemes a subir', 'Atingir a superfície e observar a redução da vazão com a profundidade'],
     pose: { depth: 116.9, heading: 300, speed: 6 * KNOT },
     submerged: true,
@@ -186,7 +186,7 @@ SCENARIOS.push(
     id: 'restinga',
     name: 'Aproximação da Restinga da Marambaia — fundo subindo',
     description:
-      'Submerso a ~40 m, 5 nós, rumo norte, ~2,5 km ao sul da Restinga da Marambaia. A faixa costeira de 3 km faz o fundo subir da profundidade de mar aberto até a orla: o ecobatímetro e os alarmes de altitude avisam antes do encalhe.',
+      'Submerso a ~40 m, 5 nós (9.3 km/h), rumo norte, ~2,5 km ao sul da Restinga da Marambaia. A faixa costeira de 3 km faz o fundo subir da profundidade de mar aberto até a orla: o ecobatímetro e os alarmes de altitude avisam antes do encalhe.',
     objectives: ['Acompanhar o ecobatímetro e a altitude', 'Reagir aos alarmes de proximidade do fundo (guinar ou subir)', 'Comparar o mapa tático, a costa no 3D e a profundidade do fundo'],
     env: (c) => {
       c.environment.geo = { origin: { lat: -23.087, lon: -43.78 }, coast: true, shelfWidth: 3000 };
@@ -224,7 +224,7 @@ SCENARIOS.push(
     id: 'orla_copacabana',
     name: 'Orla do Rio — cota periscópica em frente a Copacabana',
     description:
-      'Submerso na cota periscópica (~15 m de quilha), 4 nós, rumo oeste, cerca de 2 km ao largo de Copacabana. Pelo periscópio: o Leme, Copacabana, Ipanema, o Morro Dois Irmãos e a Pedra da Gávea; ao norte, o Corcovado com o Cristo.',
+      'Submerso na cota periscópica (~15 m de quilha), 4 nós (7.4 km/h), rumo oeste, cerca de 2 km ao largo de Copacabana. Pelo periscópio: o Leme, Copacabana, Ipanema, o Morro Dois Irmãos e a Pedra da Gávea; ao norte, o Corcovado com o Cristo.',
     objectives: ['Içar o periscópio e reconhecer a orla do Leme ao Pontal', 'Manter a cota periscópica com o mar da orla', 'Acompanhar o fundo subindo ao se aproximar da praia'],
     env: (c) => {
       c.environment.geo = { origin: { lat: -22.99, lon: -43.17 }, coast: true, shelfWidth: 1500 };

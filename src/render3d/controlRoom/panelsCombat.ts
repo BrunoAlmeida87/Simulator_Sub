@@ -7,6 +7,7 @@
  * ilustrativo (perdas esféricas, ruído próprio crescendo com a velocidade e
  * zona cega a ré) — não representa nenhum sonar real.
  */
+import { fmtSpeed, fmtKnots } from '../../ui/format';
 import type { DrawCtx } from './panel';
 import type { RoomActions } from './actions';
 import type { SimulationEngine } from '../../sim/core/engine';
@@ -131,7 +132,7 @@ export function drawSonarWaterfall(act: RoomActions) {
     g.fillRect(x0 + ww - (30 / 360) * ww, y0, (30 / 360) * ww, hh);
     text(g, 'zona cega', x0 + 8, y0 + 18, 18, '#ff9c8c', 'left', 'bold');
     const kn = toKnots(Math.abs(e.outputs.speed));
-    text(g, `ruído próprio ${(58 + 0.22 * kn * kn).toFixed(0)} dB · ${kn.toFixed(1)} nós`, W - 46, y0 + 18, 19, kn > 10 ? C.warn : '#cfe6f5', 'right', 'bold');
+    text(g, `ruído próprio ${(58 + 0.22 * kn * kn).toFixed(0)} dB · ${fmtKnots(kn, 1)}`, W - 46, y0 + 18, 19, kn > 10 ? C.warn : '#cfe6f5', 'right', 'bold');
   };
 }
 
@@ -457,7 +458,7 @@ export function drawNavigation(act: RoomActions) {
     const rows: [string, string][] = [
       ['RUMO (GIRO)', `${String(Math.round(((s.sensors.GIRO.value % 360) + 360) % 360)).padStart(3, '0')}°`],
       ['RUMO NO FUNDO', `${String(Math.round(((o.courseOverGround % 360) + 360) % 360)).padStart(3, '0')}°`],
-      ['VELOCIDADE (DVL)', `${toKnots(s.sensors.DVLU.value).toFixed(1)} nós`],
+      ['VELOCIDADE (DVL)', fmtSpeed(s.sensors.DVLU.value, 1)],
       ['PROFUNDIDADE', `${(0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value)).toFixed(1)} m`],
       ['ALTITUDE (ECO)', `${s.sensors.ECO.value.toFixed(0)} m`],
       ['FUNDO LOCAL', `${o.bottomDepth.toFixed(0)} m`],
@@ -514,6 +515,6 @@ export function drawPlotTable(act: RoomActions) {
     text(g, 'MESA TÁTICA', W - 20, 28, 28, '#9fd0ff', 'right', 'bold');
     const origin = act.geoOrigin();
     const ll = nedToLatLon(origin, e.state.body.pos.x, e.state.body.pos.y);
-    text(g, `${fmtLat(ll.lat)} ${fmtLon(ll.lon)} · rumo ${Math.round(e.outputs.euler.heading)}° · ${toKnots(e.outputs.speed).toFixed(1)} nós`, W - 20, 62, 20, C.text, 'right', 'bold', true);
+    text(g, `${fmtLat(ll.lat)} ${fmtLon(ll.lon)} · rumo ${Math.round(e.outputs.euler.heading)}° · ${fmtSpeed(e.outputs.speed, 1)}`, W - 20, 62, 20, C.text, 'right', 'bold', true);
   };
 }

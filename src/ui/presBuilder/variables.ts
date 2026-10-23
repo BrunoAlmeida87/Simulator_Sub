@@ -3,6 +3,7 @@
  * ({prof}, {Δpeso:2}…), nos mostradores sobre a cena e nas condições que
  * fazem a apresentação avançar. Tudo lido do estado calculado pelo motor.
  */
+import { fmtKnots } from '../format';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { verticalBalance, hydroArrows, toTf, trimBalance } from '../../sim/forceVectors';
 import { tankVolume } from '../../sim/systems/internalTanks';
@@ -37,6 +38,7 @@ export const PRES_VARS: PresVar[] = [
   // movimento
   { id: 'prof', label: 'Profundidade (quilha)', unit: 'm', dec: 1, group: 'Movimento', get: (e) => e.outputs.depthKeel },
   { id: 'vz', label: 'Velocidade vertical (+ desce)', unit: 'm/s', dec: 2, group: 'Movimento', get: (e) => e.outputs.verticalSpeed },
+  { id: 'velKmh', label: 'Velocidade em km/h', unit: 'km/h', dec: 1, group: 'Movimento', get: (e) => e.state.body.vel.x * 3.6 },
   { id: 'vel', label: 'Velocidade', unit: 'nós', dec: 1, group: 'Movimento', get: (e) => toKnots(e.state.body.vel.x) },
   { id: 'rumo', label: 'Rumo', unit: '°', dec: 0, group: 'Movimento', get: (e) => e.outputs.euler.heading },
   { id: 'pitch', label: 'Pitch (+ proa acima)', unit: '°', dec: 1, group: 'Movimento', get: (e) => e.outputs.euler.pitch },
@@ -170,7 +172,10 @@ const PLACEHOLDER = /\{(Δ|D:)?([A-Za-z][A-Za-z0-9]*)(?::(\d))?\}/g;
 
 /** Substitui os valores ao vivo no texto. `base` = valores no início da etapa (para Δ). */
 export function fillTemplate(text: string, e: SimulationEngine, c: VarCtx, base?: Record<string, number>): string {
-  return String(text ?? '').replace(PLACEHOLDER, (all, delta: string | undefined, id: string, dec: string | undefined) => {
+  const dualUnits = String(text ?? '').replace(/\{(Δ|D:)?vel(?::(\d))?\} nós(?! \()/g, (_all, delta, dec) =>
+    `{${delta ?? ''}vel${dec ? ':' + dec : ''}} nós ({${delta ?? ''}velKmh${dec ? ':' + dec : ''}} km/h)`,
+  );
+  return dualUnits.replace(PLACEHOLDER, (all, delta: string | undefined, id: string, dec: string | undefined) => {
     const v = BY_ID.get(id);
     if (!v) return all;
     const x = readVar(id, e, c);
@@ -243,7 +248,8 @@ export function describeCondition(c: Condition): string {
   const v = presVar(c.v);
   if (!v) return `variável desconhecida (${c.v})`;
   if (v.bool) return `${v.label}: ${(c.op === '≠') !== c.value > 0.5 ? 'sim' : 'não'}`;
-  const val = `${fmtVar(v, c.value, Math.max(0, Math.min(3, decimalsOf(c.value))))}${v.unit ? ' ' + v.unit : ''}`;
+  const digits = Math.max(0, Math.min(3, decimalsOf(c.value)));
+  const val = v.unit === 'nós' ? fmtKnots(c.value, digits) : `${fmtVar(v, c.value, digits)}${v.unit ? ' ' + v.unit : ''}`;
   if (c.op === '≈') return `${v.label} ≈ ${val} (± ${fmtVar(v, Math.abs(c.tol), Math.max(0, Math.min(3, decimalsOf(c.tol))))})`;
   return `${v.label} ${c.op} ${val}`;
 }

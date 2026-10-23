@@ -5,8 +5,7 @@ import type { ViewMode } from '../../render3d/SubmarineScene';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
 import { seaSections } from '../components/SeaControls';
-import { toKnots } from '../../sim/units';
-import { fmt } from '../format';
+import { fmt, fmtSpeed } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { viewSection, type ViewOption } from '../components/OverlayMenu';
 import type { LayerKey } from '../components/LayerPanel';
@@ -136,7 +135,7 @@ export function View3DScreen() {
           PROF {fmt(o.depthKeel, 1)} m · ALT {fmt(o.altitude, 0)} m
         </div>
         <div className="line">
-          VEL {fmt(toKnots(s.body.vel.x), 1)} nós · RPM {fmt(o.rpm, 0)}
+          VEL {fmtSpeed(s.body.vel.x, 1)} · RPM {fmt(o.rpm, 0)}
         </div>
         <div className="line">
           RUMO {fmt(o.euler.heading, 1)}° · θ {fmt(o.euler.pitch, 1)}° · φ {fmt(o.euler.roll, 1)}°

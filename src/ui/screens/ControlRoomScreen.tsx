@@ -32,9 +32,8 @@ import { periMarks } from './periMarks';
 import { RoomAudio } from './roomAudio';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { cpa } from '../../sim/geo';
-import { toKnots } from '../../sim/units';
 import { nearestOrder } from '../../sim/telegraph';
-import { fmt } from '../format';
+import { fmt, fmtSpeed } from '../format';
 
 function maneuverText(): string | null {
   if (!maneuver.active) return null;
@@ -84,7 +83,7 @@ function ContactsTable({ e, acts }: { e: SimulationEngine; acts: RoomActions }) 
               <td className="mono">{String(Math.round(c.brg)).padStart(3, '0')}°</td>
               <td className="mono">{fmt(c.rng / 1852, 1)} mn</td>
               <td className="mono">
-                {Math.round(c.course)}° · {fmt(toKnots(c.speed), 1)} nós
+                {Math.round(c.course)}° · {fmtSpeed(c.speed, 1)}
               </td>
               <td className="mono">{p.tcpa > 0 ? `${fmt(p.dcpa / 1852, 1)} mn em ${Math.round(p.tcpa / 60)} min` : 'afastando'}</td>
             </tr>
@@ -199,7 +198,7 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
     navegacao: (
       <>
         <div className="subtle">
-          GPS: <b>{mastOut(e) ? 'fixo válido' : 'sem sinal (antena submersa)'}</b> · rumo {fmt(e.state.sensors.GIRO.value, 0)}° · {fmt(toKnots(e.state.sensors.DVLU.value), 1)} nós · fundo {fmt(e.outputs.bottomDepth, 0)}{' '}
+          GPS: <b>{mastOut(e) ? 'fixo válido' : 'sem sinal (antena submersa)'}</b> · rumo {fmt(e.state.sensors.GIRO.value, 0)}° · {fmtSpeed(e.state.sensors.DVLU.value, 1)} · fundo {fmt(e.outputs.bottomDepth, 0)}{' '}
           m
         </div>
         <ContactsTable e={e} acts={acts} />
@@ -513,7 +512,7 @@ export function ControlRoomScreen() {
               <small>RUMO</small> <b>{String(Math.round(((s.sensors.GIRO.value % 360) + 360) % 360)).padStart(3, '0')}°</b>
             </span>
             <span>
-              <small>VEL</small> <b>{fmt(toKnots(s.sensors.DVLU.value), 1)} nós</b>
+              <small>VEL</small> <b>{fmtSpeed(s.sensors.DVLU.value, 1)}</b>
             </span>
             <span>
               <small>MÁQ.</small> <b>{order.label}</b>

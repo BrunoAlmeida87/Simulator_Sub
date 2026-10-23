@@ -5,11 +5,11 @@ import { Panel } from '../components/Panel';
 import { StripChart } from '../components/StripChart';
 import { CHANNELS } from '../../sim/history';
 import { downloadText } from '../storage';
-import { fmt, fmtTime } from '../format';
+import { fmt, fmtTime, fmtKnots } from '../format';
 
 const CHARTS: { title: string; series: { id: string; color: string; dashed?: boolean; axis?: 'right' }[]; invert?: boolean; minSpan?: number; minSpanRight?: number }[] = [
   { title: 'Profundidade', minSpan: 2, invert: true, series: [{ id: 'depth', color: '#36c5f0' }, { id: 'depthInd', color: '#3ddc84', dashed: true }, { id: 'depthSet', color: '#ffb347', dashed: true }] },
-  { title: 'Velocidade', minSpan: 1, series: [{ id: 'speed', color: '#36c5f0' }] },
+  { title: 'Velocidade', minSpan: 1, series: [{ id: 'speed', color: '#36c5f0' }, { id: 'speedKmh', color: '#3ddc84', axis: 'right' }] },
   { title: 'Eixo', minSpan: 10, series: [{ id: 'rpm', color: '#3ddc84' }, { id: 'rpmCmd', color: '#ffb347', dashed: true }] },
   { title: 'Rumo', minSpan: 2, series: [{ id: 'heading', color: '#36c5f0' }, { id: 'headingSet', color: '#ffb347', dashed: true }] },
   { title: 'Pitch e banda', minSpan: 1, series: [{ id: 'pitch', color: '#36c5f0' }, { id: 'pitchEq', color: '#b48cff', dashed: true }, { id: 'roll', color: '#f5b041' }] },
@@ -116,10 +116,10 @@ export function HistoryScreen() {
                       <td>
                         {c.label} <span className="subtle">({c.unit})</span>
                       </td>
-                      <td className="num">{fmt(a, 2)}</td>
-                      <td className="num">{fmt(b, 2)}</td>
+                      <td className="num">{c.unit === 'nós' ? fmtKnots(a, 2) : fmt(a, 2)}</td>
+                      <td className="num">{c.unit === 'nós' ? fmtKnots(b, 2) : fmt(b, 2)}</td>
                       <td className="num" style={{ color: Math.abs(b - a) > 1e-3 ? '#ffb347' : undefined }}>
-                        {fmt(b - a, 2)}
+                        {c.unit === 'nós' ? fmtKnots(b - a, 2) : fmt(b - a, 2)}
                       </td>
                     </tr>
                   );
