@@ -32,6 +32,7 @@ const LAYER_KEYS: LayerKey[] = [
   'wake',
   'wind',
   'pennant',
+  'flag',
   'ships',
   'markers',
   'trail',

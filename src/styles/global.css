@@ -1006,13 +1006,15 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .pc-wrap.pos-esquerda { left: 0; top: 0; bottom: 52px; align-items: center; }
 .pc-wrap.pos-direita { right: 0; top: 0; bottom: 52px; align-items: center; justify-content: flex-end; }
 .pc-wrap.pos-centro { inset: 0 0 52px 0; align-items: center; justify-content: center; }
+.pc-wrap.pos-baixo-esquerda { left: 0; right: 0; top: 18%; bottom: 52px; align-items: flex-end; justify-content: flex-start; }
+.pc-wrap.pos-baixo-direita { left: 0; right: 0; top: 18%; bottom: 52px; align-items: flex-end; justify-content: flex-end; }
 .pc-card { --accent: #49dcff; background: rgba(5, 12, 20, 0.9); border: 1px solid #3a5a80; border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px 13px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45); color: #e3edf7; max-width: 100%; max-height: 100%; overflow-y: auto; }
 .pc-wrap.sz-P .pc-card { width: min(440px, 100%); font-size: 13px; }
 .pc-wrap.sz-M .pc-card { width: min(600px, 100%); font-size: 14.5px; }
 .pc-wrap.sz-G .pc-card { width: min(780px, 100%); font-size: 17px; }
 .pc-wrap.sz-GG .pc-card { width: min(980px, 100%); font-size: 21px; }
-.pc-wrap.pos-esquerda .pc-card, .pc-wrap.pos-direita .pc-card { width: min(380px, 100%); }
-.pc-wrap.pos-esquerda.sz-G .pc-card, .pc-wrap.pos-direita.sz-G .pc-card, .pc-wrap.pos-esquerda.sz-GG .pc-card, .pc-wrap.pos-direita.sz-GG .pc-card { width: min(480px, 100%); }
+.pc-wrap.pos-esquerda .pc-card, .pc-wrap.pos-direita .pc-card, .pc-wrap.pos-baixo-esquerda .pc-card, .pc-wrap.pos-baixo-direita .pc-card { width: min(380px, 100%); }
+.pc-wrap.pos-esquerda.sz-G .pc-card, .pc-wrap.pos-direita.sz-G .pc-card, .pc-wrap.pos-esquerda.sz-GG .pc-card, .pc-wrap.pos-direita.sz-GG .pc-card, .pc-wrap.pos-baixo-esquerda.sz-G .pc-card, .pc-wrap.pos-baixo-direita.sz-G .pc-card, .pc-wrap.pos-baixo-esquerda.sz-GG .pc-card, .pc-wrap.pos-baixo-direita.sz-GG .pc-card { width: min(480px, 100%); }
 .pc-head { display: flex; gap: 8px; align-items: baseline; font-size: 1.07em; margin-bottom: 4px; color: #fff; }
 .pc-n { font-family: var(--mono); color: var(--accent); font-size: 0.85em; }
 .pc-why { font-size: 0.88em; color: #a9bfd6; margin-top: 5px; font-style: italic; }
@@ -1090,11 +1092,11 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .pc-wrap.sz-G .pc-card, .pc-wrap.sz-GG .pc-card { font-size: 14.5px; }
   .pc-titlewrap.sz-G .pc-title-card, .pc-titlewrap.sz-GG .pc-title-card { font-size: 19px; }
   .pc-subwrap.sz-G .pc-sub, .pc-subwrap.sz-GG .pc-sub { font-size: 15px; }
-  .pc-wrap.pos-esquerda, .pc-wrap.pos-direita { left: 0; right: 0; top: auto; bottom: 52px; justify-content: center; }
+  .pc-wrap.pos-esquerda, .pc-wrap.pos-direita, .pc-wrap.pos-baixo-esquerda, .pc-wrap.pos-baixo-direita { left: 0; right: 0; top: auto; bottom: 52px; justify-content: center; }
   .pc-hud-item b { font-size: 15px; }
   .st-bar { flex-wrap: wrap; }
   .st-bar-info { flex-basis: 100%; text-align: center; order: -1; }
-  .pc-wrap.pos-baixo, .pc-wrap.pos-esquerda, .pc-wrap.pos-direita, .pc-subwrap.pos-baixo { bottom: 84px; }
+  .pc-wrap.pos-baixo, .pc-wrap.pos-esquerda, .pc-wrap.pos-direita, .pc-wrap.pos-baixo-esquerda, .pc-wrap.pos-baixo-direita, .pc-subwrap.pos-baixo { bottom: 84px; }
   .pres-float { left: 8px; right: 8px; bottom: 8px; width: auto; }
 }
 /* Cargas a bordo (CargoPanel): mapa clicável + formulário lado a lado; empilha em telas estreitas */

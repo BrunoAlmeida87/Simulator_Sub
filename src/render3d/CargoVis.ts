@@ -3,6 +3,8 @@
  * de cada carga na posição simulada, contorno na posição de estiva e, com os
  * vetores de trim, o binário do deslocamento (+P na posição atual, −P na
  * estiva). Aparece no corte do casco (tanques) ou com os vetores de trim.
+ * As peças têm cores reais (torpedos, tripulantes, caixas); o rosa identifica
+ * o contorno da carga, a posição de estiva, o caminho e os rótulos.
  * Valores de sim/forceVectors.ts → trimBalance (só leitura).
  */
 import * as THREE from 'three';
@@ -23,67 +25,178 @@ const fmtX = (x: number) => x.toLocaleString('pt-BR', { maximumFractionDigits: 1
 interface LoadMesh {
   id: string;
   group: THREE.Group;
+  /** contorno rosa em volta da carga (identificação através dos tanques) */
+  frame: THREE.LineSegments;
   ghost: THREE.LineSegments;
   path: THREE.Line;
   plus: Arrow3D;
   minus: Arrow3D;
+  /** pernas e braços dos tripulantes (balançam enquanto andam) */
+  limbs: { obj: THREE.Object3D; sign: number; amp: number }[];
   /** altura do desenho (m), para posicionar rótulos */
   top: number;
 }
 
+const std = (color: number, p: Partial<THREE.MeshStandardMaterialParameters> = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1, ...p });
+
+/** perfil de revolução do torpedo (raio × posição ao longo do eixo, da ponta para a cauda) */
+function torpedoProfile(L: number, r: number): THREE.Vector2[] {
+  const pts: THREE.Vector2[] = [];
+  const nose = 0.9;
+  const tail = 1.3;
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    // ogiva: raio cresce como um quarto de elipse
+    pts.push(new THREE.Vector2(r * Math.sqrt(1 - (1 - t) * (1 - t)) + 1e-3, -L / 2 + nose * t));
+  }
+  pts.push(new THREE.Vector2(r, L / 2 - tail));
+  for (let i = 1; i <= 6; i++) {
+    const t = i / 6;
+    // cauda: afina até ~40 % do raio
+    pts.push(new THREE.Vector2(r * (1 - 0.6 * t * t), L / 2 - tail + tail * t));
+  }
+  pts.push(new THREE.Vector2(1e-3, L / 2));
+  return pts;
+}
+
+/** torpedo de 533 mm × 6,4 m (eixo em z local; a ponta aponta para −z = vante) */
+function torpedo(): THREE.Group {
+  const g = new THREE.Group();
+  const L = 6.4;
+  const r = 0.267;
+  const body = std(0x3f4b45, { metalness: 0.55, roughness: 0.4 });
+  const head = std(0xd98a1a, { metalness: 0.3, roughness: 0.45 });
+  const dark = std(0x1d2226, { metalness: 0.6, roughness: 0.35 });
+  const prof = new THREE.LatheGeometry(torpedoProfile(L, r), 24);
+  prof.rotateX(Math.PI / 2);
+  g.add(new THREE.Mesh(prof, body));
+  // cabeça de exercício (laranja) e faixa amarela
+  const capG = new THREE.LatheGeometry(torpedoProfile(L, r * 1.004).slice(0, 11), 24);
+  capG.rotateX(Math.PI / 2);
+  g.add(new THREE.Mesh(capG, head));
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.01, r * 1.01, 0.12, 24), std(0xffd23f));
+  band.rotation.x = Math.PI / 2;
+  band.position.z = -L / 2 + 1.5;
+  g.add(band);
+  // aletas cruzadas e hélices contrarrotativas
+  for (let k = 0; k < 4; k++) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.3, 0.55), dark);
+    const a = (k * Math.PI) / 2 + Math.PI / 4;
+    fin.position.set(Math.cos(a) * 0.2, Math.sin(a) * 0.2, L / 2 - 0.45);
+    fin.rotation.z = a - Math.PI / 2;
+    g.add(fin);
+  }
+  for (const [dz, rot] of [
+    [0.05, 0],
+    [0.16, Math.PI / 6],
+  ] as const) {
+    for (let k = 0; k < 3; k++) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.17, 0.05), dark);
+      const a = rot + (k * 2 * Math.PI) / 3;
+      blade.position.set(Math.cos(a) * 0.1, Math.sin(a) * 0.1, L / 2 + dz);
+      blade.rotation.z = a - Math.PI / 2;
+      g.add(blade);
+    }
+  }
+  return g;
+}
+
+/** tripulante de 1,75 m: pernas, tronco, braços, cabeça e boné (de frente para vante) */
+function crewman(limbs: LoadMesh['limbs'], k: number): THREE.Group {
+  const g = new THREE.Group();
+  const navy = std(0x1f3150);
+  const shirt = std(k % 4 === 0 ? 0x8fa9c8 : 0x2f4f78);
+  const skin = std(k % 3 === 0 ? 0x8d5a3b : k % 3 === 1 ? 0xc68e66 : 0xe0b48f);
+  const boot = std(0x15181c);
+  for (const side of [-1, 1]) {
+    const hip = new THREE.Group();
+    hip.position.set(side * 0.11, -0.05, 0);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.82, 8), navy);
+    leg.position.y = -0.41;
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.26), boot);
+    foot.position.set(0, -0.84, -0.05);
+    hip.add(leg, foot);
+    g.add(hip);
+    limbs.push({ obj: hip, sign: side, amp: 0.45 });
+    const sh = new THREE.Group();
+    sh.position.set(side * 0.26, 0.5, 0);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.62, 8), shirt);
+    arm.position.y = -0.31;
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), skin);
+    hand.position.y = -0.65;
+    sh.add(arm, hand);
+    g.add(sh);
+    limbs.push({ obj: sh, sign: -side, amp: 0.35 });
+  }
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.38, 4, 10), shirt);
+  torso.scale.set(1, 1, 0.65);
+  torso.position.y = 0.27;
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.08, 8), skin);
+  neck.position.y = 0.63;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 14, 10), skin);
+  head.position.y = 0.76;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.125, 0.07, 14), navy);
+  cap.position.y = 0.86;
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.015, 0.1), navy);
+  visor.position.set(0, 0.83, -0.13);
+  g.add(torso, neck, head, cap, visor);
+  return g;
+}
+
 /** desenho de uma carga (centrado na origem do grupo; x do corpo = −z local) */
-function buildLoad(category: string, quantity: number, mat: THREE.Material): { g: THREE.Group; size: THREE.Vector3 } {
+function buildLoad(category: string, quantity: number, limbs: LoadMesh['limbs']): { g: THREE.Group; size: THREE.Vector3 } {
   const g = new THREE.Group();
   if (category === 'torpedos') {
-    // torpedos de 533 mm × 6,4 m lado a lado
-    const geo = new THREE.CylinderGeometry(0.27, 0.27, 6.4, 18);
-    geo.rotateX(Math.PI / 2);
-    const nose = new THREE.SphereGeometry(0.27, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-    nose.rotateX(-Math.PI / 2);
-    nose.translate(0, 0, -3.2);
+    // torpedos lado a lado sobre um carrinho de transferência
     for (let i = 0; i < quantity; i++) {
-      const y = (i - (quantity - 1) / 2) * 0.62;
-      const t = new THREE.Mesh(geo, mat);
-      const n = new THREE.Mesh(nose, mat);
-      t.position.x = y;
-      n.position.x = y;
-      g.add(t, n);
+      const t = torpedo();
+      t.position.x = (i - (quantity - 1) / 2) * 0.64;
+      g.add(t);
     }
-    return { g, size: new THREE.Vector3(quantity * 0.62 + 0.2, 0.7, 7) };
+    const steel = std(0x6b737c, { metalness: 0.5, roughness: 0.45 });
+    for (const z of [-1.8, 1.4]) {
+      const cradle = new THREE.Mesh(new THREE.BoxGeometry(quantity * 0.64 + 0.1, 0.12, 0.25), steel);
+      cradle.position.set(0, -0.31, z);
+      g.add(cradle);
+    }
+    return { g, size: new THREE.Vector3(quantity * 0.64 + 0.3, 0.8, 7) };
   }
   if (category === 'pessoas') {
-    // tripulantes: corpo e cabeça, em duas colunas
-    const body = new THREE.CapsuleGeometry(0.19, 0.85, 4, 10);
-    const head = new THREE.SphereGeometry(0.14, 12, 8);
+    // tripulantes em duas colunas, andando para vante
     const cols = 2;
     const rows = Math.ceil(quantity / cols);
     for (let i = 0; i < quantity; i++) {
       const c = i % cols;
       const r = Math.floor(i / cols);
-      const x = (c - (cols - 1) / 2) * 0.7;
-      const z = (r - (rows - 1) / 2) * 0.62;
-      const b = new THREE.Mesh(body, mat);
-      b.position.set(x, -0.1, z);
-      const h = new THREE.Mesh(head, mat);
-      h.position.set(x, 0.62, z);
-      g.add(b, h);
+      const p = crewman(limbs, i);
+      p.position.set((c - (cols - 1) / 2) * 0.7 + ((r % 2) - 0.5) * 0.08, 0.02, (r - (rows - 1) / 2) * 0.62);
+      g.add(p);
     }
-    return { g, size: new THREE.Vector3(1.4, 1.75, rows * 0.62 + 0.3) };
+    return { g, size: new THREE.Vector3(1.5, 1.85, rows * 0.62 + 0.4) };
   }
-  // mantimentos/equipamentos: caixas empilhadas (3 de largura × 2 de altura)
-  const box = new THREE.BoxGeometry(0.5, 0.42, 0.5);
+  // mantimentos/equipamentos: caixas de papelão e engradados sobre um palete
+  const pallet = std(0xa77c4e, { roughness: 0.85 });
   const per = 6;
   const cols = Math.ceil(quantity / per);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.12, cols * 0.58 + 0.12), pallet);
+  base.position.y = -0.46;
+  g.add(base);
+  const tape = std(0xd9c9a3, { roughness: 0.7 });
   for (let i = 0; i < quantity; i++) {
     const k = i % per;
     const y = (k % 3) - 1;
     const lev = Math.floor(k / 3);
     const c = Math.floor(i / per);
-    const m = new THREE.Mesh(box, mat);
-    m.position.set(y * 0.55, -0.22 + lev * 0.46, (c - (cols - 1) / 2) * 0.58);
-    g.add(m);
+    const crate = i % 4 === 3;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.4, 0.52), std(crate ? 0x8a6a3c : [0xb98d5a, 0xc49a66, 0xad8350][i % 3], { roughness: 0.9 }));
+    box.position.set(y * 0.56, -0.2 + lev * 0.42, (c - (cols - 1) / 2) * 0.58);
+    g.add(box);
+    // fita (caixa) ou ripas (engradado)
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(crate ? 0.54 : 0.1, 0.012, 0.54), crate ? std(0x5d4626) : tape);
+    strip.position.set(box.position.x, box.position.y + 0.206, box.position.z);
+    g.add(strip);
   }
-  return { g, size: new THREE.Vector3(1.7, 0.95, cols * 0.58 + 0.1) };
+  return { g, size: new THREE.Vector3(1.85, 1.05, cols * 0.58 + 0.2) };
 }
 
 export class CargoVis {
@@ -94,12 +207,16 @@ export class CargoVis {
   private loads: LoadMesh[] = [];
 
   constructor(e: SimulationEngine) {
-    const mat = new THREE.MeshStandardMaterial({ color: CARGO_COLOR, emissive: CARGO_COLOR, emissiveIntensity: 0.45, roughness: 0.45, transparent: true, depthTest: false, depthWrite: false });
+    const frameMat = new THREE.LineBasicMaterial({ color: CARGO_COLOR, transparent: true, opacity: 0.7, depthTest: false, toneMapped: false });
     const ghostMat = new THREE.LineBasicMaterial({ color: CARGO_COLOR, transparent: true, opacity: 0.55, depthTest: false, toneMapped: false });
     const pathMat = new THREE.LineDashedMaterial({ color: 0xff9be0, dashSize: 0.6, gapSize: 0.4, transparent: true, opacity: 0.85, depthTest: false, toneMapped: false });
     for (const l of e.vessel.mass.shiftLoads ?? []) {
-      const { g, size } = buildLoad(l.category, l.quantity, mat);
-      g.traverse((o) => (o.renderOrder = 9));
+      const limbs: LoadMesh['limbs'] = [];
+      const { g, size } = buildLoad(l.category, l.quantity, limbs);
+      // peças com cores reais e profundidade normal; o rosa fica no contorno, no caminho e nos rótulos
+      const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x, size.y, size.z)), frameMat);
+      frame.renderOrder = 9;
+      g.add(frame);
       const ghost = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x, size.y, size.z)), ghostMat);
       ghost.renderOrder = 9;
       ghost.position.copy(b2l(l.home.x, l.home.y, l.home.z));
@@ -109,7 +226,7 @@ export class CargoVis {
       const minus = new Arrow3D(CARGO_COLOR, 0.22);
       this.local.add(g, ghost, path);
       this.world.add(plus.group, minus.group);
-      this.loads.push({ id: l.id, group: g, ghost, path, plus, minus, top: size.y / 2 });
+      this.loads.push({ id: l.id, group: g, frame, ghost, path, plus, minus, limbs, top: size.y / 2 });
     }
     this.local.visible = false;
     this.world.visible = false;
@@ -129,6 +246,9 @@ export class CargoVis {
       m.group.position.copy(b2l(l.x, l.y, l.z));
       const shifted = Math.abs(l.x - l.xHome) > 0.3;
       const moving = Math.abs(l.xCmd - l.x) > 0.05;
+      // tripulantes andando: pernas e braços balançam (fase pelo tempo de simulação)
+      const ph = moving ? Math.sin(e.state.t * 5.5) : 0;
+      for (const lb of m.limbs) lb.obj.rotation.x = ph * lb.sign * lb.amp;
       m.ghost.visible = shifted;
       m.path.visible = shifted;
       if (shifted) {

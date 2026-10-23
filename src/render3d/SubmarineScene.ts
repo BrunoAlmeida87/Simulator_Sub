@@ -34,6 +34,7 @@ import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
 import { CargoVis } from './CargoVis';
 import { PitchAngle } from './PitchAngle';
+import { Ensign } from './Ensign';
 import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
 import type { LabelRect } from './labelLayout';
@@ -207,6 +208,7 @@ export class SubmarineScene {
   private trimVis!: TrimVis;
   private cargoVis!: CargoVis;
   private pitchAngle = new PitchAngle();
+  private ensign!: Ensign;
   private keyLight = new THREE.DirectionalLight(0xffffff, 0);
   private fillLight = new THREE.AmbientLight(0xffffff, 0);
   /** sol, lua e luzes (Sol e luzes: hora do dia, direção, luar, luzes de navegação, faróis, água escura) — só visual */
@@ -367,6 +369,8 @@ export class SubmarineScene {
       this.wind = new WindFx(v.hull.diameter / 2 + v.hull.sail.height, v.hull.sail.xAft + 0.9);
       this.scene.add(this.wind.group);
       this.sub.add(this.wind.pennant);
+      this.ensign = new Ensign(v.hull.diameter / 2 + v.hull.sail.height, v.hull.sail.xAft + 2.6);
+      this.sub.add(this.ensign.group);
     }
     this.markers = new Markers(this.env(), this.dot);
     this.scene.add(this.markers.group);
@@ -1277,6 +1281,8 @@ export class SubmarineScene {
       const top = this.wind.pennant.getWorldPosition(new THREE.Vector3());
       const sailOut = top.y > e.env.waves.elevation(pn - top.z, pe + top.x, tWave) + 0.3;
       this.wind.update(e, step, dtR, pn, pe, tWave, this.layers.wind && !this.layers.noWater, this.camera.position.y < 0, sailOut && this.layers.pennant && this.layers.hull);
+      // bandeira: some quando o topo da vela entra na água
+      this.ensign.update(e, dtR, sailOut && !!this.layers.flag && this.layers.hull);
     }
     this.markers.update(e, pn, pe, tWave, this.layers.markers);
 
@@ -1655,6 +1661,7 @@ export class SubmarineScene {
     this.nightSky.dispose();
     this.marineLife.dispose();
     this.wind.dispose();
+    this.ensign.dispose();
     this.shipyard?.dispose();
     this.controls.dispose();
     this.renderer.dispose();

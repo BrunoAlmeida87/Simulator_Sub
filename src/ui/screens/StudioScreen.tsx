@@ -94,6 +94,8 @@ const POS_OPTIONS: [CardPosition, string][] = [
   ['esquerda', 'Esquerda'],
   ['direita', 'Direita'],
   ['centro', 'Centro'],
+  ['baixo-esquerda', 'Embaixo à esquerda'],
+  ['baixo-direita', 'Embaixo à direita'],
 ];
 const SIZE_OPTIONS: CardSize[] = ['P', 'M', 'G', 'GG'];
 const OUT_ICON: Record<StepOutcome, string> = { pendente: '○', 'em curso': '●', concluída: '✓', 'tempo esgotado': '⌛', pulada: '↷' };
