@@ -46,7 +46,7 @@ export function compensationFlows(cfg: CompensationConfig, st: CompensationState
   const tanks: Record<string, number> = {};
   let big = Math.max(st.qIn, st.qOut);
   for (const b of compensationBranches(cfg, st, heelCfg, heelSt)) {
-    const q = b.st.flow ?? 0;
+    const q = (b.st.flow ?? 0) - (b.st.transferFlow ?? 0);
     tanks[b.id] = q;
     big = Math.max(big, Math.abs(q));
   }

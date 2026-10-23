@@ -40,6 +40,9 @@ const ENV_LABEL: Record<string, [string, string]> = {
 export type FluidSystem = 'compensation' | 'trim' | 'heel';
 
 export type Command =
+  | { type: 'compensationRoute'; source: string; destination: string }
+  | { type: 'compensationTransferPump'; run: boolean }
+  | { type: 'compensationDirection'; reverse?: boolean; position?: 'direta' | 'inversa' }
   | { type: 'mbtVent'; tank: string; open: boolean }
   | { type: 'mbtBlow'; tank: string; open: boolean }
   | { type: 'emergencyBlow'; open?: boolean; tank?: string }
@@ -108,6 +111,39 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
   const v = e.vessel;
   const log = (text: string, group: string) => e.log(text, group);
   switch (c.type) {
+    case 'compensationRoute': {
+      const tr = s.compensation.transfer;
+      const valid = [v.heel.tankA.id, v.heel.tankB.id, ...v.compensation.tanks.map(t => t.id)];
+      if (!tr || tr.pump.cmd || tr.pump.speed > 0.001 || tr.valveA.pos > 0.001 || tr.valveB.pos > 0.001 || c.source === c.destination || !valid.includes(c.source) || !valid.includes(c.destination)) break;
+      tr.source = c.source;
+      tr.destination = c.destination;
+      log(`Transferência de compensação: ${c.source} ↔ ${c.destination}`, 'Compensação');
+      break;
+    }
+    case 'compensationDirection': {
+      const tr = s.compensation.transfer;
+      if (!tr) break;
+      const position = c.position ?? (c.reverse ? 'inversa' : 'direta');
+      if (position !== 'direta' && position !== 'inversa') break;
+      tr.direction.cmd = position === 'inversa' ? 1 : 0;
+      log(`VDC 4/2: ${position} — ${position === 'inversa' ? 'B → T / P → A' : 'A → T / P → B'}`, 'Compensação');
+      break;
+    }
+    case 'compensationTransferPump': {
+      const cs = s.compensation;
+      const tr = cs.transfer;
+      if (!tr) break;
+      if (c.run) {
+        if (cs.dosing?.active) { cs.dosing.active = false; cs.dosing.phase = 'abortado'; cs.dosing.message = 'Cancelada para transferência interna'; }
+        cs.inlet.cmd = 0;
+        cs.discharge.cmd = 0;
+        cs.pump.cmd = false;
+      }
+      tr.valveA.cmd = tr.valveB.cmd = c.run ? 1 : 0;
+      tr.pump.cmd = c.run;
+      log(`BTC: ${c.run ? 'PARTIR' : 'PARAR'} transferência interna`, 'Compensação');
+      break;
+    }
     case 'mbtVent': {
       const ids = c.tank === 'ALL' ? v.ballast.tanks.map((t) => t.id) : [c.tank];
       for (const id of ids) s.ballast[id].vent.cmd = c.open ? 1 : 0;
@@ -197,8 +233,9 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     }
     case 'dosing': {
       const kg = Math.abs(c.kg);
-      if (kg <= 0) break;
+      if (!Number.isFinite(kg) || kg <= 0 || (c.system === 'compensation' && c.mode === 'transferir')) break;
       if (c.system === 'compensation') {
+        if (s.compensation.transfer) { s.compensation.transfer.pump.cmd = false; s.compensation.transfer.valveA.cmd = s.compensation.transfer.valveB.cmd = 0; }
         s.compensation.dosing = newDosing(c.mode, kg);
         log(`Compensação: sequência automática — ${c.mode.toUpperCase()} ${kg.toFixed(0)} kg`, 'Compensação');
       } else {
@@ -395,6 +432,7 @@ export interface FailureDef {
 export function failureCatalog(e: SimulationEngine): FailureDef[] {
   const v = e.vessel;
   const list: FailureDef[] = [
+    ...(v.compensation.transfer ? [{ target: 'pump:compensationTransfer', name: v.compensation.transfer.pump.name, group: 'Bombas', effect: 'Sem transferência interna de compensação.' }, { target: 'valve:compensation:direction', name: v.compensation.transfer.directionValve.name, group: 'Válvulas', effect: 'Seletor de sentido imobilizado.' }] : []),
     { target: 'pump:compensation', name: v.compensation.pump.name, group: 'Bombas', effect: 'A bomba para; sequências de esgoto são abortadas.' },
     { target: 'pump:trim', name: v.trim.pump.name, group: 'Bombas', effect: 'Sem transferência de trim — usar lemes para corrigir atitude.' },
     { target: 'pump:heel', name: v.heel.pump.name, group: 'Bombas', effect: 'Sem correção de banda.' },
@@ -428,6 +466,7 @@ export function isFailureActive(e: SimulationEngine, target: string): boolean {
   const [kind, a, b, c] = target.split(':');
   switch (kind) {
     case 'pump':
+      if (a === 'compensationTransfer') return s.compensation.transfer?.pump.failed ?? false;
       return s[a as FluidSystem].pump.failed;
     case 'motor':
       return s.propulsion.failed;
@@ -437,6 +476,7 @@ export function isFailureActive(e: SimulationEngine, target: string): boolean {
       return s.hydraulics.failed;
     case 'valve':
       if (a === 'ballast') return s.ballast[b][c as 'vent' | 'blow'].stuck;
+      if (a === 'compensation' && b === 'direction') return s.compensation.transfer?.direction.stuck ?? false;
       if (a === 'compensation') return (b === 'inlet' ? s.compensation.inlet : s.compensation.discharge).stuck;
       if (a === 'trim') return s.trim.valveA.stuck;
       return false;
@@ -460,6 +500,11 @@ function applyFailure(e: SimulationEngine, target: string, active: boolean, para
   let label = target;
   switch (kind) {
     case 'pump':
+      if (a === 'compensationTransfer') {
+        if (s.compensation.transfer) s.compensation.transfer.pump.failed = active;
+        label = 'Bomba de transferência de compensação';
+        break;
+      }
       s[a as FluidSystem].pump.failed = active;
       label = e.vessel[a as FluidSystem].pump.name;
       break;
@@ -478,9 +523,9 @@ function applyFailure(e: SimulationEngine, target: string, active: boolean, para
     case 'valve': {
       let vs;
       if (a === 'ballast') vs = s.ballast[b][c as 'vent' | 'blow'];
-      else if (a === 'compensation') vs = b === 'inlet' ? s.compensation.inlet : s.compensation.discharge;
+      else if (a === 'compensation') vs = b === 'direction' ? s.compensation.transfer?.direction : b === 'inlet' ? s.compensation.inlet : s.compensation.discharge;
       else vs = s.trim.valveA;
-      vs.stuck = active;
+      if (vs) vs.stuck = active;
       label = `Válvula ${b}${c ? ' ' + c : ''}`;
       break;
     }

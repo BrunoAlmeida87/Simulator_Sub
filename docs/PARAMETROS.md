@@ -131,3 +131,7 @@ Os ganhos que comandam lemes (rumo, pitch e lemes de vela) são multiplicados po
 | Fundo | Padrão de sessões novas: **uniforme, 300 m**. Modo relevo: profundidade na origem + declividades (+6 m/km N, −3 m/km E) e ondulações de ±25 m (λ = 1.800 m). Arquivos salvos antigos e o cenário “Águas rasas” continuam em relevo (antigo padrão: 420 m na origem) |
 | Declinação magnética | −21,5° |
 | Passo de integração | 0,02 s (50 Hz) |
+
+### Transferência de banda pelo circuito de compensação
+
+BTC: 10 L/s a Δp = 0, shutoff 5 bar, eficiência 0,60, potência em vazio 2 kW, partida 3 s. VDC 4/2 (quatro vias, duas posições) e isolamentos: curso 3 s, atuação hidráulica. Posições reais da VDC: 0 direta (A→T/P→B) e 1 inversa (B→T/P→A). Não há posição central estável; o fluxo é interrompido durante a comutação. T = sucção e P = descarga da BTC. Perda da linha: 0,6 bar na vazão nominal. Rotas: BB ↔ BE, BB ↔ TC central, BE ↔ TC central. O TC usa a geometria atual do conjunto de compensação, com y = 0; os tanques de banda ficam em BB/BE, na mesma posição longitudinal. O nível de origem, a cota de descarga e a atitude do casco determinam a carga estática.

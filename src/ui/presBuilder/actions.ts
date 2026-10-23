@@ -689,6 +689,9 @@ const CHANNEL = oneOf('heading', 'depth', 'pitch');
 const DIR = oneOf('AtoB', 'BtoA');
 
 const COMMAND_FIELDS: Record<string, Record<string, FieldCheck>> = {
+  compensationRoute: { source: isStr, destination: isStr },
+  compensationTransferPump: { run: isBool },
+  compensationDirection: { position: opt(oneOf('direta', 'inversa')), reverse: opt(isBool) },
   mbtVent: { tank: isStr, open: isBool },
   mbtBlow: { tank: isStr, open: isBool },
   emergencyBlow: { open: opt(isBool), tank: opt(isStr) },

@@ -220,6 +220,7 @@ export function defaultVessel(): VesselConfig {
       compressor: { massFlow: 0.12, power: 80e3, maxPressure: 250 * BAR },
     },
     compensation: {
+      transfer: { pump: pump('BTC', 'Bomba de transferência de compensação (BTC)', 0.010, 5, 0.6, 2e3, 3), directionValve: valve('VDC', 'Válvula direcional 4/2 de compensação (VDC)', 3), isolationValve: valve('VIC', 'Isolamento de transferência', 3), lineLoss: 0.6 * BAR },
       // tanque central de compensação, sob o centro de gravidade; os tanques de banda (ao lado) ligam-se ao mesmo coletor
       tanks: [{ id: 'TC', name: 'TC Compensação central', capacity: 22, height: 1.5, width: 2.6, hullRadius: 2.9, center: { x: 2.6, y: 0, z: 2.25 }, initialVolume: 11 }],
       tankValves: [valve('VC', 'Válvula TC (central)', 4)],
