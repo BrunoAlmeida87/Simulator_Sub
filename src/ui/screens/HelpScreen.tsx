@@ -63,7 +63,7 @@ export function HelpScreen() {
             <tr><td><code>W</code> / <code>S</code></td><td>Lemes de ré DESCER / SUBIR 5°</td></tr>
             <tr><td><code>Q</code> / <code>E</code></td><td>Lemes de vante DESCER / SUBIR 5°</td></tr>
             <tr><td><code>+</code> / <code>−</code></td><td>Telégrafo ±10 rpm</td></tr>
-            <tr><td><code>0</code>…<code>7</code></td><td>Pilotagem e telas 1 a 7</td></tr>
+            <tr><td><code>0</code>…<code>8</code></td><td>Telas numeradas: 0 Pilotagem … 8 Sala de comando (o número aparece na navegação)</td></tr>
             <tr><td><code>I</code></td><td>Modo engenharia</td></tr>
           </tbody>
         </table>

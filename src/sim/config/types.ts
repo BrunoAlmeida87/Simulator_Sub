@@ -19,6 +19,8 @@ export interface HullConfig {
   keelRef: Vec3;
   sail: { xFwd: number; xAft: number; height: number; width: number };
   snorkelMast: { x: number; extension: number; raiseTime: number };
+  /** periscópio de ataque (na vela): posição longitudinal, curso de içamento (m) e tempo de içamento (s). Opcional (configurações antigas). */
+  periscopeMast?: { x: number; extension: number; raiseTime: number };
 }
 
 export interface PointMass {
@@ -50,7 +52,10 @@ export interface MassConfig {
 }
 
 export interface DemoWeightConfig {
-  mass: number; // kg
+  /** carga já a bordo (kg), parte da condição de projeto na posição neutra; é o máximo que se pode deslocar */
+  mass: number;
+  /** parcela deslocada no início (kg); padrão = mass */
+  initialMass?: number;
   xNeutral: number; // m (corpo) — posição da condição de projeto
   xMin: number;
   xMax: number;
@@ -150,22 +155,31 @@ export interface BallastTankConfig {
   blowArea: number; // m² (orifício da válvula de sopro)
   ventValve: ValveConfig;
   blowValve: ValveConfig;
+  emergencyBlowValve: ValveConfig;
 }
 
+export type AirCircuit = 'normal' | 'emergency';
+
 export interface HpAirConfig {
-  banks: { id: string; name: string; volume: number; initialPressure: number; maxPressure: number; valve: ValveConfig }[];
+  banks: { id: string; name: string; purpose?: AirCircuit; volume: number; initialPressure: number; maxPressure: number; valve: ValveConfig }[];
   temperature: number; // °C (ar armazenado)
   compressor: { massFlow: number; power: number; maxPressure: number };
 }
 
 export interface InternalTankConfig {
-  automaticCompensation?: boolean; // false: tanque reservado à transferência manual
   id: string;
   name: string;
   capacity: number; // m³
   height: number; // m
   center: Vec3;
   initialVolume: number; // m³
+  /** largura transversal da seção (m); com hullRadius, a seção é este retângulo recortado pelo casco */
+  width?: number;
+  /**
+   * Raio interno do casco resistente (m) na posição do tanque: a seção do
+   * tanque segue o casco (fundo/costado abaulados). Ausente = tanque prismático.
+   */
+  hullRadius?: number;
 }
 
 export interface CompensationConfig {
@@ -178,6 +192,12 @@ export interface CompensationConfig {
   inletRegulatorFlow: number; // m³/s (limitador de vazão)
   seaConnection: Vec3; // posição da tomada de mar (corpo)
   pump: PumpConfig;
+  /**
+   * Ramais do coletor de compensação para os tanques de banda (TB-BB = 'A',
+   * TB-BE = 'B'): os tanques laterais também trocam água com o mar. A água
+   * deles continua no estado da banda. Ausente nas configurações antigas.
+   */
+  heelBranches?: { tank: 'A' | 'B'; valve: ValveConfig }[];
 }
 
 export interface TransferSystemConfig {

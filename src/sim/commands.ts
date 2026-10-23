@@ -4,11 +4,38 @@
  * registrado em ordem cronológica (tempo de simulação + descrição).
  */
 import type { SimulationEngine } from './core/engine';
-import type { SensorFailMode } from './core/state';
+import type { CargoLoad, SensorFailMode } from './core/state';
 import { newDosing } from './systems/internalTanks';
 import { acknowledgeAlarm } from './systems/alarms';
 import { bumplessInit } from './systems/autopilot';
 import { sensorDef } from './systems/sensors';
+import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
+
+/** Alterações de ambiente aplicáveis durante a simulação (o estado é mantido). */
+export type EnvironmentPatch = Partial<Pick<EnvironmentConfig, 'salinity' | 'deepSalinity' | 'surfaceTemperature' | 'deepTemperature' | 'thermoclineDepth' | 'thermoclineThickness' | 'magneticDeclination'>> & {
+  bottom?: Partial<BottomConfig>;
+  /** costa e referência geográfica (origem do referencial local) */
+  geo?: Partial<GeoConfig>;
+};
+
+const ENV_LABEL: Record<string, [string, string]> = {
+  salinity: ['salinidade superficial', 'PSU'],
+  deepSalinity: ['salinidade profunda', 'PSU'],
+  surfaceTemperature: ['temperatura superficial', '°C'],
+  deepTemperature: ['temperatura profunda', '°C'],
+  thermoclineDepth: ['termoclina', 'm'],
+  thermoclineThickness: ['espessura da termoclina', 'm'],
+  magneticDeclination: ['declinação magnética', '°'],
+  'bottom.mode': ['modo do fundo', ''],
+  'bottom.baseDepth': ['fundo na origem', 'm'],
+  'bottom.slopeNorth': ['declive N', 'm/km'],
+  'bottom.slopeEast': ['declive L', 'm/km'],
+  'bottom.roughness': ['rugosidade', 'm'],
+  'bottom.wavelength': ['comprimento do relevo', 'm'],
+  'geo.coast': ['costa', ''],
+  'geo.shelfWidth': ['faixa costeira', 'm'],
+  'geo.origin': ['posição geográfica', ''],
+};
 
 export type FluidSystem = 'compensation' | 'trim' | 'heel';
 
@@ -18,7 +45,7 @@ export type Command =
   | { type: 'compensationDirection'; reverse?: boolean; position?: 'direta' | 'inversa' }
   | { type: 'mbtVent'; tank: string; open: boolean }
   | { type: 'mbtBlow'; tank: string; open: boolean }
-  | { type: 'emergencyBlow' }
+  | { type: 'emergencyBlow'; open?: boolean; tank?: string }
   | { type: 'hpBankValve'; bank: string; open: boolean }
   | { type: 'compressor'; run: boolean }
   | { type: 'valve'; system: FluidSystem; valve: string; open: boolean }
@@ -31,10 +58,14 @@ export type Command =
   | { type: 'autopilot'; channel: 'heading' | 'depth' | 'pitch'; mode: 'MANUAL' | 'AUTO' }
   | { type: 'setpoint'; channel: 'heading' | 'depth' | 'pitch'; value: number }
   | { type: 'snorkel'; raise: boolean }
+  | { type: 'periscope'; raise: boolean }
   | { type: 'generator'; id: string; run: boolean }
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
   | { type: 'seaState'; value: number; direction?: number }
+  | { type: 'cargoUpsert'; load: CargoLoad }
+  | { type: 'cargoRemove'; id: string }
+  | { type: 'environment'; patch: EnvironmentPatch }
   | { type: 'demoWeight'; x?: number; mass?: number }
   | { type: 'failure'; target: string; active: boolean; param?: number | string };
 
@@ -44,14 +75,45 @@ function tankName(e: SimulationEngine, id: string): string {
   return e.vessel.ballast.tanks.find((t) => t.id === id)?.name ?? id;
 }
 
+/** Origem dos comandos em curso: 'operador' ou o nome da automação que os emite. */
+let cmdSource = 'operador';
+
+/** Executa fn marcando os comandos emitidos com a origem dada (ex.: 'manobra'). */
+export function withCommandSource<T>(source: string, fn: () => T): T {
+  const prev = cmdSource;
+  cmdSource = source;
+  try {
+    return fn();
+  } finally {
+    cmdSource = prev;
+  }
+}
+
+export const currentCommandSource = (): string => cmdSource;
+
+/**
+ * Aplica um comando (única via de alteração do estado pela interface e pelas
+ * automações). Passa antes pelos ganchos de gravação/reprodução do motor.
+ */
 export function applyCommand(e: SimulationEngine, c: Command): void {
+  if (e.commandGate && !e.commandGate(c, cmdSource)) return;
+  e.commandTap?.(c, cmdSource);
+  e.busy++;
+  try {
+    applyCommandInner(e, c);
+  } finally {
+    e.busy--;
+  }
+}
+
+function applyCommandInner(e: SimulationEngine, c: Command): void {
   const s = e.state;
   const v = e.vessel;
   const log = (text: string, group: string) => e.log(text, group);
   switch (c.type) {
     case 'compensationRoute': {
       const tr = s.compensation.transfer;
-      const valid = [v.heel.tankA.id, v.heel.tankB.id, ...v.compensation.tanks.filter(t => t.id === 'TC0').map(t => t.id)];
+      const valid = [v.heel.tankA.id, v.heel.tankB.id, ...v.compensation.tanks.map(t => t.id)];
       if (!tr || tr.pump.cmd || tr.pump.speed > 0.001 || tr.valveA.pos > 0.001 || tr.valveB.pos > 0.001 || c.source === c.destination || !valid.includes(c.source) || !valid.includes(c.destination)) break;
       tr.source = c.source;
       tr.destination = c.destination;
@@ -95,12 +157,17 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       break;
     }
     case 'emergencyBlow': {
+      const open = c.open !== false;
       for (const t of v.ballast.tanks) {
-        s.ballast[t.id].vent.cmd = 0;
-        s.ballast[t.id].blow.cmd = 1;
+        if (c.tank && c.tank !== 'ALL' && t.id !== c.tank) continue;
+        s.ballast[t.id].emergencyBlow.cmd = open ? 1 : 0;
+        if (open) {
+          s.ballast[t.id].vent.cmd = 0;
+          s.ballast[t.id].blow.cmd = 0;
+        }
       }
-      for (const b of v.hpAir.banks) s.hpAir.banks[b.id].valve.cmd = 1;
-      log('SOPRO DE EMERGÊNCIA: suspiros fechados, sopro aberto em todos os TLP, grupos AP abertos', 'Lastro');
+      if (open) for (const b of v.hpAir.banks) if (b.purpose === 'emergency') s.hpAir.banks[b.id].valve.cmd = 1;
+      log(`${open ? 'SOPRO DE EMERGÊNCIA: suspiros e sopro normal fechados; ampolas dedicadas; compressor automático com ar/energia' : 'FECHAR sopro de emergência'} — ${c.tank && c.tank !== 'ALL' ? tankName(e, c.tank) : 'todos os TLP'}`, 'Lastro');
       break;
     }
     case 'hpBankValve':
@@ -130,7 +197,7 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
           name = v.compensation.dischargeValve.name;
         } else if (cs.tankValves[c.valve]) {
           cs.tankValves[c.valve].cmd = val;
-          name = v.compensation.tankValves.find((x) => x.id === c.valve)?.name ?? c.valve;
+          name = v.compensation.tankValves.find((x) => x.id === c.valve)?.name ?? v.compensation.heelBranches?.find((b) => b.valve.id === c.valve)?.valve.name ?? c.valve;
         }
       } else {
         const ts = s[c.system];
@@ -242,6 +309,10 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       s.snorkel.cmd = c.raise;
       log(`Mastro do snorkel: ${c.raise ? 'IÇAR' : 'ARRIAR'}`, 'Energia');
       break;
+    case 'periscope':
+      (s.periscope ??= { cmd: false, pos: 0 }).cmd = c.raise;
+      log(`Periscópio de ataque: ${c.raise ? 'IÇAR' : 'ARRIAR'}`, 'Navegação');
+      break;
     case 'generator':
       s.electrical.generators[c.id].cmd = c.run;
       log(`${v.electrical.generators.find((g) => g.id === c.id)?.name}: ${c.run ? 'PARTIR' : 'PARAR'}`, 'Energia');
@@ -259,6 +330,73 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       log(`Estado do mar: ${Math.round(c.value)} (Hs = ${w.hs.toFixed(1)} m, Tp = ${w.tp.toFixed(1)} s)`, 'Ambiente');
       break;
     }
+    case 'cargoUpsert': {
+      const l = c.load;
+      const { x, y, z } = l.position;
+      const mass = l.quantity * l.unitMass;
+      if (!l.id || !l.name.trim() || !['pessoas', 'carga', 'torpedos', 'equipamentos'].includes(l.category)
+        || ![l.quantity, l.unitMass, mass, x, y, z].every(Number.isFinite)
+        || !Number.isInteger(l.quantity) || l.quantity < 1 || l.unitMass <= 0 || mass > 200000
+        || Math.abs(x) > v.hull.length / 2 || Math.hypot(y, z) > e.geom.radiusAt(x)) {
+        log('Carga recusada: confira massa, quantidade e posição dentro do casco.', 'Cargas');
+        break;
+      }
+      const loads = s.cargoLoads ??= [];
+      const index = loads.findIndex(item => item.id === l.id);
+      const previous = index < 0 ? 0 : loads[index].quantity * loads[index].unitMass;
+      const next = structuredClone({ ...l, name: l.name.trim().slice(0, 80) });
+      if (index < 0) loads.push(next); else loads[index] = next;
+      s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) + mass - previous;
+      log(`${index < 0 ? 'Embarcar' : 'Atualizar/mover'} ${next.name}: ${l.quantity} × ${l.unitMass} kg; posição (${x}, ${y}, ${z}) m`, 'Cargas');
+      break;
+    }
+    case 'cargoRemove': {
+      const load = s.cargoLoads?.find(l => l.id === c.id);
+      if (!load) break;
+      s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) - load.quantity * load.unitMass;
+      s.cargoLoads = s.cargoLoads!.filter(l => l.id !== c.id);
+      log(`Desembarcar ${load.name}: ${load.quantity * load.unitMass} kg`, 'Cargas');
+      break;
+    }
+    case 'environment': {
+      const env = e.config.environment;
+      const changes: string[] = [];
+      const note = (key: string, v: unknown) => {
+        const [lbl, unit] = ENV_LABEL[key] ?? [key, ''];
+        changes.push(`${lbl} ${typeof v === 'number' ? Number(v.toFixed(2)) : String(v)}${unit ? ' ' + unit : ''}`);
+      };
+      const { bottom, geo, ...rest } = c.patch;
+      if (geo) {
+        const cur = (env.geo ??= defaultGeo());
+        if (typeof geo.coast === 'boolean') {
+          cur.coast = geo.coast;
+          changes.push(`costa ${geo.coast ? 'LIGADA (terra e fundo costeiro na física)' : 'desligada'}`);
+        }
+        if (typeof geo.shelfWidth === 'number' && Number.isFinite(geo.shelfWidth)) {
+          cur.shelfWidth = Math.max(50, Math.min(20000, geo.shelfWidth));
+          note('geo.shelfWidth', cur.shelfWidth);
+        }
+        if (geo.origin && Number.isFinite(geo.origin.lat) && Number.isFinite(geo.origin.lon)) {
+          cur.origin = { lat: geo.origin.lat, lon: geo.origin.lon };
+          changes.push(`posição geográfica do referencial ${geo.origin.lat.toFixed(4)}°, ${geo.origin.lon.toFixed(4)}°`);
+        }
+      }
+      for (const [k, val] of Object.entries(rest)) {
+        if (typeof val !== 'number' || !Number.isFinite(val)) continue;
+        (env as unknown as Record<string, number>)[k] = val;
+        note(k, val);
+      }
+      if (bottom) {
+        for (const [k, val] of Object.entries(bottom)) {
+          if (k === 'mode' ? val !== 'uniforme' && val !== 'relevo' : typeof val !== 'number' || !Number.isFinite(val)) continue;
+          (env.bottom as unknown as Record<string, unknown>)[k] = k === 'baseDepth' ? Math.max(8, val as number) : val;
+          note('bottom.' + k, val);
+        }
+      }
+      e.rebuildEnvironment();
+      log(`Ambiente alterado (estado mantido): ${changes.join(', ') || 'sem mudanças'}`, 'Ambiente');
+      break;
+    }
     case 'demoWeight': {
       const dwc = v.mass.demoWeight;
       const d = s.demoWeight;
@@ -268,9 +406,9 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
         log(`Peso deslocável: mover para x = ${d.xCmd.toFixed(1)} m (${d.xCmd > dwc.xNeutral ? 'para vante' : d.xCmd < dwc.xNeutral ? 'para ré' : 'posição neutra'})`, 'Trim');
       }
       if (c.mass !== undefined) {
-        const m = Math.max(0, Math.min(20000, c.mass));
-        s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) + (m - d.mass);
-        log(`Peso deslocável: massa ${(d.mass / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (${m > d.mass ? 'embarcada' : 'desembarcada'} ${(Math.abs(m - d.mass) / 1000).toFixed(1)} t)`, 'Trim');
+        // a carga já está a bordo: muda só quanto dela anda no trilho (massa total do navio inalterada)
+        const m = Math.max(0, Math.min(dwc.mass, c.mass));
+        log(`Peso deslocável: parcela deslocada ${(Math.min(d.mass, dwc.mass) / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (de ${(dwc.mass / 1000).toFixed(0)} t a bordo; massa total inalterada)`, 'Trim');
         d.mass = m;
       }
       break;

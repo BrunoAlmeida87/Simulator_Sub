@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | Controle automático | `systems/autopilot.ts` | leituras de sensores | comandos dos lemes |
 | 2 | Atuadores dos lemes | `systems/actuation.ts` | comandos, hidráulica | ângulos reais, consumo hidráulico |
-| 3 | Mastro do snorkel | `systems/actuation.ts` | atitude, profundidade | tomada de ar disponível |
+| 3 | Mastros do snorkel e do periscópio | `systems/actuation.ts` | atitude, profundidade, hidráulica | tomada de ar disponível, posição do periscópio |
 | 4 | Coletor de ar AP | `systems/hpAir.ts` | válvulas dos grupos | pressão do coletor |
 | 5 | Tanques de lastro | `systems/ballast.ts` | pose, pressões, coletor | água/ar dos TLP, vazões |
 | 6 | Compressor | `systems/hpAir.ts` | tomada de ar, energia | massa nas garrafas |
@@ -55,7 +55,13 @@ Disponibilidade de energia e hidráulica: os consumidores usam o estado do barra
 - `render3d/ForceArrows.ts`: vetores de peso, empuxo, resultante e forças hidrodinâmicas, a partir de `sim/forceVectors.ts` (função pura, testada).
 - `render3d/SurfaceFx.ts`: esteira persistente (fixa no mundo), onda de proa, braços de Kelvin, rastro do hélice e jato dos suspiros.
 - `render3d/Markers.ts`: boias com cabo de fundeio marcado a cada 10 m e marcadores de distância ao longo da derrota inicial.
-- `render3d/layers.ts`: camadas visuais e a linguagem de cores comum a tanques, circuitos e forças.
+- `render3d/layers.ts`: camadas visuais, o catálogo único `LAYER_INFO` (nomes e “marcar/desmarcar todas”) e a linguagem de cores comum a tanques, circuitos e forças; `ui/components/LayerPanel.tsx` é o painel de camadas reutilizado pelas telas.
+- `sim/systems/compensationNetwork.ts`: vazão de cada trecho do circuito de compensação a partir do estado (conservação de massa no coletor) — usada pelo diagrama 2D e pelo corte 3D.
+- `sim/systems/exhaust.ts`: caminho da descarga dos diesel-geradores (mastro × dispersores) derivado do estado, sem alterar a lógica dos geradores.
+- `sim/traffic.ts`: tráfego marítimo adicional (cinemática em função do tempo, trechos validados contra o fundo simulado e entre si), comum ao mapa e à cena 3D.
+- `render3d/DepthRefs.ts`: referências discretas de profundidade (faixas de partículas e sombra no fundo).
+- `render3d/controlRoom/`: **sala de comando em primeira pessoa** (aba Sala de comando). `ControlRoomScene.ts` monta a sala (casco, consoles, periscópios, tubulações), a câmera em primeira pessoa, as colisões, a seleção pelo mouse e o agendamento de redesenho das telas; `panel.ts` é o painel em canvas com **regiões clicáveis**; `panels*.ts` desenham cada tela/face lendo o estado; `furniture.ts` e `textures.ts` são os modelos e as texturas procedurais; `stations.ts` descreve os postos. A cena **não** importa o executor nem aplica comandos: botões e controles montam `Command`s e os entregam a `RoomActions` (`actions.ts`), fornecidas por `ui/screens/ControlRoomScreen.tsx`, que os envia ao executor (histórico, gravação e sincronismo iguais aos das outras telas). Os testes desenham cada painel num contexto 2D falso e conferem que todo botão gera um comando válido.
+- `ui/presBuilder/`: **Estúdio de apresentações**. `model.ts` (etapas como dados JSON: texto, formato, visualização, ações, gatilho, estado guardado; `normalizePresentation` valida qualquer arquivo), `variables.ts` (grandezas ao vivo para texto, mostradores e condições), `actions.ts` (catálogo de ações: campos do formulário, descrição e execução — as do submarino só emitem `Command`s com origem "apresentação"), `richText.ts` (marcação do texto), `player.ts` (execução fora do React: entra na etapa, dispara ações atrasadas, confere o gatilho, guarda o estado de entrada de cada etapa para voltar/repetir e avança acelerado pela física até uma etapa), `library.ts` (localStorage, importar/exportar, roteiro em texto) e `templates.ts` (modelos). A interface é `screens/StudioScreen.tsx`; o cartão (`components/PresCard.tsx`) é o mesmo no palco, sobre as outras telas (`PresFloating.tsx`) e na 2ª janela (via `sync.ts`, sem as notas).
 - `ui/presentation.ts`, `ui/checklist.ts`, `ui/maneuvers.ts`, `ui/demo.ts`: situações prontas, estado inicial, antes × agora; checklist contínuo e persistente; etapas, comandos e resultado das manobras e da demonstração.
 
 ## Como adicionar um sistema (ex.: atmosfera interna, Fase 3)

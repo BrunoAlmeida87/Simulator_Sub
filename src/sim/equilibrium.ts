@@ -50,20 +50,32 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
   const vDisp = hs.volume - cfg.hull.compressibility * dp * engine.compressibleVolume * hs.immersedFraction;
   const Mreq = rho * vDisp;
   const xB = hs.center.x;
-  const compIds = cfg.compensation.tanks.filter((t) => t.automaticCompensation !== false).map((t) => t.id);
+  const compIds = cfg.compensation.tanks.map((t) => t.id);
   const capC = (id: string) => cfg.compensation.tanks.find((t) => t.id === id)!.capacity * RHO_NOMINAL;
   let clamped = false;
   for (let it = 0; it < 6; it++) {
     const mp = computeMassProps(cfg, s, engine.light, rho);
     const M = mp.mass;
     const dmc = Mreq - M;
-    // distribui a compensação igualmente
+    // distribui a compensação igualmente pelos tanques de compensação (TC central)
+    let left = dmc;
     for (const id of compIds) {
       const st = s.compensation.tanks[id];
       const nv = st.mass + dmc / compIds.length;
       st.mass = clamp(nv, 0, capC(id));
-      if (nv !== st.mass) clamped = true;
+      left -= st.mass - (nv - dmc / compIds.length);
     }
+    // o que não coube no central vai, em partes iguais, aos tanques de banda ligados ao coletor
+    if (Math.abs(left) > 1e-6 && (cfg.compensation.heelBranches?.length ?? 0) > 0) {
+      const capH0 = cfg.heel.tankA.capacity * RHO_NOMINAL;
+      const capH1 = cfg.heel.tankB.capacity * RHO_NOMINAL;
+      const room = left > 0 ? Math.min(capH0 - s.heel.tankA.mass, capH1 - s.heel.tankB.mass) : Math.min(s.heel.tankA.mass, s.heel.tankB.mass);
+      const each = Math.sign(left) * Math.min(Math.abs(left) / 2, Math.max(0, room));
+      s.heel.tankA.mass += each;
+      s.heel.tankB.mass += each;
+      left -= 2 * each;
+    }
+    if (Math.abs(left) > 1) clamped = true;
     const mp2 = computeMassProps(cfg, s, engine.light, rho);
     const xA = tankWaterCentroid(cfg.trim.tankA, s.trim.tankA).x;
     const xBt = tankWaterCentroid(cfg.trim.tankB, s.trim.tankB).x;
@@ -90,7 +102,7 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
   const sol: CompensationSolution = {
     ok: !clamped && Math.abs(Mreq - mpF.mass) < 5,
     message: '',
-    compensation: Object.fromEntries(cfg.compensation.tanks.map((t) => [t.id, s.compensation.tanks[t.id].mass])),
+    compensation: Object.fromEntries(compIds.map((id) => [id, s.compensation.tanks[id].mass])),
     trimA: s.trim.tankA.mass,
     trimB: s.trim.tankB.mass,
     heelA: s.heel.tankA.mass,

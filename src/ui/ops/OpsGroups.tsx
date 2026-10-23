@@ -11,8 +11,9 @@ import { TransferControls } from '../screens/TrimHeelScreen';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { TourList } from '../components/TourCard';
 import { valveStatus, pumpStatus } from '../../sim/systems/components';
-import { tankVolume } from '../../sim/systems/internalTanks';
-import { bankPressure } from '../../sim/systems/hpAir';
+import { compensationBranches, compensationWater, tankVolume } from '../../sim/systems/internalTanks';
+import { RHO_NOMINAL } from '../../sim/core/context';
+import { bankPressure, emergencyBlowActive } from '../../sim/systems/hpAir';
 import { solveNeutralCompensation } from '../../sim/equilibrium';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import type { SensorFailMode, ValveState } from '../../sim/core/state';
@@ -85,7 +86,11 @@ function ApCompact({ e }: { e: SimulationEngine }) {
           )}
         </div>
       ))}
-      {ap.depthMode === 'AUTO' && <div className="subtle">Cascata: θ ordenado {fmt(ap.tDepth.output, 1)}° → lemes de ré {fmt(ap.tPitch.output, 1)}°, vante {fmt(ap.tBow.output, 1)}°. Detalhes PID na Central de comando.</div>}
+      {ap.depthMode === 'AUTO' && (
+        <div className="subtle">
+          Cascata: θ ordenado {fmt(ap.tDepth.output, 1)}° → lemes de ré {fmt(ap.tPitch.output, 1)}°, vante {fmt(ap.tBow.output, 1)}°. Detalhes PID na Central de comando.
+        </div>
+      )}
     </div>
   );
 }
@@ -96,22 +101,32 @@ function LastroBody({ e }: { e: SimulationEngine }) {
   const s = e.state;
   return (
     <div className="col">
-      <div className="btngroup">
-        <button className="btn sm" onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: true })}>
-          Abrir suspiros
-        </button>
-        <button className="btn sm" onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: false })}>
-          Fechar suspiros
-        </button>
-        <button className="btn sm ok" onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: true })}>
-          Soprar TLP
-        </button>
-        <button className="btn sm" onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: false })}>
-          Fechar sopro
-        </button>
-        <button className="btn sm danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
-          SOPRO DE EMERGÊNCIA
-        </button>
+      <div className="col ballast-actions">
+        <div className="btngroup" role="group" aria-label="Suspiros">
+          <button className="btn sm" onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: true })}>
+            Abrir suspiros
+          </button>
+          <button className="btn sm" onClick={() => cmd({ type: 'mbtVent', tank: 'ALL', open: false })}>
+            Fechar suspiros
+          </button>
+        </div>
+        <div className="btngroup" role="group" aria-label="Sopro normal">
+          <button className="btn sm ok" onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: true })}>
+            Soprar TLP
+          </button>
+          <button className="btn sm" onClick={() => cmd({ type: 'mbtBlow', tank: 'ALL', open: false })}>
+            Fechar sopro
+          </button>
+        </div>
+        <div className="btngroup" role="group" aria-label="Sopro de emergência">
+          <button className="btn sm danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
+            SOPRO DE EMERGÊNCIA
+          </button>
+          <button className="btn sm" onClick={() => cmd({ type: 'emergencyBlow', open: false })}>
+            Fechar emergência
+          </button>
+          {v.ballast.tanks.some((t) => s.ballast[t.id].emergencyBlow.cmd > 0.5) && <span className="badge warn">EMERGÊNCIA ATIVA</span>}
+        </div>
       </div>
       <table className="t ops-t">
         <thead>
@@ -137,7 +152,11 @@ function LastroBody({ e }: { e: SimulationEngine }) {
                     <span style={{ width: `${f * 100}%` }} />
                   </span>{' '}
                   <span className="mono">{fmt(f * 100, 0)} %</span>
-                  {Math.abs(st.qWater) > 0.01 && <div className="subtle">{st.qWater > 0 ? '▲ entrando' : '▼ saindo'} {fmt(Math.abs(st.qWater), 2)} m³/s</div>}
+                  {Math.abs(st.qWater) > 0.01 && (
+                    <div className="subtle">
+                      {st.qWater > 0 ? '▲ entrando' : '▼ saindo'} {fmt(Math.abs(st.qWater), 2)} m³/s
+                    </div>
+                  )}
                 </td>
                 <td onClick={(ev) => ev.stopPropagation()}>
                   <VBadge v={st.vent} />
@@ -157,7 +176,8 @@ function LastroBody({ e }: { e: SimulationEngine }) {
         </tbody>
       </table>
       <div className="subtle">
-        Reserva de flutuabilidade: <b className="mono">{fmt(e.outputs.reserveKg / 1000, 1)} t</b> · coletor AP <b className="mono">{fmt(e.outputs.hpManifoldBar, 0)} bar</b>. Clique numa linha para destacar o tanque na cena.
+        Reserva de flutuabilidade: <b className="mono">{fmt(e.outputs.reserveKg / 1000, 1)} t</b> · coletor AP <b className="mono">{fmt(e.outputs.hpManifoldBar, 0)} bar</b>. Clique numa linha para destacar o tanque na
+        cena.
       </div>
     </div>
   );
@@ -172,27 +192,29 @@ function CompBody({ e }: { e: SimulationEngine }) {
   // na superfície o equilíbrio submerso é calculado para a cota de 40 m (eixo)
   const calcDepth = e.outputs.surfaced ? 40 : Math.max(0, e.state.body.pos.z);
   const need = useMemo(() => solveNeutralCompensation(e, calcDepth, false), [e, Math.round(calcDepth), Math.round(s.t / 5)]);
-  const needComp = Object.values(need.compensation).reduce((a, b) => a + b, 0);
-  const curComp = v.compensation.tanks.reduce((a, t) => a + c.tanks[t.id].mass, 0);
+  // água de compensação = tanque central + tanques de banda ligados ao coletor
+  const needComp = Object.values(need.compensation).reduce((a, b) => a + b, 0) + (v.compensation.heelBranches?.length ? need.heelA + need.heelB : 0);
+  const curComp = compensationWater(v.compensation, c, v.heel, s.heel);
   const d = c.dosing;
   return (
     <div className="col">
       <table className="t ops-t">
         <tbody>
-          {v.compensation.tanks.map((t, i) => {
-            const vv = c.tankValves[v.compensation.tankValves[i].id];
-            const vol = tankVolume(c.tanks[t.id]);
+          {compensationBranches(v.compensation, c, v.heel, s.heel).map((b) => {
+            const vv = b.valve;
+            const vol = tankVolume(b.st);
+            const short = b.heel ? (b.heel === 'A' ? 'TB-BB' : 'TB-BE') : b.id;
             return (
-              <tr key={t.id} className={isFocus(t.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: t.id })} style={{ cursor: 'pointer' }}>
+              <tr key={b.id} className={isFocus(b.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: b.id })} style={{ cursor: 'pointer' }}>
                 <td>
-                  <b>{t.id.replace('TC', 'TC-')}</b> <span className="subtle">{t.name.replace(/^TC-\d\s*/, '')}</span>
+                  <b>{short}</b> <span className="subtle">{b.heel ? 'banda · ramal ' + b.valveId : b.cfg.name.replace(/^TC(-\d)?\s*/, '')}</span>
                 </td>
                 <td className="mono">
-                  {fmt(vol, 2)}/{fmt(t.capacity, 0)} m³
+                  {fmt(vol, 2)}/{fmt(b.cfg.capacity, 0)} m³
                 </td>
                 <td onClick={(ev) => ev.stopPropagation()}>
                   <VBadge v={vv} />
-                  <button className="btn sm" onClick={() => cmd({ type: 'valve', system: 'compensation', valve: v.compensation.tankValves[i].id, open: vv.cmd < 0.5 })}>
+                  <button className="btn sm" onClick={() => cmd({ type: 'valve', system: 'compensation', valve: b.valveId, open: vv.cmd < 0.5 })}>
                     {vv.cmd > 0.5 ? 'Fechar' : 'Abrir'}
                   </button>
                 </td>
@@ -301,6 +323,9 @@ function ArBody({ e }: { e: SimulationEngine }) {
               <tr key={b.id} className={isFocus(b.id) ? 'focus' : ''}>
                 <td>
                   <b>{b.name}</b>
+                  <div className="subtle">
+                    {b.volume} m³ · {b.purpose === 'emergency' ? 'emergência' : 'normal'}
+                  </div>
                 </td>
                 <td>
                   <span className="minibar">
@@ -323,13 +348,19 @@ function ArBody({ e }: { e: SimulationEngine }) {
         <span>
           Coletor: <b className="mono">{fmt(e.outputs.hpManifoldBar, 0)} bar</b>
         </span>
+        <span>
+          Emergência: <b className="mono">{fmt(s.hpAir.emergencyManifoldPressure / 1e5, 0)} bar</b>
+        </span>
         <span>Compressor:</span>
-        <span className={`badge ${s.hpAir.compressorRunning ? 'ok' : 'off'}`}>{s.hpAir.compressorRunning ? 'EM CARGA' : s.hpAir.compressorCmd ? 'SEM AR/ENERGIA' : 'PARADO'}</span>
+        <span className={`badge ${s.hpAir.compressorRunning ? 'ok' : 'off'}`}>
+          {s.hpAir.compressorRunning ? 'EM CARGA' : s.hpAir.compressorCmd || emergencyBlowActive(s) ? (e.outputs.airIntake && s.electrical.energized ? 'PRESSÃO MÁXIMA' : 'SEM AR/ENERGIA') : 'PARADO'}
+        </span>
+        {emergencyBlowActive(s) && <span className="badge warn">AUTOMÁTICO</span>}
         <button className={`btn sm ${s.hpAir.compressorCmd ? 'on' : ''}`} onClick={() => cmd({ type: 'compressor', run: !s.hpAir.compressorCmd })}>
-          {s.hpAir.compressorCmd ? 'Parar' : 'Partir'}
+          {s.hpAir.compressorCmd ? 'Parar manual' : 'Partir manual'}
         </button>
       </div>
-      <div className="note">O compressor precisa de ar externo (snorkel içado com a válvula de cabeça aberta, ou superfície) e de energia.</div>
+      <div className="note">O compressor recarrega os dois circuitos e atua automaticamente durante a emergência, priorizando as ampolas dedicadas. Precisa de ar externo (snorkel ou superfície) e de energia.</div>
     </div>
   );
 }
@@ -339,7 +370,9 @@ function EnergiaBody({ e }: { e: SimulationEngine }) {
   const v = e.vessel;
   const el = e.state.electrical;
   const sn = e.state.snorkel;
-  const loads = Object.entries(el.loads).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const loads = Object.entries(el.loads)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
   const f = opsBus.focusTarget;
   return (
     <div className="col">
@@ -374,7 +407,8 @@ function EnergiaBody({ e }: { e: SimulationEngine }) {
                   <b>{g.name}</b>
                 </td>
                 <td>
-                  <span className={`badge ${st.status === 'EM CARGA' ? 'ok' : st.status === 'PARTINDO' ? 'warn' : st.status === 'FALHA' ? 'alarm' : 'off'}`}>{st.status}</span> <span className="mono subtle">{fmt(st.power / 1000, 0)} kW</span>
+                  <span className={`badge ${st.status === 'EM CARGA' ? 'ok' : st.status === 'PARTINDO' ? 'warn' : st.status === 'FALHA' ? 'alarm' : 'off'}`}>{st.status}</span>{' '}
+                  <span className="mono subtle">{fmt(st.power / 1000, 0)} kW</span>
                 </td>
                 <td>
                   <button className={`btn sm ${st.cmd ? 'on' : ''}`} onClick={() => cmd({ type: 'generator', id: g.id, run: !st.cmd })}>
@@ -459,10 +493,7 @@ function FalhasBody({ e }: { e: SimulationEngine }) {
         {def?.param && <input type="number" style={{ width: 60 }} placeholder={String(def.param.default)} value={param} onChange={(ev) => setParam(ev.target.value)} title={`${def.param.label} (${def.param.unit})`} />}
         <button
           className="btn sm danger"
-          onClick={() =>
-            def &&
-            cmd({ type: 'failure', target: def.target, active: true, param: def.modes ? (def.modes[0] as SensorFailMode) : def.param ? Number(param || def.param.default) : undefined })
-          }
+          onClick={() => def && cmd({ type: 'failure', target: def.target, active: true, param: def.modes ? (def.modes[0] as SensorFailMode) : def.param ? Number(param || def.param.default) : undefined })}
         >
           Injetar
         </button>
@@ -533,8 +564,8 @@ function AmbienteBody({ e }: { e: SimulationEngine }) {
           Carregar
         </button>
       </div>
-      <button className="btn sm" onClick={() => ui.setScreen('cenarios')}>
-        Parâmetros avançados (aba Cenários e configuração) →
+      <button className="btn sm" onClick={() => ui.setScreen('config')}>
+        Configurações, sessões e gravações →
       </button>
     </div>
   );
@@ -568,14 +599,15 @@ export const GROUPS: Record<GroupId, GroupDef> = {
       const t = e.vessel.ballast.tanks;
       const vent = t.some((x) => e.state.ballast[x.id].vent.cmd > 0.5);
       const blow = t.some((x) => e.state.ballast[x.id].blow.cmd > 0.5);
-      return `${fmt(fill(e) * 100, 0)} % cheio · suspiros ${vent ? 'ABERTOS' : 'fechados'}${blow ? ' · SOPRANDO' : ''}`;
+      const emergency = t.some((x) => e.state.ballast[x.id].emergencyBlow.cmd > 0.5);
+      return `${fmt(fill(e) * 100, 0)} % cheio · suspiros ${vent ? 'ABERTOS' : 'fechados'}${emergency ? ' · EMERGÊNCIA' : blow ? ' · SOPRANDO' : ''}`;
     },
     Body: LastroBody,
   },
   comp: {
     summary: (e) => {
       const c = e.state.compensation;
-      const vol = e.vessel.compensation.tanks.reduce((a, t) => a + tankVolume(c.tanks[t.id]), 0);
+      const vol = compensationWater(e.vessel.compensation, c, e.vessel.heel, e.state.heel) / RHO_NOMINAL;
       return `${fmt(vol, 2)} m³ · ${e.outputs.surfaced ? 'superfície' : `flutuab. ${fmt(e.outputs.netBuoyancyKg / 1000, 2)} t`} · bomba ${c.pump.speed > 0.05 ? 'ligada' : 'parada'}${c.dosing?.active ? ' · DOSANDO' : ''}`;
     },
     Body: CompBody,

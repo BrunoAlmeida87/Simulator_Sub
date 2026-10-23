@@ -69,15 +69,21 @@ export function TrimDemoPanel({ e, compact }: { e: SimulationEngine; compact?: b
       </div>
       <div className="row subtle">
         <span>
-          Posição <b className="mono" style={{ color: '#ff7ad1' }}>{fmt(d.x, 1)} m</b> {moving ? `→ ${fmt(d.xCmd, 1)} m (${fmt(dwc.speed, 1)} m/s)` : ''}
+          Posição{' '}
+          <b className="mono" style={{ color: '#ff7ad1' }}>
+            {fmt(d.x, 1)} m
+          </b>{' '}
+          {moving ? `→ ${fmt(d.xCmd, 1)} m (${fmt(dwc.speed, 1)} m/s)` : ''}
         </span>
-        <span>Massa</span>
+        <span title={`Carga já a bordo (${fmt(dwc.mass / 1000, 0)} t): escolhe quanto dela anda no trilho. A massa total do submarino não muda.`}>Deslocar</span>
         <div className="seg">
-          {[0, 2000, 5000, 10000].map((m) => (
-            <button key={m} className={Math.abs(d.mass - m) < 1 ? 'on' : ''} onClick={() => cmd({ type: 'demoWeight', mass: m })} title={m === 0 ? 'Desembarcar a carga' : `Carga de ${m / 1000} t`}>
-              {m / 1000} t
-            </button>
-          ))}
+          {[2000, 5000, 10000, 20000, 30000]
+            .filter((m) => m <= dwc.mass)
+            .map((m) => (
+              <button key={m} className={Math.abs(d.mass - m) < 1 ? 'on' : ''} onClick={() => cmd({ type: 'demoWeight', mass: m })} title={`Deslocar ${m / 1000} t da carga existente (sem acrescentar peso)`}>
+                {m / 1000} t
+              </button>
+            ))}
         </div>
       </div>
       <table className="t">
@@ -89,7 +95,11 @@ export function TrimDemoPanel({ e, compact }: { e: SimulationEngine; compact?: b
           <tr>
             <td style={{ color: '#ffb54d' }}>Momento dos tanques de trim</td>
             <td className="mono">
-              {tm(tb.tanks.momentTm)} <span className="subtle">(TT-AV {dA >= 0 ? '+' : '−'}{fmt(Math.abs(dA) / 1000, 2)} t)</span>
+              {tm(tb.tanks.momentTm)}{' '}
+              <span className="subtle">
+                (TT-AV {dA >= 0 ? '+' : '−'}
+                {fmt(Math.abs(dA) / 1000, 2)} t)
+              </span>
             </td>
           </tr>
           <tr>
@@ -116,7 +126,11 @@ export function TrimDemoPanel({ e, compact }: { e: SimulationEngine; compact?: b
           Desfazer trim
         </button>
       </div>
-      {c.dir && !c.feasible && <div className="badge warn">O trim não basta: precisa de {fmt(c.kg / 1000, 1)} t, o tanque permite {fmt(c.limitKg / 1000, 1)} t.</div>}
+      {c.dir && !c.feasible && (
+        <div className="badge warn">
+          O trim não basta: precisa de {fmt(c.kg / 1000, 1)} t, o tanque permite {fmt(c.limitKg / 1000, 1)} t.
+        </div>
+      )}
       {dosing && (
         <div className="subtle">
           Trim: {dosing.phase} — {fmt(dosing.moved, 0)}/{fmt(dosing.target, 0)} kg
@@ -124,7 +138,9 @@ export function TrimDemoPanel({ e, compact }: { e: SimulationEngine; compact?: b
       )}
       {!compact && (
         <div className="note">
-          Deslocar o peso cria um binário (+P na nova posição, −P na original). O submarino gira até o momento restaurador equilibrar: submerso, com pouca rigidez (E·BG), inclina vários graus; na superfície, o plano de flutuação é muito mais rígido e o efeito é pequeno. A compensação transfere água entre TT-AV e TT-AR com o binário oposto. Experimente com o submarino pairando (sem velocidade, lemes sem efeito).
+          O peso deslocado já está a bordo: deslocar não acrescenta massa, só cria um binário (+P na nova posição, −P na original). O submarino gira até o momento restaurador equilibrar: submerso, com pouca rigidez
+          (E·BG), inclina vários graus; na superfície, o plano de flutuação é muito mais rígido e o efeito é pequeno. A compensação transfere água entre TT-AV e TT-AR com o binário oposto. Experimente com o submarino
+          pairando (sem velocidade, lemes sem efeito).
         </div>
       )}
     </div>

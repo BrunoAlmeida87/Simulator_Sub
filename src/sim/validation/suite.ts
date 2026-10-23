@@ -10,6 +10,7 @@ import { solveNeutralCompensation } from '../equilibrium';
 import { SimulationEngine } from '../core/engine';
 import { SimRunner } from '../core/runner';
 import { applyCommand } from '../commands';
+import { tankWaterCentroid } from '../systems/internalTanks';
 import { seawaterDensity } from '../environment/seawater';
 import { computeHydrostatics } from '../physics/hydrostatics';
 import { qFromEuler, qToMat3, RAD, wrap360 } from '../core/math';
@@ -152,17 +153,19 @@ export const VALIDATION_CASES: ValidationCase[] = [
   {
     id: 'V03',
     title: '3. Redistribuição transversal de massa altera a banda',
-    description: 'Transferir 1 t de TB-BB para TB-BE: o submarino deve adernar para boreste conforme Δφ = Δm·g·Δy / (W·BG).',
+    description: 'Transferir 1 t de TB-BB para TB-BE: o submarino deve adernar para boreste conforme tan Δφ = g·Δ(Σ m·ȳ) / (W·BG), com ȳ o centroide da água em cada tanque.',
     run: () => {
       const e = buildScenario('pairando', uniformConfig());
       const ph0 = e.outputs.euler.roll;
       const v = e.vessel;
+      // momento transversal da água dos dois tanques (a seção segue o casco: o centroide muda com o nível)
+      const myHeel = () => e.state.heel.tankA.mass * tankWaterCentroid(v.heel.tankA, e.state.heel.tankA).y + e.state.heel.tankB.mass * tankWaterCentroid(v.heel.tankB, e.state.heel.tankB).y;
+      const my0 = myHeel();
       applyCommand(e, { type: 'dosing', system: 'heel', mode: 'transferir', kg: 1000, dir: 'AtoB' });
       const sr = record(e, 300, 1, (x) => x.outputs.euler.roll, 'Banda', '°');
       const transferred = e.state.heel.dosing?.moved ?? 0;
-      const dy = v.heel.tankB.center.y - v.heel.tankA.center.y;
       const W = e.outputs.mp.mass * 9.80665;
-      const pred = Math.atan((transferred * 9.80665 * dy) / (W * e.outputs.BG)) * RAD;
+      const pred = Math.atan(((myHeel() - my0) * 9.80665) / (W * e.outputs.BG)) * RAD;
       const dph = e.outputs.euler.roll - ph0;
       return {
         metrics: [

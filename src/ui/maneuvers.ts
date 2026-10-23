@@ -6,7 +6,8 @@
  * (sucesso, tempo esgotado, cancelada ou falha).
  */
 import type { SimRunner } from '../sim/core/runner';
-import { applyCommand, type Command } from '../sim/commands';
+import { applyCommand, withCommandSource, type Command } from '../sim/commands';
+import { replayLock } from './replayLock';
 import type { SimulationEngine } from '../sim/core/engine';
 
 export type ManeuverKind = 'imergir' | 'emergir';
@@ -26,6 +27,16 @@ export interface SentCommand {
   text: string;
 }
 
+export interface ManeuverSnapshot {
+  active: ManeuverKind | null;
+  phase: string;
+  step: number;
+  target: number;
+  t0: number;
+  sent: SentCommand[];
+  result: { kind: ManeuverKind; outcome: ManeuverOutcome; why: string; t: number; duration: number } | null;
+}
+
 export class ManeuverController {
   active: ManeuverKind | null = null;
   phase = '';
@@ -39,7 +50,7 @@ export class ManeuverController {
   private send(e: SimulationEngine, c: Command): void {
     const log = e.state.commands;
     const last = log[log.length - 1];
-    applyCommand(e, c);
+    withCommandSource('manobra', () => applyCommand(e, c));
     let i = log.length - 1;
     while (i >= 0 && log[i] !== last) i--;
     for (const r of log.slice(i + 1)) this.sent.push({ t: r.t, text: r.text });
@@ -54,6 +65,7 @@ export class ManeuverController {
   }
 
   start(r: SimRunner, kind: ManeuverKind, target = 50): void {
+    if (replayLock.active) return;
     const e = r.engine;
     this.active = kind;
     this.target = target;
@@ -85,7 +97,7 @@ export class ManeuverController {
   }
 
   tick(r: SimRunner): void {
-    if (!this.active) return;
+    if (!this.active || replayLock.active) return;
     const e = r.engine;
     const s = e.state;
     const o = e.outputs;
@@ -119,6 +131,22 @@ export class ManeuverController {
         this.finish(r, 'sucesso', 'na superfície, TLP soprados');
       }
     }
+  }
+
+  /** dados para salvar a sessão (retomada da manobra em andamento) */
+  snapshot(): ManeuverSnapshot {
+    return { active: this.active, phase: this.phase, step: this.step, target: this.target, t0: this.t0, sent: [...this.sent], result: this.result };
+  }
+
+  /** restaura a manobra salva (sem emitir comandos: o estado físico já os contém) */
+  restore(d: Partial<ManeuverSnapshot> | null | undefined): void {
+    this.active = d?.active === 'imergir' || d?.active === 'emergir' ? d.active : null;
+    this.phase = String(d?.phase ?? '');
+    this.step = Number(d?.step ?? 0);
+    this.target = Number(d?.target ?? 50);
+    this.t0 = Number(d?.t0 ?? 0);
+    this.sent = Array.isArray(d?.sent) ? d!.sent.slice(-30) : [];
+    this.result = d?.result ?? null;
   }
 
   private finish(r: SimRunner, outcome: ManeuverOutcome, why: string): void {

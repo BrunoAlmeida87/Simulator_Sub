@@ -7,7 +7,7 @@ import { qFromEuler, qToMat3 } from '../src/sim/core/math';
 import { RHO_NOMINAL, type StepContext } from '../src/sim/core/context';
 import { updateCompensation } from '../src/sim/systems/internalTanks';
 import { buildCompensationCircuit, findPumpRoutes, circuitEdgeFlow } from '../src/sim/systems/compensationCircuit';
-import { solveNeutralCompensation } from '../src/sim/equilibrium';
+import { compensationFlows } from '../src/sim/systems/compensationNetwork';
 import { serializeEngine, deserializeEngine } from '../src/sim/persistence';
 
 function fixture() {
@@ -15,13 +15,13 @@ function fixture() {
   const e = new SimulationEngine(config, createState(config, { depth: 50, heading: 0 }, 'teste', true));
   const s = e.state;
   const v = e.vessel;
-  const tanks = [{ cfg: v.heel.tankA, st: s.heel.tankA }, { cfg: v.compensation.tanks.find(t => t.id === 'TC0')!, st: s.compensation.tanks.TC0 }, { cfg: v.heel.tankB, st: s.heel.tankB }];
+  const tanks = [{ cfg: v.heel.tankA, st: s.heel.tankA }, { cfg: v.compensation.tanks.find(t => t.id === 'TC')!, st: s.compensation.tanks.TC }, { cfg: v.heel.tankB, st: s.heel.tankB }];
   tanks.forEach(t => { t.st.mass = 2 * RHO_NOMINAL; });
   const tr = s.compensation.transfer!;
   const ctx: StepContext = { cfg: v, env: e.env, geom: e.geom, dt: 0.02, t: 0, R: qToMat3(qFromEuler(0, 0, 0)), pos: s.body.pos, depthOf: p => 50 + p.z,
     busPowered: true, hydraulicFactor: 1, rhoLocal: RHO_NOMINAL, seaTempK: 293, airIntakeAvailable: false, hydraulicDemand: 0, log: () => {} };
   const step = (seconds = 10) => {
-    for (let i = 0; i < seconds / ctx.dt; i++) updateCompensation(v.compensation, s.compensation, ctx, [tanks[0], tanks[2]]);
+    for (let i = 0; i < seconds / ctx.dt; i++) updateCompensation(v.compensation, s.compensation, ctx, v.heel, s.heel);
   };
   return { e, s, v, tanks, tr, ctx, step };
 }
@@ -53,7 +53,7 @@ describe('Transferência de banda BB ↔ central ↔ BE', () => {
   it('não troca o par com a bomba em funcionamento e preserva seleção no salvamento', () => {
     const f = fixture();
     applyCommand(f.e, { type: 'compensationTransferPump', run: true });
-    applyCommand(f.e, { type: 'compensationRoute', source: 'TC0', destination: f.v.heel.tankB.id });
+    applyCommand(f.e, { type: 'compensationRoute', source: 'TC', destination: f.v.heel.tankB.id });
     expect(f.tr.source).toBe(f.v.heel.tankA.id);
     const restored = deserializeEngine(serializeEngine(f.e, 'transferência'));
     expect(restored.state.compensation.transfer).toEqual(f.tr);
@@ -88,15 +88,18 @@ describe('Transferência de banda BB ↔ central ↔ BE', () => {
     applyCommand(f.e, { type: 'failure', target: 'valve:compensation:direction', active: true });
     f.step(); expect(f.tr.flow).toBeCloseTo(0, 12);
   });
-  it('preserva a água do central no cálculo de neutralidade e nas dosagens automáticas', () => {
+  it('dosagem automática no TC central interrompe a transferência interna', () => {
     const f = fixture();
-    const before = f.s.compensation.tanks.TC0.mass;
-    solveNeutralCompensation(f.e, 50, true);
-    expect(f.s.compensation.tanks.TC0.mass).toBe(before);
+    applyCommand(f.e, { type: 'compensationTransferPump', run: true }); f.step();
+    expect(f.tr.pump.flow).toBeGreaterThan(0);
+    const flows = compensationFlows(f.v.compensation, f.s.compensation, f.v.heel, f.s.heel);
+    expect(Object.values(flows.tanks).every(q => Math.abs(q) < 1e-12)).toBe(true);
+    const before = f.s.compensation.tanks.TC.mass;
     applyCommand(f.e, { type: 'dosing', system: 'compensation', mode: 'admitir', kg: 100 });
+    expect(f.tr.pump.cmd).toBe(false);
     f.step();
-    expect(f.s.compensation.tanks.TC0.mass).toBe(before);
-    expect(f.s.compensation.tankValves.VC0.pos).toBe(0);
+    expect(f.tr.pump.flow).toBe(0);
+    expect(f.s.compensation.tanks.TC.mass).toBeGreaterThan(before);
   });
   it('integra a transferência à banda, ao consumo elétrico e ao balanço de massa', () => {
     const f = fixture();

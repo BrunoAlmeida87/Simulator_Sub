@@ -39,10 +39,12 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       air: mbtFull ? 0 : (101325 * t.volume) / (R_AIR * 293),
       vent: newValve(),
       blow: newValve(),
+      emergencyBlow: newValve(),
       ventLeak: 0,
       qWater: 0,
       mdotVent: 0,
       mdotBlow: 0,
+      mdotEmergencyBlow: 0,
       mdotSpill: 0,
       pAir: 0,
       pExtPort: 0,
@@ -50,11 +52,12 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
   }
   const banks: SimState['hpAir']['banks'] = {};
   const Tb = v.hpAir.temperature + 273.15;
-  for (const b of v.hpAir.banks) banks[b.id] = { mass: (b.initialPressure * b.volume) / (R_AIR * Tb), valve: newValve(true) };
+  for (const b of v.hpAir.banks) banks[b.id] = { mass: (b.initialPressure * b.volume) / (R_AIR * Tb), valve: newValve(b.purpose !== 'emergency') };
   const compTanks: SimState['compensation']['tanks'] = {};
   for (const t of v.compensation.tanks) compTanks[t.id] = { mass: t.initialVolume * RHO_NOMINAL };
   const tankValves: SimState['compensation']['tankValves'] = {};
   for (const tv of v.compensation.tankValves) tankValves[tv.id] = newValve();
+  for (const b of v.compensation.heelBranches ?? []) tankValves[b.valve.id] = newValve();
   const surfaces: SimState['surfaces'] = {};
   for (const f of v.fins) if (f.maxDeflection > 0) surfaces[f.id] = { cmd: 0, actual: 0, jammed: false };
   const generators: SimState['electrical']['generators'] = {};
@@ -78,7 +81,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       omega: { x: 0, y: 0, z: 0 },
     },
     ballast,
-    hpAir: { banks, compressorCmd: false, compressorRunning: false, manifoldPressure: v.hpAir.banks[0].initialPressure },
+    hpAir: { banks, compressorCmd: false, compressorRunning: false, manifoldPressure: v.hpAir.banks[0].initialPressure, emergencyManifoldPressure: config.environment.atmosphericPressure },
     compensation: {
       transfer: v.compensation.transfer ? { source: v.heel.tankA.id, destination: v.heel.tankB.id, valveA: newValve(), valveB: newValve(), direction: newValve(), pump: newPump(), flow: 0, dosing: null } : undefined,
       tanks: compTanks,
@@ -127,6 +130,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
     hydraulics: { pressure: v.hydraulics.nominalPressure, failed: false, pumpOn: false, power: 0 },
     surfaces,
     snorkel: { cmd: false, pos: 0, headValveOpen: false },
+    periscope: { cmd: false, pos: 0 },
     flooding,
     autopilot: {
       headingMode: 'MANUAL',
@@ -165,7 +169,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       mass0: 0,
     },
     contact: false,
-    demoWeight: v.mass.demoWeight ? { x: v.mass.demoWeight.xNeutral, xCmd: v.mass.demoWeight.xNeutral, mass: v.mass.demoWeight.mass } : undefined,
+    demoWeight: v.mass.demoWeight ? { x: v.mass.demoWeight.xNeutral, xCmd: v.mass.demoWeight.xNeutral, mass: Math.min(v.mass.demoWeight.mass, v.mass.demoWeight.initialMass ?? v.mass.demoWeight.mass) } : undefined,
   };
 }
 

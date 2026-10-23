@@ -8,11 +8,15 @@
  *    gerada enquanto U > 0;
  *  - onda de proa e braços de Kelvin: partículas emitidas na proa (∝ U²) que se
  *    afastam lateralmente a 0,36·U (meio-ângulo ≈ 19,5°);
- *  - rastro do hélice: jato ∝ √(T/ρA) a partir do disco do hélice — some quando
+ *  - rastro do hélice (espuma na superfície): jato ∝ √(T/ρA) a partir do disco do hélice — some quando
  *    o empuxo vai a zero, mesmo com o submarino ainda em movimento;
  *  - jato de ar dos suspiros acima da água (∝ vazão de ar) e espuma onde as
- *    bolhas chegam à superfície.
+ *    bolhas chegam à superfície;
+ *  - ASPIRAÇÃO do snorkel: com o mastro içado e o diesel ligado, um leve fluxo
+ *    de ar convergindo para a cabeça do mastro (∝ carga dos geradores). A
+ *    descarga não sai pelo mastro: vai em bolhas atrás da vela (cena).
  */
+import { snorkelIntake } from '../sim/systems/exhaust';
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { WaveField } from '../sim/environment/waves';
@@ -74,7 +78,13 @@ class PointPool {
     g.setAttribute('position', this.pos);
     g.setAttribute('aSize', this.size);
     g.setAttribute('aAlpha', this.alpha);
-    this.mat = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS, uniforms: { map: { value: map }, color: { value: new THREE.Color(color) }, uScale: { value: 400 } }, transparent: true, depthWrite: false });
+    this.mat = new THREE.ShaderMaterial({
+      vertexShader: VS,
+      fragmentShader: FS,
+      uniforms: { map: { value: map }, color: { value: new THREE.Color(color) }, uScale: { value: 400 } },
+      transparent: true,
+      depthWrite: false,
+    });
     this.points = new THREE.Points(g, this.mat);
     this.points.frustumCulled = false;
     this.points.renderOrder = 4;
@@ -150,7 +160,7 @@ function foamTexture(): THREE.Texture | null {
   g.fillStyle = 'rgba(255,255,255,0)';
   g.fillRect(0, 0, 256, 256);
   let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   for (let i = 0; i < 1500; i++) {
     const x = rnd() * 256;
     const y = rnd() * 256;
@@ -184,9 +194,8 @@ export class SurfaceFx {
   readonly group = new THREE.Group();
   private foam: PointPool; // proa, Kelvin, espuma de bolhas
   private wash: PointPool; // rastro do hélice na superfície
-  private jet: PointPool; // rastro do hélice submerso
   private spray: PointPool; // jato dos suspiros
-  private smoke: PointPool; // descarga dos diesel-geradores (mastro de snorkel/descarga)
+  private intake: PointPool; // ar aspirado pela cabeça do snorkel (diesel em carga)
   private wake: WakeSample[] = [];
   private wakeMesh: THREE.Mesh;
   private wPos: THREE.BufferAttribute;
@@ -199,11 +208,10 @@ export class SurfaceFx {
     const n = (k: number) => Math.max(100, Math.round(k * scale));
     this.foam = new PointPool(n(1800), 0xffffff, dot);
     this.wash = new PointPool(n(900), 0xe6fff6, dot);
-    this.jet = new PointPool(n(700), 0xbfe6ff, dot);
     this.spray = new PointPool(n(900), 0xffffff, dot);
-    this.smoke = new PointPool(n(700), 0x5e6168, dot);
-    this.group.add(this.smoke.points);
-    this.group.add(this.foam.points, this.wash.points, this.jet.points, this.spray.points);
+    this.intake = new PointPool(n(500), 0xeef6ff, dot);
+    this.group.add(this.intake.points);
+    this.group.add(this.foam.points, this.wash.points, this.spray.points);
     const g = new THREE.BufferGeometry();
     // 3 vértices por amostra (borda, centro, borda): bordas transparentes, centro denso
     this.wPos = new THREE.Float32BufferAttribute(new Float32Array(MAX_WAKE * 3 * 3), 3);
@@ -231,9 +239,8 @@ export class SurfaceFx {
     this.lastWake = null;
     this.foam.clear();
     this.wash.clear();
-    this.jet.clear();
     this.spray.clear();
-    this.smoke.clear();
+    this.intake.clear();
   }
 
   /** espuma onde uma bolha chega à superfície */
@@ -243,7 +250,7 @@ export class SurfaceFx {
 
   update(e: SimulationEngine, step: number, pn: number, pe: number, t: number, pixelScale: number, enabled: boolean): void {
     this.group.visible = enabled;
-    for (const p of [this.foam, this.wash, this.jet, this.spray, this.smoke]) p.mat.uniforms.uScale.value = pixelScale;
+    for (const p of [this.foam, this.wash, this.spray, this.intake]) p.mat.uniforms.uScale.value = pixelScale;
     const s = e.state;
     const v = e.vessel;
     const w = e.env.waves;
@@ -320,36 +327,39 @@ export class SurfaceFx {
             this.wash.add({ n: prop.n + rnd() * 2.5, e: prop.e + rnd() * 2.5, vn: fn * vb + ln * rnd() * 1.4, ve: fe * vb + le * rnd() * 1.4, max: 5 + Math.random() * 5, size: 1.5, grow: 0.45, alpha: 0.6, drag: 0.35 });
           }
         }
-        // submerso: turbulência do jato (referência visual de movimento)
-        if (propRel > Rp + 1) {
-          const nJ = Math.min(40, 6 + Tn * 40) * step;
-          for (let k = Math.floor(nJ) + (Math.random() < nJ % 1 ? 1 : 0); k > 0; k--) {
-            const a = Math.random() * Math.PI * 2;
-            const r = Rp * (0.4 + 0.6 * Math.random());
-            const p = toW(-L / 2 - 1.2, Math.cos(a) * r, Math.sin(a) * r);
-            const vb = -(vj * 1.8) * (0.7 + 0.6 * Math.random()) + u * 0.2;
-            this.jet.add({ n: p.n, e: p.e, d: p.d, vn: fn * vb, ve: fe * vb, vd: 0, max: 5 + Math.random() * 3, size: 0.5, grow: 0.08, alpha: 0.55, drag: 0.45, surface: false });
-          }
-        }
       }
-      // ---- descarga dos diesel-geradores: fumaça no topo do mastro (∝ potência; mais escura na partida)
+      // ---- aspiração do snorkel: ar puxado para a cabeça do mastro (efeito leve, ∝ carga do diesel)
       {
-        const el = s.electrical;
-        let pw = 0;
-        let starting = false;
-        for (const g of v.electrical.generators) {
-          const st = el.generators[g.id];
-          if (st.status === 'EM CARGA') pw += st.power / g.ratedPower;
-          if (st.status === 'PARTINDO') starting = true;
-        }
-        if ((pw > 0.01 || starting) && s.snorkel.pos > 0.5) {
+        const k = snorkelIntake(v, s);
+        if (k > 0) {
           const m = v.hull.snorkelMast;
           const top = R0 + v.hull.sail.height - 0.5 + s.snorkel.pos * m.extension;
-          const head = toW(m.x - 0.7, 0, -top - 0.3);
+          const head = toW(m.x, 0, -top + 0.1);
           if (rel(head) < -0.2) {
-            const k0 = Math.min(40, 6 + pw * 18 + (starting ? 20 : 0)) * step;
-            for (let k = Math.floor(k0) + (Math.random() < k0 % 1 ? 1 : 0); k > 0; k--) {
-              this.smoke.add({ n: head.n + rnd() * 0.4, e: head.e + rnd() * 0.4, d: head.d, vn: rnd() * 0.5 + fn * u * 0.15, ve: rnd() * 0.5 + fe * u * 0.15, vd: -(0.8 + Math.random() * 0.8), max: 14 + Math.random() * 8, size: 1.2, grow: 0.55 + Math.random() * 0.3, alpha: starting ? 0.75 : 0.42 + 0.2 * pw, drag: 0.12, surface: false });
+            const k0 = Math.min(45, 8 + k * 16) * step;
+            for (let j = Math.floor(k0) + (Math.random() < k0 % 1 ? 1 : 0); j > 0; j--) {
+              // nasce num anel em volta da cabeça e converge para a entrada de ar
+              const a = Math.random() * Math.PI * 2;
+              const r = 1.6 + Math.random() * 2.2;
+              const up = (Math.random() - 0.3) * 1.6;
+              const life = 0.7 + Math.random() * 0.5;
+              const on = Math.cos(a) * r;
+              const oe = Math.sin(a) * r;
+              this.intake.add({
+                n: head.n + on,
+                e: head.e + oe,
+                d: head.d - up,
+                // velocidade para chegar à cabeça no fim da vida + o avanço do submarino (acompanha o mastro)
+                vn: -on / life + fn * u,
+                ve: -oe / life + fe * u,
+                vd: up / life,
+                max: life,
+                size: 0.95,
+                grow: -0.55,
+                alpha: 0.3 + 0.1 * Math.min(1, k),
+                drag: 0.001,
+                surface: false,
+              });
             }
           }
         }
@@ -365,15 +375,27 @@ export class SurfaceFx {
         const k0 = Math.min(90, st.mdotVent * 8) * step;
         const vUp = 4 + 7 * Math.min(1, Math.sqrt(st.mdotVent / 12));
         for (let k = Math.floor(k0) + (Math.random() < k0 % 1 ? 1 : 0); k > 0; k--) {
-          this.spray.add({ n: out.n + rnd() * 0.5, e: out.e + rnd() * 0.5, d: out.d, vn: rnd() * 1.6 + fn * u, ve: rnd() * 1.6 + fe * u, vd: -vUp * (0.75 + 0.5 * Math.random()), max: 4, size: 1.1, grow: 0.9, alpha: 0.85, drag: 0, surface: false });
+          this.spray.add({
+            n: out.n + rnd() * 0.5,
+            e: out.e + rnd() * 0.5,
+            d: out.d,
+            vn: rnd() * 1.6 + fn * u,
+            ve: rnd() * 1.6 + fe * u,
+            vd: -vUp * (0.75 + 0.5 * Math.random()),
+            max: 4,
+            size: 1.1,
+            grow: 0.9,
+            alpha: 0.85,
+            drag: 0,
+            surface: false,
+          });
         }
       }
     }
     this.foam.update(step, pn, pe, w, t);
     this.wash.update(step, pn, pe, w, t);
-    this.jet.update(step, pn, pe, w, t);
     this.spray.update(step, pn, pe, w, t);
-    this.smoke.update(step, pn, pe, w, t);
+    this.intake.update(step, pn, pe, w, t);
     this.updateWakeMesh(e, pn, pe, t);
   }
 

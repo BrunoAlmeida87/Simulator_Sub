@@ -48,6 +48,14 @@ export const CHANNELS: ChannelDef[] = [
   { id: 'rho', label: 'Densidade local', unit: 'kg/m³', kind: 'CALC', get: (e) => e.outputs.rhoLocal },
 ];
 
+export interface HistorySnapshot {
+  t: Float64Array;
+  data: Record<string, Float32Array>;
+  count: number;
+  head: number;
+  lastT: number;
+}
+
 export class HistoryRecorder {
   readonly capacity: number;
   readonly interval: number;
@@ -82,6 +90,22 @@ export class HistoryRecorder {
     for (const c of CHANNELS) this.data[c.id][i] = c.get(e);
     this.head = (this.head + 1) % this.capacity;
     this.count = Math.min(this.count + 1, this.capacity);
+    this.version++;
+  }
+
+  /** cópia do registro (janela de tela espelhada recebe o histórico da janela de controle) */
+  snapshot(): HistorySnapshot {
+    return { t: this.t.slice(), data: Object.fromEntries(Object.entries(this.data).map(([k, v]) => [k, v.slice()])), count: this.count, head: this.head, lastT: this.lastT };
+  }
+
+  /** substitui o registro por uma cópia (mesma capacidade) */
+  restore(h: HistorySnapshot): void {
+    if (h.t.length !== this.capacity) return;
+    this.t = h.t;
+    for (const c of CHANNELS) if (h.data[c.id]?.length === this.capacity) this.data[c.id] = h.data[c.id];
+    this.count = h.count;
+    this.head = h.head;
+    this.lastT = h.lastT;
     this.version++;
   }
 

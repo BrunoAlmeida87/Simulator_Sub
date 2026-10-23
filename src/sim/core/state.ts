@@ -8,6 +8,15 @@
  */
 import type { Quat, Vec3 } from './math';
 
+export interface CargoLoad {
+  id: string;
+  name: string;
+  category: 'pessoas' | 'carga' | 'torpedos' | 'equipamentos';
+  quantity: number;
+  unitMass: number; // kg
+  position: Vec3;
+}
+
 export interface ValveState {
   cmd: number; // posição comandada (0 = fechada, 1 = aberta)
   pos: number; // posição real
@@ -31,11 +40,13 @@ export interface BallastTankState {
   air: number; // kg de ar no tanque
   vent: ValveState;
   blow: ValveState;
+  emergencyBlow: ValveState;
   ventLeak: number; // m² — área de vazamento por falha de vedação do suspiro
   // diagnósticos
   qWater: number; // m³/s (+ entrando)
   mdotVent: number; // kg/s
   mdotBlow: number; // kg/s
+  mdotEmergencyBlow: number; // kg/s — circuito dedicado de emergência
   mdotSpill: number; // kg/s (ar escapando pelos embornais)
   pAir: number; // Pa absolutos
   pExtPort: number; // Pa no embornal
@@ -50,6 +61,8 @@ export interface InternalTankState {
   mass: number; // kg de água
   /** diagnóstico: vazão no último passo (m³/s, + entrando no tanque) */
   flow?: number;
+  /** Parte da vazão devida à BTC, separada da troca com o mar. */
+  transferFlow?: number;
 }
 
 export interface DosingState {
@@ -214,7 +227,7 @@ export interface Ledger {
   generatorEnergy: number;
   propellerWork: number; // energia mecânica entregue ao hélice
   mass0: number; // massa interna inicial (referência)
-  /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (peso deslocável) */
+  /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (cargas e peso deslocável) */
   cargoIn?: number;
 }
 
@@ -236,6 +249,7 @@ export interface SimState {
     compressorCmd: boolean;
     compressorRunning: boolean;
     manifoldPressure: number;
+    emergencyManifoldPressure: number;
   };
   compensation: CompensationState;
   trim: TransferState;
@@ -245,6 +259,8 @@ export interface SimState {
   hydraulics: { pressure: number; failed: boolean; pumpOn: boolean; power: number };
   surfaces: Record<string, SurfaceState>;
   snorkel: { cmd: boolean; pos: number; headValveOpen: boolean };
+  /** periscópio de ataque: ordem (içar/arriar) e posição (0 = arriado, 1 = içado). Opcional em estados antigos. */
+  periscope?: { cmd: boolean; pos: number };
   flooding: Record<string, { water: number; breachArea: number; rate: number }>;
   autopilot: AutopilotState;
   sensors: Record<string, SensorState>;
@@ -262,6 +278,7 @@ export interface SimState {
   ledger: Ledger;
   contact: boolean;
   /** peso deslocável de demonstração: posição (m, corpo), posição ordenada e massa (kg) */
+  cargoLoads?: CargoLoad[]; // cargas adicionais; ausente em salvamentos antigos
   demoWeight?: { x: number; xCmd: number; mass: number };
   /** massas de referência dos tanques de trim (condição inicial do cenário) para os vetores de trim */
   trimRef?: { a: number; b: number };

@@ -90,22 +90,34 @@ export function resolveLightship(cfg: VesselConfig, geom?: HullGeometry): Resolv
   return { lightshipMass: mL, lightshipCG: cgL };
 }
 
+/** Parcela da carga deslocável que está no carro (limitada à carga existente a bordo). */
+export function demoMovedMass(dw: { mass: number }, d: { mass: number }): number {
+  return Math.max(0, Math.min(dw.mass, d.mass));
+}
+
 export function computeMassProps(cfg: VesselConfig, s: SimState, light: ResolvedMass, rhoBallast: number): MassProps {
   const items: MassItem[] = [];
   items.push({ id: 'leve', name: 'Peso leve (estrutura e máquinas)', group: 'leve', mass: light.lightshipMass, pos: light.lightshipCG });
   for (const l of cfg.mass.variableLoads) items.push({ id: l.id, name: l.name, group: 'cargas', mass: l.mass, pos: l.position });
-  if (cfg.mass.loadOffset !== 0)
-    items.push({ id: 'ajuste', name: 'Ajuste de condição de carga', group: 'cargas', mass: cfg.mass.loadOffset, pos: cfg.mass.loadOffsetPosition });
+  if (cfg.mass.loadOffset !== 0) items.push({ id: 'ajuste', name: 'Ajuste de condição de carga', group: 'cargas', mass: cfg.mass.loadOffset, pos: cfg.mass.loadOffsetPosition });
   const fuel = fuelTankMass(cfg, s.electrical.fuel);
   items.push({ id: 'comb', name: 'Combustível + água de compensação', group: 'combustivel', mass: fuel.mass, pos: cfg.electrical.fuel.position });
   let air = 0;
   for (const b of cfg.hpAir.banks) air += s.hpAir.banks[b.id].mass;
   items.push({ id: 'arAP', name: 'Ar comprimido (garrafas)', group: 'ar', mass: air, pos: HP_AIR_POS });
   let internalMass = light.lightshipMass + fuel.mass + air + cfg.mass.loadOffset + cfg.mass.variableLoads.reduce((a, l) => a + l.mass, 0);
+  for (const l of s.cargoLoads ?? []) {
+    const mass = l.quantity * l.unitMass;
+    items.push({ id: 'cargo_' + l.id, name: l.name, group: 'cargas', mass, pos: l.position });
+    internalMass += mass;
+  }
   const dw = cfg.mass.demoWeight;
-  if (dw && s.demoWeight && s.demoWeight.mass > 0) {
-    items.push({ id: 'pesoMovel', name: 'Peso deslocável (demonstração)', group: 'cargas', mass: s.demoWeight.mass, pos: { x: s.demoWeight.x, y: dw.y, z: dw.z } });
-    internalMass += s.demoWeight.mass;
+  if (dw && s.demoWeight) {
+    // carga já a bordo: só a parcela escolhida anda no trilho; o resto fica na posição neutra (massa total constante)
+    const m = demoMovedMass(dw, s.demoWeight);
+    if (m > 0) items.push({ id: 'pesoMovel', name: 'Peso deslocável (parcela deslocada)', group: 'cargas', mass: m, pos: { x: s.demoWeight.x, y: dw.y, z: dw.z } });
+    if (dw.mass - m > 0) items.push({ id: 'pesoMovelResto', name: 'Peso deslocável (parcela na posição neutra)', group: 'cargas', mass: dw.mass - m, pos: { x: dw.xNeutral, y: dw.y, z: dw.z } });
+    internalMass += dw.mass;
   }
   for (const t of cfg.ballast.tanks) {
     const st = s.ballast[t.id];

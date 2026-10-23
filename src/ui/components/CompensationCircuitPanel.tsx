@@ -11,7 +11,7 @@ export function CompensationCircuitPanel({ e }: { e: SimulationEngine }) {
   const { state: s, vessel: v } = e;
   const tr = s.compensation.transfer;
   if (!tr) return null;
-  const tanks = [v.heel.tankA, ...v.compensation.tanks.filter(t => t.id === 'TC0'), v.heel.tankB];
+  const tanks = [v.heel.tankA, ...v.compensation.tanks, v.heel.tankB];
   const stateOf = (id: string) => id === v.heel.tankA.id ? s.heel.tankA : id === v.heel.tankB.id ? s.heel.tankB : s.compensation.tanks[id];
   const circuit = buildCompensationCircuit(s.compensation, tanks.map(t => t.id));
   const position = directionalPosition(tr.direction.pos);
@@ -33,7 +33,7 @@ export function CompensationCircuitPanel({ e }: { e: SimulationEngine }) {
     paths[`${t.id}:B`] = `M${x},128 L${x},150 L${x + 28},150 L${x + 28},310 L805,310`;
   });
   const flow = (id: string) => circuitEdgeFlow(circuit, id, q);
-  const routeName = (id: string) => id === 'TC0' ? 'Central' : id === v.heel.tankA.id ? 'BB' : 'BE';
+  const routeName = (id: string) => id === 'TC' ? 'Central' : id === v.heel.tankA.id ? 'BB' : 'BE';
   const text = circuit.route ? `${routeName(circuit.route.source)} → ${routeName(circuit.route.destination)}` : position === 'transito' ? 'VDC em trânsito — fluxo bloqueado' : !circuit.isolated ? 'Aguardando isolamento do mar' : 'Aguardando abertura dos seletores';
   return <Panel title="Compensação e banda — circuito de transferência revisado" className="span-all">
     <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
@@ -71,7 +71,7 @@ export function CompensationCircuitPanel({ e }: { e: SimulationEngine }) {
         const st = stateOf(t.id);
         return <g key={t.id}>
           <text x={x} y="58" fill="#e1ebf5" fontSize="17" textAnchor="middle" fontWeight="600">{i === 0 ? 'BOMBORDO · BB' : i === 1 ? 'TANQUE CENTRAL' : 'BORESTE · BE'}</text>
-          <TankGlyph x={x - 75} y={72} w={150} h={56} fill={tankVolume(st) / t.capacity} label={t.id === 'TC0' ? 'TC-0' : i === 0 ? 'TB-BB' : 'TB-BE'} sub={`${fmt(tankVolume(st), 2)} / ${t.capacity} m³`} color="#247ead" />
+          <TankGlyph x={x - 75} y={72} w={150} h={56} fill={tankVolume(st) / t.capacity} label={t.id === 'TC' ? 'TC' : i === 0 ? 'TB-BB' : 'TB-BE'} sub={`${fmt(tankVolume(st), 2)} / ${t.capacity} m³`} color="#247ead" />
           <circle cx={x} cy={150} r="4" fill="#a0b7ca" />
           <ValveGlyph x={x - 28} y={205} vertical st={selectorValve(tr, t.id, 'A')} size={8} label="A" />
           <ValveGlyph x={x + 28} y={280} vertical st={selectorValve(tr, t.id, 'B')} size={8} label="B" />
@@ -83,7 +83,7 @@ export function CompensationCircuitPanel({ e }: { e: SimulationEngine }) {
         </g>;
       })}
       <text x="30" y="232" fill="#8ba7be" fontSize="12">A</text><text x="850" y="300" fill="#8ba7be" fontSize="12">B</text>
-      <text x="450" y="174" fill="#93abc2" fontSize="10" textAnchor="middle">TC-0 também ligado à VC0 da compensação · mesmo tanque</text>
+      <text x="450" y="174" fill="#93abc2" fontSize="10" textAnchor="middle">TC também ligado à VC da compensação · mesmo tanque</text>
       <rect x="380" y="390" width="140" height="90" rx="3" fill="#112738" stroke={tr.direction.stuck ? '#ff5257' : '#8ee9cc'} strokeWidth="2" />
       <text x="275" y="429" textAnchor="middle" fill="#e4eef7" fontSize="16" fontWeight="600">VDC 4/2</text>
       <text x="275" y="450" textAnchor="middle" fill="#93abc2" fontSize="11">4 vias · 2 posições</text>

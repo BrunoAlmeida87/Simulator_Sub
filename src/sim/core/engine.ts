@@ -27,10 +27,10 @@ import { mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLo
 import { computeHydrostatics as computeHydrostaticsLocal } from '../physics/hydrostatics';
 import type { SimState } from './state';
 import { updateBallastTank } from '../systems/ballast';
-import { bankPressure, bankTempK, drawFromManifold, updateCompressor, updateHpManifold } from '../systems/hpAir';
+import { bankPressure, bankTempK, drawFromManifold, manifoldMass, updateCompressor, updateHpManifold } from '../systems/hpAir';
 import { updateCompensation, updateTransfer } from '../systems/internalTanks';
 import { updatePropulsion } from '../systems/propulsion';
-import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updateSnorkel, updateSurfaces } from '../systems/actuation';
+import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updatePeriscope, updateSnorkel, updateSurfaces } from '../systems/actuation';
 import { updateElectrical, updateGenerators } from '../systems/electrical';
 import { updateAutopilot, type ApReadings } from '../systems/autopilot';
 import { updateNavigation, updateSensors, type TrueValues } from '../systems/sensors';
@@ -82,7 +82,8 @@ export type CommandSink = (text: string, group: string) => void;
 
 export class SimulationEngine {
   readonly config: SimConfig;
-  readonly env: Environment;
+  /** ambiente (reconstruído pelo comando 'environment' quando o operador altera T/S/fundo) */
+  env: Environment;
   readonly geom: HullGeometry;
   readonly light: ResolvedMass;
   readonly added: AddedMass;
@@ -119,9 +120,33 @@ export class SimulationEngine {
     return this.config.vessel;
   }
 
+  /**
+   * GANCHOS DE GRAVAÇÃO/REPRODUÇÃO (não alteram a física):
+   *  - commandGate: se definido e retornar false, o comando é recusado
+   *    (a reprodução bloqueia comandos que não sejam os gravados);
+   *  - commandTap: recebe cada comando aceito, com a origem;
+   *  - noteTap: recebe as mensagens de histórico emitidas FORA dos passos e
+   *    dos comandos (narração das automações), para serem regravadas.
+   */
+  commandGate: ((c: unknown, source: string) => boolean) | null = null;
+  commandTap: ((c: unknown, source: string) => void) | null = null;
+  noteTap: ((text: string, group: string) => void) | null = null;
+  /** > 0 enquanto um passo ou um comando está sendo aplicado */
+  busy = 0;
+
   log(text: string, group: string): void {
+    if (this.noteTap && this.busy === 0) this.noteTap(text, group);
     this.state.commands.push({ t: this.state.t, text, group });
     if (this.state.commands.length > 500) this.state.commands.splice(0, this.state.commands.length - 500);
+  }
+
+  /**
+   * Reconstrói o ambiente a partir de config.environment (após alteração de
+   * temperatura, salinidade, termoclina ou fundo). O estado físico é mantido.
+   */
+  rebuildEnvironment(): void {
+    this.env = new Environment(this.config.environment);
+    this.computeOutputs();
   }
 
   /** Leituras dos sensores usadas pelo controle automático (não o estado real). */
@@ -164,6 +189,15 @@ export class SimulationEngine {
 
   /** Executa um passo fixo de simulação. */
   step(): void {
+    this.busy++;
+    try {
+      this.stepInner();
+    } finally {
+      this.busy--;
+    }
+  }
+
+  private stepInner(): void {
     const s = this.state;
     const cfg = this.vessel;
     const env = this.env;
@@ -193,30 +227,32 @@ export class SimulationEngine {
     updateAutopilot(cfg, s, this.readings, dt);
     updateSurfaces(cfg, s, ctx);
     ctx.airIntakeAvailable = updateSnorkel(cfg, s, ctx);
+    updatePeriscope(cfg, s, ctx);
 
     // 3. ar AP e lastro principal
     let strokes = updateHpManifold(cfg.hpAir, s, ctx);
     let drawn = 0;
+    let emergencyDrawn = 0;
+    const normalAvailable = manifoldMass(cfg.hpAir, s);
+    const emergencyAvailable = manifoldMass(cfg.hpAir, s, 'emergency');
     const Tb = bankTempK(cfg.hpAir);
     for (const t of cfg.ballast.tanks) {
-      const r = updateBallastTank(t, s.ballast[t.id], ctx, s.hpAir.manifoldPressure, Tb);
+      const r = updateBallastTank(t, s.ballast[t.id], ctx, s.hpAir.manifoldPressure, Tb, s.hpAir.emergencyManifoldPressure, normalAvailable - drawn, emergencyAvailable - emergencyDrawn);
       drawn += r.airDrawn;
+      emergencyDrawn += r.emergencyAirDrawn;
       s.ledger.airVented += r.airVented;
       s.ledger.airSpilled += r.airSpilled;
       strokes += r.valveStrokes;
     }
     drawFromManifold(cfg.hpAir, s, drawn);
+    drawFromManifold(cfg.hpAir, s, emergencyDrawn, 'emergency');
     const comp = updateCompressor(cfg.hpAir, s, ctx);
     s.ledger.airCompressed += comp.added;
 
     // 4. tanques internos e alagamento
     const rt = updateTransfer(cfg.trim, s.trim, ctx);
     const rh = updateTransfer(cfg.heel, s.heel, ctx);
-    s.heel.tankA.flow = -s.heel.flow;
-    s.heel.tankB.flow = s.heel.flow;
-    const rc = updateCompensation(cfg.compensation, s.compensation, ctx, [
-      { cfg: cfg.heel.tankA, st: s.heel.tankA }, { cfg: cfg.heel.tankB, st: s.heel.tankB },
-    ]);
+    const rc = updateCompensation(cfg.compensation, s.compensation, ctx, cfg.heel, s.heel);
     s.ledger.seaIn += rc.seaIn;
     s.ledger.seaOut += rc.seaOut;
     strokes += rc.strokes + rt.strokes + rh.strokes;
@@ -341,10 +377,12 @@ export class SimulationEngine {
     for (const t of cfg.ballast.tanks) {
       checkValve(t.ventValve.name, s.ballast[t.id].vent);
       checkValve(t.blowValve.name, s.ballast[t.id].blow);
+      checkValve(t.emergencyBlowValve.name, s.ballast[t.id].emergencyBlow);
     }
     checkValve(cfg.compensation.inletValve.name, s.compensation.inlet);
     checkValve(cfg.compensation.dischargeValve.name, s.compensation.discharge);
     cfg.compensation.tankValves.forEach((v) => checkValve(v.name, s.compensation.tankValves[v.id]));
+    for (const b of cfg.compensation.heelBranches ?? []) if (s.compensation.tankValves[b.valve.id]) checkValve(b.valve.name, s.compensation.tankValves[b.valve.id]);
     for (const [sys, st] of [
       [cfg.trim, s.trim],
       [cfg.heel, s.heel],
@@ -491,6 +529,12 @@ export class SimulationEngine {
     const mw = vCrossLocal(mp.cg, Wb);
     const mb = vCrossLocal(hs.center, Bb);
     return { x: mw.x + mb.x, y: mw.y + mb.y, z: mw.z + mb.z };
+  }
+
+  /** Pose "anterior" da interpolação visual = pose atual (após ajustes feitos fora de step()). */
+  resetInterpolation(): void {
+    this.prevPos = { ...this.state.body.pos };
+    this.prevQuat = { ...this.state.body.quat };
   }
 
   /** Inicializa as leituras dos sensores com os valores verdadeiros atuais. */

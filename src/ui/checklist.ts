@@ -102,6 +102,24 @@ export class ChecklistTracker {
     this.reset(e);
   }
 
+  snapshot(): Saved | null {
+    if (!this.engine) return null;
+    return { scenarioId: this.engine.state.scenarioId, t0: this.t0, tSaved: this.engine.state.t, h0: this.h0, status: [...this.status], tDone: [...this.tDone] };
+  }
+
+  /** adota o checklist salvo junto com a sessão (ou reinicia se não houver) */
+  restore(e: SimulationEngine, d: Partial<Saved> | null | undefined): void {
+    if (d && Array.isArray(d.status) && d.status.length === PROCEDURE.length && Array.isArray(d.tDone)) {
+      this.engine = e;
+      this.status = d.status as ProcStatus[];
+      this.tDone = d.tDone as (number | null)[];
+      this.h0 = Number(d.h0 ?? e.outputs.euler.heading);
+      this.t0 = Number(d.t0 ?? e.state.t);
+      this.version++;
+      this.save();
+    } else this.reset(e);
+  }
+
   tick(r: SimRunner): void {
     const e = r.engine;
     if (e !== this.engine) this.adopt(e);
