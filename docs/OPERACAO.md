@@ -222,6 +222,8 @@ A aba **Apresentação** foi feita para quem conduz uma demonstração para um p
 
 **Enquadramentos**: *Superfície* (3/4 elevado, mostra esteira e proa), *Submerso*, *Tanques* (corte de perto), *Forças* (vista lateral para os vetores), *Seguir*, *Perseguição*, *Fixa* (câmera parada no cenário, o submarino atravessa o quadro) e *Livre*.
 
+**Trajetória do submarino:** em **Configurações → Qualidade gráfica → Trajetória do submarino**, ajuste a espessura (1–12 pixels), a cor e a intensidade (20–100%). O padrão é uma linha amarela de 4 pixels com intensidade máxima, sem atenuação pela névoa. A espessura se mantém ao afastar a câmera. As preferências são aplicadas automaticamente, salvas no navegador e enviadas à segunda janela; **Restaurar aparência da trajetória** repõe o padrão. A camada **Trajetória** no painel de Camadas mostra ou esconde o caminho percorrido.
+
 **Linhas de profundidade:** cada cota é um anel horizontal bem leve em volta da câmera, fixo na profundidade; olhando na horizontal aparece como uma linha atravessando a vista, e ao subir ou descer o submarino passa por elas. Vão até o fundo sob a câmera e somem com **Sem água**. O espaçamento padrão é 25 m e pode ser trocado em **Configurações → Gráficos → Linhas de profundidade** (5, 10, 20, 25, 50 ou 100 m; vale também para a 2ª janela). Desligue em **Camadas → Identificações e referências → Linhas de profundidade**.
 
 **Casco:** em **Camadas → Tanques e sistemas**, desligue **Tanques (corte)** para ver o casco opaco ou ligue para ver o interior. Em **Escolher tanques**, ajuste a **Opacidade do casco**. Na Apresentação e na 2ª janela, desmarcar **Casco externo** esconde casco, vela e convés e mostra os componentes internos, lemes, hélice, mastro e contorno. Essas opções alteram apenas a visualização.
@@ -464,3 +466,4 @@ Os três pares BB/BE, BB/TC e BE/TC permitem transferência nos dois sentidos. O
 O circuito existente de banda continua disponível na aba **Trim e banda**. O tanque central e a BTC são preservados ao salvar e sincronizar a simulação entre janelas; arquivos antigos mantêm sua configuração original.
 
 A rede de conexões em `compensationCircuit.ts` é compartilhada pela física, pelo diagrama e pelo 3D. Somente um caminho contínuo pela sucção, pela bomba, pela descarga e pelas portas alinhadas da VDC permite mover água. Cada tanque tem uma via selecionável para cada coletor; as portas não selecionadas ficam isoladas. No esquema, pontos indicam uniões e pontes indicam cruzamentos sem conexão.
+

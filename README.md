@@ -181,7 +181,7 @@ As telas ficam em **grupos** (navegação em dois níveis: grupo em cima, telas 
 3. **Trim e banda:** distribuição longitudinal de massas, G e B, pitch estático × dinâmico, vista frontal, transferências com previsão do ângulo resultante e decomposição de momentos.
 4. **Propulsão e energia:** motor, hélice (J, η₀, empuxo × resistência), bateria, cargas por consumidor, diesel-geradores e snorkel.
 5. **Segurança:** alarmes com prioridade e reconhecimento, registro cronológico, sensores redundantes e injeção de falhas.
-6. **Visualização 3D:** câmeras lateral, perseguição, perspectiva, perfil, frente, topo, fixa, livre e os enquadramentos de apresentação; corte com níveis reais dos tanques, tubulações e escoamentos; vetores de força; boias; trajetória; bolhas proporcionais à vazão de ar.
+6. **Visualização 3D:** câmeras lateral, perseguição, perspectiva, perfil, frente, topo, fixa, livre e os enquadramentos de apresentação; corte com níveis reais dos tanques, tubulações e escoamentos; vetores de força; boias; trajetória com espessura, cor e intensidade ajustáveis nas Configurações; bolhas proporcionais à vazão de ar.
 7. **Histórico:** gráficos sincronizados (grandezas de unidades diferentes em eixos separados, à esquerda e à direita), marcas dos comandos, comparação antes × depois e exportação em CSV.
 
 8. **Sala de comando:** primeira pessoa dentro da sala de controle: anda-se pela sala e operam-se todos os sistemas pelos painéis em 3D ou pelo painel 2D de cada posto, com periscópio.
@@ -270,3 +270,4 @@ As cargas adicionais alteram massa, centro de gravidade e inércia sem recalibra
 Para observar trim leve na superfície, escolha **Mar calmo para ensaio**, embarque 1 t na vante e avance a simulação. Observe o pitch real com três casas decimais e a diferença de profundidade entre as referências de vante e ré, em centímetros. Mergulhe com a mesma carga para observar a resposta submersa. Cargas laterais provocam banda para o bordo carregado. As sugestões de transferência de trim/banda dependem de comando explícito e respeitam a água disponível e o espaço no tanque de destino. São aproximações para nivelamento na posição atual, devendo ser reavaliadas após a resposta do submarino. A compensação vertical continua disponível na tela de compensação.
 
 O circuito de compensação permite transferir água entre os tanques de banda BB e BE e o tanque central TC, por meio da bomba BTC e da válvula direcional VDC 4/2 (direta/inversa). O mesmo circuito é exibido em Lastro e compensação e em Trim e banda, com escoamentos 3D vinculados à física.
+

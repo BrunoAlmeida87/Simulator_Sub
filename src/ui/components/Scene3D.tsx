@@ -138,6 +138,7 @@ export function Scene3D(props: Scene3DProps) {
           if (sc) {
             sc.setAppearance(currentAppearance(), appearanceRev());
             sc.trimGain = graphics.get().trimGain;
+            sc.trailStyle = graphics.get();
             sc.geoOrigin = geoOriginOf(runner.engine);
             sc.shipRange = graphics.get().shipRange;
             sc.trafficCount = graphics.get().traffic;
@@ -320,3 +321,4 @@ export function Scene3D(props: Scene3DProps) {
     </div>
   );
 }
+

@@ -6,6 +6,7 @@
  * reiniciar) ou se EXIGE REINICIAR o cenário.
  */
 import { LightPanel } from '../components/LightPanel';
+import { DEFAULT_TRAIL_STYLE } from '../../render3d/trailStyle';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { RecordingPanel } from '../components/RecordingPanel';
 import { baseConfig, cmd, runner, useSim } from '../store';
@@ -351,6 +352,23 @@ function GraphicsPanel() {
   return (
     <Panel title="Qualidade gráfica" tag={<Kind k="visual" />}>
       <div className="col">
+        <div className="row">
+          <b>Trajetória do submarino</b>
+          <label className="field">
+            <span>Espessura da linha: {g.trailWidth} px</span>
+            <input type="range" min={1} max={12} step={1} value={g.trailWidth} onChange={(ev) => graphics.set({ trailWidth: Number(ev.target.value) })} />
+          </label>
+          <label className="field">
+            <span>Cor da trajetória</span>
+            <input type="color" value={g.trailColor} onChange={(ev) => graphics.set({ trailColor: ev.target.value })} />
+          </label>
+          <label className="field">
+            <span>Intensidade da cor: {Math.round(g.trailOpacity * 100)}%</span>
+            <input type="range" min={20} max={100} step={5} value={Math.round(g.trailOpacity * 100)} onChange={(ev) => graphics.set({ trailOpacity: Number(ev.target.value) / 100 })} />
+          </label>
+          <button className="btn sm" onClick={() => graphics.set(DEFAULT_TRAIL_STYLE)}>Restaurar aparência da trajetória</button>
+        </div>
+        <div className="note">Linha mais visível à distância, com espessura constante ao afastar a câmera. Ajustes salvos no navegador e enviados à segunda janela. Ative Trajetória no painel de Camadas para ver o caminho percorrido.</div>
         <div className="row">
           <span className="subtle" style={{ minWidth: 120 }}>
             Cena e oceano
@@ -871,3 +889,4 @@ export function SettingsScreen() {
     </div>
   );
 }
+

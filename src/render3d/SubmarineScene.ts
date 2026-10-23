@@ -18,6 +18,10 @@ import { trafficAt, trafficForEnv } from '../sim/traffic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { DEFAULT_TRAIL_STYLE, type TrailStyle } from './trailStyle';
 import { Ocean, UnderwaterSky, addCaustics, type OceanQuality } from './Ocean';
 import { LIGHTING, addRim, type RimUniforms, type SceneLighting } from './lighting';
 import type { SimulationEngine } from '../sim/core/engine';
@@ -249,7 +253,8 @@ export class SubmarineScene {
   private static readonly SNOW_N = 1400;
   private static readonly SNOW_BOX = { h: 140, v: 60 };
   private bubbles: THREE.Points;
-  private trail: THREE.Line;
+  private trail: Line2;
+  trailStyle: TrailStyle = { ...DEFAULT_TRAIL_STYLE };
   private depthLine: THREE.Line;
   private lastSubPos = new THREE.Vector3();
   private view: ViewMode = 'perspectiva';
@@ -408,9 +413,11 @@ export class SubmarineScene {
     this.scene.add(this.depthLines.group);
 
     // trajetória e linha de profundidade
-    const tg = new THREE.BufferGeometry();
-    tg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(1600 * 3), 3));
-    this.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.8 }));
+    const tg = new LineGeometry();
+    tg.setPositions(new Float32Array(1600 * 3));
+    tg.instanceCount = 0;
+    // Espessura em pixels, independente da distância da câmera e do suporte a linhas WebGL.
+    this.trail = new Line2(tg, new LineMaterial({ color: this.trailStyle.trailColor, linewidth: this.trailStyle.trailWidth, transparent: true, opacity: this.trailStyle.trailOpacity, depthWrite: false, fog: false, toneMapped: false }));
     this.trail.frustumCulled = false;
     this.scene.add(this.trail);
     const dg = new THREE.BufferGeometry();
@@ -724,6 +731,7 @@ export class SubmarineScene {
     const w = Math.max(10, this.container.clientWidth);
     const h = Math.max(10, this.container.clientHeight);
     this.renderer.setSize(w, h, false);
+    this.trail.material.resolution.set(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -1273,17 +1281,22 @@ export class SubmarineScene {
     this.markers.update(e, pn, pe, tWave, this.layers.markers);
 
     // trajetória
-    const tp = this.trail.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const starts = this.trail.geometry.getAttribute('instanceStart') as THREE.InterleavedBufferAttribute;
+    const ends = this.trail.geometry.getAttribute('instanceEnd') as THREE.InterleavedBufferAttribute;
     const tr = s.nav.trail;
     const nT = Math.min(tr.length, 1599);
     for (let i = 0; i < nT; i++) {
       const p = tr[tr.length - nT + i];
-      tp.setXYZ(i, p.e - pe, -p.z, -(p.n - pn));
+      const next = i + 1 < nT ? tr[tr.length - nT + i + 1] : { e: pe, n: pn, z: pd };
+      starts.setXYZ(i, p.e - pe, -p.z, -(p.n - pn));
+      ends.setXYZ(i, next.e - pe, -next.z, -(next.n - pn));
     }
-    tp.setXYZ(nT, 0, -pd, 0);
-    tp.needsUpdate = true;
-    this.trail.geometry.setDrawRange(0, nT + 1);
-    this.trail.visible = this.layers.trail;
+    starts.data.needsUpdate = true;
+    this.trail.geometry.instanceCount = nT;
+    this.trail.material.linewidth = this.trailStyle.trailWidth;
+    this.trail.material.color.set(this.trailStyle.trailColor);
+    this.trail.material.opacity = this.trailStyle.trailOpacity;
+    this.trail.visible = this.layers.trail && nT > 0;
 
     // linha de profundidade (superfície ↔ submarino ↔ fundo)
     const bottom = e.env.bottomDepthAt(pn, pe);
@@ -1655,3 +1668,4 @@ export class SubmarineScene {
     this.renderer.domElement.remove();
   }
 }
+

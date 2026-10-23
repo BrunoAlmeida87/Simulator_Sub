@@ -12,8 +12,9 @@ import { DEFAULT_DAYLIGHT, type DaylightSettings } from '../render3d/daylight';
 import { DEFAULT_MARINE_LIFE, type MarineLifeSettings } from '../render3d/marineLifeMotion';
 import { MAX_TRAFFIC } from '../sim/traffic';
 import type { DeepLevel } from '../render3d/deepPerspective';
+import { DEFAULT_TRAIL_STYLE, type TrailStyle } from '../render3d/trailStyle';
 
-export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings {
+export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings, TrailStyle {
   quality: OceanQuality;
   /** texturas do casco: 'alta' (placas anecoicas, marcas, mais resolução) ou 'normal' */
   textures: 'alta' | 'normal';
@@ -64,6 +65,9 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
   const q = p?.quality;
   return {
     quality: q === 'baixa' || q === 'media' || q === 'alta' ? q : base.quality,
+    trailWidth: num(p?.trailWidth, 1, 12, base.trailWidth),
+    trailColor: typeof p?.trailColor === 'string' && /^#[0-9a-f]{6}$/i.test(p.trailColor) ? p.trailColor : base.trailColor,
+    trailOpacity: num(p?.trailOpacity, 0.2, 1, base.trailOpacity),
     textures: p?.textures === 'alta' || p?.textures === 'normal' ? p.textures : base.textures,
     trimGain: typeof p?.trimGain === 'number' && TRIM_GAINS.includes(p.trimGain) ? p.trimGain : base.trimGain,
     shipRange: typeof p?.shipRange === 'number' && p.shipRange >= 2 && p.shipRange <= 30 ? p.shipRange : base.shipRange,
@@ -95,6 +99,7 @@ class GraphicsStore {
     const q = typeof window !== 'undefined' ? initialQuality() : 'alta';
     const def: GraphicsSettings = {
       ...DEFAULT_MARINE_LIFE,
+      ...DEFAULT_TRAIL_STYLE,
       quality: q,
       textures: q === 'baixa' ? 'normal' : 'alta',
       trimGain: 1,
@@ -162,3 +167,4 @@ export function useQuality(): [OceanQuality, (q: OceanQuality) => void] {
   const g = useGraphics();
   return [g.quality, (q) => graphics.set({ quality: q })];
 }
+
