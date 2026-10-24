@@ -49,6 +49,7 @@ import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, d
 import { disposeRoomTextures, labelTexture } from './textures';
 import { TELEGRAPH, nearestOrder } from '../../sim/telegraph';
 import { ALARM_DEFS } from '../../sim/systems/alarms';
+import { readRenderStats, type RenderStats } from '../renderPerf';
 
 /** geometria do casco resistente na sala */
 export const ROOM = { R: 3.0, axisY: 0.3, zFwd: -7, zAft: 7, eye: 1.65 };
@@ -197,7 +198,8 @@ export class ControlRoomScene {
   ) {
     this.lowQuality = quality === 'baixa';
     this.renderer = new THREE.WebGLRenderer({ antialias: !this.lowQuality, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'alta' ? 2 : quality === 'media' ? 1.5 : 1));
+    this.maxPixelRatio = quality === 'alta' ? 2 : quality === 'media' ? 1.5 : 1;
+    this.applyPixelRatio();
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
@@ -960,6 +962,25 @@ export class ControlRoomScene {
       click: () => this.act.cmd({ type: 'periscope', raise: !this.runner.engine.state.periscope?.cmd }),
       update: (en) => (lever.rotation.x = en.state.periscope?.cmd ? -0.6 : 0.6),
     });
+  }
+
+  // ------------------------------------------------------------------ resolução e medidor de FPS
+  private readonly maxPixelRatio: number;
+  private renderScale = 1;
+  /** escala de resolução (fração da nativa; só visual) */
+  setRenderScale(scale: number): void {
+    const k = Math.max(0.25, Math.min(1, scale));
+    if (Math.abs(k - this.renderScale) < 1e-3) return;
+    this.renderScale = k;
+    this.applyPixelRatio();
+    // setPixelRatio limpa o canvas: redesenha já
+    if (!this.disposed && this.scene.children.length) this.renderer.render(this.scene, this.camera);
+  }
+  private applyPixelRatio(): void {
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio) * this.renderScale);
+  }
+  renderStats(): RenderStats {
+    return readRenderStats(this.renderer, this.renderScale);
   }
 
   // ------------------------------------------------------------------ câmera e movimento

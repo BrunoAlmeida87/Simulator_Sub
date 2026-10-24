@@ -53,6 +53,7 @@ import { SubModelRig, loadSubModel, subModelLevel, subModelUrl } from './subMode
 import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
 import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
 import { BASE_FOV, DEEP_VIEWS, dollyRatio } from './deepPerspective';
+import { readRenderStats, type RenderStats } from './renderPerf';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'perspectiva'
@@ -296,7 +297,7 @@ export class SubmarineScene {
     this.runner = runner;
     this.env = () => this.runner.engine;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.applyPixelRatio();
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.62;
@@ -785,6 +786,22 @@ export class SubmarineScene {
       m.bumpScale = bumpScale;
       m.needsUpdate = true;
     }
+  }
+
+  /** escala de resolução (fração da nativa; só visual): a imagem é desenhada em menos pixels e ampliada pelo navegador */
+  private renderScale = 1;
+  setRenderScale(scale: number): void {
+    const k = Math.max(0.25, Math.min(1, scale));
+    if (Math.abs(k - this.renderScale) < 1e-3) return;
+    this.renderScale = k;
+    this.applyPixelRatio();
+  }
+  private applyPixelRatio(): void {
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * this.renderScale);
+  }
+  /** contadores do último quadro (medidor de FPS) */
+  renderStats(): RenderStats {
+    return readRenderStats(this.renderer, this.renderScale);
   }
 
   resize(): void {

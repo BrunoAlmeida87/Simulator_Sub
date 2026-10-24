@@ -16,6 +16,7 @@ import { storage, downloadText } from '../storage';
 import { captureSession, restoreSession, resumeSimulation, sessionFileName, type RestoreReport } from '../session';
 import { parseSaveText, saveToText, type SaveFile } from '../../sim/persistence';
 import { identity, FIN_COLORS, DEFAULT_IDENTITY } from '../identity';
+import { RENDER_SCALE_LABELS, RENDER_SCALE_OPTIONS } from '../../render3d/renderPerf';
 import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS, DEPTH_LINE_SPACINGS } from '../graphics';
 import type { SceneLighting } from '../../render3d/lighting';
 import { MAX_TRAFFIC } from '../../sim/traffic';
@@ -386,6 +387,22 @@ function GraphicsPanel() {
             ))}
           </div>
         </div>
+        <div className="row">
+          <span className="subtle" style={{ minWidth: 120 }} title="Menos pixels = mais quadros por segundo. Automática ajusta sozinha conforme o desempenho.">
+            Resolução da imagem
+          </span>
+          <div className="seg">
+            {RENDER_SCALE_OPTIONS.map((k) => (
+              <button key={String(k)} className={g.renderScale === k ? 'on' : ''} onClick={() => graphics.set({ renderScale: k })}>
+                {RENDER_SCALE_LABELS[String(k)]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="row" style={{ gap: 6 }}>
+          <input type="checkbox" checked={g.fpsMeter} onChange={(ev) => graphics.set({ fpsMeter: ev.target.checked })} />
+          <span>Medidor de FPS sobre as cenas 3D (FPS, tempo de quadro, resolução, chamadas de desenho, triângulos e memória de GPU)</span>
+        </label>
         <div className="row">
           <span className="subtle" style={{ minWidth: 120 }}>
             Texturas do casco

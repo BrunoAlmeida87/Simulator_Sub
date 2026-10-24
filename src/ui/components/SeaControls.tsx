@@ -11,6 +11,7 @@ import type { SceneLighting } from '../../render3d/lighting';
 import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS } from '../graphics';
 import type { OverlaySection } from './OverlayMenu';
 import { DEEP_FOVS, DEEP_LABELS, type DeepLevel } from '../../render3d/deepPerspective';
+import { RENDER_SCALE_LABELS, RENDER_SCALE_OPTIONS, parseRenderScale } from '../../render3d/renderPerf';
 
 /** botão do filtro: "Mar 3 · Hs 1.0 m" */
 function SeaLabel() {
@@ -46,6 +47,24 @@ function SeaPanel({ quality, setQuality }: { quality: OceanQuality; setQuality: 
           <option value="media">Médio</option>
           <option value="alta">Alto</option>
         </select>
+      </label>
+      <label title="Resolução da imagem (só visual): menos pixels = mais quadros por segundo em computadores e celulares mais fracos. Automática reduz quando a cena fica lenta e volta quando sobra folga.">
+        <span>Resolução</span>
+        <select
+          value={String(g.renderScale)}
+          onChange={(ev) => graphics.set({ renderScale: parseRenderScale(ev.target.value === 'auto' ? 'auto' : Number(ev.target.value), g.renderScale) })}
+          aria-label="Resolução da imagem"
+        >
+          {RENDER_SCALE_OPTIONS.map((k) => (
+            <option key={k} value={String(k)}>
+              {RENDER_SCALE_LABELS[String(k)]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label title="Mostra FPS, tempo de quadro, resolução desenhada, chamadas de desenho e memória de GPU sobre a cena" style={{ flexDirection: 'row', gap: 6 }}>
+        <input type="checkbox" checked={g.fpsMeter} onChange={(ev) => graphics.set({ fpsMeter: ev.target.checked })} aria-label="Medidor de FPS" />
+        <span>Medidor de FPS</span>
       </label>
       <label title="Perspectiva profunda (botão “Perspectiva” na fileira): quanto a lente abre e a câmera se aproxima">
         <span>Perspectiva</span>
