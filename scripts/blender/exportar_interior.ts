@@ -15,6 +15,7 @@ import { buildScenario } from '../../src/sim/scenarios';
 import { SystemsVis } from '../../src/render3d/Systems';
 import { TANK_STYLE } from '../../src/render3d/layers';
 import { PRESSURE_HULL } from '../../src/render3d/pressureHull';
+import { SHAFT_LINE } from '../../src/render3d/shaftLine';
 
 const out = process.argv[2] ?? join('build', 'modelo', 'interior.json');
 const e = buildScenario('superficie');
@@ -106,6 +107,8 @@ const doc = {
     raioPonta: v.hull.tailRadius,
     raioResistente: PRESSURE_HULL.innerRadius,
     cascoResistente: PRESSURE_HULL,
+    linhaEixo: SHAFT_LINE,
+    motor: v.propulsion.motor,
   },
   tanques: tanks,
   tubos: pipes,

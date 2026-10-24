@@ -12,6 +12,7 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { buildScenario } from '../src/sim/scenarios';
 import { SystemsVis } from '../src/render3d/Systems';
+import { SHAFT_LINE } from '../src/render3d/shaftLine';
 
 const file = join(__dirname, '..', 'public', 'models', 'sx1-interior.glb');
 let doc: Document;
@@ -69,7 +70,7 @@ describe('modelo interno sx1-interior.glb', () => {
       if (!n.getName().endsWith('_Malha')) expect(s, n.getName()).toEqual([1, 1, 1]);
     }
     const wheels = nodes().filter((n) => n.getName().endsWith('_Volante'));
-    const rotors = nodes().filter((n) => n.getName().endsWith('_Rotor'));
+    const rotors = nodes().filter((n) => n.getName().startsWith('SX1I_Bomba_') && n.getName().endsWith('_Rotor'));
     expect(wheels.length).toBeGreaterThan(20);
     expect(rotors.length).toBe(sys.pumps.length);
     for (const w of [...wheels, ...rotors]) expect((w.getExtras() as { eixo_giro?: number[] }).eixo_giro, w.getName()).toHaveLength(3);
@@ -114,5 +115,30 @@ describe('modelo interno sx1-interior.glb', () => {
       expect(s.lo, t.id).toBeGreaterThan(aft.y_apice);
       expect(s.hi, t.id).toBeLessThan(fwd.y_apice);
     }
+  });
+});
+
+describe('linha de eixo no sx1-interior.glb (motor, mancal de escora, eixo)', () => {
+  const node = (n: string) =>
+    doc
+      .getRoot()
+      .listNodes()
+      .find((x) => x.getName() === n);
+  const worldY = (n: string) => -new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(node(n)!.getWorldMatrix())).z;
+
+  it('tem motor, rotor, eixo, mancais, bucim e tubo telescópico nas posições do shaftLine.ts', () => {
+    for (const n of ['SX1I_Motor', 'SX1I_Motor_Rotor', 'SX1I_Eixo', 'SX1I_MancalEscora', 'SX1I_MancalApoio', 'SX1I_Bucim', 'SX1I_TuboTelescopico']) expect(node(n), n).toBeDefined();
+    expect(worldY('SX1I_Motor')).toBeCloseTo((SHAFT_LINE.motor.aft + SHAFT_LINE.motor.fwd) / 2, 3);
+    expect(worldY('SX1I_MancalEscora')).toBeCloseTo(SHAFT_LINE.thrustBearing.x, 3);
+    const ex = node('SX1I_Eixo')!.getExtras() as { y_vante: number; y_re: number; raio: number };
+    expect(ex.y_re).toBeCloseTo(SHAFT_LINE.aftEnd, 6);
+    expect(ex.raio).toBeCloseTo(SHAFT_LINE.shaftRadius, 6);
+    // peças que giram, no eixo do casco, com o eixo de giro longitudinal
+    for (const n of ['SX1I_Eixo', 'SX1I_Motor_Rotor']) {
+      const p = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(node(n)!.getWorldMatrix()));
+      expect(Math.hypot(p.x, p.y), n).toBeLessThan(1e-3);
+      expect((node(n)!.getExtras() as { eixo_giro: number[] }).eixo_giro, n).toEqual([0, 1, 0]);
+    }
+    expect((node('SX1I_Motor')!.getExtras() as { rpm_nominal: number }).rpm_nominal).toBe(e.vessel.propulsion.motor.ratedRpm);
   });
 });

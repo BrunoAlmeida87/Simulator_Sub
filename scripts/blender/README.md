@@ -81,6 +81,13 @@ de escoamento e volantes pela posição (`build/modelo/fluidos/`); o terceiro co
 - Diferenças em relação ao desenho do corte do site: a bateria vira colunas de células em degraus que cabem no
   casco resistente (no site é um bloco que atravessa o casco) e os tubos de admissão/descarga ao mar terminam
   rente ao casco externo.
+- **Linha de eixo** (`src/render3d/shaftLine.ts`): motor elétrico principal de ímã permanente com acionamento
+  direto (carcaça aletada, tampas, caixa de ligação, água de refrigeração, berço; rotor com ímãs visível no corte),
+  acoplamento de flanges, mancal de escora (carcaça com a câmara do colar, jazente entre os geradores, óleo),
+  bucim na antepara de ré, eixo de Ø 0,30 m entre as metades do TLP-2, tubo telescópico e mancal de apoio até o
+  cubo do hélice. `SX1I_Eixo` e `SX1I_Motor_Rotor` giram em torno do eixo do casco (`eixo_giro` em extras).
+  `--propulsao` renderiza a prévia da vista focada (só a propulsão dentro do submarino translúcido) em
+  `build/modelo/propulsao/`.
 - As medidas do casco resistente vêm de `src/render3d/pressureHull.ts` (o mesmo arquivo que o corte do site usa).
   O teste `tests/systemsLayout.test.ts` garante que bombas, válvulas e tubulações do corte ficam dentro dele
   (só os tubos ao mar o atravessam) e que nenhuma válvula ou bomba fica dentro do volume de um tanque.

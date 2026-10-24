@@ -200,6 +200,8 @@ def materials(D):
     mat('aco', (0.42, 0.44, 0.46), 0.38, 0.75)  # flanges, braçadeiras, suportes
     mat('casco_res', (0.5, 0.52, 0.5), 0.55, 0.3)  # casco resistente (pintura interna clara)
     mat('caverna', (0.4, 0.42, 0.41), 0.55, 0.35)
+    mat('eixo', (0.62, 0.62, 0.64), 0.22, 0.95)  # aço do eixo, polido
+    mat('bronze', (0.55, 0.38, 0.2), 0.35, 0.9)
     mat('fundido', (0.30, 0.31, 0.33), 0.45, 0.6)  # corpos de válvula e bombas
     mat('volante', (0.55, 0.05, 0.04), 0.5, 0.1)  # volantes vermelhos
     mat('placa', (0.85, 0.82, 0.62), 0.6, 0.0)  # plaquetas de identificação
@@ -712,6 +714,119 @@ def build_pressure_hull(D, M, parent):
     return e
 
 
+# ------------------------------------------------------------------ linha de eixo (propulsão)
+# Medidas: src/render3d/shaftLine.ts (gravadas no JSON pelo exportar_interior.ts). Eixo do casco: x = z = 0.
+def ring_solid(y0, y1, r_out, r_in, n=64):
+    """Anel (tubo de parede grossa) fechado, ao longo de Y."""
+    return revolve_loop([(r_in, y0), (r_out, y0), (r_out, y1), (r_in, y1)], n)
+
+
+def build_propulsion(D, M, parent):
+    S = D['casco'].get('linhaEixo')
+    if not S:
+        return None
+    mot, tb = S['motor'], S['thrustBearing']
+    rs = S['shaftRadius']
+    ya, yf = mot['aft'], mot['fwd']
+    ym = (ya + yf) / 2
+    R = mot['radius']
+    P = group('SX1I_Propulsao', parent)
+    info = D['casco'].get('motor', {})
+    # --- motor elétrico principal (ímã permanente, acionamento direto): carcaça aletada, tampas, caixa de ligação
+    stator = [ring_solid(ya + 0.2, yf - 0.2, R - 0.08, 0.95, 72)]
+    k = 0
+    y = ya + 0.32
+    while y < yf - 0.3:  # aletas de refrigeração
+        stator.append(ring_solid(y - 0.03, y + 0.03, R, R - 0.1, 72))
+        y += 0.22
+        k += 1
+    for y0, y1 in ((ya, ya + 0.2), (yf - 0.2, yf)):  # tampas (escudos) com o furo do eixo
+        stator.append(ring_solid(y0, y1, R - 0.12, rs + 0.06, 72))
+    stator.append(box((0, ym - 0.4, R - 0.02 + 0.2), (0.7, 0.6, 0.4)))  # caixa de ligação
+    for sx in (-1, 1):  # cabos de força saindo da caixa
+        stator.append(cylinder((sx * 0.22, ym - 0.1, R + 0.3), (0, 1, 0), 0.05, 0.9, n=10))
+    for yy in (ya + 0.45, yf - 0.45):  # berço: duas selas apoiadas no teto do tanque de trim de ré
+        stator.append(box((0, yy, -(R * 0.55 + 0.45)), (2.0, 0.25, 0.9)))
+    e = mesh_obj('SX1I_Motor', stator, M['motor'], P, (0, ym, 0), sharp=35,
+                 extras={'tipo': 'motor', 'nome': 'Motor elétrico principal (ímã permanente)', 'potencia_W': info.get('ratedPower', 0),
+                         'rpm_nominal': info.get('ratedRpm', 0), 'torque_max_Nm': info.get('maxTorque', 0)})
+    mesh_obj('SX1I_Motor_Placa', [box((0.42, ym - 0.4, R + 0.2), (0.01, 0.35, 0.2))], M['placa'], e, (0, ym, 0))
+    # água de refrigeração: das tampas por cima da carcaça (entrada a ré, saída a vante)
+    cool = []
+    for sx in (-0.55, 0.55):
+        z0 = math.sqrt(max(0.0, (R - 0.12) ** 2 - sx * sx)) - 0.05
+        path = [v3((sx, ya + 0.1, z0)), v3((sx, ya + 0.1, R + 0.22)), v3((sx, yf - 0.1, R + 0.22)), v3((sx, yf - 0.1, z0))]
+        cool.append(sweep(rounded([tuple(q) for q in path], 0.15), 0.045, 12))
+    mesh_obj('SX1I_Motor_Refrigeracao', cool, M['pintura_168a52'] if 'pintura_168a52' in M else M['aco'], e, (0, ym, 0))
+    # rotor (gira com o eixo): cubo, raios e aro com ímãs
+    rot = [cylinder((0, ym, 0), (0, 1, 0), 0.32, yf - ya - 0.5), ring_solid(ya + 0.3, yf - 0.3, 0.9, 0.75, 64)]
+    for j in range(6):
+        t = 2 * math.pi * j / 6
+        d = v3((math.cos(t), 0, math.sin(t)))
+        rot.append(box(d * 0.54 + v3((0, ym, 0)), (0.42, yf - ya - 0.7, 0.1), (d, v3((0, 1, 0)), np.cross(d, v3((0, 1, 0))))))
+    mesh_obj('SX1I_Motor_Rotor', rot, M['aco'], e, (0, ym, 0), extras={'eixo_giro': [0.0, 1.0, 0.0]})
+    mags = []
+    for j in range(32):  # ímãs na periferia do rotor
+        t = 2 * math.pi * j / 32
+        d = v3((math.cos(t), 0, math.sin(t)))
+        mags.append(box(d * 0.915 + v3((0, ym, 0)), (0.03, yf - ya - 0.7, 0.13), (d, v3((0, 1, 0)), np.cross(d, v3((0, 1, 0))))))
+    rotor = bpy.data.objects['SX1I_Motor_Rotor']
+    mesh_obj('SX1I_Motor_Rotor_Imas', mags, M['celula'], rotor, (0, ym, 0))
+
+    # --- eixo (gira): do mancal de vante do motor até o cubo do hélice, com acoplamento e colar de escora
+    y_end = S['aftEnd']
+    ycoup = (ya + tb['x'] + tb['length'] / 2) / 2
+    shaft = [cylinder((0, (yf - 0.1 + y_end) / 2, 0), (0, 1, 0), rs, (yf - 0.1) - y_end, n=24)]
+    for dy in (-0.06, 0.06):  # acoplamento de flanges
+        shaft.append(cylinder((0, ycoup + dy, 0), (0, 1, 0), 0.38, 0.1, n=32))
+    for j in range(8):  # parafusos do acoplamento
+        t = 2 * math.pi * j / 8
+        shaft.append(cylinder((0.3 * math.cos(t), ycoup, 0.3 * math.sin(t)), (0, 1, 0), 0.03, 0.3, n=8))
+    shaft.append(cylinder((0, tb['x'], 0), (0, 1, 0), 0.45, 0.12, n=40))  # colar de escora
+    ymid = (yf + y_end) / 2
+    mesh_obj('SX1I_Eixo', shaft, M['eixo'], P, (0, ymid, 0), sharp=40,
+             extras={'tipo': 'eixo', 'nome': 'Eixo propulsor', 'eixo_giro': [0.0, 1.0, 0.0], 'raio': rs, 'y_vante': yf, 'y_re': y_end})
+
+    # --- mancal de escora: carcaça com câmara do colar, tampa, tubos de óleo e jazente até o fundo
+    L = tb['length']
+    yb = tb['x']
+    hull_r = D['casco']['raioResistente']
+    prof = [(rs + 0.03, yb - L / 2), (tb['radius'], yb - L / 2), (tb['radius'], yb + L / 2), (rs + 0.03, yb + L / 2),
+            (rs + 0.03, yb + L / 2 - 0.15), (0.5, yb + L / 2 - 0.15), (0.5, yb - L / 2 + 0.15), (rs + 0.03, yb - L / 2 + 0.15)]
+    mb = [revolve_loop(prof, 48)]
+    mb.append(box((0, yb, tb['radius'] + 0.06), (0.5, L * 0.7, 0.12)))  # tampa de inspeção
+    zf_top, zf_bot = -tb['radius'] + 0.1, -(hull_r - 0.2)
+    mb.append(box((0, yb, (zf_top + zf_bot) / 2), (0.5, L, zf_top - zf_bot)))  # jazente (entre os geradores)
+    mb.append(box((0, yb, -tb['radius'] - 0.02), (1.1, L + 0.1, 0.12)))  # chapa de assentamento
+    e = mesh_obj('SX1I_MancalEscora', mb, M['fundido'], P, (0, yb, 0), sharp=35,
+                 extras={'tipo': 'mancal_escora', 'nome': 'Mancal de escora', 'funcao': 'transmite o empuxo do hélice ao casco'})
+    # óleo de lubrificação: do topo do mancal à tampa de ré do motor (circuito comum)
+    oil_path = [(0.2, yb, tb['radius'] + 0.12), (0.2, yb, tb['radius'] + 0.45), (0.2, ya - 0.15, tb['radius'] + 0.45), (0.2, ya - 0.15, 0.7), (0.2, ya + 0.02, 0.7)]
+    oil = [sweep(rounded(oil_path, 0.12), 0.035, 10)]
+    mesh_obj('SX1I_MancalEscora_Oleo', oil, M['cobre'], e, (0, yb, 0))
+    mesh_obj('SX1I_MancalEscora_Placa', [box((tb['radius'] + 0.005, yb, 0.15), (0.01, 0.3, 0.16))], M['placa'], e, (0, yb, 0))
+
+    # --- bucim (passagem estanque do eixo) na antepara resistente de ré
+    ph = D['casco'].get('cascoResistente', {})
+    y_bh = ph.get('aft', {}).get('base', -19.9) - ph.get('aft', {}).get('depth', 0.6)
+    gland = [ring_solid(y_bh - 0.05, y_bh + 0.35, 0.36, rs + 0.02, 40)]
+    for j in range(6):
+        t = 2 * math.pi * j / 6
+        gland.append(cylinder((0.3 * math.cos(t), y_bh + 0.38, 0.3 * math.sin(t)), (0, 1, 0), 0.025, 0.12, n=8))
+    mesh_obj('SX1I_Bucim', gland, M['bronze'], P, (0, y_bh, 0), extras={'tipo': 'bucim', 'nome': 'Bucim do eixo (antepara de ré)'})
+
+    # --- tubo telescópico (a ré do TLP-2) e mancal de apoio com pedestal
+    tlp_aft = min(min(p[1] for p in t['triangulos']) for t in D['tanques'] if t['categoria'] == 'lastro' and t['id'].startswith('TLP2'))
+    t0, t1 = tlp_aft - 0.1, y_end + 0.35
+    mesh_obj('SX1I_TuboTelescopico', [ring_solid(t1, t0, 0.25, rs + 0.03, 40)], M['aco'], P, (0, (t0 + t1) / 2, 0),
+             extras={'tipo': 'tubo_telescopico', 'nome': 'Tubo telescópico do eixo'})
+    ysb = S['supportBearing']['x']
+    r_hull = base.radius_at(ysb)
+    sb = [ring_solid(ysb - 0.2, ysb + 0.2, 0.36, 0.25, 40), box((0, ysb, -(0.36 + r_hull - 0.1) / 2), (0.3, 0.35, r_hull - 0.1 - 0.36))]
+    mesh_obj('SX1I_MancalApoio', sb, M['fundido'], P, (0, ysb, 0), extras={'tipo': 'mancal_apoio', 'nome': 'Mancal de apoio do eixo'})
+    return P
+
+
 # ------------------------------------------------------------------ montagem
 def build_interior(json_path):
     D = json.load(open(json_path, encoding='utf-8'))
@@ -720,6 +835,7 @@ def build_interior(json_path):
     root['gerado_de'] = D['gerado']
     grp = {k: group('SX1I_' + k, root) for k in ('Estrutura', 'Tanques', 'Tubulacoes', 'Valvulas', 'Bombas', 'ArAP', 'Aberturas', 'Energia')}
     build_pressure_hull(D, M, grp['Estrutura'])
+    build_propulsion(D, M, root)
     build_tanks(D, M, grp['Tanques'])
     build_pipes(D, M, grp['Tubulacoes'])
     build_valves(D, M, grp['Valvulas'])
@@ -861,6 +977,56 @@ def preview_cut(json_path, out_dir):
             'corte_meio': ((-13, 10, 2.5), (0, 3, -1.4), 30),
             'corte_ar_ap': ((-12, -16, 2.5), (0, -7, -0.8), 30),
             'corte_vante': ((-12, 33, 2.5), (0, 25, -0.3), 30),
+        }
+    )
+    return h['render_all'](out_dir)
+
+
+def under(o, name):
+    p = o
+    while p is not None:
+        if p.name == name:
+            return True
+        p = p.parent
+    return False
+
+
+def preview_propulsion(json_path, out_dir):
+    """Prévia da futura vista da propulsão: só motor, eixo, mancais e hélice, dentro do submarino translúcido."""
+    base.build('alta')
+    exterior = [o for o in bpy.data.objects if o.type == 'MESH']
+    build_interior(json_path)
+    prop = [o for o in interior_meshes() if under(o, 'SX1I_Propulsao')]
+    bake_ao(prop, samples=24)
+    for o in interior_meshes():
+        if o not in prop:
+            o.hide_render = True
+    ghost = {}
+    for o in exterior:
+        if under(o, 'SX1_Helice'):
+            continue  # hélice inteiro, opaco
+        for i, m in enumerate(o.data.materials):
+            if m is None:
+                continue
+            if m.name not in ghost:
+                g = m.copy()
+                g.name = m.name + '_fantasma'
+                b = g.node_tree.nodes['Principled BSDF']
+                b.inputs['Alpha'].default_value = 0.13
+                if hasattr(g, 'surface_render_method'):
+                    g.surface_render_method = 'BLENDED'
+                g.use_backface_culling = True
+                ghost[m.name] = g
+            o.data.materials[i] = ghost[m.name]
+    h = {'__file__': os.path.join(HERE, 'preview_sx1.py'), '__name__': 'sx1_prev'}
+    exec(compile(open(h['__file__'], encoding='utf-8').read(), h['__file__'], 'exec'), h)
+    h['VIEWS'].clear()
+    h['VIEWS'].update(
+        {
+            'propulsao_lado': ((-80, -2, 4), (0, -2, 0), 32),
+            'propulsao_34_popa': ((-30, -58, 16), (0, -22, 0), 32),
+            'propulsao_motor': ((-8, -9.5, 3.5), (0, -15.5, -0.3), 32),
+            'propulsao_popa': ((-9, -40, 3), (0, -31, 0), 30),
         }
     )
     return h['render_all'](out_dir)
@@ -1011,6 +1177,8 @@ def main(argv):
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, 'sx1-interior.blend'), compress=True)
     if '--corte' in argv:
         info['previas'] = preview_cut(jp, os.path.join(out, 'corte'))
+    if '--propulsao' in argv:
+        info['propulsao'] = preview_propulsion(jp, os.path.join(out, 'propulsao'))
     if '--fluidos' in argv:
         info['fluidos'] = preview_fluids(jp, os.path.join(out, 'fluidos'))
     print('SX1I', info)

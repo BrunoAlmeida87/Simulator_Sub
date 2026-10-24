@@ -51,6 +51,8 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       SubModelRig liga lemes/hélice/mastros ao estado; sem o arquivo fica o casco gerado (reserva)
   pressureHull.ts     casco resistente (raio interno 2,9 m, anteparas antes dos TLP): o corte (Systems.ts) e o interior do Blender
                       ficam dentro dele; teste tests/systemsLayout.test.ts
+  shaftLine.ts        linha de eixo (motor principal, mancal de escora, eixo até o hélice): posições do interior do Blender;
+                      teste tests/systemsLayout.test.ts (nada do corte encosta nela)
   (interior)          public/models/sx1-interior.glb: tanques/tubos/válvulas do corte modelados no Blender (ainda não usado;
                       scripts/blender/build_sx1_interior.py + exportar_interior.ts; teste tests/subInterior.test.ts)
   subEnvironment.ts   reflexo do céu só no submarino (.glb): mapa de ambiente com as cores da cena (dia/noite/submerso)
