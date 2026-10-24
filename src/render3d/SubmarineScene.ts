@@ -53,6 +53,7 @@ import { SubModelRig, loadSubModel, subModelLevel, subModelUrl } from './subMode
 import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
 import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
 import { BASE_FOV, DEEP_VIEWS, dollyRatio } from './deepPerspective';
+import { SubEnvironment, envColors, envIntensity, type EnvColors } from './subEnvironment';
 import { readRenderStats, type RenderStats } from './renderPerf';
 
 /**
@@ -225,6 +226,10 @@ export class SubmarineScene {
   private navLights!: NavLights;
   private searchlights!: Searchlights;
   private pal = { fog: new THREE.Color(), zenith: new THREE.Color(), hemiSky: new THREE.Color(), hemiGround: new THREE.Color(), sun: new THREE.Color() };
+  /** reflexo do céu no modelo .glb (mapa de ambiente só do submarino) */
+  private subEnv!: SubEnvironment;
+  private envCol: EnvColors | undefined;
+  private envApplied: { model: SubModelRig | null; tex: THREE.Texture | null; k: number } = { model: null, tex: null, k: -1 };
   private tmpV = new THREE.Vector3();
   private fixedCam: { n: number; e: number; y: number; ln: number; le: number; ly: number } | null = null;
   /** camadas visuais (alteradas pela interface a cada quadro) */
@@ -301,6 +306,7 @@ export class SubmarineScene {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.62;
+    this.subEnv = new SubEnvironment(this.renderer);
     this.renderer.localClippingEnabled = true;
     container.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 30000);
@@ -1636,6 +1642,24 @@ export class SubmarineScene {
       this.fillLight.intensity = Math.max(pres ? 0.45 : 0, prof.camFill * k);
       this.rim.uRim.value = this.layers.tanks ? 0 : prof.rim * (under && !dry ? 1 : 0.35);
     }
+    // reflexo do céu no modelo .glb (só visual): mesmas cores do céu/água da cena
+    if (this.model) {
+      const mode = dry ? 'seco' : under ? 'submerso' : 'acima';
+      this.envCol = envColors(mode, { zenith: this.pal.zenith, fog: this.pal.fog, sun: this.pal.sun, sunDir: dl.sunDir, sunK: dl.sunK, day: dl.day, uwUp: uw.up, uwHorizon: uw.horizon }, this.envCol);
+      this.subEnv.update(this.envCol, this.wallTime);
+      const tex = this.subEnv.texture;
+      const k = envIntensity(mode, dl.day, dl.under);
+      const ap = this.envApplied;
+      if (tex && (ap.model !== this.model || ap.tex !== tex || Math.abs(ap.k - k) > 0.005)) {
+        for (const m of this.model.materials()) {
+          if (!(m instanceof THREE.MeshStandardMaterial)) continue;
+          if (!m.envMap) m.needsUpdate = true;
+          m.envMap = tex;
+          m.envMapIntensity = k;
+        }
+        this.envApplied = { model: this.model, tex, k };
+      }
+    }
     // luzes de navegação (na superfície, do crepúsculo ao amanhecer ou ligadas) e faróis
     {
       this.sub.updateMatrixWorld();
@@ -1767,6 +1791,7 @@ export class SubmarineScene {
 
   dispose(): void {
     this.disposed = true;
+    this.subEnv.dispose();
     this.navLights.dispose();
     this.searchlights.dispose();
     this.nightSky.dispose();

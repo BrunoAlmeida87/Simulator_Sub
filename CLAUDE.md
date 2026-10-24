@@ -49,6 +49,7 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   SubmarineScene.ts   cena principal: casco, lemes, câmeras, pick(), modo sem água
   subModel.ts         modelo .glb do SX-1 (public/models/sx1-leve|alta.glb): nomes fixos das peças (SUB_PARTS),
                       SubModelRig liga lemes/hélice/mastros ao estado; sem o arquivo fica o casco gerado (reserva)
+  subEnvironment.ts   reflexo do céu só no submarino (.glb): mapa de ambiente com as cores da cena (dia/noite/submerso)
   renderPerf.ts       escala de resolução (fixa ou automática, AdaptiveScale), FrameMeter e contadores do renderizador;
                       as duas cenas (SubmarineScene, ControlRoomScene) têm setRenderScale()/renderStats(); UI: components/FpsMeter.tsx
   layers.ts           SceneLayers: flags de camadas (vetores, tanques, escoamentos, vento, noWater, hiddenVectors…)

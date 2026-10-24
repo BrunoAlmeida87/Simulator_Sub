@@ -49,6 +49,10 @@ O segundo comando fica rodando: dê o terceiro em outro terminal. Os prints saem
 - Malhas fixas do casco externo usam o prefixo `SX1_Casco_…`: escotilhas, sonar de flanco, embornais,
   portas dos tubos, carenagens e janelas da vela. O topo do casco é liso, sem faixa de convés em relevo.
 - As marcas de calado continuam sendo desenhadas pelo código (`SX1_MarcasCalado` é opcional e não é gerado).
+- **Oclusão ambiente**: calculada no Cycles (`bake_ao`) com todas as malhas juntas e gravada no atributo de
+  cor `AO`, exportado como `COLOR_0` (multiplica a cor base no site). Os mastros móveis ficam sem sombra de
+  contato, porque arriados estão dentro da vela. Ajustes: `AO_DISTANCE`, `AO_STRENGTH`, `AO_BOTTOM`.
+- O **reflexo do céu** não está no arquivo: é gerado no site (`src/render3d/subEnvironment.ts`) com as cores da cena.
 
 ## Referências
 
