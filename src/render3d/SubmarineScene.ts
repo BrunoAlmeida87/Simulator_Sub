@@ -7,6 +7,7 @@
  * Mapeamento NED → Three.js (Y para cima): X₃ = Leste, Y₃ = −profundidade,
  * Z₃ = −Norte. Origem flutuante na posição horizontal do submarino.
  */
+import { fmtSpeed } from '../ui/format';
 import { dieselExhaust, disperserOutlets } from '../sim/systems/exhaust';
 import { WindFx } from './WindFx';
 import { RioLandmarks } from './RioLandmarks';
@@ -53,6 +54,7 @@ import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
 import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
 import { BASE_FOV, DEEP_VIEWS, dollyRatio } from './deepPerspective';
 import { SubEnvironment, envColors, envIntensity, type EnvColors } from './subEnvironment';
+import { readRenderStats, type RenderStats } from './renderPerf';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'perspectiva'
@@ -300,7 +302,7 @@ export class SubmarineScene {
     this.runner = runner;
     this.env = () => this.runner.engine;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.applyPixelRatio();
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.62;
@@ -792,6 +794,22 @@ export class SubmarineScene {
     }
   }
 
+  /** escala de resolução (fração da nativa; só visual): a imagem é desenhada em menos pixels e ampliada pelo navegador */
+  private renderScale = 1;
+  setRenderScale(scale: number): void {
+    const k = Math.max(0.25, Math.min(1, scale));
+    if (Math.abs(k - this.renderScale) < 1e-3) return;
+    this.renderScale = k;
+    this.applyPixelRatio();
+  }
+  private applyPixelRatio(): void {
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * this.renderScale);
+  }
+  /** contadores do último quadro (medidor de FPS) */
+  renderStats(): RenderStats {
+    return readRenderStats(this.renderer, this.renderScale);
+  }
+
   resize(): void {
     const w = Math.max(10, this.container.clientWidth);
     const h = Math.max(10, this.container.clientHeight);
@@ -1051,6 +1069,17 @@ export class SubmarineScene {
       default:
         return this.perspectiveFrame().pos;
     }
+  }
+
+  /**
+   * Plano próximo da câmera, proporcional à distância ao alvo (3ª pessoa) ou à altura (drone): com a câmera afastada
+   * a razão far/near cai e a água não briga mais com o mar achatado do terreno (precisão de profundidade).
+   * Periscópio e passadiço ficam com 0,5 m (o olho está no próprio submarino).
+   */
+  private nearPlane(droneView: boolean): number {
+    if (droneView) return Math.min(30, Math.max(0.5, Math.abs(this.camera.position.y) * 0.01));
+    if (this.view === 'periscopio' || this.view === 'passadico') return 0.5;
+    return Math.min(30, Math.max(0.5, this.camera.position.distanceTo(this.controls.target) * 0.01));
   }
 
   /** campo de visão vertical (°) do enquadramento de cada vista de 3ª pessoa */
@@ -1548,12 +1577,12 @@ export class SubmarineScene {
     this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
     this.nightSky.update(dl, this.camera.position, !under && !dry0, pal.moonI, this.pal.zenith, this.pal.fog);
     terrain.night = coastOn ? dl.night : 0;
-    // drone no alto: a malha do mar se estende até o horizonte (sem borda visível) e o plano próximo
-    // se afasta (precisão de profundidade: sem "pintas" entre a água e o mar achatado da costa)
+    // drone no alto: a malha do mar se estende até o horizonte (sem borda visível); em todas as vistas o plano próximo
+    // acompanha a distância (precisão de profundidade: sem "pintas" entre a água e o mar achatado da costa)
     {
       const k = droneView ? Math.max(1, this.camera.position.y / 350) : 1;
       if (this.ocean.mesh.scale.x !== k) this.ocean.mesh.scale.set(k, 1, k);
-      const near = droneView ? Math.min(30, Math.max(0.5, Math.abs(this.camera.position.y) * 0.01)) : 0.5;
+      const near = this.nearPlane(droneView);
       if (Math.abs(this.camera.near - near) > 0.05) {
         this.camera.near = near;
         this.camera.updateProjectionMatrix();
@@ -1694,7 +1723,7 @@ export class SubmarineScene {
       const ps = proj(new THREE.Vector3(0, 0, 0));
       lbl.push({ id: 'surf', text: 'superfície', ...ps });
       const psub = proj(subPos.clone().add(new THREE.Vector3(0, 12, 0)));
-      lbl.push({ id: 'sub', text: `${e.outputs.depthKeel.toFixed(1)} m · ${(e.state.body.vel.x / 0.5144).toFixed(1)} nós`, ...psub });
+      lbl.push({ id: 'sub', text: `${e.outputs.depthKeel.toFixed(1)} m · ${fmtSpeed(e.state.body.vel.x, 1)}`, ...psub });
       const pb = proj(new THREE.Vector3(0, -bottom, 0));
       lbl.push({ id: 'bot', text: `fundo ${bottom.toFixed(0)} m (altitude ${e.outputs.altitude.toFixed(0)} m)`, ...pb });
     }

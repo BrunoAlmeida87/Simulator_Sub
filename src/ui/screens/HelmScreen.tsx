@@ -15,7 +15,7 @@ import { Yoke, Lever, Knob, TELEGRAPH_DETENTS, HELM_COLORS } from '../components
 import { TELEGRAPH } from '../components/Controls';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { toKnots } from '../../sim/units';
-import { fmt } from '../format';
+import { fmt, fmtSpeed } from '../format';
 import { useIdentity } from '../appearance';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { perspSection } from '../components/SeaControls';
@@ -70,7 +70,7 @@ export function HelmScreen() {
             ]}
           />
           <div className="helm-hud">
-            <b>{id.name}</b> · {fmt(o.depthKeel, 1)} m · {fmt(toKnots(s.body.vel.x), 1)} nós · rumo {fmt(o.euler.heading, 0)}°
+            <b>{id.name}</b> · {fmt(o.depthKeel, 1)} m · {fmtSpeed(s.body.vel.x, 1)} · rumo {fmt(o.euler.heading, 0)}°
           </div>
         </Scene3D>
       </div>

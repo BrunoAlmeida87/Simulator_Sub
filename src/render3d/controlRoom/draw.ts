@@ -5,6 +5,7 @@
  * diagrama (tubulação, válvula, bomba, tanque), rosa dos ventos e
  * indicadores de ângulo dos lemes. Cada botão registra a sua região clicável.
  */
+import { fmtKnots } from '../../ui/format';
 import type { DrawCtx } from './panel';
 
 export const C = {
@@ -371,8 +372,9 @@ export function dial(g: G, cx: number, cy: number, r: number, o: DialOpts): void
   g.fill();
   if (o.digits !== undefined) {
     g.fillStyle = dark ? '#000' : '#101418';
-    g.fillRect(cx - r * 0.34, cy + r * 0.44, r * 0.68, r * 0.22);
-    text(g, o.value.toFixed(o.digits), cx, cy + r * 0.555, r * 0.17, '#7dff9c', 'center', 'bold', true);
+    const displayWidth = r * (o.unit === 'nós' ? 1.7 : 0.68);
+    g.fillRect(cx - displayWidth / 2, cy + r * 0.44, displayWidth, r * 0.22);
+    text(g, o.unit === 'nós' ? fmtKnots(o.value, o.digits) : o.value.toFixed(o.digits), cx, cy + r * 0.555, r * (o.unit === 'nós' ? 0.11 : 0.17), '#7dff9c', 'center', 'bold', true);
   }
 }
 

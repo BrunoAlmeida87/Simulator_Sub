@@ -32,9 +32,9 @@ import { periMarks } from './periMarks';
 import { RoomAudio } from './roomAudio';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { cpa } from '../../sim/geo';
-import { toKnots } from '../../sim/units';
 import { nearestOrder } from '../../sim/telegraph';
-import { fmt } from '../format';
+import { fmt, fmtSpeed } from '../format';
+import { FpsMeter, useRenderPerf } from '../components/FpsMeter';
 
 function maneuverText(): string | null {
   if (!maneuver.active) return null;
@@ -84,7 +84,7 @@ function ContactsTable({ e, acts }: { e: SimulationEngine; acts: RoomActions }) 
               <td className="mono">{String(Math.round(c.brg)).padStart(3, '0')}°</td>
               <td className="mono">{fmt(c.rng / 1852, 1)} mn</td>
               <td className="mono">
-                {Math.round(c.course)}° · {fmt(toKnots(c.speed), 1)} nós
+                {Math.round(c.course)}° · {fmtSpeed(c.speed, 1)}
               </td>
               <td className="mono">{p.tcpa > 0 ? `${fmt(p.dcpa / 1852, 1)} mn em ${Math.round(p.tcpa / 60)} min` : 'afastando'}</td>
             </tr>
@@ -199,7 +199,7 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
     navegacao: (
       <>
         <div className="subtle">
-          GPS: <b>{mastOut(e) ? 'fixo válido' : 'sem sinal (antena submersa)'}</b> · rumo {fmt(e.state.sensors.GIRO.value, 0)}° · {fmt(toKnots(e.state.sensors.DVLU.value), 1)} nós · fundo {fmt(e.outputs.bottomDepth, 0)}{' '}
+          GPS: <b>{mastOut(e) ? 'fixo válido' : 'sem sinal (antena submersa)'}</b> · rumo {fmt(e.state.sensors.GIRO.value, 0)}° · {fmtSpeed(e.state.sensors.DVLU.value, 1)} · fundo {fmt(e.outputs.bottomDepth, 0)}{' '}
           m
         </div>
         <ContactsTable e={e} acts={acts} />
@@ -258,6 +258,7 @@ export function ControlRoomScreen() {
   const box = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ControlRoomScene | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const perf = useRenderPerf();
   const [ready, setReady] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
   const [frame, setFrame] = useState<FrameInfo | null>(null);
@@ -358,7 +359,9 @@ export function ControlRoomScreen() {
         ro.observe(box.current);
         setReady(true);
         const loop = () => {
+          const scale = perf.frame(() => sc.renderStats());
           if (!periRef.current && !bridgeRef.current) {
+            sc.setRenderScale(scale);
             sc.periBearing = sightRef.current.bearing;
             sc.tilt = tiltRef.current;
             sc.render();
@@ -382,7 +385,7 @@ export function ControlRoomScreen() {
       sc?.dispose();
       sceneRef.current = null;
     };
-  }, [acts]);
+  }, [acts, perf.frame]);
 
   // som e anúncios (1MC): leem o estado algumas vezes por segundo
   useEffect(() => {
@@ -502,6 +505,7 @@ export function ControlRoomScreen() {
           onPointerCancel={(ev) => sceneRef.current?.pointerUp(ev.clientX, ev.clientY)}
           onPointerLeave={() => setHover(null)}
         />
+        {perf.show && <FpsMeter meterRef={perf.meterRef} />}
         {err && <div className="room-err">{err}</div>}
         {!ready && !err && <div className="room-loading">Montando a sala de comando…</div>}
         <div className="room-hud">
@@ -513,7 +517,7 @@ export function ControlRoomScreen() {
               <small>RUMO</small> <b>{String(Math.round(((s.sensors.GIRO.value % 360) + 360) % 360)).padStart(3, '0')}°</b>
             </span>
             <span>
-              <small>VEL</small> <b>{fmt(toKnots(s.sensors.DVLU.value), 1)} nós</b>
+              <small>VEL</small> <b>{fmtSpeed(s.sensors.DVLU.value, 1)}</b>
             </span>
             <span>
               <small>MÁQ.</small> <b>{order.label}</b>

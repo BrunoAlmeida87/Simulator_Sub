@@ -13,8 +13,8 @@ import { SENSOR_DEFS, RHO_CAL } from '../../sim/systems/sensors';
 import { R_AIR, RHO_NOMINAL } from '../../sim/core/context';
 import { liftCurveSlope } from '../../sim/physics/hydrodynamics';
 import { RAD } from '../../sim/core/math';
-import { toKnots, KNOT } from '../../sim/units';
-import { fmt, fmtMass, fmtPower, fmtForce, fmtMoment } from '../format';
+import { KNOT } from '../../sim/units';
+import { fmt, fmtMass, fmtPower, fmtForce, fmtMoment, fmtSpeed } from '../format';
 
 export interface InspVar {
   name: string;
@@ -238,11 +238,11 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Área / alongamento', `${f.area} m² / ${f.aspectRatio}`),
         ],
         state: st.jammed ? 'TRAVADO' : Math.abs(st.actual - st.cmd) > 0.05 ? 'Em movimento' : 'Em posição',
-        influence: `Força ∝ U²: a ${fmt(toKnots(U), 1)} nós, 10° produzem ≈ ${fmtForce(L10)} (${fmtMoment(L10 * arm)} de momento). Com velocidade praticamente nula, a efetividade desaparece.`,
+        influence: `Força ∝ U²: a ${fmtSpeed(U, 1)}, 10° produzem ≈ ${fmtForce(L10)} (${fmtMoment(L10 * arm)} de momento). Com velocidade praticamente nula, a efetividade desaparece.`,
         equations: ['α = δ + atan2(v_n, u_local)', 'L = ½·ρ·U²·A·C_L(α),  C_Lα = 2π·AR/(2 + √(AR² + 4))', `C_Lα = ${cla.toFixed(2)} /rad; estol em ${f.stallAngle}°`, 'M = r × F'],
         predictions: [
           `Dobrar a velocidade multiplica a força por 4 (${fmtForce(4 * L10)} a 10°).`,
-          `A 6 nós, 10° gerariam ${fmtForce(0.5 * o.rhoLocal * (6 * KNOT) ** 2 * f.area * cla * 10 * (Math.PI / 180))}; a 1 nó: ${fmtForce(0.5 * o.rhoLocal * KNOT ** 2 * f.area * cla * 10 * (Math.PI / 180))}.`,
+          `A 6 nós (11.1 km/h), 10° gerariam ${fmtForce(0.5 * o.rhoLocal * (6 * KNOT) ** 2 * f.area * cla * 10 * (Math.PI / 180))}; a 1 nó (1.9 km/h): ${fmtForce(0.5 * o.rhoLocal * KNOT ** 2 * f.area * cla * 10 * (Math.PI / 180))}.`,
           'Acima do ângulo de estol, a sustentação cai e o arrasto cresce.',
         ],
         channels: isR ? ['rudder', 'rudderCmd', 'heading'] : [f.id, f.id + 'Cmd', 'pitch', 'depth'],
@@ -263,7 +263,7 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Resistência', fmtForce(-o.forces.resistance.F.x)),
           V('J', fmt(p.advance, 3)),
           V('Potência eixo / elétrica', `${fmtPower(p.shaftPower)} / ${fmtPower(p.elecPower)}`),
-          V('Velocidade', `${fmt(toKnots(s.body.vel.x), 2)} nós`, 'MED'),
+          V('Velocidade', fmtSpeed(s.body.vel.x, 2), 'MED'),
         ],
         state: p.failed ? 'FALHA' : p.powerLimited ? 'Limitado em potência' : 'Normal',
         influence: 'Empuxo − resistência = (m + m_a)·u̇: a velocidade muda lentamente pela grande inércia. A velocidade também define a efetividade dos lemes (∝ U²).',
@@ -274,7 +274,7 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           'R = ½·ρ·S·C_t·(1 + k·f_sup)·u|u|',
           `|Q_motor| ≤ min(${fmt(m.maxTorque / 1e3, 0)} kN·m, P_disp/|ω|)`,
         ],
-        predictions: [60, 100, 140, m.ratedRpm].map((r) => `${r} rpm ⇒ velocidade de regime submersa estimada ≈ ${fmt(toKnots(speedForRpm(e, r)), 1)} nós (sem limite de potência).`).concat([`Hélice: D = ${pr.diameter} m, ${pr.blades} pás, esteira w = ${pr.wakeFraction}, dedução t = ${pr.thrustDeduction}.`]),
+        predictions: [60, 100, 140, m.ratedRpm].map((r) => `${r} rpm ⇒ velocidade de regime submersa estimada ≈ ${fmtSpeed(speedForRpm(e, r), 1)} (sem limite de potência).`).concat([`Hélice: D = ${pr.diameter} m, ${pr.blades} pás, esteira w = ${pr.wakeFraction}, dedução t = ${pr.thrustDeduction}.`]),
         channels: ['speed', 'rpm', 'rpmCmd', 'power'],
       };
     }
@@ -348,12 +348,12 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           'θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)  — lemes de ré fazem a mudança de cota',
           'δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q]',
           'δ_vante = K·[Kb·sat(e_z, ±3 m)·max(w, a) + Kbd·ż·w], ±10°  — só ajuste fino perto da cota',
-          'K = min(4, (U₀/U)²); abaixo de ~4 nós a cota passa aos lemes de vela',
+          'K = min(4, (U₀/U)²); abaixo de ~4 nós (7.4 km/h) a cota passa aos lemes de vela',
         ],
         predictions: [
           'Comutar para AUTO inicializa o integrador com a posição atual (sem salto).',
           'Mover manualmente um leme desengaja o canal.',
-          'Numa mudança de cota acima de ~4 nós, os lemes de ré dão o ângulo; os de vela ficam em poucos graus e só trabalham perto da cota.',
+          'Numa mudança de cota acima de ~4 nós (7.4 km/h), os lemes de ré dão o ângulo; os de vela ficam em poucos graus e só trabalham perto da cota.',
         ],
         channels: ['depth', 'depthSet', 'heading', 'headingSet', 'stern', 'bow', 'rudder'],
       };

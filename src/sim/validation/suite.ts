@@ -221,7 +221,7 @@ export const VALIDATION_CASES: ValidationCase[] = [
   {
     id: 'V05',
     title: '5. Rumo responde progressivamente à deflexão do leme',
-    description: 'A 6 nós: leme 15° BE ⇒ taxa de guinada cresce gradualmente e o rumo aumenta; 15° BB ⇒ simétrico; leme a meio ⇒ rumo mantido.',
+    description: 'A 6 nós (11.1 km/h): leme 15° BE ⇒ taxa de guinada cresce gradualmente e o rumo aumenta; 15° BB ⇒ simétrico; leme a meio ⇒ rumo mantido.',
     run: () => {
       const res: Record<string, { dpsi: number; r5: number; r40: number; series: Series }> = {};
       for (const [k, ang] of [
@@ -679,8 +679,8 @@ export function fullSequenceSteps(): SequenceStep[] {
   const cmd = applyCommand;
   return [
     {
-      name: 'Preparar: ordenar 6 nós',
-      criterion: 'velocidade > 4 nós',
+      name: 'Preparar: ordenar 6 nós (11.1 km/h)',
+      criterion: 'velocidade > 4 nós (7.4 km/h)',
       timeout: 300,
       enter: (e) => cmd(e, { type: 'telegraph', rpm: 75 }),
       done: (e) => e.state.body.vel.x > 4 * KNOT,

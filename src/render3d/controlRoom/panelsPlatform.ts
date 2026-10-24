@@ -2,13 +2,13 @@
  * CONSOLE DA PLATAFORMA (gestão integrada: energia e propulsão) e ESTAÇÃO DO
  * INSTRUTOR (simulador: falhas, ambiente, tempo e cenários).
  */
+import { fmtSpeed } from '../../ui/format';
 import type { DrawCtx } from './panel';
 import type { RoomActions } from './actions';
 import { C, box, button, dial, digital, hbar, screenBg, text } from './draw';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import type { SensorFailMode } from '../../sim/core/state';
 import { SEA_STATES } from '../../sim/environment/waves';
-import { toKnots } from '../../sim/units';
 
 /** tela de ENERGIA: bateria, disjuntor, diesel-geradores, snorkel, combustível e cargas */
 export function drawEnergy(act: RoomActions) {
@@ -131,7 +131,7 @@ export function drawPropulsion(act: RoomActions) {
       ['Eixo', `${e.outputs.rpm.toFixed(0)} rpm`],
       ['Potência no eixo', `${(p.shaftPower / 1e6).toFixed(2)} MW`],
       ['Empuxo', `${(p.thrust / 1e3).toFixed(0)} kN`],
-      ['Velocidade', `${toKnots(s.sensors.DVLU.value).toFixed(1)} nós`],
+      ['Velocidade', fmtSpeed(s.sensors.DVLU.value, 1)],
       ['Situação', p.failed ? 'FALHA' : p.powerLimited ? 'LIMITADO' : 'normal', p.failed ? C.alarm : p.powerLimited ? C.warn : C.real],
     ];
     rows.forEach(([k, v, col], i) => {

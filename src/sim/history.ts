@@ -22,6 +22,7 @@ export const CHANNELS: ChannelDef[] = [
   { id: 'bottom', label: 'Fundo', unit: 'm', kind: 'VERD', get: (e) => e.outputs.bottomDepth },
   { id: 'vz', label: 'Velocidade vertical (+ desc.)', unit: 'm/s', kind: 'VERD', get: (e) => e.outputs.verticalSpeed },
   { id: 'speed', label: 'Velocidade', unit: 'nós', kind: 'VERD', get: (e) => toKnots(e.state.body.vel.x) },
+  { id: 'speedKmh', label: 'Velocidade', unit: 'km/h', kind: 'VERD', get: (e) => e.state.body.vel.x * 3.6 },
   { id: 'rpm', label: 'RPM do eixo', unit: 'rpm', kind: 'MED', get: (e) => e.outputs.rpm },
   { id: 'rpmCmd', label: 'RPM ordenada', unit: 'rpm', kind: 'CMD', get: (e) => e.state.propulsion.rpmCmd },
   { id: 'heading', label: 'Rumo', unit: '°', kind: 'VERD', get: (e) => e.outputs.euler.heading },

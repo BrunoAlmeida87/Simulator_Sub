@@ -11,6 +11,7 @@
  *  - flâmula opcional num pau curto no topo da vela (camada "Flâmula", só com
  *    a vela fora d'água), estendida para sotavento.
  */
+import { fmtSpeed } from '../ui/format';
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { Label3D } from './SubmarineScene';
@@ -262,10 +263,9 @@ export class WindFx {
   label(e: SimulationEngine, lbl: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
     if (!this.pennant.visible) return;
     const aw = apparentWind(e);
-    const kn = aw.speed / 0.5144;
     const side = Math.abs(aw.fromRel) < 3 ? 'pela proa' : Math.abs(aw.fromRel) > 177 ? 'pela popa' : `${Math.round(Math.abs(aw.fromRel))}° ${aw.fromRel > 0 ? 'BE' : 'BB'}`;
     const p = proj(this.pennant.localToWorld(new THREE.Vector3(0, 3.4, 0)));
-    lbl.push({ id: 'wind', text: `vento aparente ${kn.toFixed(0)} nós`, sub: `vem ${side}`, ...p, small: true, prio: 3 });
+    lbl.push({ id: 'wind', text: `vento aparente ${fmtSpeed(aw.speed, 0)}`, sub: `vem ${side}`, ...p, small: true, prio: 3 });
   }
 
   dispose(): void {

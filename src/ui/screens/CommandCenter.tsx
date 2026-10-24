@@ -7,7 +7,7 @@ import { AutopilotPanel, QuickBallast, SurfaceControl, Telegraph } from '../comp
 import { SituationView } from '../components/SituationView';
 import { VerticalExplain } from '../components/Explain';
 import { toKnots } from '../../sim/units';
-import { fmt, fmtMass } from '../format';
+import { fmt, fmtMass, fmtSpeed } from '../format';
 
 export function CommandCenter() {
   const e = useSim(12);
@@ -87,7 +87,7 @@ export function CommandCenter() {
           </div>
         </div>
         <div className="note">
-          Efetividade dos lemes ∝ U². Velocidade atual {fmt(toKnots(s.body.vel.x), 1)} nós ⇒ força relativa a 6 nós: <b className="mono">{fmt(((s.body.vel.x / 3.087) ** 2) * 100, 0)} %</b>.
+          Efetividade dos lemes ∝ U². Velocidade atual {fmtSpeed(s.body.vel.x, 1)} ⇒ força relativa a 6 nós (11.1 km/h): <b className="mono">{fmt(((s.body.vel.x / 3.087) ** 2) * 100, 0)} %</b>.
         </div>
       </Panel>
       <Panel title="Controle automático (PID conceitual)" inspect="autopilot" className="span2">

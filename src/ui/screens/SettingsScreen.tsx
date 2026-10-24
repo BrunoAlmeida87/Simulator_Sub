@@ -16,6 +16,7 @@ import { storage, downloadText } from '../storage';
 import { captureSession, restoreSession, resumeSimulation, sessionFileName, type RestoreReport } from '../session';
 import { parseSaveText, saveToText, type SaveFile } from '../../sim/persistence';
 import { identity, FIN_COLORS, DEFAULT_IDENTITY } from '../identity';
+import { RENDER_SCALE_LABELS, RENDER_SCALE_OPTIONS } from '../../render3d/renderPerf';
 import { graphics, useGraphics, LIGHTING_LABELS, LIGHTINGS, DEPTH_LINE_SPACINGS } from '../graphics';
 import type { SceneLighting } from '../../render3d/lighting';
 import { MAX_TRAFFIC } from '../../sim/traffic';
@@ -34,8 +35,7 @@ import { useScenarioOptions } from './ScenarioScreen';
 import { demo } from '../demo';
 import { maneuver } from '../maneuvers';
 import { tours } from '../tours';
-import { toKnots } from '../../sim/units';
-import { fmt, fmtTime } from '../format';
+import { fmt, fmtTime, fmtSpeed } from '../format';
 
 // ------------------------------------------------------------ tipo de efeito
 type KindId = 'visual' | 'agora' | 'reiniciar';
@@ -90,7 +90,7 @@ function SessionPanel() {
       <div className="sess-now">
         <span className={`badge ${runner.running ? 'ok' : 'warn'}`}>{runner.running ? 'EM EXECUÇÃO' : 'PAUSADA'}</span>
         <span className="mono">
-          {scenarioById(s.scenarioId).name} · t = {fmtTime(s.t)} · {fmt(e.outputs.depthKeel, 1)} m · {fmt(toKnots(s.body.vel.x), 1)} nós · {fmt(e.outputs.euler.heading, 0)}° · bateria {fmt(s.electrical.soc * 100, 0)} %
+          {scenarioById(s.scenarioId).name} · t = {fmtTime(s.t)} · {fmt(e.outputs.depthKeel, 1)} m · {fmtSpeed(s.body.vel.x, 1)} · {fmt(e.outputs.euler.heading, 0)}° · bateria {fmt(s.electrical.soc * 100, 0)} %
         </span>
       </div>
       <div className="row mt8">
@@ -387,6 +387,22 @@ function GraphicsPanel() {
             ))}
           </div>
         </div>
+        <div className="row">
+          <span className="subtle" style={{ minWidth: 120 }} title="Menos pixels = mais quadros por segundo. Automática ajusta sozinha conforme o desempenho.">
+            Resolução da imagem
+          </span>
+          <div className="seg">
+            {RENDER_SCALE_OPTIONS.map((k) => (
+              <button key={String(k)} className={g.renderScale === k ? 'on' : ''} onClick={() => graphics.set({ renderScale: k })}>
+                {RENDER_SCALE_LABELS[String(k)]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="row" style={{ gap: 6 }}>
+          <input type="checkbox" checked={g.fpsMeter} onChange={(ev) => graphics.set({ fpsMeter: ev.target.checked })} />
+          <span>Medidor de FPS sobre as cenas 3D (FPS, tempo de quadro, resolução, chamadas de desenho, triângulos e memória de GPU)</span>
+        </label>
         <div className="row">
           <span className="subtle" style={{ minWidth: 120 }}>
             Texturas do casco
