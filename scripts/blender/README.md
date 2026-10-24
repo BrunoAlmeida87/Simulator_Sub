@@ -54,6 +54,31 @@ O segundo comando fica rodando: dê o terceiro em outro terminal. Os prints saem
   contato, porque arriados estão dentro da vela. Ajustes: `AO_DISTANCE`, `AO_STRENGTH`, `AO_BOTTOM`.
 - O **reflexo do céu** não está no arquivo: é gerado no site (`src/render3d/subEnvironment.ts`) com as cores da cena.
 
+## Interior (para a futura vista em corte)
+
+`build_sx1_interior.py` modela, em estilo técnico, o que o corte do site mostra hoje: os 9 tanques
+(lastro, compensação, trim e banda), as tubulações com flanges e faixas de identificação do fluido,
+as 32 válvulas (corpo, castelo, volante e plaqueta), as 4 bombas (com motor), as 12 garrafas de ar AP,
+as aberturas para o mar, a bateria e os dois geradores. As posições vêm do próprio site:
+
+```bash
+npx vite-node scripts/blender/exportar_interior.ts
+"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup -P scripts/blender/build_sx1_interior.py -- --corte
+npm run modelo:otimizar
+```
+
+O primeiro comando grava `build/modelo/interior.json` a partir de `src/render3d/Systems.ts`; o segundo monta
+o interior, calcula a oclusão e exporta `sx1-interior.raw.glb`; com `--corte` também renderiza a prévia do
+meio casco aberto em `build/modelo/corte/`; o terceiro comprime para `public/models/sx1-interior.glb`.
+
+- O site **ainda não carrega** o `sx1-interior.glb`; o corte atual continua o mesmo. O teste
+  `tests/subInterior.test.ts` garante que o arquivo segue o corte publicado (mesmas peças e posições).
+- Nomes fixos (`SX1I_Tanque_<ID>`, `SX1I_Valvula_<nome>`, `SX1I_Bomba_<nome>`, `SX1I_Tubo_<n>`…), nós só com
+  translação; volantes e rotores são filhos com origem no eixo de giro (`eixo_giro` em extras).
+  Nome, sistemas e trajetos ficam em extras (no Three.js, `userData`) para ligar cada peça ao estado.
+- Todas as malhas são fechadas: um plano de corte com tampa (stencil) ou uma booleana funcionam.
+- Se o corte do site mudar (tanque, tubo ou válvula novos), rode os três comandos de novo.
+
 ## Referências
 
 As fotos usadas como referência ficam em `referencias/` (fora do git, por direitos autorais), com a
