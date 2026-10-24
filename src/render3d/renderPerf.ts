@@ -23,13 +23,15 @@ const FAST_MS = 19;
 const WINDOW_MS = 1500;
 const UP_WAIT_MS = 6000;
 const UP_WAIT_MAX_MS = 60000;
+/** degraus testados abaixo do nível de origem antes de concluir que a resolução não é o limite */
+const PROBE_STEPS = 3;
 /** intervalos maiores que isto (aba oculta, travada) não entram nas médias; aparelhos muito lentos (< 1 fps) ficam sem medida */
 const MAX_DT_MS = 2000;
 
 /**
  * Ajuste automático da resolução. Desce um degrau quando a média da janela passa de SLOW_MS e sobe quando fica abaixo de
  * FAST_MS por UP_WAIT_MS. Se descer não melhora o tempo de quadro (limite é a tela ou o navegador, não os pixels), volta
- * ao degrau anterior e não desce de novo por um tempo; se subir força descer logo em seguida, espera mais para tentar outra vez.
+ * ao degrau de origem (depois de testar até PROBE_STEPS degraus) e não desce de novo por um tempo; se subir força descer logo em seguida, espera mais para tentar outra vez.
  */
 export class AdaptiveScale {
   level = AUTO_STEPS.length - 1;
@@ -39,7 +41,8 @@ export class AdaptiveScale {
   private upWait = UP_WAIT_MS;
   private lastUpAt = -Infinity;
   private lastChangeAt = -Infinity;
-  private beforeDown: { avg: number; level: number } | null = null;
+  /** descida em teste: tempo médio antes, degrau de origem e quantos degraus já foram testados */
+  private probe: { avg: number; origin: number; steps: number } | null = null;
   private noGainUntil = -Infinity;
 
   get scale(): number {
@@ -58,7 +61,7 @@ export class AdaptiveScale {
     this.sum = 0;
     this.n = 0;
     this.fastMs = 0;
-    this.beforeDown = null;
+    this.probe = null;
   }
 
   /** dt = ms desde o quadro anterior; now = relógio em ms. Devolve true se a escala mudou. */
@@ -71,22 +74,28 @@ export class AdaptiveScale {
     const span = this.sum;
     this.sum = 0;
     this.n = 0;
-    // a janela logo depois de descer diz se descer adiantou
-    if (this.beforeDown) {
-      const { avg: before, level } = this.beforeDown;
-      this.beforeDown = null;
-      if (avg > before * 0.92 && avg > SLOW_MS) {
-        this.level = level;
-        this.noGainUntil = now + 30000;
+    // a janela logo depois de descer diz se descer adiantou. Com os quadros quantizados pela tela (60 Hz: 16,7 ou 33,3 ms) um
+    // degrau pode não mudar nada e o seguinte dobrar o FPS; por isso testa até PROBE_STEPS degraus antes de desistir
+    if (this.probe) {
+      const p = this.probe;
+      this.probe = null;
+      if (avg > p.avg * 0.92 && avg > SLOW_MS) {
         this.fastMs = 0;
         this.lastChangeAt = now;
+        if (p.steps < PROBE_STEPS && this.level > 0) {
+          this.level--;
+          this.probe = { ...p, steps: p.steps + 1 };
+        } else {
+          this.level = p.origin;
+          this.noGainUntil = now + 30000;
+        }
         return true;
       }
     }
     if (avg > SLOW_MS && this.level > 0 && now >= this.noGainUntil) {
       // subiu há pouco e já está lento: esperar mais para tentar subir outra vez
       if (now - this.lastUpAt < 10000) this.upWait = Math.min(UP_WAIT_MAX_MS, this.upWait * 2);
-      this.beforeDown = { avg, level: this.level };
+      this.probe = { avg, origin: this.level, steps: 1 };
       this.level--;
       this.fastMs = 0;
       this.lastChangeAt = now;

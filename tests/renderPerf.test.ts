@@ -15,6 +15,19 @@ function run(a: AdaptiveScale, seconds: number, cost: (scale: number) => number,
   return t;
 }
 
+/** como run(), mas devolve o tempo (ms) passado em cada escala */
+function timeAt(a: AdaptiveScale, seconds: number, cost: (scale: number) => number): Map<number, number> {
+  const m = new Map<number, number>();
+  let t = 0;
+  while (t < seconds * 1000) {
+    const dt = Math.max(1000 / 60, cost(a.scale));
+    m.set(a.scale, (m.get(a.scale) ?? 0) + dt);
+    t += dt;
+    a.update(dt, t);
+  }
+  return m;
+}
+
 describe('Ajuste automático da resolução', () => {
   it('começa em 100 % e fica nele quando o desenho é leve', () => {
     const a = new AdaptiveScale();
@@ -40,9 +53,20 @@ describe('Ajuste automático da resolução', () => {
 
   it('não derruba a resolução quando o limite não são os pixels (tela/navegador a 30 fps)', () => {
     const a = new AdaptiveScale();
-    run(a, 90, () => 33);
-    // desce no máximo um degrau de teste e volta; não vai para o mínimo
-    expect(a.scale).toBeGreaterThanOrEqual(AUTO_STEPS[AUTO_STEPS.length - 2]);
+    const t = timeAt(a, 90, () => 33);
+    // testa alguns degraus e volta; passa a maior parte do tempo em 100 % e nunca vai ao mínimo
+    expect(t.get(1) ?? 0).toBeGreaterThan(0.6 * 90000);
+    expect(t.get(0.5) ?? 0).toBe(0);
+  });
+
+  it('quadros quantizados pela tela (16,7 / 33,3 ms): continua descendo até ganhar FPS', () => {
+    const a = new AdaptiveScale();
+    // custo ∝ pixels (29 ms a 100 %), mas a tela só mostra múltiplos de 16,7 ms: 100 % e 90 % dão 33,3 ms; 75 % dá 16,7 ms
+    const quant = (s: number) => Math.ceil((29 * s * s) / (1000 / 60)) * (1000 / 60);
+    const t = timeAt(a, 90, quant);
+    const total = [...t.values()].reduce((x, y) => x + y, 0);
+    const light = (t.get(0.75) ?? 0) + (t.get(0.6) ?? 0) + (t.get(0.5) ?? 0);
+    expect(light).toBeGreaterThan(0.6 * total);
   });
 
   it('ignora intervalos enormes (aba oculta)', () => {
