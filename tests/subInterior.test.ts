@@ -74,4 +74,45 @@ describe('modelo interno sx1-interior.glb', () => {
     expect(rotors.length).toBe(sys.pumps.length);
     for (const w of [...wheels, ...rotors]) expect((w.getExtras() as { eixo_giro?: number[] }).eixo_giro, w.getName()).toHaveLength(3);
   });
+
+  it('casco resistente com anteparas: tanques de lastro (TLP) fora dele, os demais tanques dentro', () => {
+    const fwd = nodes()
+      .find((n) => n.getName() === 'SX1I_Antepara_Vante')!
+      .getExtras() as { y_apice: number };
+    const aft = nodes()
+      .find((n) => n.getName() === 'SX1I_Antepara_Re')!
+      .getExtras() as { y_apice: number };
+    const hull = nodes()
+      .find((n) => n.getName() === 'SX1I_CascoResistente')!
+      .getExtras() as { raio_interno: number };
+    expect(hull.raio_interno).toBeCloseTo(2.9, 6); // mesmo raio da física (hullRadius dos tanques internos)
+    /** extensão longitudinal (proa = +Y no Blender = −Z na cena) de um tanque no arquivo */
+    const span = (id: string) => {
+      const n = nodes().find((x) => x.getName() === `SX1I_Tanque_${id}_Malha`)!;
+      const m = new THREE.Matrix4().fromArray(n.getWorldMatrix());
+      const pos = n.getMesh()!.listPrimitives()[0].getAttribute('POSITION')!;
+      const el: number[] = [];
+      const p = new THREE.Vector3();
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let i = 0; i < pos.getCount(); i++) {
+        pos.getElement(i, el);
+        const x = -p.set(el[0], el[1], el[2]).applyMatrix4(m).z;
+        lo = Math.min(lo, x);
+        hi = Math.max(hi, x);
+      }
+      return { lo, hi };
+    };
+    const v = e.vessel;
+    for (const t of v.ballast.tanks) {
+      const s = span(t.id);
+      if (t.center.x > 0) expect(s.lo, t.id).toBeGreaterThan(fwd.y_apice);
+      else expect(s.hi, t.id).toBeLessThan(aft.y_apice);
+    }
+    for (const t of [...v.compensation.tanks, v.trim.tankA, v.trim.tankB, v.heel.tankA, v.heel.tankB]) {
+      const s = span(t.id);
+      expect(s.lo, t.id).toBeGreaterThan(aft.y_apice);
+      expect(s.hi, t.id).toBeLessThan(fwd.y_apice);
+    }
+  });
 });

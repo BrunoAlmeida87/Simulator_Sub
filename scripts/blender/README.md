@@ -56,7 +56,9 @@ O segundo comando fica rodando: dê o terceiro em outro terminal. Os prints saem
 
 ## Interior (para a futura vista em corte)
 
-`build_sx1_interior.py` modela, em estilo técnico, o que o corte do site mostra hoje: os 9 tanques
+`build_sx1_interior.py` modela, em estilo técnico, o **casco resistente** (Ø interno 5,8 m, o raio da física;
+a ré afina com o casco externo), as duas **anteparas resistentes** em domo e as cavernas, e o que o corte
+do site mostra hoje: os 9 tanques
 (lastro, compensação, trim e banda), as tubulações com flanges e faixas de identificação do fluido,
 as 32 válvulas (corpo, castelo, volante e plaqueta), as 4 bombas (com motor), as 12 garrafas de ar AP,
 as aberturas para o mar, a bateria e os dois geradores. As posições vêm do próprio site:
@@ -69,7 +71,16 @@ npm run modelo:otimizar
 
 O primeiro comando grava `build/modelo/interior.json` a partir de `src/render3d/Systems.ts`; o segundo monta
 o interior, calcula a oclusão e exporta `sx1-interior.raw.glb`; com `--corte` também renderiza a prévia do
-meio casco aberto em `build/modelo/corte/`; o terceiro comprime para `public/models/sx1-interior.glb`.
+meio casco aberto em `build/modelo/corte/` e, com `--fluidos`, a prévia com água nos tanques, partículas
+de escoamento e volantes pela posição (`build/modelo/fluidos/`); o terceiro comprime para
+`public/models/sx1-interior.glb`.
+
+- **Anteparas**: vante com base em y = 24,7 m (ápice 25,45 m) e ré com base em y = −19,9 m (ápice −20,5 m).
+  Os tanques de lastro (TLP-1 a vante, TLP-2 a ré) ficam **fora** do casco resistente, entre a antepara e o
+  casco externo; os demais tanques e equipamentos, dentro. O teste confere essa regra.
+- Diferenças em relação ao desenho do corte do site: a bateria vira colunas de células em degraus que cabem no
+  casco resistente (no site é um bloco que atravessa o casco) e os tubos de admissão/descarga ao mar terminam
+  rente ao casco externo. Bombas, válvulas e ramais de compensação ficam nas posições do site, no porão.
 
 - O site **ainda não carrega** o `sx1-interior.glb`; o corte atual continua o mesmo. O teste
   `tests/subInterior.test.ts` garante que o arquivo segue o corte publicado (mesmas peças e posições).

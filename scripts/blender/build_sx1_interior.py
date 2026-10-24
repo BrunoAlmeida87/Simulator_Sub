@@ -198,6 +198,8 @@ def materials(D):
         M[key] = base.principled('SX1I_' + key, color, rough, metal)[0]
 
     mat('aco', (0.42, 0.44, 0.46), 0.38, 0.75)  # flanges, braçadeiras, suportes
+    mat('casco_res', (0.5, 0.52, 0.5), 0.55, 0.3)  # casco resistente (pintura interna clara)
+    mat('caverna', (0.4, 0.42, 0.41), 0.55, 0.35)
     mat('fundido', (0.30, 0.31, 0.33), 0.45, 0.6)  # corpos de válvula e bombas
     mat('volante', (0.55, 0.05, 0.04), 0.5, 0.1)  # volantes vermelhos
     mat('placa', (0.85, 0.82, 0.62), 0.6, 0.0)  # plaquetas de identificação
@@ -274,10 +276,36 @@ def sweep(path, r, n=SEG):
     return verts, faces
 
 
+def clip_to_hull(pts):
+    """Tubos que saem para o mar terminam rente ao casco externo (no site vão até a seta de vazão)."""
+    P = [v3(q) for q in pts]
+
+    def out_r(q):
+        return math.hypot(q[0], q[2]) - (base.radius_at(q[1]) - 0.02)
+
+    for rev in (False, True):
+        if rev:
+            P.reverse()
+        while len(P) > 1 and out_r(P[-1]) > 0 and out_r(P[-2]) > 0:
+            P.pop()
+        if len(P) > 1 and out_r(P[-1]) > 0 >= out_r(P[-2]):
+            a, b = P[-2], P[-1]
+            lo, hi = 0.0, 1.0
+            for _ in range(30):
+                m = (lo + hi) / 2
+                if out_r(a + (b - a) * m) > 0:
+                    hi = m
+                else:
+                    lo = m
+            P[-1] = a + (b - a) * lo
+    P.reverse()
+    return [tuple(q) for q in P]
+
+
 def build_pipes(D, M, parent):
     for i, p in enumerate(D['tubos']):
         r = p['raio'] * 0.75  # o desenho do site exagera o diâmetro; aqui fica mais realista
-        path = rounded(p['pontos'], rb=3.0 * r)
+        path = rounded(clip_to_hull(p['pontos']), rb=3.0 * r)
         if len(path) < 2:
             continue
         name = f'SX1I_Tubo_{i + 1:02d}'
@@ -456,26 +484,42 @@ def build_ports(D, M, parent):
 
 
 def build_battery(D, M, parent):
+    """Bateria: colunas de células em degraus acompanhando o fundo do casco resistente.
+
+    O bloco do corte do site é um paralelepípedo que atravessa o casco; aqui o topo fica na mesma altura
+    e cada coluna desce até onde o casco permite (colunas baixas demais ficam de fora)."""
+    r_lim = D['casco']['raioResistente'] - 0.2  # folga para as cavernas
     for i, bt in enumerate(D['bateria']):
         c = v3(bt['centro'])
         w, l, h = bt['tamanho']
         name = f'SX1I_Bateria_{i + 1}'
-        tray = [box(c - v3((0, 0, h / 2 - 0.04)), (w + 0.06, l + 0.06, 0.08))]
-        e = mesh_obj(name, tray, M['aco'], parent, c, extras={'tipo': 'bateria'})
         nx, ny = max(1, round(w / 0.38)), max(1, round(l / 0.26))
         dx, dy = w / nx, l / ny
-        cells, pos, neg = [], [], []
+        top = c[2] + h / 2 - 0.1
+        e = group(name, parent, tuple(c))
+        e['tipo'] = 'bateria'
+        cells, pos, neg, trays, bars = [], [], [], [], []
         for ix in range(nx):
+            xc = c[0] - w / 2 + dx * (ix + 0.5)
+            xo = abs(xc) + dx / 2
+            if xo >= r_lim:
+                continue
+            bottom = max(c[2] - h / 2 + 0.08, -math.sqrt(r_lim * r_lim - xo * xo) + 0.08)
+            hh = top - bottom
+            if hh < 0.25:
+                continue
+            trays.append(box((xc, c[1], bottom - 0.04), (dx + 0.02, l + 0.06, 0.08)))
+            bars.append(box((xc, c[1], top + 0.07), (0.04, l - 0.1, 0.02)))
             for iy in range(ny):
-                cc = c + v3((-w / 2 + dx * (ix + 0.5), -l / 2 + dy * (iy + 0.5), 0.02))
-                cells.append(box(cc, (dx - 0.025, dy - 0.025, h - 0.12)))
-                top = cc + v3((0, 0, (h - 0.12) / 2 + 0.025))
-                pos.append(cylinder(top + v3((-dx * 0.25, 0, 0)), (0, 0, 1), 0.025, 0.05, n=8))
-                neg.append(cylinder(top + v3((dx * 0.25, 0, 0)), (0, 0, 1), 0.025, 0.05, n=8))
+                cc = v3((xc, c[1] - l / 2 + dy * (iy + 0.5), bottom + hh / 2))
+                cells.append(box(cc, (dx - 0.025, dy - 0.025, hh)))
+                tp = v3((xc, cc[1], top + 0.025))
+                pos.append(cylinder(tp + v3((-dx * 0.25, 0, 0)), (0, 0, 1), 0.025, 0.05, n=8))
+                neg.append(cylinder(tp + v3((dx * 0.25, 0, 0)), (0, 0, 1), 0.025, 0.05, n=8))
+        mesh_obj(name + '_Bandeja', trays, M['aco'], e, c)
         mesh_obj(name + '_Celulas', cells, M['celula'], e, c, sharp=30)
         mesh_obj(name + '_PolosPos', pos, M['polo_pos'], e, c)
         mesh_obj(name + '_PolosNeg', neg, M['polo_neg'], e, c)
-        bars = [box(c + v3((-w / 2 + dx * (ix + 0.5), 0, (h - 0.12) / 2 + 0.07)), (0.04, l - 0.1, 0.02)) for ix in range(nx)]
         mesh_obj(name + '_Barramentos', bars, M['cobre'], e, c)
 
 
@@ -516,13 +560,158 @@ def build_tanks(D, M, parent):
         mesh_obj('SX1I_Tanque_' + t['id'] + '_Visita', hatch, M['aco'], e, tc)
 
 
+# ------------------------------------------------------------------ casco resistente
+# Medidas: raio interno = o da física (hullRadius 2,9 m dos tanques internos); chapa de 5 cm; a ré o casco
+# resistente afina junto com o casco externo (12 cm de folga). Anteparas resistentes em domo (convexas para
+# fora) logo antes dos TLP: os tanques de lastro principais ficam FORA do casco resistente, nas pontas.
+PH_T = 0.05
+PH_GAP = 0.12
+BH_FWD = (24.7, 0.75)  # base e flecha do domo de vante (ápice 25,45 m; TLP-1 começa em 25,5 m)
+BH_AFT = (-19.9, 0.6)  # base e flecha do domo de ré (ápice −20,5 m; TLP-2 começa em −20,7 m)
+FRAME_STEP = 0.6
+
+
+def ph_out(y, r_in):
+    return min(r_in + PH_T, base.radius_at(y) - PH_GAP)
+
+
+def revolve_loop(prof, n=72):
+    """Sólido de revolução (em torno de Y) de um contorno fechado [(r, y)] que não toca o eixo."""
+    verts = []
+    for r, y in prof:
+        for k in range(n):
+            t = 2 * math.pi * k / n
+            verts.append((r * math.cos(t), y, r * math.sin(t)))
+    m = len(prof)
+    faces = []
+    for i in range(m):
+        i1 = (i + 1) % m
+        for k in range(n):
+            k1 = (k + 1) % n
+            faces.append((i * n + k, i * n + k1, i1 * n + k1, i1 * n + k))
+    return verts, faces
+
+
+def obstacles(D):
+    """Caixas (min, max) do que fica encostado no casco resistente: as cavernas desviam delas."""
+    out = []
+    for t in D['tanques']:
+        if t['categoria'] == 'lastro':
+            continue
+        a = np.array(t['triangulos'])
+        out.append((a.min(0) - 0.06, a.max(0) + 0.06))
+    for b in D['bateria'] + D['geradores']:
+        c, sz = v3(b['centro']), v3(b['tamanho'])
+        out.append((c - sz / 2 - 0.08, c + sz / 2 + 0.08))
+    for g in D['garrafas']:
+        c, a = v3(g['centro']), np.abs(unit(v3(g['eixo'])))
+        half = a * g['comprimento'] / 2 + (1 - a) * g['raio'] + 0.08
+        out.append((c - half, c + half))
+    return out
+
+
+def frame_parts(y, r_in, obs, n=64):
+    """Caverna em T (alma + flange) colada por dentro do casco; interrompida onde há tanque/equipamento."""
+    sec = [(0, -0.015), (-0.135, -0.015), (-0.135, -0.05), (-0.16, -0.05), (-0.16, 0.05), (-0.135, 0.05), (-0.135, 0.015), (0, 0.015)]
+    free = []
+    for k in range(n):
+        t = 2 * math.pi * k / n
+        p = v3(((r_in - 0.08) * math.cos(t), y, (r_in - 0.08) * math.sin(t)))
+        free.append(not any(np.all(p >= lo) and np.all(p <= hi) for lo, hi in obs))
+    runs = []
+    if all(free):
+        runs.append((list(range(n)), True))
+    else:
+        start = next(k for k in range(n) if not free[k])
+        cur = []
+        for j in range(1, n + 1):
+            k = (start + j) % n
+            if free[k]:
+                cur.append(k)
+            elif cur:
+                runs.append((cur, False))
+                cur = []
+        if cur:
+            runs.append((cur, False))
+    parts = []
+    for ks, closed in runs:
+        if len(ks) < 2:
+            continue
+        verts = []
+        for k in ks:
+            t = 2 * math.pi * k / n
+            for dr, dy in sec:
+                r = r_in + dr
+                verts.append((r * math.cos(t), y + dy, r * math.sin(t)))
+        m = len(sec)
+        faces = []
+        segs = len(ks) if closed else len(ks) - 1
+        for i in range(segs):
+            i1 = (i + 1) % len(ks)
+            for j in range(m):
+                j1 = (j + 1) % m
+                faces.append((i * m + j, i * m + j1, i1 * m + j1, i1 * m + j))
+        if not closed:
+            faces.append(tuple(range(m - 1, -1, -1)))
+            last = (len(ks) - 1) * m
+            faces.append(tuple(last + j for j in range(m)))
+        parts.append((verts, faces))
+    return parts
+
+
+def build_pressure_hull(D, M, parent):
+    r_in = D['casco']['raioResistente']
+    ya, da = BH_AFT
+    yf, df = BH_FWD
+    ys = sorted(set([round(y, 4) for y in list(np.arange(ya, -14.9, 0.25)) + [yf - 2.0, yf]]))
+    outer = [(ph_out(y, r_in), y) for y in ys]
+    inner = [(r - PH_T, y) for r, y in reversed(outer)]
+    e = mesh_obj('SX1I_CascoResistente', [revolve_loop(outer + inner)], M['casco_res'], parent, (0, 0, 0), sharp=30,
+                 extras={'tipo': 'casco_resistente', 'raio_interno': r_in, 'espessura': PH_T, 'y_re': ya, 'y_vante': yf})
+    # anteparas resistentes (domo elíptico, convexo para fora)
+    for name, yb, depth, sgn in (('SX1I_Antepara_Vante', yf, df, 1), ('SX1I_Antepara_Re', ya, da, -1)):
+        rb = ph_out(yb, r_in)
+        prof = []
+        for k in range(17):  # face externa: do ápice à borda
+            t = (math.pi / 2) * k / 16
+            prof.append((rb * math.sin(t), depth * math.cos(t)))
+        for k in range(16, -1, -1):  # face interna: da borda ao ápice
+            t = (math.pi / 2) * k / 16
+            prof.append(((rb - PH_T) * math.sin(t), (depth - PH_T) * math.cos(t)))
+        prof[0] = (0.0, depth)
+        prof[-1] = (0.0, depth - PH_T)
+        # lathe: o 1º e o último ponto são polos; remove pontos repetidos no polo
+        prof = [prof[0]] + [p for p in prof[1:-1] if p[0] > 1e-6] + [prof[-1]]
+        c = (0, yb, 0)
+        mesh_obj(name, [lathe(c, (0, sgn, 0), prof, n=72)], M['casco_res'], parent, c, sharp=30,
+                 extras={'tipo': 'antepara', 'y_base': yb, 'y_apice': yb + sgn * depth})
+        # reforços radiais na face interna (lado de dentro do casco resistente)
+        ribs = []
+        for k in range(8):
+            t = 2 * math.pi * k / 8
+            d = v3((math.cos(t), 0, math.sin(t)))
+            mid = v3(c) + d * (rb * 0.55) + v3((0, sgn * (depth * 0.55 - 0.12), 0))
+            ribs.append(box(mid, (0.04, 0.16, rb * 0.8), (v3((0, 1, 0)), np.cross(d, v3((0, 1, 0))), d)))
+        mesh_obj(name + '_Reforcos', ribs, M['caverna'], e, c, sharp=30)
+    # cavernas
+    obs = obstacles(D)
+    parts = []
+    y = ya + 0.45
+    while y < yf - 0.3:
+        parts += frame_parts(y, ph_out(y, r_in) - PH_T, obs)
+        y += FRAME_STEP
+    mesh_obj('SX1I_Cavernas', parts, M['caverna'], e, (0, 0, 0), sharp=30, extras={'tipo': 'cavernas', 'espacamento': FRAME_STEP})
+    return e
+
+
 # ------------------------------------------------------------------ montagem
 def build_interior(json_path):
     D = json.load(open(json_path, encoding='utf-8'))
     M = materials(D)
     root = group('SX1I_Interior')
     root['gerado_de'] = D['gerado']
-    grp = {k: group('SX1I_' + k, root) for k in ('Tanques', 'Tubulacoes', 'Valvulas', 'Bombas', 'ArAP', 'Aberturas', 'Energia')}
+    grp = {k: group('SX1I_' + k, root) for k in ('Estrutura', 'Tanques', 'Tubulacoes', 'Valvulas', 'Bombas', 'ArAP', 'Aberturas', 'Energia')}
+    build_pressure_hull(D, M, grp['Estrutura'])
     build_tanks(D, M, grp['Tanques'])
     build_pipes(D, M, grp['Tubulacoes'])
     build_valves(D, M, grp['Valvulas'])
@@ -669,6 +858,135 @@ def preview_cut(json_path, out_dir):
     return h['render_all'](out_dir)
 
 
+FILL = {'lastro': 0.6, 'compensacao': 0.5, 'trim': 0.5, 'banda': 0.5}  # imersão em andamento
+FLOW_COLORS = {'#9fe0ff', '#ffffff', '#9dffc8', '#ffd18a'}  # água dos TLP, ar dos suspiros, compensação, trim
+OPEN_VALVES = ('Suspiro', 'Admissão de mar', 'Válvula TC', 'Isolamento TT')
+
+
+def fluid_mat(name, hexstr, alpha, emit):
+    m, b = base.principled(name, srgb(hexstr), 0.25, 0.0)
+    b.inputs['Alpha'].default_value = alpha
+    b.inputs['Emission Color'].default_value = (*srgb(hexstr), 1)
+    b.inputs['Emission Strength'].default_value = emit
+    if hasattr(m, 'surface_render_method'):
+        m.surface_render_method = 'BLENDED'
+    m.use_backface_culling = False
+    return m
+
+
+def water_solid(o, fill):
+    """Sólido de água: o tanque recortado no nível que contém fill × volume (busca binária no volume)."""
+
+    def below(z):
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+        res = bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-6, plane_co=(0, 0, z), plane_no=(0, 0, 1), clear_outer=True)
+        cut = [e for e in res['geom_cut'] if isinstance(e, bmesh.types.BMEdge) and e.is_boundary]
+        if cut:
+            bmesh.ops.holes_fill(bm, edges=cut, sides=0)
+        return bm
+
+    zs = [v.co.z for v in o.data.vertices]
+    bm = below(max(zs) + 1)
+    full = bm.calc_volume()
+    bm.free()
+    lo, hi = min(zs), max(zs)
+    for _ in range(24):
+        mid = (lo + hi) / 2
+        bm = below(mid)
+        v = bm.calc_volume()
+        bm.free()
+        if v < fill * full:
+            lo = mid
+        else:
+            hi = mid
+    bm = below((lo + hi) / 2)
+    me = bpy.data.meshes.new(o.name + '_Agua')
+    bm.to_mesh(me)
+    bm.free()
+    w = bpy.data.objects.new(o.name.replace('_Malha', '_Agua'), me)
+    base.collection().objects.link(w)
+    w.matrix_world = o.matrix_world.copy()
+    return w
+
+
+def preview_fluids(json_path, out_dir):
+    """Prévia do meio casco aberto com fluidos de exemplo (imersão em andamento): água nos tanques no nível,
+    partículas de escoamento nos trajetos do site e volantes coloridos pela posição (verde aberta, vermelha
+    fechada). É o que o site desenharia sobre o modelo; os níveis aqui são fixos, só para a prévia."""
+    D = json.load(open(json_path, encoding='utf-8'))
+    base.build('alta')
+    exterior = [o for o in bpy.data.objects if o.type == 'MESH']
+    build_interior(json_path)
+    inner = interior_meshes()
+    bake_ao(inner, samples=16)
+    tanks = {t['id']: t for t in D['tanques']}
+    waters = []
+    for o in inner:
+        mm = re.match(r'SX1I_Tanque_([A-Z0-9]+)_Malha$', o.name)
+        if not mm:
+            continue
+        t = tanks[mm.group(1)]
+        w = water_solid(o, FILL[t['categoria']])
+        w.data.materials.append(fluid_mat('SX1I_agua_' + t['categoria'], t['cor'], 0.82, 0.6))
+        waters.append(w)
+        # parede do tanque: vidro tingido (o ar fica visível acima da água)
+        m = o.data.materials[0]
+        b = m.node_tree.nodes['Principled BSDF']
+        b.inputs['Alpha'].default_value = 0.18
+        if hasattr(m, 'surface_render_method'):
+            m.surface_render_method = 'BLENDED'
+        m.use_backface_culling = False
+    # partículas de escoamento nos trajetos do site
+    for k, st in enumerate(D['escoamentos']):
+        if st['cor'] not in FLOW_COLORS:
+            continue
+        P = [v3(q) for q in st['pontos']]
+        mat = fluid_mat('SX1I_fluxo_' + st['cor'].lstrip('#'), st['cor'], 1.0, 3.0)
+        dots = []
+        for i in range(len(P) - 1):
+            L = float(np.linalg.norm(P[i + 1] - P[i]))
+            for j in range(int(L / 0.4) + 1):
+                q = P[i] + (P[i + 1] - P[i]) * min(1.0, j * 0.4 / max(L, 1e-6))
+                if q[0] >= -0.05:
+                    dots.append(sphere(q, 0.06, 8))
+        if dots:
+            verts, faces = merge(dots)
+            me = base.make_mesh(f'SX1I_Fluxo_{k}', verts, faces, None, mat)
+            base.add_object(f'SX1I_Fluxo_{k}', me)
+    # volantes pela posição das válvulas (verde aberta, vermelha fechada)
+    green = base.principled('SX1I_volante_aberta', (0.05, 0.55, 0.12), 0.45, 0.1)[0]
+    for o in inner:
+        if o.name.endswith('_Volante_Malha') and o.parent and o.parent.parent:
+            nome = o.parent.parent.get('nome', '')
+            if any(k in nome for k in OPEN_VALVES):
+                o.data.materials[0] = green
+    tank_meshes = [o for o in inner if re.match(r'SX1I_Tanque_[A-Z0-9]+_Malha$', o.name)]
+    cut_half(exterior, cap=False)
+    cut_half([o for o in inner if o not in tank_meshes], cap=True)
+    cut_half(tank_meshes, cap=False)
+    cut_half(waters, cap=True)
+    h = {'__file__': os.path.join(HERE, 'preview_sx1.py'), '__name__': 'sx1_prev'}
+    exec(compile(open(h['__file__'], encoding='utf-8').read(), h['__file__'], 'exec'), h)
+    sun = bpy.data.objects.new('CUT_Sun', bpy.data.lights.new('CUT_Sun', 'SUN'))
+    bpy.context.scene.collection.objects.link(sun)
+    sun.data.energy = 3.5
+    sun.rotation_euler = (math.radians(-35), math.radians(-40), 0)
+    h['VIEWS'].clear()
+    h['VIEWS'].update(
+        {
+            'fluidos_lado': ((-80, 2, 1), (0, 2, 0), 32),
+            'fluidos_34_proa': ((-38, 46, 10), (0, 10, -0.5), 34),
+            'fluidos_vante': ((-11, 33, 2.5), (0, 25.5, -0.3), 30),
+            'fluidos_re': ((-11, -28, 2.5), (0, -20, -0.5), 30),
+            'fluidos_meio': ((-12, 9, 2.5), (0, 3, -1.4), 30),
+            'fluidos_ar_ap': ((-12, -16, 2.5), (0, -7, -0.8), 30),
+        }
+    )
+    return h['render_all'](out_dir)
+
+
 def main(argv):
     jp = os.path.join(ROOT, 'build', 'modelo', 'interior.json')
     out = os.path.join(ROOT, 'build', 'modelo')
@@ -685,6 +1003,8 @@ def main(argv):
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, 'sx1-interior.blend'), compress=True)
     if '--corte' in argv:
         info['previas'] = preview_cut(jp, os.path.join(out, 'corte'))
+    if '--fluidos' in argv:
+        info['fluidos'] = preview_fluids(jp, os.path.join(out, 'fluidos'))
     print('SX1I', info)
     return info
 
