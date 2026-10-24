@@ -561,7 +561,8 @@ def build_tanks(D, M, parent):
 
 
 # ------------------------------------------------------------------ casco resistente
-# Medidas: raio interno = o da física (hullRadius 2,9 m dos tanques internos); chapa de 5 cm; a ré o casco
+# Medidas (padrão; o JSON do site, de src/render3d/pressureHull.ts, prevalece): raio interno = o da física
+# (hullRadius 2,9 m dos tanques internos); chapa de 5 cm; a ré o casco
 # resistente afina junto com o casco externo (12 cm de folga). Anteparas resistentes em domo (convexas para
 # fora) logo antes dos TLP: os tanques de lastro principais ficam FORA do casco resistente, nas pontas.
 PH_T = 0.05
@@ -660,6 +661,13 @@ def frame_parts(y, r_in, obs, n=64):
 
 
 def build_pressure_hull(D, M, parent):
+    # medidas do site (src/render3d/pressureHull.ts, gravadas pelo exportar_interior.ts)
+    global PH_T, PH_GAP, BH_FWD, BH_AFT
+    ph = D['casco'].get('cascoResistente')
+    if ph:
+        PH_T, PH_GAP = ph['thickness'], ph['gap']
+        BH_FWD = (ph['fwd']['base'], ph['fwd']['depth'])
+        BH_AFT = (ph['aft']['base'], ph['aft']['depth'])
     r_in = D['casco']['raioResistente']
     ya, da = BH_AFT
     yf, df = BH_FWD

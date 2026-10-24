@@ -198,6 +198,7 @@ O casco das cenas 3D é um **modelo feito no Blender** (`public/models/sx1-alta.
 - **Reserva**: se o arquivo faltar ou não carregar, a cena usa o casco desenhado pelo código, como antes.
 - **Corte, camadas e pintura**: *Tanques (corte)*, *Sem água*, todas as camadas e *Desmarcar todas* valem também para o modelo. A pintura da vela (emblema e inscrição) e a **Cor dos lemes** (Configurações › Identificação) aparecem sobre o modelo. Tudo chega à 2ª janela, às telas extras e ao submarino 3D da sala de comando.
 
+- **Arranjo dentro do casco resistente**: no corte, o coletor de compensação, a bomba de compensação e as válvulas de mar ficam acima do porão; o circuito de transferência (VDC 4/2 e bomba) fica acima do tanque central, e não dentro dele; a linha de trim corre acima dos tanques; as tomadas dos tanques de banda saem pelo lado de dentro. Nada do corte sai do casco resistente, exceto os tubos de admissão e descarga ao mar.
 - **Interior em preparação**: o casco resistente (com as duas anteparas em domo e as cavernas; os tanques de lastro ficam fora dele, nas pontas), os tanques, tubulações, válvulas, bombas, garrafas de ar AP, bateria e geradores do corte também foram modelados no Blender (`public/models/sx1-interior.glb`), nas mesmas posições, para uma futura vista de meio casco aberto. Por enquanto o site não usa esse arquivo; o corte continua o mesmo.
 
 Para refazer o modelo, veja `scripts/blender/README.md`.

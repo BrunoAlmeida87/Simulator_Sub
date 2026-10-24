@@ -80,7 +80,10 @@ de escoamento e volantes pela posição (`build/modelo/fluidos/`); o terceiro co
   casco externo; os demais tanques e equipamentos, dentro. O teste confere essa regra.
 - Diferenças em relação ao desenho do corte do site: a bateria vira colunas de células em degraus que cabem no
   casco resistente (no site é um bloco que atravessa o casco) e os tubos de admissão/descarga ao mar terminam
-  rente ao casco externo. Bombas, válvulas e ramais de compensação ficam nas posições do site, no porão.
+  rente ao casco externo.
+- As medidas do casco resistente vêm de `src/render3d/pressureHull.ts` (o mesmo arquivo que o corte do site usa).
+  O teste `tests/systemsLayout.test.ts` garante que bombas, válvulas e tubulações do corte ficam dentro dele
+  (só os tubos ao mar o atravessam) e que nenhuma válvula ou bomba fica dentro do volume de um tanque.
 
 - O site **ainda não carrega** o `sx1-interior.glb`; o corte atual continua o mesmo. O teste
   `tests/subInterior.test.ts` garante que o arquivo segue o corte publicado (mesmas peças e posições).

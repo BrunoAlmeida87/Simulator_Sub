@@ -14,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { buildScenario } from '../../src/sim/scenarios';
 import { SystemsVis } from '../../src/render3d/Systems';
 import { TANK_STYLE } from '../../src/render3d/layers';
+import { PRESSURE_HULL } from '../../src/render3d/pressureHull';
 
 const out = process.argv[2] ?? join('build', 'modelo', 'interior.json');
 const e = buildScenario('superficie');
@@ -97,7 +98,15 @@ const generators = S.gens.map((g) => ({ id: g.id, ...box(g.mesh) }));
 const v = e.vessel;
 const doc = {
   gerado: 'scripts/blender/exportar_interior.ts a partir de src/render3d/Systems.ts (cenário superficie)',
-  casco: { comprimento: v.hull.length, diametro: v.hull.diameter, proa: v.hull.bowLength, popa: v.hull.sternLength, raioPonta: v.hull.tailRadius, raioResistente: 2.9 },
+  casco: {
+    comprimento: v.hull.length,
+    diametro: v.hull.diameter,
+    proa: v.hull.bowLength,
+    popa: v.hull.sternLength,
+    raioPonta: v.hull.tailRadius,
+    raioResistente: PRESSURE_HULL.innerRadius,
+    cascoResistente: PRESSURE_HULL,
+  },
   tanques: tanks,
   tubos: pipes,
   valvulas: valves,
