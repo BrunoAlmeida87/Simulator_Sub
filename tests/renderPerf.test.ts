@@ -2,7 +2,7 @@
  * Escala de resolução, ajuste automático e medidor de quadros (só visual).
  */
 import { describe, it, expect } from 'vitest';
-import { AdaptiveScale, AUTO_STEPS, FrameMeter, RenderPerf, formatPerf, parseRenderScale } from '../src/render3d/renderPerf';
+import { AdaptiveScale, FrameMeter, RenderPerf, formatPerf, parseRenderScale } from '../src/render3d/renderPerf';
 
 /** simula `seconds` de quadros: o tempo de quadro vem de `cost(scale)` (ms), limitado por baixo por 16,7 ms (vsync) */
 function run(a: AdaptiveScale, seconds: number, cost: (scale: number) => number, t0 = 0): number {
