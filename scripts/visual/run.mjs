@@ -1,6 +1,6 @@
 /**
  * TESTE VISUAL AUTOMÁTICO (npm run test:visual): sobe `vite preview`, abre o simulador no Chromium já instalado, percorre as
- * cenas de scenes.mjs e compara cada captura com a referência guardada em tests/visual/referencias/.
+ * cenas de scenes.mjs e compara cada captura com a referência guardada em tests/visual/imagens-esperadas/.
  * Falha se houver erro no console, canvas em branco ou diferença acima da tolerância. Relatório em test-results/visual/.
  *
  * Opções (depois de `--`):  --update            grava as capturas como novas referências
@@ -21,7 +21,7 @@ import { BASE_GRAPHICS, DESKTOP, SCENES } from './scenes.mjs';
 import { DEFAULTS, blankStats, compare, decode, downscale2, encode } from './imagem.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const REF_DIR = join(ROOT, 'tests', 'visual', 'referencias');
+const REF_DIR = join(ROOT, 'tests', 'visual', 'imagens-esperadas');
 const OUT_DIR = join(ROOT, 'test-results', 'visual');
 
 const args = process.argv.slice(2);
@@ -249,7 +249,7 @@ function writeReport(results) {
     .map((r) => {
       const imgs =
         r.diffRatio !== undefined
-          ? `<div class="im"><figure><img src="../../tests/visual/referencias/${r.id}.png"><figcaption>referência</figcaption></figure><figure><img src="${r.id}.atual.png"><figcaption>atual</figcaption></figure><figure><img src="${r.id}.diff.png"><figcaption>diferença (vermelho)</figcaption></figure></div>`
+          ? `<div class="im"><figure><img src="../../tests/visual/imagens-esperadas/${r.id}.png"><figcaption>referência</figcaption></figure><figure><img src="${r.id}.atual.png"><figcaption>atual</figcaption></figure><figure><img src="${r.id}.diff.png"><figcaption>diferença (vermelho)</figcaption></figure></div>`
           : `<div class="im"><figure><img src="${r.id}.atual.png"><figcaption>atual</figcaption></figure></div>`;
       return `<section class="${r.status === 'falhou' ? 'bad' : 'good'}"><h2>${r.status === 'falhou' ? '✗' : '✓'} ${r.id} <small>${r.desc}</small></h2><p>${r.status}${r.diffRatio !== undefined ? ` · diferença ${pct(r.diffRatio)} · janela ${pct(r.windowRatio)}` : ''} · ${r.seconds}s</p>${r.notes.map((n) => `<p class="n">${n.replace(/</g, '&lt;')}</p>`).join('')}${imgs}</section>`;
     })

@@ -2,7 +2,7 @@
  * CENAS DO TESTE VISUAL. Cada cena abre o app em um estado fixo (cenário carregado e pausado, hora do dia e qualidade fixas,
  * semente de aleatoriedade fixa por #teste-visual), espera os quadros assentarem e captura a tela.
  *
- *  id         nome do arquivo de referência (tests/visual/referencias/<id>.png)
+ *  id         nome do arquivo de referência (tests/visual/imagens-esperadas/<id>.png)
  *  scenario   id do cenário (SCENARIOS) carregado antes da captura; null = o cenário inicial do app
  *  screen     tecla da aba (0 Pilotagem, 2 Lastro, 6 Visualização 3D, 8 Sala de comando)
  *  ui         preferências de interface (localStorage 'sx1.ui.<chave>')

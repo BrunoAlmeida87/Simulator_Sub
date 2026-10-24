@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import { DEFAULTS, blankStats, compare, decode, downscale2 } from '../scripts/visual/imagem.mjs';
 
-const base = () => decode(readFileSync(new URL('./visual/referencias/03-zoomout-sepetiba.png', import.meta.url)));
+const base = () => decode(readFileSync(new URL('./visual/imagens-esperadas/03-zoomout-sepetiba.png', import.meta.url)));
 
 function clone(img: PNG): PNG {
   const c = new PNG({ width: img.width, height: img.height });

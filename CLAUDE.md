@@ -101,7 +101,7 @@ src/ui/               INTERFACE (React)
 scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível
 tests/                validation.test.ts, presentation.test.ts, units.test.ts
 scripts/visual/       TESTE VISUAL (npm run test:visual, fora do npm test): run.mjs, scenes.mjs (cenas), imagem.mjs (comparação);
-                      referências em tests/visual/referencias/, relatório em test-results/visual/ (docs/OPERACAO.md)
+                      referências em tests/visual/imagens-esperadas/, relatório em test-results/visual/ (docs/OPERACAO.md)
 docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, VALIDACAO
 ```
 

@@ -488,7 +488,7 @@ A rede de conexões em `compensationCircuit.ts` é compartilhada pela física, p
 
 Pega regressões gráficas (artefatos na água ou na costa, cena em branco, camada sumindo, tela quebrada) antes de publicar, comparando capturas de tela com referências guardadas. É mais lento (cerca de 5 minutos) e depende do Chromium, por isso **não** entra no `npm test`.
 
-**Rodar:** `npm run test:visual`. Faz o build, sobe o `vite preview` sozinho, abre o app no Chromium já instalado (`PLAYWRIGHT_BROWSERS_PATH`; não rode `playwright install`) com renderização por software, percorre as cenas de `scripts/visual/scenes.mjs` e compara cada uma com `tests/visual/referencias/<cena>.png`. Para rodar só algumas: `npm run test:visual -- --only=03,04`.
+**Rodar:** `npm run test:visual`. Faz o build, sobe o `vite preview` sozinho, abre o app no Chromium já instalado (`PLAYWRIGHT_BROWSERS_PATH`; não rode `playwright install`) com renderização por software, percorre as cenas de `scripts/visual/scenes.mjs` e compara cada uma com `tests/visual/imagens-esperadas/<cena>.png`. As referências ficam em `tests/visual/imagens-esperadas/` (a pasta não se chama `referencias/` porque o `.gitignore` do projeto ignora esse nome). Para rodar só algumas: `npm run test:visual -- --only=03,04`.
 
 **Cenas:** vista externa na superfície; submerso; zoom out máximo com costa em Sepetiba; zoom out máximo no Rio; noite; Sala de comando (Posto de governo); Pilotagem; Lastro; Pilotagem em tela de celular (390 px). Em cada uma o teste também falha se houver `pageerror`/`console.error` ou se o canvas estiver em branco.
 
@@ -510,6 +510,6 @@ Pega regressões gráficas (artefatos na água ou na costa, cena em branco, cama
 - `N % dos pixels diferentes` ou `mancha localizada`: olhe a diferença em vermelho; se for uma mudança de propósito, atualize a referência; se não for, é regressão.
 - `tamanho diferente` ou `sem referência`: mudou a janela ou a cena é nova; atualize.
 
-**Atualizar uma referência de propósito:** `npm run test:visual -- --update` (todas) ou `npm run test:visual -- --update --only=03`. Só grava se a cena não tiver erro nem estiver em branco. Confira as imagens em `tests/visual/referencias/` antes de commitar.
+**Atualizar uma referência de propósito:** `npm run test:visual -- --update` (todas) ou `npm run test:visual -- --update --only=03`. Só grava se a cena não tiver erro nem estiver em branco. Confira as imagens em `tests/visual/imagens-esperadas/` antes de commitar.
 
 **Limites:** as referências foram geradas no ambiente de nuvem (Linux, Chromium com SwiftShader). Em outro sistema (fontes, GPU, versão do Chromium) a imagem sai um pouco diferente e pode haver falso alarme: nesse caso gere referências locais com `--update` e não as commite. Cena nova: acrescente em `scripts/visual/scenes.mjs` e gere a referência com `--update --only=<id>`.
