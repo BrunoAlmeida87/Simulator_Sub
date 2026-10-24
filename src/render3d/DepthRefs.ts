@@ -10,6 +10,7 @@
  */
 import * as THREE from 'three';
 import type { Environment } from '../sim/environment/environment';
+import { rand } from './visualTest';
 
 const SPACING = 20; // m entre faixas
 const FIRST = 10; // m (primeira faixa)
@@ -28,9 +29,9 @@ export class DepthRefs {
     this.group.name = 'Referências de profundidade';
     this.base = new Float32Array(SLOTS * PER * 3);
     for (let i = 0; i < SLOTS * PER; i++) {
-      this.base[i * 3] = Math.random() * BOX;
-      this.base[i * 3 + 1] = Math.random() * BOX;
-      this.base[i * 3 + 2] = (Math.random() - 0.5) * 1.2; // espessura da faixa (m)
+      this.base[i * 3] = rand() * BOX;
+      this.base[i * 3 + 1] = rand() * BOX;
+      this.base[i * 3 + 2] = (rand() - 0.5) * 1.2; // espessura da faixa (m)
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(SLOTS * PER * 3), 3));

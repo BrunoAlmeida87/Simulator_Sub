@@ -23,6 +23,7 @@ import { clean, compensationFlows, compensationNodes, manifoldSegments } from '.
 import type { ValveState } from '../sim/core/state';
 import { TANK_STYLE, type SceneLayers, type TankCategory } from './layers';
 import type { Label3D } from './SubmarineScene';
+import { rand } from './visualTest';
 
 type V3 = { x: number; y: number; z: number };
 /** corpo (x vante, y boreste, z para baixo) → local do grupo do submarino */
@@ -427,7 +428,7 @@ export class SystemsVis {
   private stream(pts: THREE.Vector3[], color: THREE.Color, owners: string[], rate: (e: SimulationEngine) => number, spacing = 0.9): void {
     const cum = [0];
     for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
-    this.streams.push({ pts, cum, total: cum[cum.length - 1], color, rate, phase: Math.random() * spacing, spacing, owners, layer: 'flows' });
+    this.streams.push({ pts, cum, total: cum[cum.length - 1], color, rate, phase: rand() * spacing, spacing, owners, layer: 'flows' });
   }
 
   private valve(p: THREE.Vector3, name: string, get: (e: SimulationEngine) => ValveState, owners: string[]): void {

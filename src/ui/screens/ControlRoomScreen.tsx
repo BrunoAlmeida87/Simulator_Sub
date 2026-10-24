@@ -35,6 +35,7 @@ import { cpa } from '../../sim/geo';
 import { nearestOrder } from '../../sim/telegraph';
 import { fmt, fmtSpeed } from '../format';
 import { FpsMeter, useRenderPerf } from '../components/FpsMeter';
+import { testFrameDrawn, testHook, visualTest } from '../../render3d/visualTest';
 
 function maneuverText(): string | null {
   if (!maneuver.active) return null;
@@ -359,12 +360,17 @@ export function ControlRoomScreen() {
         ro.observe(box.current);
         setReady(true);
         const loop = () => {
+          if (visualTest && testHook.done.has(sc)) {
+            raf = requestAnimationFrame(loop);
+            return;
+          }
           const scale = perf.frame(() => sc.renderStats());
           if (!periRef.current && !bridgeRef.current) {
             sc.setRenderScale(scale);
             sc.periBearing = sightRef.current.bearing;
             sc.tilt = tiltRef.current;
             sc.render();
+            if (visualTest) testFrameDrawn(sc);
             if (sc.ui.lighting !== lightingRef.current) setLighting(sc.ui.lighting);
           }
           if (performance.now() - lastSave > 1000) {

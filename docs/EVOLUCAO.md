@@ -113,6 +113,15 @@ Em outra rodada, em 1258×678, 100 %, 75 % e 50 % deram tempos parecidos (~610, 
 
 ## 4. O que tornaria tudo mais realista
 
+### Teste visual automático (tarefa 3, feito)
+
+Rede de segurança para as mudanças gráficas desta seção: `npm run test:visual` compara capturas de 9 cenas com referências guardadas em `tests/visual/referencias/`. Como rodar, atualizar referência e interpretar falhas: `docs/OPERACAO.md` (seção "Teste visual automático"). Código: `scripts/visual/` (`run.mjs`, `scenes.mjs`, `imagem.mjs`), modo de teste em `src/render3d/visualTest.ts`, calibração em `tests/visualCompare.test.ts`.
+
+- **Determinismo:** `#teste-visual` na URL liga o modo de teste (o uso normal não muda): semente fixa em toda aleatoriedade visual (`Math.random` das cenas 3D passou a `rand()`, que é o próprio `Math.random` fora do teste), 0,1 s de animação por quadro, relógio visual derivado do número de quadros e congelamento de cada cena após N quadros. Primeira tentativa (esperar tempo real) deu 0,10 % e 0,13 % de diferença em duas cenas por causa do relógio de animação da água, que acumulava quadros desde a criação da cena; contar os quadros por cena resolveu. **Duas execuções idênticas seguidas: 0,00 % em todas as 9 cenas.**
+- **Pega regressão de verdade:** reintroduzi de propósito a malha do mar curta (12 km, a regressão da tarefa 1): o Rio falhou (0,86 % dos pixels; 48 % de uma janela 16×16) com a diferença em vermelho exatamente na faixa do horizonte (`docs/img/evolucao-4-teste-visual/demo_regressao_rio.jpg`: referência, atual, diferença). Sepetiba **passou** (0,06 %; janela 14 %): a mudança era sutil nesse ângulo, então o teste não é um detector de qualquer diferença; `--max-window` e `--max-diff` podem ser apertados se isso for pouco.
+- **Tolerâncias:** pixel 0,1; 1 % da imagem; 35 % de uma janela 16×16. Calibradas com ruído sintético (ver `tests/visualCompare.test.ts`) e com as duas execuções reais. **Não medi** a variação entre máquinas diferentes (só esta); em outro sistema pode ser preciso gerar referências locais.
+- **Não feito:** integração no CI (o teste precisa do Chromium e leva ~5 min; o `deploy.yml` não o chama); camadas individuais (vetores, tanques, vento) não têm cena própria; cenas com a simulação em andamento (esteira, espuma) não estão cobertas, porque o teste só captura com a simulação pausada; segunda janela e janela de tela (＋ Tela) não têm cena.
+
 Visual (maior retorno primeiro):
 1. **Sombras do sol** no casco, vela e água (hoje não há). É o maior sinal de "CG simples".
 2. **Absorção de luz por profundidade** na água, por canal (vermelho some primeiro, depois verde), em vez de só cor de névoa.
@@ -151,7 +160,7 @@ Mudanças propostas (a testar com capturas):
 
 ## 6. Próximos passos (a confirmar com o Bruno)
 
-1. Medir e reproduzir os artefatos (Playwright) em superfície, submerso e zoom out máximo.
+1. Medir e reproduzir os artefatos (Playwright) em superfície, submerso e zoom out máximo. (Feito: `npm run test:visual`, seção 4.)
 2. Corrigir os itens 1–3 da seção 3 e comparar antes/depois.
 3. Experimentar FOV menor e névoa atmosférica nas vistas externas.
 4. Sombras do sol e pós-processamento com perfil de qualidade.

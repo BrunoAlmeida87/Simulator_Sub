@@ -9,6 +9,7 @@ import { visualOut, isVisualWindow } from '../sync';
 import type { PickTarget } from '../ops/opsBus';
 import { graphics } from '../graphics';
 import { DEEP_FOVS } from '../../render3d/deepPerspective';
+import { testFrameDrawn, testHook, visualTest } from '../../render3d/visualTest';
 import { appearanceRev, currentAppearance } from '../appearance';
 import { TrimGainBanner } from './TrimGain';
 import { FpsMeter, useRenderPerf } from './FpsMeter';
@@ -133,6 +134,10 @@ export function Scene3D(props: Scene3DProps) {
         let lastDroneSave = 0;
         const loop = () => {
           const sc = sceneRef.current;
+          if (visualTest && sc && testHook.done.has(sc)) {
+            raf = requestAnimationFrame(loop);
+            return;
+          }
           if (sc && opts.current.persistKey && sc.viewMode === 'livre' && performance.now() - lastSave > 1000) {
             lastSave = performance.now();
             savePersisted(`cam.${opts.current.persistKey}`, sc.getCameraPose());
@@ -175,6 +180,7 @@ export function Scene3D(props: Scene3DProps) {
             sc.realisticFog = opts.current.fog ?? true;
             sc.setRenderScale(perf.frame(() => sc.renderStats()));
             drawLabels(sc.render(), sc.labelBounds);
+            if (visualTest) testFrameDrawn(sc);
             if (droneOn) {
               droneCtl.pose = sc.drone;
               if (performance.now() - lastDroneSave > 1000) {

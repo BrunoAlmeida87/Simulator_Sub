@@ -21,6 +21,7 @@ import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { WaveField } from '../sim/environment/waves';
 import { qToMat3 } from '../sim/core/math';
+import { rand } from './visualTest';
 
 interface FxP {
   n: number;
@@ -245,7 +246,7 @@ export class SurfaceFx {
 
   /** espuma onde uma bolha chega à superfície */
   bubbleSurfaced(n: number, e: number): void {
-    if (Math.random() < 0.5) this.foam.add({ n, e, max: 6 + Math.random() * 5, size: 1.4, grow: 0.35, alpha: 0.55, drag: 1, vn: (Math.random() - 0.5) * 0.6, ve: (Math.random() - 0.5) * 0.6 });
+    if (rand() < 0.5) this.foam.add({ n, e, max: 6 + rand() * 5, size: 1.4, grow: 0.35, alpha: 0.55, drag: 1, vn: (rand() - 0.5) * 0.6, ve: (rand() - 0.5) * 0.6 });
   }
 
   update(e: SimulationEngine, step: number, pn: number, pe: number, t: number, pixelScale: number, enabled: boolean): void {
@@ -271,7 +272,7 @@ export class SurfaceFx {
       d: pos.z + R[6] * bx + R[7] * by + R[8] * bz,
     });
     const rel = (p: { n: number; e: number; d: number }) => p.d + w.elevation(p.n, p.e, t); // profundidade abaixo da superfície local
-    const rnd = () => Math.random() - 0.5;
+    const rnd = () => rand() - 0.5;
     if (enabled && step > 0) {
       // ---- esteira persistente (popa)
       const stern = toW(-L / 2 + 4, 0, 0);
@@ -297,18 +298,18 @@ export class SurfaceFx {
       const bowSink = Math.max(0, Math.min(1, 1 - (bowTop + 0.3) / 3.5));
       const fr = U * U;
       const nBow = bowSink * Math.min(70, fr * 3.2) * step;
-      for (let k = Math.floor(nBow) + (Math.random() < nBow % 1 ? 1 : 0); k > 0; k--) {
-        const side = Math.random() < 0.5 ? -1 : 1;
-        const xb = L / 2 - 2 - Math.random() * 7;
+      for (let k = Math.floor(nBow) + (rand() < nBow % 1 ? 1 : 0); k > 0; k--) {
+        const side = rand() < 0.5 ? -1 : 1;
+        const xb = L / 2 - 2 - rand() * 7;
         const rb = e.geom.radiusAt(xb) + 0.3;
         const p = toW(xb, side * rb, 0);
-        const vl = side * U * 0.36 * (0.85 + 0.3 * Math.random());
-        this.foam.add({ n: p.n, e: p.e, vn: ln * vl + rnd() * 0.3, ve: le * vl + rnd() * 0.3, max: 9 + U * 2 + Math.random() * 5, size: 0.9 + U * 0.12, grow: 0.08, alpha: 0.42, drag: 0.02 });
+        const vl = side * U * 0.36 * (0.85 + 0.3 * rand());
+        this.foam.add({ n: p.n, e: p.e, vn: ln * vl + rnd() * 0.3, ve: le * vl + rnd() * 0.3, max: 9 + U * 2 + rand() * 5, size: 0.9 + U * 0.12, grow: 0.08, alpha: 0.42, drag: 0.02 });
       }
       const nCush = bowSink * Math.min(50, U * 9) * step;
-      for (let k = Math.floor(nCush) + (Math.random() < nCush % 1 ? 1 : 0); k > 0; k--) {
-        const p = toW(L / 2 - 1.5 - Math.random() * 2.5, rnd() * 2.2, 0);
-        this.foam.add({ n: p.n, e: p.e, vn: fn * u * 0.6 + rnd() * 1.2, ve: fe * u * 0.6 + rnd() * 1.2, max: 1.4 + Math.random() * 1.4, size: 1.4, grow: 0.7, alpha: 0.7, drag: 0.8 });
+      for (let k = Math.floor(nCush) + (rand() < nCush % 1 ? 1 : 0); k > 0; k--) {
+        const p = toW(L / 2 - 1.5 - rand() * 2.5, rnd() * 2.2, 0);
+        this.foam.add({ n: p.n, e: p.e, vn: fn * u * 0.6 + rnd() * 1.2, ve: fe * u * 0.6 + rnd() * 1.2, max: 1.4 + rand() * 1.4, size: 1.4, grow: 0.7, alpha: 0.7, drag: 0.8 });
       }
       // ---- hélice: jato ∝ √(T/ρA)
       const T = s.propulsion.thrust;
@@ -322,9 +323,9 @@ export class SurfaceFx {
         // na superfície: borbulhão de espuma
         if (propRel < Rp + 3.5) {
           const nW = Math.min(60, 10 + Tn * 60) * step * Math.max(0, Math.min(1, 1 - (propRel - Rp) / 3.5));
-          for (let k = Math.floor(nW) + (Math.random() < nW % 1 ? 1 : 0); k > 0; k--) {
+          for (let k = Math.floor(nW) + (rand() < nW % 1 ? 1 : 0); k > 0; k--) {
             const vb = -(vj * 1.6 + 0.8 * Math.sign(vj)) + u;
-            this.wash.add({ n: prop.n + rnd() * 2.5, e: prop.e + rnd() * 2.5, vn: fn * vb + ln * rnd() * 1.4, ve: fe * vb + le * rnd() * 1.4, max: 5 + Math.random() * 5, size: 1.5, grow: 0.45, alpha: 0.6, drag: 0.35 });
+            this.wash.add({ n: prop.n + rnd() * 2.5, e: prop.e + rnd() * 2.5, vn: fn * vb + ln * rnd() * 1.4, ve: fe * vb + le * rnd() * 1.4, max: 5 + rand() * 5, size: 1.5, grow: 0.45, alpha: 0.6, drag: 0.35 });
           }
         }
       }
@@ -337,12 +338,12 @@ export class SurfaceFx {
           const head = toW(m.x, 0, -top + 0.1);
           if (rel(head) < -0.2) {
             const k0 = Math.min(45, 8 + k * 16) * step;
-            for (let j = Math.floor(k0) + (Math.random() < k0 % 1 ? 1 : 0); j > 0; j--) {
+            for (let j = Math.floor(k0) + (rand() < k0 % 1 ? 1 : 0); j > 0; j--) {
               // nasce num anel em volta da cabeça e converge para a entrada de ar
-              const a = Math.random() * Math.PI * 2;
-              const r = 1.6 + Math.random() * 2.2;
-              const up = (Math.random() - 0.3) * 1.6;
-              const life = 0.7 + Math.random() * 0.5;
+              const a = rand() * Math.PI * 2;
+              const r = 1.6 + rand() * 2.2;
+              const up = (rand() - 0.3) * 1.6;
+              const life = 0.7 + rand() * 0.5;
               const on = Math.cos(a) * r;
               const oe = Math.sin(a) * r;
               this.intake.add({
@@ -374,14 +375,14 @@ export class SurfaceFx {
         if (rel(out) > 0) continue; // submerso: bolhas (tratadas pela cena)
         const k0 = Math.min(90, st.mdotVent * 8) * step;
         const vUp = 4 + 7 * Math.min(1, Math.sqrt(st.mdotVent / 12));
-        for (let k = Math.floor(k0) + (Math.random() < k0 % 1 ? 1 : 0); k > 0; k--) {
+        for (let k = Math.floor(k0) + (rand() < k0 % 1 ? 1 : 0); k > 0; k--) {
           this.spray.add({
             n: out.n + rnd() * 0.5,
             e: out.e + rnd() * 0.5,
             d: out.d,
             vn: rnd() * 1.6 + fn * u,
             ve: rnd() * 1.6 + fe * u,
-            vd: -vUp * (0.75 + 0.5 * Math.random()),
+            vd: -vUp * (0.75 + 0.5 * rand()),
             max: 4,
             size: 1.1,
             grow: 0.9,

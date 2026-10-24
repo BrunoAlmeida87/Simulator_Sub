@@ -483,3 +483,33 @@ O circuito existente de banda continua disponível na aba **Trim e banda**. O ta
 
 A rede de conexões em `compensationCircuit.ts` é compartilhada pela física, pelo diagrama e pelo 3D. Somente um caminho contínuo pela sucção, pela bomba, pela descarga e pelas portas alinhadas da VDC permite mover água. Cada tanque tem uma via selecionável para cada coletor; as portas não selecionadas ficam isoladas. No esquema, pontos indicam uniões e pontes indicam cruzamentos sem conexão.
 
+
+## Teste visual automático (para quem desenvolve)
+
+Pega regressões gráficas (artefatos na água ou na costa, cena em branco, camada sumindo, tela quebrada) antes de publicar, comparando capturas de tela com referências guardadas. É mais lento (cerca de 5 minutos) e depende do Chromium, por isso **não** entra no `npm test`.
+
+**Rodar:** `npm run test:visual`. Faz o build, sobe o `vite preview` sozinho, abre o app no Chromium já instalado (`PLAYWRIGHT_BROWSERS_PATH`; não rode `playwright install`) com renderização por software, percorre as cenas de `scripts/visual/scenes.mjs` e compara cada uma com `tests/visual/referencias/<cena>.png`. Para rodar só algumas: `npm run test:visual -- --only=03,04`.
+
+**Cenas:** vista externa na superfície; submerso; zoom out máximo com costa em Sepetiba; zoom out máximo no Rio; noite; Sala de comando (Posto de governo); Pilotagem; Lastro; Pilotagem em tela de celular (390 px). Em cada uma o teste também falha se houver `pageerror`/`console.error` ou se o canvas estiver em branco.
+
+**Reprodutibilidade:** o app só entra no modo de teste com `#teste-visual` na URL (o uso normal não muda). Nesse modo a aleatoriedade visual (neve marinha, bolhas, espuma, vento, referências de profundidade) usa semente fixa, cada quadro avança 0,1 s de animação e o relógio visual vem do número de quadros, e cada cena 3D congela depois de um número fixo de quadros (`frames`). A hora do dia, a qualidade, a resolução (fixa em 100 %), as camadas e a câmera são fixadas por preferências gravadas antes de a página carregar; o estado do mar vem do cenário, que fica pausado. Animações e transições CSS são desligadas. Duas execuções seguidas na mesma máquina dão imagens idênticas (0,00 % de diferença nas 9 cenas).
+
+**Comparação:** as capturas (1280×800; celular 390×844) são reduzidas à metade (média 2×2) antes de comparar e guardar, o que reduz o ruído e o peso (as nove referências somam ~1,2 MB). Usa `pixelmatch` com três limites, ajustáveis na linha de comando:
+
+| Opção | Padrão | Significado |
+|---|---|---|
+| `--threshold` | 0,1 | diferença de cor por pixel que conta como pixel diferente (0 a 1) |
+| `--max-diff` | 0,01 | fração máxima de pixels diferentes na imagem toda |
+| `--max-window` | 0,35 | fração máxima de pixels diferentes dentro de qualquer janela 16×16 (pega mancha localizada que a média esconde) |
+
+`tests/visualCompare.test.ts` (roda no `npm test`) calibra esses números: ruído de ±6 níveis em todos os pixels e mudança de brilho de +4 passam; um bloco de 60×60 pixels e uma mancha de 24×24 são pegos.
+
+**Interpretar uma falha:** o relatório fica em `test-results/visual/relatorio.html` (referência, captura atual e diferença em vermelho, lado a lado; `resultado.json` traz os números). Mensagens:
+- `erro no navegador`: houve `pageerror` ou `console.error`; é bug do app, não de imagem.
+- `imagem em branco`: a cena não desenhou (WebGL falhou, cena não montou).
+- `N % dos pixels diferentes` ou `mancha localizada`: olhe a diferença em vermelho; se for uma mudança de propósito, atualize a referência; se não for, é regressão.
+- `tamanho diferente` ou `sem referência`: mudou a janela ou a cena é nova; atualize.
+
+**Atualizar uma referência de propósito:** `npm run test:visual -- --update` (todas) ou `npm run test:visual -- --update --only=03`. Só grava se a cena não tiver erro nem estiver em branco. Confira as imagens em `tests/visual/referencias/` antes de commitar.
+
+**Limites:** as referências foram geradas no ambiente de nuvem (Linux, Chromium com SwiftShader). Em outro sistema (fontes, GPU, versão do Chromium) a imagem sai um pouco diferente e pode haver falso alarme: nesse caso gere referências locais com `--update` e não as commite. Cena nova: acrescente em `scripts/visual/scenes.mjs` e gere a referência com `--update --only=<id>`.

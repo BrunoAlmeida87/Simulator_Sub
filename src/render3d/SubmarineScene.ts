@@ -54,6 +54,7 @@ import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
 import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
 import { BASE_FOV, DEEP_VIEWS, dollyRatio } from './deepPerspective';
 import { readRenderStats, type RenderStats } from './renderPerf';
+import { rand, TEST_DT, testForget, testRegister, visualTest } from './visualTest';
 
 /**
  * Câmeras: 'piloto' (lateral que acompanha), 'perseguicao', 'perspectiva'
@@ -235,6 +236,8 @@ export class SubmarineScene {
   private sunDir = new THREE.Vector3(0.62, 0.22, -0.6).normalize();
   private caustics = { uTime: { value: 0 }, uCaustic: { value: 0 } };
   private wallTime = 0;
+  /** modo de teste visual: quadros desenhados desde a criação (ver visualTest.ts) */
+  testFrames = 0;
   readonly quality: OceanQuality;
   /** fundo do mar e terra (mesma função de profundidade da física), com níveis de detalhe */
   private terrain: TerrainLayer | null = null;
@@ -298,6 +301,7 @@ export class SubmarineScene {
     this.env = () => this.runner.engine;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.applyPixelRatio();
+    testRegister(this);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.62;
@@ -409,9 +413,9 @@ export class SubmarineScene {
     const nS = SubmarineScene.SNOW_N;
     this.snowBase = new Float32Array(nS * 3);
     for (let i = 0; i < nS; i++) {
-      this.snowBase[i * 3] = Math.random() * SubmarineScene.SNOW_BOX.h;
-      this.snowBase[i * 3 + 1] = Math.random() * SubmarineScene.SNOW_BOX.h;
-      this.snowBase[i * 3 + 2] = Math.random() * SubmarineScene.SNOW_BOX.v;
+      this.snowBase[i * 3] = rand() * SubmarineScene.SNOW_BOX.h;
+      this.snowBase[i * 3 + 1] = rand() * SubmarineScene.SNOW_BOX.h;
+      this.snowBase[i * 3 + 2] = rand() * SubmarineScene.SNOW_BOX.v;
     }
     const sgeo = new THREE.BufferGeometry();
     sgeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(nS * 3), 3));
@@ -1185,7 +1189,7 @@ export class SubmarineScene {
   render(): Label3D[] {
     const e = this.env();
     const s = e.state;
-    const rawDt = this.clock.getDelta();
+    const rawDt = visualTest ? TEST_DT : this.clock.getDelta();
     const dtR = Math.min(0.1, rawDt);
     const a = this.runner.alpha;
     // instante das ondas coerente com a pose interpolada
@@ -1294,9 +1298,9 @@ export class SubmarineScene {
         for (const [mdot, src] of srcs) {
           if (mdot < 0.01 || src.d + wv.elevation(src.n, src.e, tWave) < 0) continue;
           const nEmit = Math.min(120, mdot * 25) * step;
-          let k = Math.floor(nEmit) + (Math.random() < nEmit % 1 ? 1 : 0);
+          let k = Math.floor(nEmit) + (rand() < nEmit % 1 ? 1 : 0);
           while (k-- > 0 && this.particles.length < 600) {
-            this.particles.push({ n: src.n + (Math.random() - 0.5) * 2, e: src.e + (Math.random() - 0.5) * 2, d: src.d, vy: 0.8 + Math.random() * 0.8, life: 60 });
+            this.particles.push({ n: src.n + (rand() - 0.5) * 2, e: src.e + (rand() - 0.5) * 2, d: src.d, vy: 0.8 + rand() * 0.8, life: 60 });
           }
         }
       }
@@ -1312,16 +1316,16 @@ export class SubmarineScene {
           const src = toWorld(o.x, o.y, o.z);
           if (src.d + wv.elevation(src.n, src.e, tWave) < 0.3) continue; // saída fora d'água: sem bolhas
           const side = o.y < 0 ? -1 : 1;
-          let k = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+          let k = Math.floor(rate) + (rand() < rate % 1 ? 1 : 0);
           while (k-- > 0 && this.exParticles.length < SubmarineScene.EX_MAX) {
             // lançadas para ré ao longo do casco, abrindo um pouco para o bordo
-            const back = 0.8 + Math.random() * 1.2;
-            const out = side * (0.15 + Math.random() * 0.35);
+            const back = 0.8 + rand() * 1.2;
+            const out = side * (0.15 + rand() * 0.35);
             this.exParticles.push({
-              n: src.n + (Math.random() - 0.5) * 0.8,
-              e: src.e + (Math.random() - 0.5) * 0.8,
-              d: src.d + Math.random() * 0.3,
-              vy: 0.3 + Math.random() * 0.5,
+              n: src.n + (rand() - 0.5) * 0.8,
+              e: src.e + (rand() - 0.5) * 0.8,
+              d: src.d + rand() * 0.3,
+              vy: 0.3 + rand() * 0.5,
               life: 60,
               vn: -fN * back - fE * out,
               ve: -fE * back + fN * out,
@@ -1336,16 +1340,16 @@ export class SubmarineScene {
         const kk = Math.exp(-0.6 * step);
         p.vn = (p.vn ?? 0) * kk;
         p.ve = (p.ve ?? 0) * kk;
-        p.n += p.vn * step + (Math.random() - 0.5) * 0.14;
-        p.e += p.ve * step + (Math.random() - 0.5) * 0.14;
+        p.n += p.vn * step + (rand() - 0.5) * 0.14;
+        p.e += p.ve * step + (rand() - 0.5) * 0.14;
         const alive = p.d > -wv.elevation(p.n, p.e, tWave) && p.life > 0;
         return alive;
       });
       this.particles = this.particles.filter((p) => {
         p.d -= p.vy * step;
         p.life -= step;
-        p.n += (Math.random() - 0.5) * 0.3;
-        p.e += (Math.random() - 0.5) * 0.3;
+        p.n += (rand() - 0.5) * 0.3;
+        p.e += (rand() - 0.5) * 0.3;
         const alive = p.d > -wv.elevation(p.n, p.e, tWave) && p.life > 0;
         if (!alive && p.life > 0) this.fx.bubbleSurfaced(p.n, p.e);
         return alive;
@@ -1549,7 +1553,7 @@ export class SubmarineScene {
     const waveAtCam = eyeView || droneView ? e.env.waves.elevation(pn - this.camera.position.z, pe + this.camera.position.x, tWave) : 0;
     const under = this.camera.position.y < waveAtCam;
     const camDepth = Math.max(0, waveAtCam - this.camera.position.y);
-    this.wallTime += dtR;
+    this.wallTime = visualTest ? this.testFrames * TEST_DT : this.wallTime + dtR;
     const prof = LIGHTING[this.lighting] ?? LIGHTING.clara;
     // sol, lua e noite (só visual); sem água a cena fica sempre com a luz padrão de dia
     const dry0 = this.layers.noWater;
@@ -1767,6 +1771,7 @@ export class SubmarineScene {
 
   dispose(): void {
     this.disposed = true;
+    testForget(this);
     this.navLights.dispose();
     this.searchlights.dispose();
     this.nightSky.dispose();

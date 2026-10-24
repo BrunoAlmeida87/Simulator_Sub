@@ -50,6 +50,7 @@ import { disposeRoomTextures, labelTexture } from './textures';
 import { TELEGRAPH, nearestOrder } from '../../sim/telegraph';
 import { ALARM_DEFS } from '../../sim/systems/alarms';
 import { readRenderStats, type RenderStats } from '../renderPerf';
+import { TEST_DT, testForget, testRegister, visualTest } from '../visualTest';
 
 /** geometria do casco resistente na sala */
 export const ROOM = { R: 3.0, axisY: 0.3, zFwd: -7, zAft: 7, eye: 1.65 };
@@ -188,6 +189,8 @@ export class ControlRoomScene {
   private pmrem: THREE.PMREMGenerator;
   private envTex: THREE.Texture;
   private disposed = false;
+  /** modo de teste visual: quadros desenhados desde a criação (ver visualTest.ts) */
+  testFrames = 0;
   readonly lowQuality: boolean;
 
   constructor(
@@ -200,6 +203,7 @@ export class ControlRoomScene {
     this.renderer = new THREE.WebGLRenderer({ antialias: !this.lowQuality, powerPreference: 'high-performance' });
     this.maxPixelRatio = quality === 'alta' ? 2 : quality === 'media' ? 1.5 : 1;
     this.applyPixelRatio();
+    testRegister(this);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
@@ -1449,7 +1453,7 @@ export class ControlRoomScene {
   /** desenha um quadro; retorna false se já foi destruída */
   render(): boolean {
     if (this.disposed) return false;
-    const dt = Math.min(0.1, this.clock.getDelta());
+    const dt = visualTest ? TEST_DT : Math.min(0.1, this.clock.getDelta());
     this.wall += dt;
     const e = this.runner.engine;
     this.updateCamera(dt);
@@ -1503,6 +1507,7 @@ export class ControlRoomScene {
 
   dispose(): void {
     this.disposed = true;
+    testForget(this);
     for (const p of this.panels) p.dispose();
     const mats = new Set<THREE.Material>(this.mats.all());
     this.scene.traverse((o) => {

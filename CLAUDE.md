@@ -49,6 +49,8 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   SubmarineScene.ts   cena principal: casco, lemes, câmeras, pick(), modo sem água
   subModel.ts         modelo .glb do SX-1 (public/models/sx1-leve|alta.glb): nomes fixos das peças (SUB_PARTS),
                       SubModelRig liga lemes/hélice/mastros ao estado; sem o arquivo fica o casco gerado (reserva)
+  visualTest.ts       modo de teste visual (#teste-visual): rand() com semente fixa, quadros de 0,1 s, congelamento por cena;
+                      fora do teste rand = Math.random (cenas 3D usam rand(), não Math.random)
   renderPerf.ts       escala de resolução (fixa ou automática, AdaptiveScale), FrameMeter e contadores do renderizador;
                       as duas cenas (SubmarineScene, ControlRoomScene) têm setRenderScale()/renderStats(); UI: components/FpsMeter.tsx
   layers.ts           SceneLayers: flags de camadas (vetores, tanques, escoamentos, vento, noWater, hiddenVectors…)
@@ -98,6 +100,8 @@ src/ui/               INTERFACE (React)
   persist.ts          usePersisted: preferências de UI no localStorage (prefixo 'sx1.ui.')
 scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível
 tests/                validation.test.ts, presentation.test.ts, units.test.ts
+scripts/visual/       TESTE VISUAL (npm run test:visual, fora do npm test): run.mjs, scenes.mjs (cenas), imagem.mjs (comparação);
+                      referências em tests/visual/referencias/, relatório em test-results/visual/ (docs/OPERACAO.md)
 docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, VALIDACAO
 ```
 
@@ -125,6 +129,10 @@ docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, V
 - Ao criar funções visíveis ao usuário, atualizar `docs/OPERACAO.md` (e o README se for recurso novo).
 
 ## Verificação visual
+- **Antes de publicar mudança gráfica (3D, camadas, telas), rode `npm run test:visual`.** Se uma cena falhar, abra
+  `test-results/visual/relatorio.html`: mudança de propósito → `npm run test:visual -- --update --only=<cena>` e confira a
+  imagem; senão é regressão. Cena nova → acrescentar em `scripts/visual/scenes.mjs`. Em tela ou camada nova do 3D, trocar
+  `Math.random()` por `rand()` de `render3d/visualTest.ts` (senão a captura deixa de ser reproduzível).
 Chromium + Playwright estão disponíveis no ambiente de nuvem. Para conferir uma tela:
 `npm run build && npx vite preview`, depois um script Playwright que abre a aba e tira print.
 Cuidado com nomes de botão parecidos nos seletores (ex.: "Preparar" casa com "PARAR").

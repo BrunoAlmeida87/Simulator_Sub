@@ -15,6 +15,7 @@ import { fmtSpeed } from '../ui/format';
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { Label3D } from './SubmarineScene';
+import { rand } from './visualTest';
 
 /** brisa (m/s) por estado do mar 0…6 — fraca de propósito: o avanço do submarino domina o vento aparente */
 export const WIND_BY_SEA_STATE = [0.4, 0.8, 1.2, 1.6, 2.0, 2.5, 3.0];
@@ -130,7 +131,7 @@ export class WindFx {
     this.lines.frustumCulled = false;
     this.lines.renderOrder = 5;
     this.group.add(this.lines);
-    for (let i = 0; i < N; i++) this.streaks.push(this.spawn({ dn: 0, de: 0, h: 0, life: 0, max: 1, ph: 0, off: new Float32Array(STR * 4) }, Math.random()));
+    for (let i = 0; i < N; i++) this.streaks.push(this.spawn({ dn: 0, de: 0, h: 0, life: 0, max: 1, ph: 0, off: new Float32Array(STR * 4) }, rand()));
     // flâmula: pau no topo da vela (à ré) e um triângulo que tremula
     const staffMat = new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.6, roughness: 0.35 });
     const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 2.6, 8), staffMat);
@@ -156,18 +157,18 @@ export class WindFx {
   }
 
   private spawn(s: Streak, phase = 0): Streak {
-    s.dn = (Math.random() * 2 - 1) * BOX;
-    s.de = (Math.random() * 2 - 1) * BOX;
+    s.dn = (rand() * 2 - 1) * BOX;
+    s.de = (rand() * 2 - 1) * BOX;
     // espalhadas no ar em volta da vela (até ~14 m), não rentes à água
-    s.h = 1.6 + Math.random() * 12.5;
-    s.max = 1.4 + Math.random() * 1.6;
-    s.ph = Math.random() * Math.PI * 2;
+    s.h = 1.6 + rand() * 12.5;
+    s.max = 1.4 + rand() * 1.6;
+    s.ph = rand() * Math.PI * 2;
     for (let j = 0; j < STR; j++) {
       const o = j * 4;
-      s.off[o] = j === 0 ? 0 : (Math.random() * 2 - 1) * 0.9;
-      s.off[o + 1] = j === 0 ? 0 : (Math.random() * 2 - 1) * 0.6;
-      s.off[o + 2] = j === 0 ? 0 : (Math.random() * 2 - 1) * 1.2;
-      s.off[o + 3] = j === 0 ? 1 : 0.55 + Math.random() * 0.35;
+      s.off[o] = j === 0 ? 0 : (rand() * 2 - 1) * 0.9;
+      s.off[o + 1] = j === 0 ? 0 : (rand() * 2 - 1) * 0.6;
+      s.off[o + 2] = j === 0 ? 0 : (rand() * 2 - 1) * 1.2;
+      s.off[o + 3] = j === 0 ? 1 : 0.55 + rand() * 0.35;
     }
     s.life = phase * s.max;
     return s;
@@ -200,8 +201,8 @@ export class WindFx {
         if (s.life >= s.max || Math.abs(s.dn) > BOX + 8 || Math.abs(s.de) > BOX + 8) {
           this.spawn(s);
           // nasce a barlavento: entra na caixa pelo lado de onde vem o vento
-          s.dn -= dn * BOX * 0.6 * Math.random();
-          s.de -= de * BOX * 0.6 * Math.random();
+          s.dn -= dn * BOX * 0.6 * rand();
+          s.de -= de * BOX * 0.6 * rand();
         }
         // no ar: altura fixa com leve ondulação; só sobe se uma crista chegar perto
         const floor = w.elevation(pn + s.dn, pe + s.de, t) + 0.8;

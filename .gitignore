@@ -14,3 +14,6 @@ referencias/
 *.blend1
 # saída intermediária do modelo 3D (Blender)
 build/
+
+# resultados do teste visual (capturas atuais, diferenças e relatório)
+test-results/
