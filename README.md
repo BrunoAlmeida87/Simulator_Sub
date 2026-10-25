@@ -278,3 +278,7 @@ Para observar trim leve na superfície, escolha **Mar calmo para ensaio**, embar
 
 O circuito de compensação permite transferir água entre os tanques de banda BB e BE e o tanque central TC, por meio da bomba BTC e da válvula direcional VDC 4/2 (direta/inversa). O mesmo circuito é exibido em Lastro e compensação e em Trim e banda, com escoamentos 3D vinculados à física.
 
+
+- **Efeitos submersos (protótipo):** cavitação visual dependente da rotação e
+  pressão local; ressuspensão de sedimento por proximidade/contato com o fundo.
+  Integrados à camada Esteira. [Proposta, limites e capturas](docs/EFEITOS-SUBMERSOS.md).

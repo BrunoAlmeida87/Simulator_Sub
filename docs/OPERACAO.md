@@ -249,7 +249,7 @@ A aba **Apresentação** foi feita para quem conduz uma demonstração para um p
 
 **Enquadramentos**: *Superfície* (3/4 elevado, mostra esteira e proa), *Submerso*, *Tanques* (corte de perto), *Forças* (vista lateral para os vetores), *Seguir*, *Perseguição*, *Fixa* (câmera parada no cenário, o submarino atravessa o quadro) e *Livre*.
 
-**Trajetória do submarino:** em **Configurações → Qualidade gráfica → Trajetória do submarino**, ajuste a espessura (1–12 pixels), a cor e a intensidade (20–100%). O padrão é uma linha amarela de 4 pixels com intensidade máxima, sem atenuação pela névoa. A espessura se mantém ao afastar a câmera. As preferências são aplicadas automaticamente, salvas no navegador e enviadas à segunda janela; **Restaurar aparência da trajetória** repõe o padrão. A camada **Trajetória** no painel de Camadas mostra ou esconde o caminho percorrido.
+**Trajetória do submarino:** em **Configurações → Qualidade gráfica → Trajetória do submarino**, ajuste a espessura (1–12 pixels), a cor e a intensidade (20–100%). O padrão é uma linha amarela de 4 pixels com intensidade máxima, sem atenuação pela névoa. A espessura se mantém ao afastar a câmera. A linha é uma referência de navegação: fica legível através da superfície quando a câmera está fora da água, mantendo a profundidade real do caminho e a ocultação por casco/terreno. As preferências são aplicadas automaticamente, salvas no navegador e enviadas à segunda janela; **Restaurar aparência da trajetória** repõe o padrão. A camada **Trajetória** no painel de Camadas mostra ou esconde o caminho percorrido.
 
 **Linhas de profundidade:** cada cota é um anel horizontal bem leve em volta da câmera, fixo na profundidade; olhando na horizontal aparece como uma linha atravessando a vista, e ao subir ou descer o submarino passa por elas. Vão até o fundo sob a câmera e somem com **Sem água**. O espaçamento padrão é 25 m e pode ser trocado em **Configurações → Gráficos → Linhas de profundidade** (5, 10, 20, 25, 50 ou 100 m; vale também para a 2ª janela). Desligue em **Camadas → Identificações e referências → Linhas de profundidade**.
 
@@ -502,3 +502,13 @@ O circuito existente de banda continua disponível na aba **Trim e banda**. O ta
 
 A rede de conexões em `compensationCircuit.ts` é compartilhada pela física, pelo diagrama e pelo 3D. Somente um caminho contínuo pela sucção, pela bomba, pela descarga e pelas portas alinhadas da VDC permite mover água. Cada tanque tem uma via selecionável para cada coletor; as portas não selecionadas ficam isoladas. No esquema, pontos indicam uniões e pontes indicam cruzamentos sem conexão.
 
+
+### Cavitação e sedimento do fundo (protótipo visual)
+
+Com a camada **Esteira** ligada, a hélice pode formar pequenas cavidades de
+vapor quando a rotação é alta e a pressão local é baixa. A emissão diminui ao
+aprofundar ou reduzir rpm; velocidade sozinha não determina cavitação.
+Ao passar a menos de 6 m do fundo, o movimento e o jato da hélice podem levantar
+uma nuvem de sedimento. O primeiro toque gera um pulso que se dispersa e assenta.
+Os efeitos param em pausa e são ocultos em **Sem água**. Os limiares são
+ilustrativos e não alteram a física. Ver [modelo, plano e imagens](EFEITOS-SUBMERSOS.md).
