@@ -175,6 +175,12 @@ export interface AutopilotState {
   depthSet: number; // m
   pitchMode: 'MANUAL' | 'AUTO';
   pitchSet: number; // graus
+  /**
+   * Ordem enviada com o canal em MANUAL (pré-seleção): ao passar para AUTO,
+   * o piloto vai para ela em vez de assumir a condição atual. Opcional para
+   * sessões salvas antes da pré-seleção.
+   */
+  preset?: { heading?: boolean; depth?: boolean; pitch?: boolean };
   iHeading: number;
   iDepth: number;
   iPitch: number;

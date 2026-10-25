@@ -37,7 +37,7 @@ As velocidades em nós também mostram o equivalente em km/h ao lado (1 nó = 1,
 A aba **Pilotagem** concentra a operação. A cena do submarino fica sempre visível, com a faixa de indicadores embaixo: profundidade, velocidade vertical, velocidade, rumo, pitch, banda, bateria e flutuabilidade (ou reserva, na superfície). O painel lateral tem rolagem própria.
 
 - **Barra superior (fixa):** executar/pausar, passo, reiniciar, velocidade do tempo, seletor de **cenário** + Carregar, **⧉ 2ª janela**, **＋ Tela** e alarmes. Clicar no alarme abre o sistema afetado na Pilotagem.
-- **Comandos essenciais (sempre visíveis no topo do painel):** executar/pausar, telégrafo, lemes de vante, ré e direção, profundidade (MAN/AUTO + ordem) e manobras rápidas (Imergir para X m, Emergir, Manter).
+- **Comandos essenciais (sempre visíveis no topo do painel):** executar/pausar, telégrafo, lemes de vante, ré e direção, profundidade (MAN/AUTO + ordem) e manobras rápidas (Imergir para X m, Emergir, Manter). **Manter** zera os lemes de vante e de ré e liga o piloto de profundidade na cota atual (ignora uma ordem pré-selecionada). Durante a imersão, o campo *Imergir para* mostra o alvo da manobra; mudá-lo muda a ordem do piloto e o alvo.
 - **Grupos expansíveis**, com resumo no cabeçalho mesmo recolhidos:
   - *Navegação*: telégrafo com régua, lemes e pilotos de rumo, profundidade e inclinação.
   - *Lastro principal*: comandos em três linhas: **suspiros**, **sopro normal** e **sopro de emergência**, nessa ordem. “Fechar emergência” encerra o sopro dedicado; “Fechar sopro” opera o circuito normal.
@@ -264,7 +264,7 @@ A aba **Apresentação** foi feita para quem conduz uma demonstração para um p
 
 **Tanques e escoamentos**: lastro principal (azul), compensação (verde), trim (laranja) e banda (roxo). Clique num tanque (na lista ou no corte) para destacá-lo; os demais ficam discretos. As partículas mostram o sentido e a intensidade das vazões calculadas: ar saindo pelos suspiros (jato acima da água, bolhas debaixo dela), água entrando ou saindo pelos embornais, ar comprimido das garrafas ao coletor e aos TLP durante o sopro, admissão e descarga de compensação e transferências de trim e banda. Válvulas: corpo de válvula alinhado ao tubo (flanges, haste e alavanca); a **alavanca** gira com a posição real — **ao longo do tubo = aberta**, **atravessada = fechada**, no meio do curso durante a manobra — e a alavanca e o anel do corpo ficam verdes (aberta), vermelhos (fechada), âmbar (em curso) ou magenta (travada por falha). Bombas em funcionamento ficam verdes e o rotor gira.
 
-**Manobras automáticas**: a barra sobre a cena mostra a etapa atual, as etapas seguintes e os comandos enviados. Ao terminar, informa **SUCESSO**, **TEMPO ESGOTADO**, **CANCELADA** ou **FALHA** (por exemplo, falta de ar comprimido ou profundidade de teste excedida).
+**Manobras automáticas**: a barra sobre a cena mostra a etapa atual, as etapas seguintes e os comandos enviados. Ao terminar, informa **SUCESSO**, **TEMPO ESGOTADO**, **CANCELADA** ou **FALHA** (por exemplo, falta de ar comprimido ou profundidade de teste excedida). O sopro de emergência cancela a manobra; na imersão, uma nova ordem de profundidade passa a ser o alvo.
 
 ## Roteiros automáticos
 
@@ -355,6 +355,8 @@ Na superfície o plano de flutuação resiste à inclinação: a rigidez de trim
 - A linha **Cascata de profundidade** (Central de comando e grupo Navegação) mostra o ângulo ordenado → lemes de ré e o ângulo dos lemes de vante.
 - **Em marcha a ré** o piloto inverte o ângulo ordenado: andando a ré, proa para cima aprofunda. Para subir ele abaixa a proa, para descer ele a levanta. Entre 0 e −0,5 m/s o ângulo ordenado passa suavemente por zero. Mantém a cota com erro de centímetros a ~5 nós a ré.
 - **Ligar AUTO não mexe no leme:** ao comutar rumo, profundidade ou pitch para AUTO, o piloto começa exatamente do ângulo de leme atual (também em curva, em ré e subindo/descendo) e corrige a partir daí.
+- **Pré-seleção:** uma ordem enviada com o canal em MAN (ex.: profundidade 50 m) fica guardada e vale ao passar para AUTO; o histórico registra "pré-seleção" e, depois, "ordem pré-selecionada". Sem pré-seleção, AUTO assume a condição atual (rumo, cota ou pitch). A pré-seleção é usada uma vez; *Manter* e a ação *Piloto automático: modo (mantém a ordem)* do Estúdio sempre assumem a condição atual.
+- **Durante IMERGIR**, uma nova ordem ao piloto de profundidade vira o alvo da manobra (o histórico registra "alvo atualizado"); a manobra termina com sucesso na nova cota.
 
 ## Sequência completa (cenário "Superfície — pronto para imergir")
 
@@ -464,7 +466,7 @@ Para gerar e abrir a versão Electron, siga [Executável para Windows](EXECUTAVE
 
 O sopro normal utiliza **AP1/AP2 (4 m³ cada, 250 bar)**. O sopro de emergência utiliza somente **AE1/AE2 (2 m³ cada, 250 bar)**, inicialmente isoladas: mesma pressão e metade do volume total, com coletor e válvulas próprios. O uso normal não esgota a reserva dedicada, mesmo se seus isolamentos estiverem abertos.
 
-**SOPRO DE EMERGÊNCIA** fecha os suspiros e o sopro normal, abre as ampolas dedicadas e as válvulas de emergência dos TLP. **Fechar emergência** encerra esse sopro. As válvulas têm curso finito; a alteração não é instantânea. Os isolamentos e as válvulas de emergência independem da planta hidráulica: com a hidráulica em falha, o sopro de emergência abre e fecha normalmente (os suspiros e o sopro normal, hidráulicos, ficam onde estavam).
+**SOPRO DE EMERGÊNCIA** fecha os suspiros e o sopro normal, abre as ampolas dedicadas e as válvulas de emergência dos TLP. Ao ser acionado, também passa os pilotos de profundidade e de pitch para MANUAL (o de rumo continua), leva os lemes de vante e de ré a 0° e cancela a manobra rápida em andamento (Imergir ou Emergir), para que nada continue mandando descer enquanto os tanques são soprados. **Fechar emergência** encerra esse sopro. As válvulas têm curso finito; a alteração não é instantânea. Os isolamentos e as válvulas de emergência independem da planta hidráulica: com a hidráulica em falha, o sopro de emergência abre e fecha normalmente (os suspiros e o sopro normal, hidráulicos, ficam onde estavam).
 
 O **compressor** recarrega ambos os circuitos por retenções, inclusive com os isolamentos de sopro fechados. Durante o sopro de emergência, ele é solicitado automaticamente e prioriza AE1/AE2. Precisa de **energia e tomada de ar externa** (superfície ou snorkel com a cabeça fora d'água); sem isso, o sopro depende do ar já armazenado. A vazão total continua limitada a 0,12 kg/s. Encerrar a emergência remove a solicitação automática, preservando eventual comando manual do compressor.
 
