@@ -15,9 +15,14 @@ import type { PumpState, ValveState } from '../core/state';
 
 export type ValveStatus = 'ABERTA' | 'FECHADA' | 'ABRINDO' | 'FECHANDO' | 'PARCIAL' | 'TRAVADA';
 
-/** Atualiza a válvula; retorna a fração de curso percorrida (para consumo hidráulico). */
-export function updateValve(cfg: ValveConfig, st: ValveState, dt: number, actuationAvailable: boolean): number {
-  if (st.stuck || !actuationAvailable) return 0;
+/**
+ * Atualiza a válvula; retorna a fração de curso percorrida que consome fluido
+ * hidráulico. `hydraulicAvailable` só vale para válvulas hidráulicas: as de
+ * acionamento próprio (cfg.hydraulic = false, ex.: sopro de emergência) movem
+ * sem a planta e não consomem dela.
+ */
+export function updateValve(cfg: ValveConfig, st: ValveState, dt: number, hydraulicAvailable: boolean): number {
+  if (st.stuck || (cfg.hydraulic !== false && !hydraulicAvailable)) return 0;
   const target = Math.min(1, Math.max(0, st.cmd));
   const d = target - st.pos;
   if (d === 0) return 0;
@@ -25,7 +30,7 @@ export function updateValve(cfg: ValveConfig, st: ValveState, dt: number, actuat
   const moved = Math.min(Math.abs(d), step);
   st.pos += Math.sign(d) * moved;
   if (Math.abs(target - st.pos) < 1e-9) st.pos = target;
-  return moved;
+  return cfg.hydraulic !== false ? moved : 0;
 }
 
 export function valveStatus(st: ValveState): ValveStatus {

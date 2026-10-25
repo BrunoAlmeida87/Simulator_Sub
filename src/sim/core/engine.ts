@@ -379,16 +379,16 @@ export class SimulationEngine {
     const stuck: string[] = [];
     const noHyd: string[] = [];
     const hyd = hydraulicFactor(cfg, s) > 0;
-    const checkValve = (name: string, v: { cmd: number; pos: number; stuck: boolean }) => {
+    const checkValve = (name: string, v: { cmd: number; pos: number; stuck: boolean }, hydraulic = true) => {
       if (Math.abs(v.cmd - v.pos) > 0.02) {
         if (v.stuck) stuck.push(name);
-        else if (!hyd) noHyd.push(name);
+        else if (!hyd && hydraulic !== false) noHyd.push(name);
       }
     };
     for (const t of cfg.ballast.tanks) {
       checkValve(t.ventValve.name, s.ballast[t.id].vent);
       checkValve(t.blowValve.name, s.ballast[t.id].blow);
-      checkValve(t.emergencyBlowValve.name, s.ballast[t.id].emergencyBlow);
+      checkValve(t.emergencyBlowValve.name, s.ballast[t.id].emergencyBlow, t.emergencyBlowValve.hydraulic);
     }
     checkValve(cfg.compensation.inletValve.name, s.compensation.inlet);
     checkValve(cfg.compensation.dischargeValve.name, s.compensation.discharge);
@@ -402,7 +402,7 @@ export class SimulationEngine {
       checkValve(sys.valveB.name, st.valveB);
       checkValve(sys.directionValve.name, st.direction);
     }
-    for (const b of cfg.hpAir.banks) checkValve(b.valve.name, s.hpAir.banks[b.id].valve);
+    for (const b of cfg.hpAir.banks) checkValve(b.valve.name, s.hpAir.banks[b.id].valve, b.valve.hydraulic);
     if (cfg.compensation.transfer && s.compensation.transfer) {
       checkValve(cfg.compensation.transfer.directionValve.name, s.compensation.transfer.direction);
       checkValve('Isolamento BTC A', s.compensation.transfer.valveA);
