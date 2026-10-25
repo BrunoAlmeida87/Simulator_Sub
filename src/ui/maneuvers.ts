@@ -1,5 +1,5 @@
 /**
- * Manobras rápidas da tela de pilotagem/apresentação. Não alteram a física:
+ * Manobras rápidas da tela Operação/apresentação. Não alteram a física:
  * apenas emitem, em sequência, os mesmos comandos que o operador daria
  * manualmente (todos registrados), avançando quando a condição física é
  * atingida. Expõem a etapa atual, os comandos enviados e o resultado
@@ -9,6 +9,7 @@ import type { SimRunner } from '../sim/core/runner';
 import { applyCommand, withCommandSource, type Command } from '../sim/commands';
 import { replayLock } from './replayLock';
 import type { SimulationEngine } from '../sim/core/engine';
+import { emergencyBlowActive } from '../sim/systems/hpAir';
 
 export type ManeuverKind = 'imergir' | 'emergir';
 export type ManeuverOutcome = 'sucesso' | 'tempo esgotado' | 'cancelada' | 'falha';
@@ -103,7 +104,15 @@ export class ManeuverController {
     const o = e.outputs;
     if (s.t - this.t0 > TIMEOUT[this.active]) return this.finish(r, 'tempo esgotado', `condição final não atingida em ${TIMEOUT[this.active] / 60} min`);
     if (o.depthKeel > e.vessel.limits.testDepth) return this.finish(r, 'falha', 'profundidade de teste excedida');
+    if (emergencyBlowActive(s)) return this.finish(r, 'cancelada', 'sopro de emergência acionado');
     if (this.active === 'imergir') {
+      // nova ordem ao piloto de profundidade durante a imersão = novo alvo da manobra
+      if (s.autopilot.depthMode === 'AUTO' && Math.abs(s.autopilot.depthSet - this.target) > 0.01) {
+        this.target = s.autopilot.depthSet;
+        e.log(`Manobra — alvo atualizado para ${this.target.toFixed(0)} m (ordem do piloto de profundidade)`, 'Manobra');
+        if (this.step === 2) this.phase = `TLP cheios — descendo para ${this.target.toFixed(0)} m com o piloto de profundidade`;
+        r.notify();
+      }
       if (s.ballast.TLP1BB.vent.cmd > 0.5 && fill(e) > 0.97) {
         this.send(e, { type: 'mbtVent', tank: 'ALL', open: false });
         this.setStep(r, 2, `TLP cheios — descendo para ${this.target} m com o piloto de profundidade`);

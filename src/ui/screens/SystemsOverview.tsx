@@ -1,7 +1,7 @@
 /**
  * Sistemas → Visão geral: um cartão por sistema com os números principais e a cor
  * do pior alarme (nível 1 de uma hierarquia de telas: visão geral → tela de detalhe).
- * Só LÊ o estado; os botões apenas trocam de tela ou abrem o grupo na Pilotagem.
+ * Só LÊ o estado; os botões apenas trocam de tela ou abrem o grupo na tela Operação.
  */
 import type { ReactNode } from 'react';
 import { useSim } from '../store';
@@ -31,7 +31,7 @@ interface SysCard {
   systems: string[];
   /** telas de detalhe */
   screens: ScreenId[];
-  /** grupo correspondente na central de operação (Pilotagem) */
+  /** grupo correspondente na central de operação (tela Operação) */
   ops?: GroupId;
   kpis: (e: SimulationEngine) => Kpi[];
   warn?: (e: SimulationEngine) => boolean;
@@ -190,7 +190,7 @@ export function SystemsOverview() {
     <div className="sysov">
       <p className="subtle sysov-intro">
         Resumo de cada sistema, com a cor do pior alarme (<span className="badge alarm">ALARME</span> <span className="badge warn">ATENÇÃO</span> <span className="badge ok">NORMAL</span>). Os botões abrem a tela de
-        detalhe ou o grupo do sistema na Pilotagem.
+        detalhe ou o grupo do sistema na tela Operação.
       </p>
       <div className="sysov-grid">
         {CARDS.map((c) => {
@@ -212,9 +212,9 @@ export function SystemsOverview() {
                   ui.setScreen('pilotagem');
                   opsBus.focus(g);
                 }}
-                title="Abrir o grupo deste sistema na central de operação (Pilotagem)"
+                title="Abrir o grupo deste sistema na central de operação (tela Operação)"
               >
-                Pilotagem ↗
+                Operação ↗
               </button>,
             );
           }

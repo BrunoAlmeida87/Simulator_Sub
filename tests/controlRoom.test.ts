@@ -19,7 +19,8 @@ import { drawEnergy, drawInstructorFailures, drawInstructorSim, drawPropulsion }
 import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, drawTacticalConsole, mastOut, roomContacts, signalExcess } from '../src/render3d/controlRoom/panelsCombat';
 import { STATIONS } from '../src/render3d/controlRoom/stations';
 import { roomEvents, roomSnapshot, sayOrder } from '../src/ui/screens/roomAudio';
-import { TARGET_HEIGHT, horizonRange, periHeadAbove, periVisible, stadimeter } from '../src/render3d/controlRoom/periscope';
+import { TARGET_HEIGHT, horizonRange, periHeadAbove, periHeadClearance, periVisible, stadimeter } from '../src/render3d/controlRoom/periscope';
+import { qFromEuler } from '../src/sim/core/math';
 import { DEFAULT_ORIGIN } from '../src/sim/geo';
 import { periscopeHeadZ } from '../src/sim/systems/actuation';
 import { TELEGRAPH } from '../src/sim/telegraph';
@@ -301,6 +302,23 @@ describe('Periscópio: visada', () => {
     sub.state.periscope = { cmd: true, pos: 1 };
     expect(periHeadAbove(sub)!).toBeLessThan(0);
     expect(periVisible(sub, acts, 0)).toEqual([]);
+  });
+  it('com caturro, a exposição do periscópio e do GPS segue a posição real da cabeça (auditoria A13)', () => {
+    const e = buildScenario('submerso_50');
+    e.state.body.pos.z = 12; // eixo a 12 m
+    e.state.body.quat = qFromEuler(0, (-15 * Math.PI) / 180, 0); // proa para baixo; o periscópio fica a vante
+    e.computeOutputs();
+    e.state.periscope = { cmd: true, pos: 1 };
+    // a conta antiga (altura nominal − profundidade da quilha) dava ≈ +1,7 m
+    expect(periHeadAbove(e)!).toBeLessThan(0);
+    expect(periHeadClearance(e)!).toBeLessThan(0);
+    expect(mastOut(e)).toBe(false);
+    expect(periVisible(e, mockActs([]), 0)).toEqual([]);
+    // casco nivelado na mesma cota: a cabeça sai d'água
+    e.state.body.quat = qFromEuler(0, 0, 0);
+    e.computeOutputs();
+    expect(periHeadAbove(e)!).toBeGreaterThan(1);
+    expect(mastOut(e)).toBe(true);
   });
   it('o estadímetro erra pouco no alto aumento e é repetível', () => {
     for (const id of ['S1', 'T02', 'R1', 'navio-17']) {

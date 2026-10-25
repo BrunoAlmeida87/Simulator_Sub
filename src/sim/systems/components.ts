@@ -15,9 +15,14 @@ import type { PumpState, ValveState } from '../core/state';
 
 export type ValveStatus = 'ABERTA' | 'FECHADA' | 'ABRINDO' | 'FECHANDO' | 'PARCIAL' | 'TRAVADA';
 
-/** Atualiza a válvula; retorna a fração de curso percorrida (para consumo hidráulico). */
-export function updateValve(cfg: ValveConfig, st: ValveState, dt: number, actuationAvailable: boolean): number {
-  if (st.stuck || !actuationAvailable) return 0;
+/**
+ * Atualiza a válvula; retorna a fração de curso percorrida que consome fluido
+ * hidráulico. `hydraulicAvailable` só vale para válvulas hidráulicas: as de
+ * acionamento próprio (cfg.hydraulic = false, ex.: sopro de emergência) movem
+ * sem a planta e não consomem dela.
+ */
+export function updateValve(cfg: ValveConfig, st: ValveState, dt: number, hydraulicAvailable: boolean): number {
+  if (st.stuck || (cfg.hydraulic !== false && !hydraulicAvailable)) return 0;
   const target = Math.min(1, Math.max(0, st.cmd));
   const d = target - st.pos;
   if (d === 0) return 0;
@@ -25,7 +30,7 @@ export function updateValve(cfg: ValveConfig, st: ValveState, dt: number, actuat
   const moved = Math.min(Math.abs(d), step);
   st.pos += Math.sign(d) * moved;
   if (Math.abs(target - st.pos) < 1e-9) st.pos = target;
-  return moved;
+  return cfg.hydraulic !== false ? moved : 0;
 }
 
 export function valveStatus(st: ValveState): ValveStatus {
@@ -66,7 +71,9 @@ export function pumpFlow(cfg: PumpConfig, speed: number, dp: number): number {
 
 /**
  * Vazão com perda de carga quadrática na linha: Δp_total = Δp_est + k·Q², k = perda/Q₀².
- * Solução fechada de Q² (1 + Q₀²k/H) = s²Q₀² (1 − Δp_est/H).
+ * Interseção da curva da bomba (s²Δp₀ − Δp₀Q²/Q₀²) com a da linha:
+ *   Q² (1 + Q₀²k/Δp₀) = Q₀² (s² − Δp_est/Δp₀)
+ * (o termo da linha não escala com a rotação: leis de afinidade).
  */
 export function pumpFlowWithLine(cfg: PumpConfig, speed: number, dpStatic: number, lineLossAtRated: number): number {
   if (speed <= 1e-4) return 0;
@@ -74,7 +81,7 @@ export function pumpFlowWithLine(cfg: PumpConfig, speed: number, dpStatic: numbe
   const k = lineLossAtRated / (cfg.ratedFlow * cfg.ratedFlow);
   const rhs = speed * speed * cfg.ratedFlow * cfg.ratedFlow * (1 - dpStatic / H);
   if (rhs <= 0) return 0;
-  const q = Math.sqrt(rhs / (1 + (cfg.ratedFlow * cfg.ratedFlow * k) / H));
+  const q = Math.sqrt(rhs / (1 + (cfg.ratedFlow * cfg.ratedFlow * k) / cfg.shutoffPressure));
   return Math.min(q, 1.25 * speed * cfg.ratedFlow);
 }
 

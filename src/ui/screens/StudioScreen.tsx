@@ -1391,7 +1391,7 @@ function StateTab({ e, step, k, updStep }: { e: SimulationEngine; step: PresStep
           💾 Guardar a situação atual do simulador nesta etapa
         </button>
       )}
-      <div className="note">Para preparar: use “↺ Ponto de partida”, opere o submarino (aqui, na Pilotagem ou com “▷ Testar etapa”) até a situação desejada e guarde.</div>
+      <div className="note">Para preparar: use “↺ Ponto de partida”, opere o submarino (aqui, na tela Operação ou com “▷ Testar etapa”) até a situação desejada e guarde.</div>
     </div>
   );
 }

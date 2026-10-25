@@ -191,10 +191,10 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
         onClick={() => {
           // alarme → sistema afetado na central de operação
           ui.setScreen('pilotagem');
-          opsBus.focus(top ? (ALARM_GROUP[top.def.system] ?? 'falhas') : 'falhas');
+          opsBus.focus(top ? (ALARM_GROUP[top.def.system] ?? 'alarmes') : 'alarmes');
         }}
         style={{ cursor: 'pointer' }}
-        title="Abrir o sistema afetado na Pilotagem"
+        title="Abrir o sistema afetado na tela Operação"
       >
         {top ? (
           <>
@@ -409,7 +409,7 @@ export function App() {
 
   return (
     <UiContext.Provider value={{ screen, setScreen, eng, setEng, inspect, setInspect, toast, showProcedure, setShowProcedure }}>
-      <div className={`app ${eng ? 'eng' : ''}`}>
+      <div className={`app scr-${screen} ${eng ? 'eng' : ''}`}>
         <TopBar topRef={topRef} />
         <NavBar screen={screen} setScreen={setScreen} navRef={navRef} />
         {resume && (

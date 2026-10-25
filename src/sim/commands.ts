@@ -8,6 +8,7 @@ import type { CargoLoad, SensorFailMode } from './core/state';
 import { newDosing } from './systems/internalTanks';
 import { acknowledgeAlarm } from './systems/alarms';
 import { bumplessInit } from './systems/autopilot';
+import { emergencyBlowActive } from './systems/hpAir';
 import { sensorDef } from './systems/sensors';
 import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
 
@@ -55,7 +56,8 @@ export type Command =
   | { type: 'dosingAbort'; system: FluidSystem }
   | { type: 'telegraph'; rpm: number }
   | { type: 'surface'; id: string; angle: number }
-  | { type: 'autopilot'; channel: 'heading' | 'depth' | 'pitch'; mode: 'MANUAL' | 'AUTO' }
+  /** hold: AUTO na condição atual mesmo com ordem pré-selecionada (ex.: "Manter cota") */
+  | { type: 'autopilot'; channel: 'heading' | 'depth' | 'pitch'; mode: 'MANUAL' | 'AUTO'; hold?: boolean }
   | { type: 'setpoint'; channel: 'heading' | 'depth' | 'pitch'; value: number }
   | { type: 'snorkel'; raise: boolean }
   | { type: 'periscope'; raise: boolean }
@@ -162,6 +164,7 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     }
     case 'emergencyBlow': {
       const open = c.open !== false;
+      const wasActive = emergencyBlowActive(s);
       for (const t of v.ballast.tanks) {
         if (c.tank && c.tank !== 'ALL' && t.id !== c.tank) continue;
         s.ballast[t.id].emergencyBlow.cmd = open ? 1 : 0;
@@ -172,6 +175,18 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
       }
       if (open) for (const b of v.hpAir.banks) if (b.purpose === 'emergency') s.hpAir.banks[b.id].valve.cmd = 1;
       log(`${open ? 'SOPRO DE EMERGÊNCIA: suspiros e sopro normal fechados; ampolas dedicadas; compressor automático com ar/energia' : 'FECHAR sopro de emergência'} — ${c.tank && c.tank !== 'ALL' ? tankName(e, c.tank) : 'todos os TLP'}`, 'Lastro');
+      if (open && !wasActive) {
+        // a subida fica com o ar: o piloto de profundidade/pitch não pode seguir mandando descer
+        const ap = s.autopilot;
+        if (ap.depthMode === 'AUTO' || ap.pitchMode === 'AUTO') {
+          ap.depthMode = 'MANUAL';
+          ap.pitchMode = 'MANUAL';
+          log('Profundidade: piloto automático DESENGAJADO pelo sopro de emergência (rumo mantido)', 'Controle automático');
+        }
+        s.surfaces.bow.cmd = 0;
+        s.surfaces.stern.cmd = 0;
+        log('Lemes de vante e de ré a 0° (sopro de emergência)', 'Governo');
+      }
       break;
     }
     case 'hpBankValve':
@@ -287,7 +302,19 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     case 'autopilot': {
       const ap = s.autopilot;
       const r = e.apReadings;
-      if (c.mode === 'AUTO') bumplessInit(s, c.channel, r);
+      const preset = (ap.preset ??= {});
+      // pré-seleção: ordem enviada em MANUAL vale ao passar para AUTO (como AUTO seguido da ordem)
+      const usePreset = c.mode === 'AUTO' && !c.hold && !!preset[c.channel];
+      const keep = c.channel === 'heading' ? ap.headingSet : c.channel === 'depth' ? ap.depthSet : ap.pitchSet;
+      if (c.mode === 'AUTO') {
+        bumplessInit(s, c.channel, r);
+        if (usePreset) {
+          if (c.channel === 'heading') ap.headingSet = keep;
+          else if (c.channel === 'depth') ap.depthSet = keep;
+          else ap.pitchSet = keep;
+        }
+        preset[c.channel] = false;
+      }
       if (c.channel === 'heading') ap.headingMode = c.mode;
       else if (c.channel === 'depth') {
         ap.depthMode = c.mode;
@@ -297,16 +324,19 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
         if (c.mode === 'AUTO') ap.depthMode = 'MANUAL';
       }
       const nm = { heading: 'Rumo', depth: 'Profundidade', pitch: 'Atitude (pitch)' }[c.channel];
-      log(`${nm}: modo ${c.mode === 'AUTO' ? 'AUTOMÁTICO' : 'MANUAL'}`, 'Controle automático');
+      const set = c.channel === 'heading' ? `${keep.toFixed(0)}°` : c.channel === 'depth' ? `${keep.toFixed(0)} m` : `${keep.toFixed(1)}°`;
+      log(`${nm}: modo ${c.mode === 'AUTO' ? 'AUTOMÁTICO' : 'MANUAL'}${usePreset ? ` — ordem pré-selecionada ${set}` : ''}`, 'Controle automático');
       break;
     }
     case 'setpoint': {
       const ap = s.autopilot;
+      const mode = c.channel === 'heading' ? ap.headingMode : c.channel === 'depth' ? ap.depthMode : ap.pitchMode;
+      (ap.preset ??= {})[c.channel] = mode === 'MANUAL';
       if (c.channel === 'heading') ap.headingSet = ((c.value % 360) + 360) % 360;
       else if (c.channel === 'depth') ap.depthSet = Math.max(0, c.value);
       else ap.pitchSet = Math.max(-20, Math.min(20, c.value));
       const nm = { heading: 'Rumo ordenado', depth: 'Profundidade ordenada', pitch: 'Pitch ordenado' }[c.channel];
-      log(`${nm}: ${c.value.toFixed(c.channel === 'pitch' ? 1 : 0)}${c.channel === 'depth' ? ' m' : '°'}`, 'Controle automático');
+      log(`${nm}: ${c.value.toFixed(c.channel === 'pitch' ? 1 : 0)}${c.channel === 'depth' ? ' m' : '°'}${mode === 'MANUAL' ? ' (pré-seleção: vale ao passar para AUTO)' : ''}`, 'Controle automático');
       break;
     }
     case 'snorkel':
@@ -464,7 +494,7 @@ export function failureCatalog(e: SimulationEngine): FailureDef[] {
     { target: 'pump:heel', name: v.heel.pump.name, group: 'Bombas', effect: 'Sem correção de banda.' },
     { target: 'motor', name: 'Motor elétrico principal', group: 'Propulsão', effect: 'Torque nulo; o submarino desacelera pela resistência (inércia conservada).' },
     { target: 'battery', name: 'Bateria principal (isolamento por falha)', group: 'Energia', effect: 'Barramento depende apenas dos geradores (se disponíveis).' },
-    { target: 'hydraulics', name: 'Planta hidráulica', group: 'Hidráulica', effect: 'Lemes e válvulas imobilizados quando a pressão cai abaixo do mínimo.' },
+    { target: 'hydraulics', name: 'Planta hidráulica', group: 'Hidráulica', effect: 'Lemes e válvulas hidráulicas imobilizados quando a pressão cai abaixo do mínimo (o sopro de emergência tem acionamento próprio).' },
   ];
   for (const t of v.ballast.tanks) {
     list.push({ target: `valve:ballast:${t.id}:vent`, name: t.ventValve.name + ' — travada', group: 'Válvulas', effect: 'Válvula imobilizada na posição atual.' });

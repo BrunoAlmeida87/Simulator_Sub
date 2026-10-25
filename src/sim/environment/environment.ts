@@ -3,7 +3,8 @@
  * pressão hidrostática integrada e topografia simplificada do fundo.
  *
  * Simplificações:
- *  - Mar calmo (sem ondas nem correntes — previstos para a Fase 3).
+ *  - Sem correntes. Ondas: campo de Airy em águas profundas (waves.ts); as
+ *    pressões de embornais/suspiros usam o nível médio (sem a parcela da onda).
  *  - Perfis dependem apenas da profundidade (estratificação horizontal).
  *  - A pressão é obtida integrando dp/dz = ρ(S,T,p)·g a partir da superfície
  *    (tabela pré-calculada a cada 0,5 m, interpolação linear).

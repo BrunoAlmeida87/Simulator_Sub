@@ -1,6 +1,8 @@
 # Simplificações e limitações
 
-O simulador prioriza a coerência física e lógica entre os sistemas, mas usa modelos simplificados. Esta lista documenta as simplificações adotadas na Fase 1.
+O simulador prioriza a coerência física e lógica entre os sistemas, mas usa modelos simplificados. Esta lista documenta as simplificações adotadas.
+
+**Escopo da validação.** Os testes verificam sinais, simetrias, balanços de massa e energia nas sequências ensaiadas e regressões conhecidas (ver `docs/VALIDACAO.md`). Eles **não** provam conservação de massa e energia em todas as condições nem fidelidade quantitativa de engenharia: os coeficientes não são calibrados em tanque, CFD ou dados de mar. O SX-1 é fictício.
 
 ## Ambiente
 - **Ondas lineares (Airy):** espectro de Pierson–Moskowitz com 24 componentes em águas profundas e espalhamento direcional cos². Não há quebra de onda, interação onda–onda, correntes ou vento. O “chop” de Gerstner no 3D é só visual; a física usa a elevação linear das mesmas componentes.
@@ -8,6 +10,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Perfis de temperatura e salinidade dependem só da profundidade (estratificação horizontal).
 - A densidade usada no empuxo é a do nível do eixo, uniforme ao longo do casco.
 - O fundo é uniforme (padrão, 300 m) ou uma função analítica (declividade + ondulações), sem tipos de sedimento.
+- Ondas sempre em águas profundas (k = ω²/g), mesmo nos cenários rasos. A pressão dinâmica da onda usa g = 9,80665 m/s² fixo. As pressões de embornais e suspiros dos TLP e a imersão do hélice usam o nível médio (sem a onda); sensores e snorkel usam a superfície local. Os lemes não recebem a velocidade orbital das ondas, e não há excitação de onda em surge.
 
 ## Geometria e hidrostática
 - Casco como corpo de revolução; a vela não desloca água (alagamento livre) e não há casco externo separado.
@@ -19,31 +22,42 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - CG tratado na origem para os termos inerciais (o desvio de G entra pelos momentos do peso); produtos de inércia desprezados.
 - Massa adicional diagonal, constante e escalada pela fração imersa.
 - A quantidade de movimento da água admitida nos tanques não é considerada.
-- Contato com o fundo por três molas-amortecedores na quilha.
+- Contato com o fundo por três molas-amortecedores na quilha, com força vertical (não acompanha a inclinação do fundo).
+- O acoplamento translação–rotação da massa adicional (força a₁×ω e momento de Munk a₁×v) usa o mesmo fator k_Munk = 0,75 nos dois termos, o que mantém nula a potência desse par. A redução viscosa real do momento de Munk não é calibrada.
+- Integração: RK4 só no corpo rígido; eixo e energia por Euler explícito, água dos TLP por Euler implícito, atuadores discretos e acoplamento sequencial. O conjunto **não** é de 4ª ordem (no mergulho de 30 s o erro cai ~pela metade com dt/2, como num método de 1ª ordem).
+- Rigidez de pitch e banda calculada com sinal: com rigidez negativa (equilíbrio instável) não há previsão linear do ângulo de equilíbrio. A previsão é linear (pequenos ângulos).
 
 ## Hidrodinâmica
 - Modelo por componentes (resistência, escoamento cruzado, sustentação do casco, superfícies, Munk), com coeficientes plausíveis mas **não calibrados** em tanque de provas.
 - Sem interação hélice–leme (o jato do hélice não aumenta a efetividade do leme a baixa velocidade).
 - Sem sucção de superfície nem interação com o fundo (efeito de águas rasas).
 - Resistência de ondas na superfície por fator multiplicativo; radiação de ondas como amortecimento linear.
-- Curva de sustentação com estol simplificado; eficiência em marcha a ré por fator constante.
+- Curva de sustentação com estol simplificado; eficiência em marcha a ré por fator constante. O arrasto de separação dos lemes cresce suavemente entre 17° e 23° de ângulo de ataque (transição empírica, sem calibração).
+- A sustentação do casco usa |u| (em marcha a ré também se opõe à velocidade transversal), com o centro de pressão espelhado em ré; esse centro em ré não é calibrado.
+- Hélice: K_T e K_Q lineares no avanço J, proporcionais a |n|. Com o eixo parado não há arrasto da hélice nem autorrotação; frenagem e marcha a ré são extensões simplificadas, não um modelo de quatro quadrantes.
 
 ## Fluidos e ar comprimido
-- Ar isotérmico (sem resfriamento adiabático na expansão).
+- Ar isotérmico e gás ideal (sem resfriamento na expansão rápida nem fator de compressibilidade a 250 bar).
+- A pressão interna dos TLP usa a altura de água no referencial do tanque (sem projeção na atitude) e não há superfície livre. O suspiro só deixa o ar sair; a admissão de ar atmosférico ocorre apenas com os embornais emersos.
 - Garrafas AP abertas equalizam instantaneamente no coletor.
 - Circuitos de compensação, trim e banda são **arquiteturas fictícias** com lógica de alinhamento simplificada. A bomba de transferência não permite fluxo por gravidade quando parada.
-- Bombas centrífugas pelas leis de afinidade; potência hidráulica com rendimento constante.
+- Bombas centrífugas pelas leis de afinidade; potência hidráulica com rendimento constante. A distribuição da admissão entre os ramais da compensação usa pesos de abertura × capacidade; o grafo de válvulas verifica os caminhos, mas não resolve pressões e perdas em cada ramo.
+- Sequências automáticas de compensação: o pedido é limitado à capacidade dos tanques ligados; sem vazão por 15 s, a sequência é encerrada e informa quanto faltou.
+- Hidráulica: a pressão é um estado com taxa de recarga e consumo equivalente (sem volume do acumulador nem balanço de energia). Válvulas marcadas como não hidráulicas (sopro de emergência e isolamento das ampolas) movem sem a planta.
 
 ## Energia e propulsão
 - Bateria com circuito equivalente linear (sem Peukert, sem temperatura, sem envelhecimento).
-- Barramento único; sem disjuntores por carga nem rejeição de cargas por prioridade.
+- Barramento único; sem disjuntores por carga nem rejeição de cargas por prioridade. A demanda não atendida (sobrecarga da bateria ou barramento desenergizado) é registrada, mas as cargas continuam operando no passo em que faltou energia; só a propulsão é limitada no passo seguinte.
+- Recarga plena até 90 % de SoC e reduzida linearmente a zero em 100 %; a bateria vazia aceita recarga. A eficiência de recarga (0,92) reduz o ganho de SoC, mas o balanço "químico" integra V_oc·I.
+- Geradores sem consumo em vazio, eficiência em carga parcial nem rampa de carga; se o combustível acabar no meio de um passo, a energia daquele passo não é reduzida.
 - Sem regeneração: a potência negativa do eixo é dissipada.
 - Diesel-geradores com potência despachável e partida temporizada; sem dinâmica térmica.
 
 ## Instrumentação e controle
 - Sensores com ruído gaussiano, atraso de 1ª ordem e falhas típicas (congelado, deriva, zero, ruído). Sem modelos detalhados de giroscópio e INS.
+- A profundidade usada pelo piloto é a média dos dois profundímetros, **sem votação nem tolerância a falhas**: um canal congelado ou zerado conduz o piloto (útil para treinar a falha). A navegação estimada usa a velocidade vertical verdadeira, e q/r são usados como taxas de pitch/rumo (pequenos ângulos). Os alarmes usam grandezas verdadeiras, não as medições.
 - O Doppler usa velocidade em relação à água, que é igual à velocidade sobre o fundo porque não há correntes.
-- Piloto automático PID com ganhos fixos escalonados por U². Não é um controlador de navio real. Não há filtro de ondas: na cota periscópica com mar, os lemes de ré acompanham o caturro de cada onda (ângulo pequeno, mas em movimento contínuo).
+- Piloto automático PID com ganhos fixos escalonados por U². Não é um controlador de navio real. Em marcha a ré o pitch ordenado pela malha de profundidade se inverte (ż ≈ −u·sen θ), com passagem contínua entre 0 e −0,5 m/s; a sintonia foi feita avante. Não há filtro de ondas: na cota periscópica com mar, os lemes de ré acompanham o caturro de cada onda (ângulo pequeno, mas em movimento contínuo).
 
 ## Segurança
 - Limites, alarmes e respostas são **exclusivamente educacionais** e não correspondem a procedimentos ou valores de embarcação real.
@@ -58,7 +72,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - O traçado das tubulações e a posição de bombas, válvulas e garrafas no corte são esquemáticos (arquitetura fictícia). As vazões e os estados exibidos são os simulados.
 - O nível dos TLP em seção "D" é obtido invertendo a curva área × altura da seção desenhada. O volume mostrado é o simulado, mas a forma do tanque é simplificada.
 - A vazão por tanque da compensação é a parcela atribuída a cada tanque pelo modelo (proporcional a abertura da válvula × capacidade do tanque; o que um tanque cheio ou vazio não aceita passa aos outros ramais abertos). A vazão de cada trecho do coletor é obtida por conservação de massa entre os nós (admissão, bomba, tanques); a diferença de densidade entre a água do mar admitida e a nominal (~0,1 %) é desprezada na animação.
-- Descarga dos diesel-geradores: a existência da descarga vem do estado dos geradores (só EM CARGA ou PARTINDO queimam combustível) e o caminho do mastro (içado → mastro; recolhido → dispersores atrás da vela). A posição dos dispersores, a quantidade de bolhas e a carga mínima de 15 % atribuída a um gerador em carga para a intensidade do efeito são representações, não medidas.
+- Descarga dos diesel-geradores: a existência da descarga vem do estado dos geradores (EM CARGA queima combustível; em PARTINDO a descarga é só animação da partida, sem consumo nem energia contabilizados) e o caminho do mastro (içado → mastro; recolhido → dispersores atrás da vela). A posição dos dispersores, a quantidade de bolhas e a carga mínima de 15 % atribuída a um gerador em carga para a intensidade do efeito são representações, não medidas.
 - As referências de profundidade (faixas a cada 20 m e sombra no fundo) são auxílios visuais; não representam camadas físicas da água.
 - A iluminação subaquática não é medida: no perfil **Clara** (padrão) e **Estúdio** a água é mais clara do que no mar real a essa profundidade e há uma luz presa à câmera, para o submarino ficar visível. O perfil **Natural** aproxima o escurecimento com a profundidade.
 
@@ -69,7 +83,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 ## Costa, navios e estaleiro
 
 - A costa cobre só a região de Sepetiba (−23,20° a −22,80°; −44,20° a −43,50°). Fora dela, a borda da grade é estendida (ao sul, mar aberto).
-- Linha de costa com resolução de ~50 m (polígonos simplificados do OpenStreetMap) e relevo de 200 m; a batimetria real (rasa) da baía não é usada — o fundo de mar aberto é o configurado e a transição até a orla é uma curva suave.
+- Linha de costa com resolução de ~50 m (polígonos simplificados do OpenStreetMap) e relevo de 200 m; a batimetria é **estimada** e a real (rasa) da baía não é usada — o fundo de mar aberto é o configurado e a transição até a orla é uma curva suave.
 - Os navios são apenas visuais (sem colisão): são os contatos fictícios do quadro tático e o tráfego adicional, não posições AIS reais. O tráfego adicional é sorteado em volta da origem do cenário (raio de 1,2 a 9 km); perto da costa podem caber menos navios do que o pedido, porque trechos sem água suficiente são recusados.
 - Estaleiro da Ilha da Madeira: contornos traçados em imagem Sentinel-2 de 10 m (precisão ≈ ±10 m). Galpões, tanques e guindastes têm posição, tamanho e altura **estimados** (não há medidas oficiais publicadas) e são só visuais, assim como o submarino no shiplift e o píer do Porto Sudeste. A profundidade dragada da bacia (16 m) é estimada. O contato do casco com os cais é o mesmo modelo de contato com o fundo (pontos da quilha), sem impacto lateral.
 - A costa de 50 m vem do OpenStreetMap anterior à obra; o aterro, os quebra-mares e a dragagem do estaleiro são sobrepostos a ela.
@@ -86,6 +100,7 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Identificação, alcance visual (horizonte geométrico) e estadímetro do periscópio são **auxílios ilustrativos**: a altura do mastro é a típica da classe, sem refração, visibilidade meteorológica nem iluminação noturna. As marcações são anotações da interface (não entram na gravação).
 - O som da sala é sintetizado e ilustrativo (não são gravações reais); a voz depende das vozes pt-BR instaladas no navegador.
 - Escotilhas (torre, vante e ré) não são modeladas: o indicador de aberturas do casco as mostra sempre fechadas.
+- A exposição do periscópio, do GPS e do MAGE usa a posição de cada cabeça de mastro com o caturro e o balanço, sobre o nível médio da água; a onda entra só no efeito de água na ocular.
 - Sonar passivo e MAGE são **modelos ilustrativos** (perdas esféricas, ruído próprio crescendo com a velocidade, zona cega a ré, emissores por tipo de navio); não há propagação acústica real, camadas de sombra nem classificação por assinatura.
 - O sistema de combate é fictício e não tem armamento.
 - A inclinação da sala (opção) gira a vista de quem anda em torno da cabeça, mantida na vertical; não há equilíbrio, deslizamento nem objetos soltos. Sentado num posto, a câmera é solidária ao navio; a atitude aparece nos instrumentos, na bolha e no pêndulo.

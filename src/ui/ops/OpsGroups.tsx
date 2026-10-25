@@ -95,7 +95,7 @@ function ApCompact({ e }: { e: SimulationEngine }) {
 }
 
 // ------------------------------------------------------------ lastro
-function LastroBody({ e }: { e: SimulationEngine }) {
+function LastroBody({ e, inOps }: GroupBodyProps) {
   const v = e.vessel;
   const s = e.state;
   return (
@@ -117,15 +117,19 @@ function LastroBody({ e }: { e: SimulationEngine }) {
             Fechar sopro
           </button>
         </div>
-        <div className="btngroup" role="group" aria-label="Sopro de emergência">
-          <button className="btn sm danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
-            SOPRO DE EMERGÊNCIA
-          </button>
-          <button className="btn sm" onClick={() => cmd({ type: 'emergencyBlow', open: false })}>
-            Fechar emergência
-          </button>
-          {v.ballast.tanks.some((t) => s.ballast[t.id].emergencyBlow.cmd > 0.5) && <span className="badge warn">EMERGÊNCIA ATIVA</span>}
-        </div>
+        {inOps ? (
+          v.ballast.tanks.some((t) => s.ballast[t.id].emergencyBlow.cmd > 0.5) && <span className="badge warn">SOPRO DE EMERGÊNCIA ATIVO (rodapé do painel)</span>
+        ) : (
+          <div className="btngroup" role="group" aria-label="Sopro de emergência">
+            <button className="btn sm danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
+              SOPRO DE EMERGÊNCIA
+            </button>
+            <button className="btn sm" onClick={() => cmd({ type: 'emergencyBlow', open: false })}>
+              Fechar emergência
+            </button>
+            {v.ballast.tanks.some((t) => s.ballast[t.id].emergencyBlow.cmd > 0.5) && <span className="badge warn">EMERGÊNCIA ATIVA</span>}
+          </div>
+        )}
       </div>
       <table className="t ops-t">
         <thead>
@@ -153,7 +157,7 @@ function LastroBody({ e }: { e: SimulationEngine }) {
                   <span className="mono">{fmt(f * 100, 0)} %</span>
                   {Math.abs(st.qWater) > 0.01 && (
                     <div className="subtle">
-                      {st.qWater > 0 ? '▲ entrando' : '▼ saindo'} {fmt(Math.abs(st.qWater), 2)} m³/s
+                      {st.qWater > 0 ? (inOps ? '▲' : '▲ entrando') : inOps ? '▼' : '▼ saindo'} {fmt(Math.abs(st.qWater), 2)} m³/s
                     </div>
                   )}
                 </td>
@@ -427,20 +431,23 @@ function EnergiaBody({ e }: { e: SimulationEngine }) {
           {sn.cmd ? 'Arriar' : 'Içar'}
         </button>
       </div>
+      <div className={`row ${f?.kind === 'mast' ? 'focus' : ''}`}>
+        <b>Periscópio</b>
+        <span className="mono">{fmt((e.state.periscope?.pos ?? 0) * 100, 0)} % içado</span>
+        <button className={`btn sm ${e.state.periscope?.cmd ? 'on' : ''}`} onClick={() => cmd({ type: 'periscope', raise: !e.state.periscope?.cmd })}>
+          {e.state.periscope?.cmd ? 'Arriar' : 'Içar'}
+        </button>
+      </div>
       <div className="subtle">Combustível {fmt(el.fuel, 1)} m³ · os geradores só partem com ar (snorkel/superfície).</div>
     </div>
   );
 }
 
 // ------------------------------------------------------------ falhas
-function FalhasBody({ e }: { e: SimulationEngine }) {
-  const s = e.state;
-  const cat = useMemo(() => failureCatalog(e), [e]);
-  const [sel, setSel] = useState(cat[0]?.target ?? '');
-  const [param, setParam] = useState('');
-  const vis = visibleAlarms(s);
-  const def = cat.find((c) => c.target === sel);
-  const active = cat.filter((c) => isFailureActive(e, c.target));
+// ------------------------------------------------------------ alarmes (operador)
+function AlarmesBody({ e }: GroupBodyProps) {
+  const vis = visibleAlarms(e.state);
+  const un = vis.filter((a) => !a.acked).length;
   return (
     <div className="col">
       {vis.length === 0 ? (
@@ -451,7 +458,9 @@ function FalhasBody({ e }: { e: SimulationEngine }) {
             {vis.map((a) => (
               <tr key={a.def.id}>
                 <td>
-                  <span className={`badge ${a.def.priority <= 2 ? 'alarm' : 'warn'} ${a.active && !a.acked ? 'blink' : ''}`}>{PRIORITY_LABEL[a.def.priority]}</span>
+                  <span className={`badge ${a.def.priority <= 2 ? 'alarm' : 'warn'} ${a.active && !a.acked ? 'blink' : ''}`}>
+                    {PRIO_SHAPE[a.def.priority]} {PRIORITY_LABEL[a.def.priority]}
+                  </span>
                 </td>
                 <td>
                   {a.def.text}
@@ -461,7 +470,7 @@ function FalhasBody({ e }: { e: SimulationEngine }) {
                   </div>
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  <button className="btn sm" onClick={() => opsBus.focus(ALARM_GROUP[a.def.system] ?? 'falhas')} title="Abrir o sistema afetado">
+                  <button className="btn sm" onClick={() => opsBus.focus(ALARM_GROUP[a.def.system] ?? 'alarmes')} title="Abrir o sistema afetado">
                     Sistema →
                   </button>
                   {!a.acked && (
@@ -475,6 +484,24 @@ function FalhasBody({ e }: { e: SimulationEngine }) {
           </tbody>
         </table>
       )}
+      {un > 1 && (
+        <button className="btn sm" onClick={() => cmd({ type: 'ack', id: 'ALL' })}>
+          Reconhecer todos ({un})
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ falhas (instrutor)
+function FalhasBody({ e }: GroupBodyProps) {
+  const cat = useMemo(() => failureCatalog(e), [e]);
+  const [sel, setSel] = useState(cat[0]?.target ?? '');
+  const [param, setParam] = useState('');
+  const def = cat.find((c) => c.target === sel);
+  const active = cat.filter((c) => isFailureActive(e, c.target));
+  return (
+    <div className="col">
       <div className="row">
         <select value={sel} onChange={(ev) => setSel(ev.target.value)} style={{ flex: 1, minWidth: 0 }} aria-label="Falha a injetar">
           {[...new Set(cat.map((c) => c.group))].map((g) => (
@@ -579,11 +606,20 @@ export function loadScenario(id: string): void {
 }
 
 // ------------------------------------------------------------ catálogo
+/** inOps: corpo exibido no painel da Operação (o sopro de emergência fica no rodapé fixo) */
+export interface GroupBodyProps {
+  e: SimulationEngine;
+  inOps?: boolean;
+}
+
 export interface GroupDef {
   summary: (e: SimulationEngine) => string;
   warn?: (e: SimulationEngine) => boolean;
-  Body: (p: { e: SimulationEngine }) => ReactNode;
+  Body: (p: GroupBodyProps) => ReactNode;
 }
+
+/** forma da prioridade (não depende só da cor) */
+export const PRIO_SHAPE: Record<number, string> = { 1: '⬢', 2: '◆', 3: '▲', 4: '●' };
 
 export const GROUPS: Record<GroupId, GroupDef> = {
   nav: {
@@ -629,12 +665,14 @@ export const GROUPS: Record<GroupId, GroupDef> = {
       const el = e.state.electrical;
       const run = e.vessel.electrical.generators.filter((g) => el.generators[g.id].status === 'EM CARGA').length;
       const sn = e.state.snorkel.pos;
-      return `bateria ${fmt(el.soc * 100, 0)} % · geradores ${run ? `${run} em carga` : 'parados'} · snorkel ${sn > 0.95 ? 'içado' : sn < 0.05 ? 'arriado' : 'em curso'}`;
+      const pe = e.state.periscope?.pos ?? 0;
+      const mast = (p: number) => (p > 0.95 ? 'içado' : p < 0.05 ? 'arriado' : 'em curso');
+      return `bateria ${fmt(el.soc * 100, 0)} % · geradores ${run ? `${run} em carga` : 'parados'} · snorkel ${mast(sn)} · periscópio ${mast(pe)}`;
     },
     warn: (e) => e.state.electrical.soc < 0.25 || !e.state.electrical.energized,
     Body: EnergiaBody,
   },
-  falhas: {
+  alarmes: {
     summary: (e) => {
       const vis = visibleAlarms(e.state);
       const act = vis.filter((a) => a.active).length;
@@ -642,6 +680,14 @@ export const GROUPS: Record<GroupId, GroupDef> = {
       return vis.length ? `${act} alarme(s) ativo(s)${un ? ` · ${un} sem reconhecer` : ''}` : 'sem alarmes';
     },
     warn: (e) => visibleAlarms(e.state).some((a) => a.active && a.def.priority <= 2),
+    Body: AlarmesBody,
+  },
+  falhas: {
+    summary: (e) => {
+      const n = failureCatalog(e).filter((c) => isFailureActive(e, c.target)).length;
+      return n ? `${n} falha(s) injetada(s)` : 'nenhuma falha injetada';
+    },
+    warn: (e) => failureCatalog(e).some((c) => isFailureActive(e, c.target)),
     Body: FalhasBody,
   },
   ambiente: {

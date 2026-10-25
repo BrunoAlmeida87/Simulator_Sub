@@ -73,6 +73,24 @@ function schedule(speed: number): { k: number; low: boolean } {
   return { k: Math.min(4, (U0 / U) ** 2), low: Math.abs(speed) < 1.5 };
 }
 
+/**
+ * Sinal da malha externa de profundidade: ż ≈ −u·sen θ, então em marcha a ré a
+ * proa para cima APROFUNDA e o pitch ordenado se inverte. Avante vale 1; entre
+ * 0 e −0,5 m/s passa continuamente a −1 (perto de zero, pitch ordenado ≈ 0).
+ */
+export function depthPitchSign(speed: number): number {
+  return speed >= 0 ? 1 : clamp(1 + speed / 0.25, -1, 1);
+}
+
+/** Pitch ordenado pela malha externa de profundidade (graus) e se saturou. */
+function depthOuterCommand(ez: number, iDepth: number, depthRate: number, speed: number): { theta: number; unsat: number; thMax: number } {
+  const g = AP_GAINS.depthOuter;
+  const low = lowSpeedShare(speed);
+  const thMax = g.thetaMax + low * (g.thetaMaxLow - g.thetaMax);
+  const unsat = g.kz * ez + iDepth + g.kzd * depthRate;
+  return { theta: clamp(depthPitchSign(speed) * unsat, -thMax, thMax), unsat, thMax };
+}
+
 /** 0 em velocidade normal (lemes de ré principais) → 1 abaixo de lowSpeed.uLo (lemes de vela principais). */
 export function lowSpeedShare(speed: number): number {
   const { uLo, uHi } = AP_GAINS.lowSpeed;
@@ -107,7 +125,8 @@ export function updateAutopilot(cfg: VesselConfig, s: SimState, r: ApReadings, d
     let out = sch.k * dirSign * (p + ap.iHeading + d);
     const lim = Math.min(rudder.maxDeflection, AP_GAINS.authority + 5);
     const sat = Math.abs(out) >= lim;
-    if (!sat || Math.sign(e) !== Math.sign(out)) ap.iHeading = clamp(ap.iHeading + g.ki * e * dt, -10, 10);
+    // anti-windup na coordenada do controlador (antes da inversão de ré)
+    if (!sat || Math.sign(e) !== Math.sign(out) * dirSign) ap.iHeading = clamp(ap.iHeading + g.ki * e * dt, -10, 10);
     out = clamp(out, -lim, lim);
     s.surfaces.rudder.cmd = out;
     telemetry(ap.tHeading, ap.headingSet, r.heading, e, p, ap.iHeading, d, out, sat, sch.low);
@@ -118,11 +137,10 @@ export function updateAutopilot(cfg: VesselConfig, s: SimState, r: ApReadings, d
     const g = AP_GAINS.depthOuter;
     const low = lowSpeedShare(r.speed);
     const ez = r.depth - ap.depthSet;
-    // malha externa → pitch ordenado (lemes de ré); menor a baixa velocidade
-    const thMax = g.thetaMax + low * (g.thetaMaxLow - g.thetaMax);
-    const unsat = g.kz * ez + ap.iDepth + g.kzd * r.depthRate;
-    thetaCmd = clamp(unsat, -thMax, thMax);
-    const satZ = Math.abs(unsat) >= thMax;
+    // malha externa → pitch ordenado (lemes de ré); menor a baixa velocidade; invertido em ré
+    const oc = depthOuterCommand(ez, ap.iDepth, r.depthRate, r.speed);
+    thetaCmd = oc.theta;
+    const satZ = Math.abs(oc.unsat) >= oc.thMax;
     // integral apenas perto da cota (evita acúmulo durante a travessia e a aproximação)
     if (!satZ && Math.abs(ez) < g.iBand) ap.iDepth = clamp(ap.iDepth + g.kzi * ez * dt, -4, 4);
     telemetry(ap.tDepth, ap.depthSet, r.depth, ez, g.kz * ez, ap.iDepth, g.kzd * r.depthRate, thetaCmd, satZ, sch.low);
@@ -151,26 +169,38 @@ export function updateAutopilot(cfg: VesselConfig, s: SimState, r: ApReadings, d
     let out = sch.k * dirSign * (p + ap.iPitch + d);
     const lim = Math.min(stern.maxDeflection, AP_GAINS.authority);
     const sat = Math.abs(out) >= lim;
-    if (!sat || Math.sign(e) !== Math.sign(out)) ap.iPitch = clamp(ap.iPitch + g.ki * e * dt, -12, 12);
+    if (!sat || Math.sign(e) !== Math.sign(out) * dirSign) ap.iPitch = clamp(ap.iPitch + g.ki * e * dt, -12, 12);
     out = clamp(out, -lim, lim);
     s.surfaces.stern.cmd = out;
     telemetry(ap.tPitch, thetaCmd, r.pitch, e, p, ap.iPitch, d, out, sat, sch.low);
   }
 }
 
-/** Inicialização sem salto ao comutar para AUTO. */
+/**
+ * Inicialização sem salto ao comutar para AUTO: a integral recebe o valor que
+ * reproduz o comando atual do leme, contando os termos P e D, o sinal de ré e,
+ * na profundidade, o pitch ordenado pela malha externa. Se o limite da
+ * integral impedir, o comando muda o mínimo possível.
+ */
 export function bumplessInit(s: SimState, channel: 'heading' | 'depth' | 'pitch', r: ApReadings): void {
   const ap = s.autopilot;
   const sch = schedule(r.speed);
+  const dirSign = r.speed >= 0 ? 1 : -1;
+  // integral que faz k·dirSign·(p + i + d) = comando atual
+  const iFor = (cmd: number, pd: number, lim: number) => clamp(cmd / (sch.k * dirSign) - pd, -lim, lim);
+  const innerPitch = (thetaCmd: number) => {
+    const g = AP_GAINS.pitch;
+    ap.iPitch = iFor(s.surfaces.stern.cmd, g.kp * (thetaCmd - r.pitch) - g.kq * r.pitchRate, 12);
+  };
   if (channel === 'heading') {
     ap.headingSet = r.heading;
-    ap.iHeading = clamp(s.surfaces.rudder.cmd / sch.k, -10, 10);
+    ap.iHeading = iFor(s.surfaces.rudder.cmd, -AP_GAINS.heading.kd * r.yawRate, 10);
   } else if (channel === 'depth') {
     ap.depthSet = Math.round(r.depth);
     ap.iDepth = 0;
-    ap.iPitch = clamp(s.surfaces.stern.cmd / sch.k, -12, 12);
+    innerPitch(depthOuterCommand(r.depth - ap.depthSet, 0, r.depthRate, r.speed).theta);
   } else {
     ap.pitchSet = Math.round(r.pitch * 2) / 2;
-    ap.iPitch = clamp(s.surfaces.stern.cmd / sch.k, -12, 12);
+    innerPitch(ap.pitchSet);
   }
 }

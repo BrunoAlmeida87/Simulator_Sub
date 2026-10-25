@@ -442,7 +442,7 @@ export const ACTION_TYPES: ActionType[] = [
     describe: (p) => `Piloto de ${{ depth: 'profundidade', heading: 'rumo', pitch: 'pitch' }[str(p, 'canal')] ?? str(p, 'canal')}: ${bool(p, 'auto') ? 'AUTO' : 'MANUAL'}`,
     run: (p, c) => {
       const ch = str(p, 'canal', 'heading');
-      if (ch === 'depth' || ch === 'heading' || ch === 'pitch') c.send({ type: 'autopilot', channel: ch, mode: bool(p, 'auto') ? 'AUTO' : 'MANUAL' });
+      if (ch === 'depth' || ch === 'heading' || ch === 'pitch') c.send({ type: 'autopilot', channel: ch, mode: bool(p, 'auto') ? 'AUTO' : 'MANUAL', hold: true });
     },
   },
   {
@@ -770,7 +770,7 @@ const COMMAND_FIELDS: Record<string, Record<string, FieldCheck>> = {
   dosingAbort: { system: FLUID },
   telegraph: { rpm: isNum },
   surface: { id: isStr, angle: isNum },
-  autopilot: { channel: CHANNEL, mode: oneOf('MANUAL', 'AUTO') },
+  autopilot: { channel: CHANNEL, mode: oneOf('MANUAL', 'AUTO'), hold: opt(isBool) },
   setpoint: { channel: CHANNEL, value: isNum },
   snorkel: { raise: isBool },
   periscope: { raise: isBool },

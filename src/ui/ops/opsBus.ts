@@ -1,14 +1,18 @@
 /**
- * Estado da CENTRAL DE OPERAÇÃO (aba Pilotagem): grupos abertos, grupos
+ * Estado da CENTRAL DE OPERAÇÃO (tela Operação): grupos abertos, grupos
  * fixados (até dois) e o "foco" — o grupo/objeto selecionado na cena, num
  * alarme ou na janela de visualização. Guardado no navegador.
+ *
+ * Regra de expansão: até dois grupos fixados e UM grupo livre aberto (abrir
+ * outro fecha o anterior). "nav" (navegação) não aparece no painel lateral:
+ * fica no console inferior, que pisca quando focado.
  */
 import { loadPersisted, savePersisted } from '../persist';
 import { runner } from '../store';
 
-export type GroupId = 'nav' | 'lastro' | 'comp' | 'trim' | 'ar' | 'energia' | 'falhas' | 'ambiente' | 'guiados';
+export type GroupId = 'nav' | 'lastro' | 'comp' | 'trim' | 'ar' | 'energia' | 'alarmes' | 'falhas' | 'ambiente' | 'guiados';
 
-export const GROUP_ORDER: GroupId[] = ['nav', 'lastro', 'comp', 'trim', 'ar', 'energia', 'falhas', 'ambiente', 'guiados'];
+export const GROUP_ORDER: GroupId[] = ['nav', 'lastro', 'comp', 'trim', 'ar', 'energia', 'alarmes', 'falhas', 'ambiente', 'guiados'];
 
 export const GROUP_TITLE: Record<GroupId, string> = {
   nav: 'Navegação',
@@ -16,8 +20,9 @@ export const GROUP_TITLE: Record<GroupId, string> = {
   comp: 'Compensação',
   trim: 'Trim e banda',
   ar: 'Ar comprimido',
-  energia: 'Energia e snorkel',
-  falhas: 'Falhas e segurança',
+  energia: 'Energia e mastros',
+  alarmes: 'Alarmes',
+  falhas: 'Falhas',
   ambiente: 'Ambiente e configuração',
   guiados: 'Roteiros automáticos',
 };
@@ -30,6 +35,7 @@ export const GROUP_ICON: Record<GroupId, string> = {
   trim: '⚖️',
   ar: '💨',
   energia: '⚡',
+  alarmes: '🔔',
   falhas: '🚨',
   ambiente: '🌦️',
   guiados: '🎬',
@@ -42,18 +48,36 @@ export const GROUP_COLOR: Record<GroupId, string> = {
   trim: '#b794ff',
   ar: '#7dd3fc',
   energia: '#fbbf24',
+  alarmes: '#fb7185',
   falhas: '#f87171',
   ambiente: '#fb923c',
   guiados: '#f472b6',
 };
 
-/** seções da lista lateral (mesma ordem de GROUP_ORDER) */
+/** nome curto (barra de atalhos do painel) */
+export const GROUP_SHORT: Record<GroupId, string> = {
+  nav: 'Governo',
+  lastro: 'Lastro',
+  comp: 'Compens.',
+  trim: 'Trim/banda',
+  ar: 'Ar AP',
+  energia: 'Energia',
+  alarmes: 'Alarmes',
+  falhas: 'Falhas',
+  ambiente: 'Ambiente',
+  guiados: 'Roteiros',
+};
+
+/** seções da lista lateral (mesma ordem de GROUP_ORDER); "nav" fica no console inferior */
 export const GROUP_SECTIONS: { title: string; groups: GroupId[] }[] = [
-  { title: 'Manobra', groups: ['nav'] },
   { title: 'Flutuabilidade e equilíbrio', groups: ['lastro', 'comp', 'trim'] },
   { title: 'Sistemas auxiliares', groups: ['ar', 'energia'] },
-  { title: 'Segurança e cenário', groups: ['falhas', 'ambiente', 'guiados'] },
+  { title: 'Alarmes', groups: ['alarmes'] },
+  { title: 'Instrutor', groups: ['falhas', 'ambiente', 'guiados'] },
 ];
+
+/** grupos que aparecem no painel lateral */
+export const SIDE_GROUPS: GroupId[] = GROUP_SECTIONS.flatMap((s) => s.groups);
 
 /** objeto selecionado na cena 3D */
 export interface PickTarget {
@@ -67,25 +91,33 @@ export interface PickTarget {
 export const ALARM_GROUP: Record<string, GroupId> = {
   'Ar comprimido': 'ar',
   Atitude: 'trim',
-  Compartimentos: 'falhas',
+  Compartimentos: 'alarmes',
   Elétrico: 'energia',
   Fluidos: 'comp',
-  Governo: 'nav',
-  Hidráulica: 'falhas',
-  Instrumentação: 'falhas',
+  Governo: 'alarmes',
+  Hidráulica: 'alarmes',
+  Instrumentação: 'alarmes',
   Lastro: 'lastro',
-  Navegação: 'nav',
+  Navegação: 'alarmes',
   Propulsão: 'energia',
-  Segurança: 'nav',
+  Segurança: 'alarmes',
 };
 
-interface OpsState {
+/** estado salvo de versões anteriores: só grupos do painel, no máximo 1 livre e 2 fixados */
+export function sanitizeOps(st: Partial<OpsState> | null | undefined): OpsState {
+  const ok = (g: unknown): g is GroupId => SIDE_GROUPS.includes(g as GroupId);
+  const pinned = [...new Set((st?.pinned ?? []).filter(ok))].slice(-2);
+  const open = (st?.open ?? []).filter((g) => ok(g) && !pinned.includes(g)).slice(-1);
+  return { open, pinned };
+}
+
+export interface OpsState {
   open: GroupId[];
   pinned: GroupId[];
 }
 
 class OpsBus {
-  st: OpsState = loadPersisted<OpsState>('ops.groups', { open: ['nav', 'lastro'], pinned: [] });
+  st: OpsState = sanitizeOps(loadPersisted<OpsState>('ops.groups', { open: ['lastro'], pinned: [] }));
   /** foco atual (realça o controle correspondente dentro do grupo) */
   focusGroup: GroupId | null = null;
   focusTarget: PickTarget | null = null;
@@ -106,15 +138,17 @@ class OpsBus {
   isOpen(g: GroupId): boolean {
     return this.st.open.includes(g) || this.st.pinned.includes(g);
   }
+  /** abre/fecha um grupo livre; abrir fecha o outro grupo livre aberto (os fixados ficam) */
   toggle(g: GroupId): void {
-    if (this.st.pinned.includes(g)) return;
-    this.st = { ...this.st, open: this.st.open.includes(g) ? this.st.open.filter((x) => x !== g) : [...this.st.open, g] };
+    if (this.st.pinned.includes(g) || g === 'nav') return;
+    this.st = { ...this.st, open: this.st.open.includes(g) ? [] : [g] };
     this.emit();
   }
-  /** fixa até dois grupos (o mais antigo sai quando um terceiro é fixado) */
+  /** fixa até dois grupos (o mais antigo sai quando um terceiro é fixado); desafixado, continua aberto como livre */
   togglePin(g: GroupId): void {
-    const p = this.st.pinned.includes(g) ? this.st.pinned.filter((x) => x !== g) : [...this.st.pinned, g].slice(-2);
-    this.st = { ...this.st, pinned: p };
+    if (g === 'nav') return;
+    if (this.st.pinned.includes(g)) this.st = { open: [g], pinned: this.st.pinned.filter((x) => x !== g) };
+    else this.st = { open: this.st.open.filter((x) => x !== g), pinned: [...this.st.pinned, g].slice(-2) };
     this.emit();
   }
   collapseAll(): void {
@@ -123,7 +157,7 @@ class OpsBus {
   }
 
   focus(g: GroupId, target: PickTarget | null = null): void {
-    if (!this.isOpen(g)) this.st = { ...this.st, open: [...this.st.open, g] };
+    if (g !== 'nav' && !this.isOpen(g)) this.st = { ...this.st, open: [g] };
     this.focusGroup = g;
     this.focusTarget = target;
     this.focusSeq++;

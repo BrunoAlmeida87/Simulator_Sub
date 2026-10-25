@@ -177,13 +177,13 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Bomba', `${pumpStatus(st.pump, s.electrical.energized)} · ${fmtPower(st.pump.power)} · Δp ${(st.pump.dp / 1e5).toFixed(2)} bar`, 'MED'),
           V('x_G − x_B', `${((o.mp.cg.x - o.forces.hs.center.x) * 1000).toFixed(1)} mm`),
           V('Momento dos pesos', fmtMoment(o.weightTrimMoment)),
-          V('Rigidez W·BG', `${fmt(o.pitchStiffness / 1e6, 2)} MN·m/rad`),
+          V('Rigidez W·BG', `${fmt(o.pitchStiffnessSigned / 1e6, 2)} MN·m/rad${o.pitchStable ? '' : ' (instável)'}`),
           V('θ medido / θ estático', `${fmt(o.euler.pitch, 2)}° / ${fmt(o.staticPitchEq, 2)}°`),
         ],
         state: st.dosing?.active ? `Transferindo (${st.dosing.phase})` : 'Parado',
         influence: 'Momento dos pesos M = −W·(x_G − x_B): peso a ré de B levanta a proa. Submerso, o momento restaurador é W·BG·sen θ (sem plano de flutuação). Os lemes produzem atitude DINÂMICA (dependente de U²); o trim muda o EQUILÍBRIO ESTÁTICO.',
         equations: ['Δx_G = Δm·(x_AR − x_AV)/m', 'θ_eq ≈ atan(Δm·g·Δx / (W·BG))', 'Δp_bomba = ρ·g·(z_origem − z_destino) + k·Q²'],
-        predictions: [`Transferir 500 kg AV→AR ⇒ Δθ ≈ +${fmt(d500, 2)}° (proa para cima); AR→AV ⇒ ${fmt(-d500, 2)}°.`, `Período natural de pitch submerso ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.y + e.added.M) / o.pitchStiffness), 0)} s.`],
+        predictions: o.pitchStable ? [`Transferir 500 kg AV→AR ⇒ Δθ ≈ +${fmt(d500, 2)}° (proa para cima); AR→AV ⇒ ${fmt(-d500, 2)}°.`, `Período natural de pitch submerso ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.y + e.added.M) / o.pitchStiffness), 0)} s.`] : ['Rigidez longitudinal negativa: equilíbrio instável, sem previsão linear.'],
         channels: ['pitch', 'pitchEq', 'trimA', 'trimB'],
       };
     }
@@ -200,14 +200,14 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('TB-BE', `${tankVolume(st.tankB).toFixed(3)} m³`, 'MED'),
           V('y_G', `${(o.mp.cg.y * 1000).toFixed(1)} mm`),
           V('Momento transversal', fmtMoment(o.weightHeelMoment)),
-          V('Rigidez transversal', `${fmt(o.rollStiffness / 1e6, 2)} MN·m/rad`),
+          V('Rigidez transversal', `${fmt(o.rollStiffnessSigned / 1e6, 2)} MN·m/rad${o.rollStable ? '' : ' (instável)'}`),
           V('φ medido / φ estático', `${fmt(o.euler.roll, 2)}° / ${fmt(o.staticRollEq, 2)}°`),
           V('Reação do torque do eixo', fmtMoment(o.forces.propeller.M.x)),
         ],
         state: st.dosing?.active ? `Transferindo (${st.dosing.phase})` : 'Parado',
         influence: 'Banda de equilíbrio: tan φ = W·y_G / (W·BG) + efeitos dinâmicos (vela em guinada, torque do hélice). A banda responde progressivamente pela inércia de roll e amortecimento.',
         equations: ['M_banda = W·(y_G − y_B)', 'φ_eq ≈ atan(Δm·g·Δy / (W·BG))', 'I_xx·ṗ = M_hidrostático + M_amortec. + M_vela + M_hélice'],
-        predictions: [`Transferir 500 kg BB→BE ⇒ Δφ ≈ +${fmt(d, 2)}° (adernar a BE).`, `Período natural de roll ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.x + e.added.K) / o.rollStiffness), 1)} s.`],
+        predictions: o.rollStable ? [`Transferir 500 kg BB→BE ⇒ Δφ ≈ +${fmt(d, 2)}° (adernar a BE).`, `Período natural de roll ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.x + e.added.K) / o.rollStiffness), 1)} s.`] : ['Rigidez transversal negativa: equilíbrio instável, sem previsão linear.'],
         channels: ['roll', 'heelA', 'heelB'],
       };
     }

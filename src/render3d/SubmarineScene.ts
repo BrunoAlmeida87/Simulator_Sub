@@ -31,6 +31,7 @@ import { qToMat3, DEG } from '../sim/core/math';
 import { SystemsVis } from './Systems';
 import { ForceArrows } from './ForceArrows';
 import { SurfaceFx } from './SurfaceFx';
+import { UnderwaterFx } from './UnderwaterFx';
 import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
 import { CargoVis } from './CargoVis';
@@ -221,6 +222,7 @@ export class SubmarineScene {
   private systems!: SystemsVis;
   private forces!: ForceArrows;
   private fx: SurfaceFx;
+  private underwaterFx: UnderwaterFx;
   private markers!: Markers;
   private trimVis!: TrimVis;
   private cargoVis!: CargoVis;
@@ -387,6 +389,8 @@ export class SubmarineScene {
     this.scene.add(this.pitchAngle.group);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
+    this.underwaterFx = new UnderwaterFx(quality === 'baixa' ? 0.5 : 1);
+    this.scene.add(this.underwaterFx.group);
     {
       const v = this.env().vessel;
       this.wind = new WindFx(v.hull.diameter / 2 + v.hull.sail.height, v.hull.sail.xAft + 0.9);
@@ -446,6 +450,10 @@ export class SubmarineScene {
     // Espessura em pixels, independente da distância da câmera e do suporte a linhas WebGL.
     this.trail = new Line2(tg, new LineMaterial({ color: this.trailStyle.trailColor, linewidth: this.trailStyle.trailWidth, transparent: true, opacity: this.trailStyle.trailOpacity, depthWrite: false, fog: false, toneMapped: false }));
     this.trail.frustumCulled = false;
+    // Referência de navegação: depois da água transparente (ordem 2).
+    // Mantém depthTest para respeitar casco/terreno, sem a água apagar a linha
+    // quando a câmera está no ar e o caminho está submerso.
+    this.trail.renderOrder = 3;
     this.scene.add(this.trail);
     const dg = new THREE.BufferGeometry();
     dg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(9), 3));
@@ -1461,6 +1469,7 @@ export class SubmarineScene {
     // esteira, onda de proa, rastro do hélice, jato dos suspiros
     const pixelScale = this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
     this.fx.update(e, step, pn, pe, tWave, pixelScale, this.layers.wake);
+    this.underwaterFx.update(e, step, pn, pe, tWave, pixelScale, this.layers.wake && !this.layers.noWater);
     {
       // vela fora d'água: a flâmula só aparece com o submarino na superfície
       this.sub.updateMatrixWorld();

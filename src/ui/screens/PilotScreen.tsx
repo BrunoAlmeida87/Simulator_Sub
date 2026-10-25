@@ -1,35 +1,35 @@
 /**
- * PILOTAGEM — CENTRAL DE OPERAÇÃO. A cena do submarino fica sempre visível;
- * o painel lateral (rolagem própria) tem os comandos essenciais fixos e os
- * sistemas em grupos expansíveis, com resumo no cabeçalho e até dois grupos
- * fixados. Clicar num objeto da cena (tanque, leme, hélice, mastro, bateria,
- * garrafas, válvulas, bombas) abre o grupo correspondente. Tudo usa os mesmos
- * comandos e o mesmo estado das outras telas.
+ * OPERAÇÃO — CENTRAL DE OPERAÇÃO (antiga Pilotagem; id de tela 'pilotagem').
+ * Indicadores no topo, cena 3D grande, console inferior fixo (propulsão,
+ * governo, pilotos, manobras) e painel lateral com os sistemas em grupos
+ * expansíveis (rolagem própria; até dois fixados + um livre aberto) e o sopro
+ * de emergência fixo no rodapé. Clicar num objeto da cena abre o grupo
+ * correspondente. Tudo usa os mesmos comandos e o mesmo estado das outras telas.
  */
-import { Fragment, useEffect, useReducer, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { usePersisted } from '../persist';
-import { cmd, runner, useSim } from '../store';
+import { runner, useSim } from '../store';
 import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
 import { seaSections } from '../components/SeaControls';
 import { DepthTape } from '../components/gauges';
-import { NumSet, TELEGRAPH } from '../components/Controls';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { navStatus } from '../navStatus';
-import { maneuver } from '../maneuvers';
 import { ManeuverStatus } from '../components/ManeuverStatus';
-import { opsBus, GROUP_TITLE, GROUP_ICON, GROUP_COLOR, GROUP_SECTIONS, type GroupId } from '../ops/opsBus';
+import { GROUP_TITLE, GROUP_ICON, GROUP_COLOR, GROUP_SECTIONS, GROUP_SHORT, SIDE_GROUPS, type GroupId } from '../ops/opsBus';
 import { GROUPS } from '../ops/OpsGroups';
 import { OpsStrip } from '../ops/OpsStrip';
+import { OpsConsole, OpsConsoleCompact, TakeoverToast, EmergencyBox } from '../ops/OpsConsole';
+import { clampSideWidth, isCompact, SIDE_MAX, SIDE_MIN, type ConsoleMode } from '../ops/layout';
+import { useOpsBus } from '../ops/useOpsBus';
 import type { SimulationEngine } from '../../sim/core/engine';
-import { fmt } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { viewSection, type ViewOption } from '../components/OverlayMenu';
 import type { LayerKey } from '../components/LayerPanel';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 
-/** preferências adicionais da Pilotagem (preserva as chaves já salvas) */
+/** preferências adicionais da Operação (preserva as chaves já salvas da Pilotagem) */
 const PILOT_LAYER_DEFAULTS = {
   pipes: true,
   flows: true,
@@ -72,7 +72,7 @@ const PILOT_LAYER_KEYS: LayerKey[] = [
   'presLight',
 ];
 
-/** vistas da Pilotagem (os enquadramentos de apresentação já ligam o que mostram) */
+/** vistas da Operação (os enquadramentos de apresentação já ligam o que mostram) */
 const PILOT_VIEWS: ViewOption[] = [
   { id: 'piloto', label: 'Lateral' },
   { id: 'perseguicao', label: 'Perseguição' },
@@ -86,14 +86,8 @@ const PILOT_VIEWS: ViewOption[] = [
   { id: 'livre', label: 'Livre' },
 ];
 
-export function useOps() {
-  const [, f] = useReducer((x: number) => x + 1, 0);
-  useEffect(() => opsBus.subscribe(f), []);
-  return opsBus;
-}
-
 function OpsGroupBox({ id, e }: { id: GroupId; e: SimulationEngine }) {
-  const ops = useOps();
+  const ops = useOpsBus();
   const ref = useRef<HTMLElement>(null);
   const open = ops.isOpen(id);
   const pinned = ops.st.pinned.includes(id);
@@ -111,7 +105,7 @@ function OpsGroupBox({ id, e }: { id: GroupId; e: SimulationEngine }) {
   const Body = g.Body;
   return (
     <section ref={ref} className={`ops-group ${open ? 'open' : ''} ${pinned ? 'pinned' : ''} ${flash ? 'flash' : ''} ${warn ? 'warn' : ''}`} style={{ '--gc': GROUP_COLOR[id] } as CSSProperties}>
-      <header onClick={() => ops.toggle(id)} title={pinned ? 'Grupo fixado' : open ? 'Recolher' : 'Expandir'}>
+      <header onClick={() => ops.toggle(id)} title={pinned ? 'Grupo fixado (desafixe para recolher)' : open ? 'Recolher' : 'Expandir (fecha o outro grupo livre)'}>
         <span className="chev">{open ? '▾' : '▸'}</span>
         <span className="ico" aria-hidden>
           {GROUP_ICON[id]}
@@ -125,119 +119,23 @@ function OpsGroupBox({ id, e }: { id: GroupId; e: SimulationEngine }) {
             ops.togglePin(id);
           }}
           title={pinned ? 'Desafixar' : 'Fixar aberto (até dois grupos)'}
+          aria-label={pinned ? `Desafixar ${GROUP_TITLE[id]}` : `Fixar ${GROUP_TITLE[id]}`}
         >
-          📌
+          {pinned ? 'FIXO' : 'fixar'}
         </button>
       </header>
       {open && (
         <div className="body">
-          <Body e={e} />
+          <Body e={e} inOps />
         </div>
       )}
     </section>
   );
 }
 
-/** Lemes em formato compacto (ângulos absolutos). */
-function FinMini({ e, id }: { e: SimulationEngine; id: 'bow' | 'stern' | 'rudder' }) {
-  const st = e.state.surfaces[id];
-  const r = id === 'rudder';
-  const steps = r ? [-20, -10, -5, 0, 5, 10, 20] : [-15, -10, -5, 0, 5, 10, 15];
-  const name = { bow: 'Vante', stern: 'Ré', rudder: 'Direção' }[id];
-  return (
-    <div className="finmini">
-      <span className="fn">
-        {name} <b className="mono">{fmt(st.actual, 0)}°</b>
-      </span>
-      <div className="seg">
-        {steps.map((a) => (
-          <button
-            key={a}
-            className={Math.round(st.cmd) === a ? 'on' : ''}
-            onClick={() => cmd({ type: 'surface', id, angle: a })}
-            title={r ? (a > 0 ? 'boreste' : a < 0 ? 'bombordo' : 'a meio') : a > 0 ? 'subir' : a < 0 ? 'descer' : 'zero'}
-          >
-            {a === 0 ? '0' : r ? `${Math.abs(a)}${a > 0 ? 'E' : 'B'}` : `${Math.abs(a)}${a > 0 ? '↑' : '↓'}`}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** Comandos usados com mais frequência — sempre visíveis. */
-function Essentials({ e }: { e: SimulationEngine }) {
-  const p = e.state.propulsion;
-  const ap = e.state.autopilot;
-  const [target, setTarget] = usePersisted('pilot.target', 50);
-  return (
-    <div className="ops-ess">
-      <div className="row">
-        <button className={`btn ${runner.running ? 'on' : 'ok'}`} onClick={() => ((runner.running = !runner.running), runner.notify())}>
-          {runner.running ? '❚❚ Pausar' : '▶ Executar'}
-        </button>
-        <div className="seg ess-tel" title="Telégrafo">
-          {TELEGRAPH.map((t) => (
-            <button
-              key={t.label}
-              className={`${Math.round(p.rpmCmd) === t.rpm ? 'on' : ''} ${t.rpm < 0 ? 'neg' : ''}`}
-              onClick={() => cmd({ type: 'telegraph', rpm: t.rpm })}
-              title={`Telégrafo: ${t.label} (${t.rpm} rpm)`}
-            >
-              {t.label.replace('AV ', '').replace('RÉ ', 'R ')}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="ess-fins">
-        <FinMini e={e} id="bow" />
-        <FinMini e={e} id="stern" />
-        <FinMini e={e} id="rudder" />
-      </div>
-      <div className="row">
-        <span className="subtle">Profundidade</span>
-        <div className="seg">
-          <button className={ap.depthMode === 'MANUAL' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'depth', mode: 'MANUAL' })}>
-            MAN
-          </button>
-          <button className={ap.depthMode === 'AUTO' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO' })}>
-            AUTO
-          </button>
-        </div>
-        <NumSet value={ap.depthSet} step={5} unit="m" min={0} max={300} onSet={(v) => cmd({ type: 'setpoint', channel: 'depth', value: v })} />
-      </div>
-      <div className="row">
-        <button className={`btn sm ${maneuver.active === 'imergir' ? 'on' : ''}`} onClick={() => maneuver.start(runner, 'imergir', target)}>
-          ⬇ Imergir para
-        </button>
-        <NumSet value={target} step={10} unit="m" min={15} max={280} onSet={setTarget} />
-        <button className={`btn sm ${maneuver.active === 'emergir' ? 'on' : ''}`} onClick={() => maneuver.start(runner, 'emergir')}>
-          ⬆ Emergir
-        </button>
-        <button
-          className="btn sm"
-          onClick={() => {
-            maneuver.cancel(runner);
-            cmd({ type: 'surface', id: 'bow', angle: 0 });
-            cmd({ type: 'surface', id: 'stern', angle: 0 });
-            cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO' });
-          }}
-        >
-          ═ Manter
-        </button>
-        {maneuver.active && (
-          <button className="btn sm warn" onClick={() => maneuver.cancel(runner)}>
-            Cancelar
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function PilotScreen() {
   const e = useSim(8);
-  const ops = useOps();
+  const ops = useOpsBus();
   // visualização guardada ao trocar de aba (e ao recarregar a página)
   const [view, setView] = usePersisted<ViewMode>('pilot.view', 'piloto');
   const [cut, setCut] = usePersisted('pilot.cut', false);
@@ -290,10 +188,38 @@ export function PilotScreen() {
   const ap = e.state.autopilot;
   const st = navStatus(e);
   const L = e.vessel.limits;
-  const pinned = ops.st.pinned;
+
+  // console compacto: automático quando falta altura (só no layout de duas colunas), ou escolhido
+  const opsRef = useRef<HTMLDivElement>(null);
+  const [opsH, setOpsH] = useState(0);
+  useEffect(() => {
+    const el = opsRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setOpsH(window.innerWidth > 1100 ? el.clientHeight : 0));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const [consoleMode, setConsoleMode] = usePersisted<ConsoleMode>('ops.consoleMode', 'auto');
+  const compact = isCompact(consoleMode, opsH);
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => {
+    if (!compact || !drawer) return;
+    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && setDrawer(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [compact, drawer]);
+
+  // largura do painel de sistemas: arrastar a alça (salva); duplo clique volta ao padrão
+  const [sideW, setSideW] = usePersisted<number | null>('ops.sideW', null);
+  const [dragW, setDragW] = useState<number | null>(null);
+  const sideRef = useRef<HTMLElement>(null);
+  const drag = useRef<{ x: number; w: number } | null>(null);
+  const curW = dragW ?? (sideW !== null ? clampSideWidth(sideW, window.innerWidth) : null);
+  const setWidth = (w: number) => setSideW(clampSideWidth(w, window.innerWidth));
   return (
-    <div className="ops">
+    <div className="ops" ref={opsRef} style={curW !== null ? ({ '--ops-side': `${curW}px` } as CSSProperties) : undefined}>
       <div className="ops-main">
+        <OpsStrip e={e} />
         <div className="ops-view">
           <Scene3D
             quality={quality}
@@ -308,7 +234,15 @@ export function PilotScreen() {
             }}
           >
             <div className="pilot-tape">
-              <DepthTape depth={o.depthKeel} ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null} bottom={o.bottomDepth} rate={o.verticalSpeed} opLimit={L.operatingDepth} testLimit={L.testDepth} height={240} />
+              <DepthTape
+                depth={o.depthKeel}
+                ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null}
+                bottom={o.bottomDepth}
+                rate={o.verticalSpeed}
+                opLimit={L.operatingDepth}
+                testLimit={L.testDepth}
+                height={window.innerHeight < 760 ? 150 : 220}
+              />
             </div>
             <div className="pilot-hud">
               <span className={`badge ${st.cls}`} style={{ fontSize: 13, padding: '3px 10px' }}>
@@ -336,8 +270,20 @@ export function PilotScreen() {
                 ...seaSections(quality, setQuality),
               ]}
             />
-            <div className="pres-bottom">
-              <ManeuverStatus compact />
+            {/* aviso de troca de comando e faixa da manobra; com a gaveta aberta ficam logo acima dela */}
+            <div className={`ops-bottom-stack ${compact && drawer ? 'with-drawer' : ''}`}>
+              <div className="ops-bottom">
+                <TakeoverToast e={e} />
+                <ManeuverStatus compact cancel />
+              </div>
+              {compact && drawer && (
+                <div className="ops-drawer" role="dialog" aria-label="Console completo">
+                  <OpsConsole e={e} />
+                  <button className="btn sm ops-drawer-close" onClick={() => setDrawer(false)} title="Recolher o console (Esc)">
+                    ▾ Recolher
+                  </button>
+                </div>
+              )}
             </div>
             {!runner.running && e.state.t === 0 && (
               <button className="btn ok lg pilot-start" onClick={() => ((runner.running = true), runner.notify())}>
@@ -346,39 +292,82 @@ export function PilotScreen() {
             )}
           </Scene3D>
         </div>
-        <OpsStrip e={e} />
+        {compact ? <OpsConsoleCompact e={e} onOpen={() => setDrawer(!drawer)} /> : <OpsConsole e={e} />}
       </div>
-      <aside className="ops-side">
-        <Essentials e={e} />
+      <aside className="ops-side" aria-label="Sistemas" ref={sideRef}>
+        <div
+          className="ops-grip"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Largura do painel de sistemas"
+          aria-valuemin={SIDE_MIN}
+          aria-valuemax={SIDE_MAX}
+          aria-valuenow={Math.round(curW ?? sideRef.current?.offsetWidth ?? 0)}
+          tabIndex={0}
+          title="Arraste para ajustar a largura do painel · duplo clique: largura padrão · setas ← →"
+          onPointerDown={(ev) => {
+            drag.current = { x: ev.clientX, w: sideRef.current?.offsetWidth ?? 400 };
+            ev.currentTarget.setPointerCapture(ev.pointerId);
+          }}
+          onPointerMove={(ev) => {
+            const d = drag.current;
+            if (d) setDragW(clampSideWidth(d.w + (d.x - ev.clientX), window.innerWidth));
+          }}
+          onPointerUp={() => {
+            if (dragW !== null) setWidth(dragW);
+            drag.current = null;
+            setDragW(null);
+          }}
+          onPointerCancel={() => {
+            drag.current = null;
+            setDragW(null);
+          }}
+          onDoubleClick={() => setSideW(null)}
+          onKeyDown={(ev) => {
+            const w = sideRef.current?.offsetWidth ?? 400;
+            if (ev.key === 'ArrowLeft') setWidth(w + 20);
+            else if (ev.key === 'ArrowRight') setWidth(w - 20);
+            else if (ev.key === 'Home') setSideW(null);
+            else return;
+            ev.preventDefault();
+          }}
+        />
         <div className="ops-tools">
-          <span className="subtle">{pinned.length ? `Fixados: ${pinned.map((g) => GROUP_TITLE[g]).join(' + ')}` : 'Fixe até dois grupos com 📌'}</span>
+          <b>Sistemas</b>
+          <span className="subtle">{ops.st.pinned.length ? `${ops.st.pinned.length} fixado(s) + 1 livre` : 'fixe até dois grupos'}</span>
+          <select
+            className="ops-cmode"
+            value={consoleMode}
+            onChange={(ev) => setConsoleMode(ev.target.value as ConsoleMode)}
+            aria-label="Console de governo"
+            title="Console de governo: automático (compacto quando falta altura), sempre completo ou sempre compacto"
+          >
+            <option value="auto">Console: auto</option>
+            <option value="completo">Console: completo</option>
+            <option value="compacto">Console: compacto</option>
+          </select>
           <button className="btn sm" onClick={() => ops.collapseAll()}>
             Recolher todos
           </button>
         </div>
         <div className="ops-jump" role="toolbar" aria-label="Ir para o sistema">
-          {GROUP_SECTIONS.flatMap((s) => s.groups).map((g) => (
-            <button key={g} className={ops.isOpen(g) ? 'on' : ''} style={{ '--gc': GROUP_COLOR[g] } as CSSProperties} onClick={() => ops.focus(g)} title={GROUP_TITLE[g]}>
-              {GROUP_ICON[g]}
+          {SIDE_GROUPS.map((g) => (
+            <button key={g} className={`${ops.isOpen(g) ? 'on' : ''} ${GROUPS[g].warn?.(e) ? 'warn' : ''}`} style={{ '--gc': GROUP_COLOR[g] } as CSSProperties} onClick={() => ops.focus(g)} title={GROUP_TITLE[g]}>
+              <span aria-hidden>{GROUP_ICON[g]}</span> {GROUP_SHORT[g]}
             </button>
           ))}
         </div>
-        {pinned.length > 0 && <div className="ops-sec">📌 Fixados</div>}
-        {pinned.map((g) => (
-          <OpsGroupBox key={g} id={g} e={e} />
-        ))}
-        {GROUP_SECTIONS.map((s) => {
-          const gs = s.groups.filter((g) => !pinned.includes(g));
-          if (!gs.length) return null;
-          return (
-            <Fragment key={s.title}>
-              <div className="ops-sec">{s.title}</div>
-              {gs.map((g) => (
+        <div className="ops-scroll">
+          {GROUP_SECTIONS.map((sec) => (
+            <Fragment key={sec.title}>
+              <div className="ops-sec">{sec.title}</div>
+              {sec.groups.map((g) => (
                 <OpsGroupBox key={g} id={g} e={e} />
               ))}
             </Fragment>
-          );
-        })}
+          ))}
+        </div>
+        <EmergencyBox e={e} />
       </aside>
     </div>
   );
