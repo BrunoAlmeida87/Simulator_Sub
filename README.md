@@ -217,7 +217,7 @@ O modelo do SX-1 é reprodutível: `scripts/blender/build_sx1.py` monta tudo (ca
 
 ## Testes e validação
 
-`npm test` executa **345 testes** em 45 arquivos (física, interface e renderização). Os 13 casos de validação física produzem **métricas numéricas** verificáveis:
+`npm test` executa **368 testes** em 48 arquivos (física, interface e renderização). Os 13 casos de validação física produzem **métricas numéricas** verificáveis:
 
 | # | Verificação | Exemplo de resultado |
 |---|---|---|
