@@ -140,6 +140,7 @@ export function createState(config: SimConfig, pose: InitialPose, scenarioId: st
       depthSet: Math.max(0, pose.depth + 3.1),
       pitchMode: 'MANUAL',
       pitchSet: 0,
+      preset: {},
       iHeading: 0,
       iDepth: 0,
       iPitch: 0,

@@ -209,7 +209,18 @@ function Essentials({ e }: { e: SimulationEngine }) {
         <button className={`btn sm ${maneuver.active === 'imergir' ? 'on' : ''}`} onClick={() => maneuver.start(runner, 'imergir', target)}>
           ⬇ Imergir para
         </button>
-        <NumSet value={target} step={10} unit="m" min={15} max={280} onSet={setTarget} />
+        {/* durante a imersão o campo mostra o alvo vivo; mudá-lo muda a ordem do piloto (e o alvo da manobra) */}
+        <NumSet
+          value={maneuver.active === 'imergir' ? maneuver.target : target}
+          step={10}
+          unit="m"
+          min={15}
+          max={280}
+          onSet={(v) => {
+            setTarget(v);
+            if (maneuver.active === 'imergir') cmd({ type: 'setpoint', channel: 'depth', value: v });
+          }}
+        />
         <button className={`btn sm ${maneuver.active === 'emergir' ? 'on' : ''}`} onClick={() => maneuver.start(runner, 'emergir')}>
           ⬆ Emergir
         </button>
@@ -219,7 +230,7 @@ function Essentials({ e }: { e: SimulationEngine }) {
             maneuver.cancel(runner);
             cmd({ type: 'surface', id: 'bow', angle: 0 });
             cmd({ type: 'surface', id: 'stern', angle: 0 });
-            cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO' });
+            cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO', hold: true });
           }}
         >
           ═ Manter
