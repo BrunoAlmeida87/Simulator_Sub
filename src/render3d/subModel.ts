@@ -14,6 +14,10 @@
  *  - cada peça móvel tem a ORIGEM sobre o eixo de giro (madre do leme, eixo do
  *    hélice) e está na posição de repouso: lemes a zero, mastros arriados;
  *  - popa em cruz como no Scorpène original (decidido com o usuário; a física já é em cruz);
+ *  - pistões hidráulicos (opcionais): SX1_Atuador_<leme>_Cilindro (origem no olhal fixo) e
+ *    SX1_Atuador_<leme>_Haste (origem no pino da cana); <leme> = nome do leme sem "SX1_" (ex.:
+ *    LemePopa_BE). A madre e a cana são filhas do leme e giram com ele; o cilindro gira no olhal
+ *    apontando para o pino e a haste acompanha o pino (actuatorPose);
  *  - lemes: o eixo de giro é radial (do eixo do casco para a peça) — o código o
  *    calcula pela posição da origem; a orientação local do objeto é livre.
  */
@@ -95,6 +99,23 @@ export function sternFinAngle(phi: number, gH: number, gV: number, max = Infinit
   return Math.max(-max, Math.min(max, th));
 }
 
+/** Prefixo dos pistões hidráulicos dos lemes no .glb. */
+export const ACTUATOR_PREFIX = 'SX1_Atuador_';
+
+/**
+ * Pose de um pistão hidráulico: o pino da cana gira com o leme (em torno da madre) e o cilindro, preso
+ * no olhal fixo, gira para continuar apontando para o pino; a haste acompanha o pino.
+ * Devolve a posição nova do pino, o giro a aplicar no cilindro e na haste (sobre o repouso) e o
+ * avanço da haste (m, + = estendendo).
+ */
+export function actuatorPose(anchor: THREE.Vector3, pinRest: THREE.Vector3, pivot: THREE.Vector3, finDelta: THREE.Quaternion): { pin: THREE.Vector3; turn: THREE.Quaternion; stroke: number } {
+  const pin = pinRest.clone().sub(pivot).applyQuaternion(finDelta).add(pivot);
+  const d0 = pinRest.clone().sub(anchor);
+  const d1 = pin.clone().sub(anchor);
+  const turn = new THREE.Quaternion().setFromUnitVectors(d0.clone().normalize(), d1.clone().normalize());
+  return { pin, turn, stroke: d1.length() - d0.length() };
+}
+
 /** Curso dos mastros (m, para cima na cena) a partir do repouso arriado, iguais aos do desenho atual. */
 export function mastLift(v: VesselConfig, s: Pick<SimState, 'snorkel' | 'periscope'>): { snorkel: number; periscope: number } {
   const snorkel = s.snorkel.pos * v.hull.snorkelMast.extension;
@@ -136,6 +157,10 @@ export class SubModelRig {
   private snorkel: Moving;
   private periMast: Moving;
   private periHead: Moving | null;
+  /** pistões hidráulicos: cilindro e haste ligados ao leme que os move */
+  private actuators: { fin: Moving; cyl: THREE.Object3D; rod: THREE.Object3D; cylRest: THREE.Quaternion; rodRest: THREE.Quaternion; anchor: THREE.Vector3; pin: THREE.Vector3 }[] = [];
+  /** avanço atual de cada haste (m), pelo nome do leme — para conferência */
+  readonly strokes: Record<string, number> = {};
   private q = new THREE.Quaternion();
 
   constructor(source: THREE.Object3D) {
@@ -204,7 +229,8 @@ export class SubModelRig {
     // lemes com material próprio (tingido pela "Cor dos lemes"; sem o mapa de cor, com o relevo)
     {
       const finMeshes: THREE.Mesh[] = [];
-      for (const m of [...this.sailPlanes, ...this.sternFins]) m.obj.traverse((o) => (o as THREE.Mesh).isMesh && finMeshes.push(o as THREE.Mesh));
+      // só a superfície do leme (madre e cana, dentro do casco, mantêm o aço)
+      for (const m of [...this.sailPlanes, ...this.sternFins]) m.obj.traverse((o) => (o as THREE.Mesh).isMesh && !/_(Madre|Cana)$/.test(o.name) && finMeshes.push(o as THREE.Mesh));
       const base = finMeshes.map((m) => m.material).find((x) => x instanceof THREE.MeshStandardMaterial) as THREE.MeshStandardMaterial | undefined;
       if (base) {
         const fm = base.clone();
@@ -226,8 +252,23 @@ export class SubModelRig {
     this.periMast = mk(pm, axisInParent(pm, Y));
     const ph = find(SUB_PARTS.periscopeHead);
     this.periHead = ph ? mk(ph, axisInParent(ph, Y)) : null;
+    // pistões hidráulicos: o leme dono é o do nome; cilindro, haste e leme no mesmo pai (posições comparáveis)
+    const fins = [...this.sailPlanes, ...this.sternFins];
+    this.root.traverse((o) => {
+      const m = /^SX1_Atuador_(.+)_Cilindro$/.exec(o.name);
+      if (!m) return;
+      const fin = fins.find((f) => f.obj.name === 'SX1_' + m[1]);
+      const rod = find(`${ACTUATOR_PREFIX}${m[1]}_Haste`);
+      if (!fin || !rod || rod.parent !== o.parent || fin.obj.parent !== o.parent) return;
+      this.actuators.push({ fin, cyl: o, rod, cylRest: o.quaternion.clone(), rodRest: rod.quaternion.clone(), anchor: o.position.clone(), pin: rod.position.clone() });
+      // clicar no pistão abre o mesmo controle do leme
+      for (const x of [o, rod]) {
+        x.userData.pick = fin.obj.userData.pick;
+        this.pickables.push(x);
+      }
+    });
     // casco externo = tudo que não é peça móvel nem marca de calado
-    const moving = new Set<THREE.Object3D>([...this.sailPlanes, ...this.sternFins, this.prop, this.snorkel, this.periMast].map((m) => m.obj));
+    const moving = new Set<THREE.Object3D>([...this.sailPlanes, ...this.sternFins, this.prop, this.snorkel, this.periMast, ...this.actuators.flatMap((a) => [a.cyl, a.rod])].map((m) => ('obj' in m ? m.obj : m)));
     const under = (o: THREE.Object3D, set: Set<THREE.Object3D>) => {
       for (let p: THREE.Object3D | null = o; p; p = p.parent) if (set.has(p)) return true;
       return false;
@@ -292,6 +333,15 @@ export class SubModelRig {
     this.periMast.obj.position.copy(this.periMast.restPos).addScaledVector(this.periMast.axis, lift.periscope);
     this.periMast.obj.visible = periVisible;
     if (this.periHead) this.turn(this.periHead, (-periBearingDeg * Math.PI) / 180);
+    // pistões: seguem o leme (giro do leme sobre o repouso)
+    for (const a of this.actuators) {
+      const delta = a.fin.obj.quaternion.clone().multiply(a.fin.rest.clone().invert());
+      const p = actuatorPose(a.anchor, a.pin, a.fin.restPos, delta);
+      a.cyl.quaternion.copy(a.cylRest).premultiply(p.turn);
+      a.rod.position.copy(p.pin);
+      a.rod.quaternion.copy(a.rodRest).premultiply(p.turn);
+      this.strokes[a.fin.obj.name] = p.stroke;
+    }
   }
 }
 

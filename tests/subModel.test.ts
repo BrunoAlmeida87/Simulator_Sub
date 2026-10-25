@@ -146,3 +146,91 @@ describe('modelo 3D .glb — peças e mistura dos lemes', () => {
     expect(subModelLevel('alta')).toBe('alta');
   });
 });
+
+const fakeModelForActuators = () => fakeModel();
+
+describe('pistões hidráulicos dos lemes', () => {
+  /** modelo mínimo + pistão do par horizontal de popa (madre/cana do leme BE) e da vela */
+  function withActuators(): THREE.Group {
+    const root = fakeModelForActuators();
+    const add = (name: string, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshStandardMaterial());
+      m.name = name;
+      m.position.set(x, y, z);
+      root.add(m);
+    };
+    // cena: X boreste, Y cima, Z popa. Leme BE da popa: pivô (1.8, 0, 31.5); cana para cima até o pino (0.9, 0.42, 31.5)
+    add('SX1_Atuador_LemePopa_BE_Cilindro', 0.9, 0.42, 29.9);
+    add('SX1_Atuador_LemePopa_BE_Haste', 0.9, 0.42, 31.5);
+    // vela: pivô (0.75, 5.8, −10.5); pino (0, 6.3, −10.5); olhal a ré (0, 6.3, −9.0)
+    add('SX1_Atuador_LemeVela_BE_Cilindro', 0, 6.3, -9.0);
+    add('SX1_Atuador_LemeVela_BE_Haste', 0, 6.3, -10.5);
+    return root;
+  }
+
+  it('a haste acompanha o pino da cana e o cilindro continua apontando para ele', () => {
+    const e = buildScenario('superficie');
+    const rig = new SubModelRig(withActuators());
+    const get = (n: string) => rig.root.getObjectByName(n)!;
+    for (const [gBow, gH] of [
+      [0, 20 * D],
+      [-15 * D, -25 * D],
+    ]) {
+      rig.update(e.vessel, e.state, gBow, gH, 0, 25 * D, 0, false);
+      for (const pair of ['LemePopa_BE', 'LemeVela_BE']) {
+        const fin = get('SX1_' + pair);
+        const cyl = get(`SX1_Atuador_${pair}_Cilindro`);
+        const rod = get(`SX1_Atuador_${pair}_Haste`);
+        // o pino é o ponto de repouso girado junto com o leme, em torno do pivô do leme
+        const pinRest = pair === 'LemePopa_BE' ? new THREE.Vector3(0.9, 0.42, 31.5) : new THREE.Vector3(0, 6.3, -10.5);
+        const want = pinRest.clone().sub(fin.position).applyQuaternion(fin.quaternion).add(fin.position);
+        expect(rod.position.distanceTo(want), pair).toBeLessThan(1e-9);
+        // o eixo do cilindro (direção de repouso girada) aponta para o pino
+        const anchor = cyl.position;
+        const d0 = pinRest.clone().sub(anchor).normalize();
+        const axis = d0.applyQuaternion(cyl.quaternion);
+        expect(axis.angleTo(rod.position.clone().sub(anchor)), pair).toBeLessThan(1e-6);
+        // haste alinhada com o cilindro
+        expect(rod.quaternion.angleTo(cyl.quaternion), pair).toBeLessThan(1e-6);
+      }
+    }
+  });
+
+  it('o curso muda de sinal com o leme e é zero com o leme a meio', () => {
+    const e = buildScenario('superficie');
+    const rig = new SubModelRig(withActuators());
+    rig.update(e.vessel, e.state, 0, 0, 0, 25 * D, 0, false);
+    expect(Math.abs(rig.strokes['SX1_LemePopa_BE'])).toBeLessThan(1e-12);
+    rig.update(e.vessel, e.state, 0, 20 * D, 0, 25 * D, 0, false);
+    const a = rig.strokes['SX1_LemePopa_BE'];
+    rig.update(e.vessel, e.state, 0, -20 * D, 0, 25 * D, 0, false);
+    const b = rig.strokes['SX1_LemePopa_BE'];
+    expect(Math.sign(a)).toBe(-Math.sign(b));
+    expect(Math.abs(a)).toBeGreaterThan(0.1); // cana de 0,42 m: ≈ 0,42·sen 20° ≈ 0,14 m
+  });
+
+  it('a madre e a cana giram com o leme mas não recebem a "Cor dos lemes"', () => {
+    const root = withActuators();
+    const steel = new THREE.MeshStandardMaterial({ color: 0x777777 });
+    const madre = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), steel);
+    madre.name = 'SX1_LemePopa_BE_Madre';
+    root.getObjectByName(SUB_PARTS.sternPlaneStbd)!.add(madre);
+    const rig = new SubModelRig(root);
+    const m = rig.root.getObjectByName('SX1_LemePopa_BE_Madre') as THREE.Mesh;
+    expect(m.material).not.toBe(rig.finMaterial);
+    expect(m.parent?.name).toBe(SUB_PARTS.sternPlaneStbd);
+  });
+
+  it('o pistão abre o controle do leme e não entra no casco externo (corte transparente)', () => {
+    const rig = new SubModelRig(withActuators());
+    const cyl = rig.root.getObjectByName('SX1_Atuador_LemePopa_BE_Cilindro')!;
+    expect(rig.pickables).toContain(cyl);
+    expect((cyl.userData.pick as { id: string }).id).toBe('stern');
+    expect((rig.root.getObjectByName('SX1_Atuador_LemeVela_BE_Haste')!.userData.pick as { id: string }).id).toBe('bow');
+    expect(rig.shellMeshes.map((m) => m.name).some((n) => n.startsWith('SX1_Atuador_'))).toBe(false);
+  });
+
+  it('sem pistões no arquivo o modelo continua valendo (peças opcionais)', () => {
+    expect(() => new SubModelRig(fakeModelForActuators())).not.toThrow();
+  });
+});
