@@ -7,6 +7,9 @@
  *   I = (V_oc − √(V_oc² − 4·R·P)) / (2R),   V = V_oc − R·I,   perdas = I²R
  *   dSoC/dt = −I / (3600·C_Ah)      (η_carga aplicada em recarga)
  *
+ * Limites: descarga até SoC ≈ 0 e |I| ≤ min(I_máx, V_oc/2R); recarga aceita
+ * mesmo com a bateria vazia, plena até 90 % e reduzida linearmente a zero em 100 %.
+ *
  * Grupos diesel-geradores: só operam com tomada de ar disponível (superfície
  * ou snorkel içado com a cabeça fora d'água) e combustível; partida em
  * t_partida; consomem combustível ṁ = sfc·P. O tanque de combustível é
@@ -21,6 +24,11 @@
 import type { ElectricalConfig } from '../config/types';
 import type { SimState } from '../core/state';
 import { RHO_NOMINAL, type StepContext } from '../core/context';
+
+/** SoC abaixo do qual a bateria não descarrega mais (ainda aceita recarga) */
+const SOC_EMPTY = 0.0005;
+/** faixa final de SoC em que a corrente de recarga é reduzida até zero */
+const CHARGE_TAPER = 0.1;
 
 export const batteryOcv = (cfg: ElectricalConfig, soc: number) => cfg.battery.vMin + (cfg.battery.vMax - cfg.battery.vMin) * Math.max(0, Math.min(1, soc));
 
@@ -75,41 +83,51 @@ export function updateElectrical(
   const e = s.electrical;
   const b = cfg.battery;
   const dt = ctx.dt;
-  const batteryConnected = e.breakerClosed && !e.batteryFailed && e.soc > 0.0005;
+  const Rb = b.internalResistance;
+  const charge = 3600 * b.capacityAh; // C
+  const connected = e.breakerClosed && !e.batteryFailed;
   const ocv = batteryOcv(cfg, e.soc);
   e.ocv = ocv;
   let demand = 0;
   for (const k in demands) demand += demands[k];
 
+  // limites da bateria neste passo: descarga só com carga restante; recarga plena até 90 %
+  // e reduzida linearmente até zero em 100 % (fase de tensão constante), sem passar de 100 %
+  const canDischarge = connected && e.soc > SOC_EMPTY;
+  const taper = Math.min(1, Math.max(0, (1 - e.soc) / CHARGE_TAPER));
+  const iChargeMax = connected ? Math.min(b.maxChargeCurrent * taper, dt > 0 ? ((1 - e.soc) * charge) / (b.chargeEfficiency * dt) : Infinity) : 0;
+  const iPeak = Rb > 1e-9 ? Math.min(b.maxCurrent, ocv / (2 * Rb)) : b.maxCurrent; // além de V_oc/2R a potência cai
+  const iDischargeMax = canDischarge ? Math.min(iPeak, dt > 0 ? (e.soc * charge) / dt : Infinity) : 0;
+
   // geração: atende carga + recarga permitida
-  const pChargeMax = batteryConnected ? b.maxChargeCurrent * ocv : 0;
+  const pChargeMax = iChargeMax * ocv;
   let gen = Math.min(genAvailable, demand + pChargeMax);
   let pBatt = demand - gen;
+  // a bateria participa se puder fazer o que o barramento pede: recarregar (mesmo vazia) ou descarregar
+  const batteryActive = connected && (pBatt < 0 ? iChargeMax > 0 : canDischarge);
   let I = 0;
   let V = ocv;
   e.chargeLimited = false;
   let energized = true;
-  if (batteryConnected) {
-    const Rb = b.internalResistance;
-    const disc = ocv * ocv - 4 * Rb * pBatt;
-    if (disc <= 0) {
-      I = b.maxCurrent;
-    } else {
-      I = (ocv - Math.sqrt(disc)) / (2 * Rb);
-    }
-    if (I > b.maxCurrent) I = b.maxCurrent;
+  if (batteryActive) {
+    if (Rb > 1e-9) {
+      const disc = ocv * ocv - 4 * Rb * pBatt;
+      I = disc <= 0 ? iDischargeMax : (ocv - Math.sqrt(disc)) / (2 * Rb);
+    } else I = ocv > 0 ? pBatt / ocv : 0;
+    if (I > iDischargeMax) I = iDischargeMax;
+    if (I < -iChargeMax) I = -iChargeMax;
     V = ocv - Rb * I;
     const delivered = V * I;
     if (delivered + 1 < pBatt) e.chargeLimited = true; // sobrecarga: tensão cai
-    if (I >= 0) e.soc -= (I * dt) / (3600 * b.capacityAh);
-    else e.soc -= (I * b.chargeEfficiency * dt) / (3600 * b.capacityAh);
+    if (I >= 0) e.soc -= (I * dt) / charge;
+    else e.soc -= (I * b.chargeEfficiency * dt) / charge;
     e.soc = Math.max(0, Math.min(1, e.soc));
     pBatt = V * I;
     s.ledger.batteryOut += pBatt * dt;
     s.ledger.batteryChemical += ocv * I * dt;
     s.ledger.batteryLoss += I * I * Rb * dt;
   } else {
-    // sem bateria: só os geradores sustentam o barramento
+    // sem bateria (aberta, avariada ou vazia sem recarga): só os geradores sustentam o barramento
     if (gen + 1 < demand || gen <= 0) energized = false;
     pBatt = 0;
     V = gen > 0 ? cfg.battery.vMin + 0.5 * (cfg.battery.vMax - cfg.battery.vMin) : 0;
@@ -133,18 +151,18 @@ export function updateElectrical(
   s.ledger.fuelSeawaterIn += seawaterKg;
   s.ledger.generatorEnergy += gen * dt;
 
-  const delivered = energized ? gen + (batteryConnected ? pBatt : 0) : 0;
+  const delivered = energized ? gen + (batteryActive ? pBatt : 0) : 0;
   s.ledger.loadEnergy += delivered * dt;
   e.loads = { ...demands };
   e.totalLoad = demand;
   e.generation = gen;
-  e.batteryPower = batteryConnected ? pBatt : 0;
-  e.current = batteryConnected ? I : 0;
+  e.batteryPower = batteryActive ? pBatt : 0;
+  e.current = batteryActive ? I : 0;
   e.voltage = energized ? V : 0;
-  e.energized = energized && (batteryConnected || gen > 0);
+  e.energized = energized && (batteryActive || gen > 0);
 
   // potência disponível para a propulsão no próximo passo
-  const battMax = batteryConnected ? Math.max(0, ocv * b.maxCurrent - b.maxCurrent * b.maxCurrent * b.internalResistance) : 0;
+  const battMax = canDischarge ? Math.max(0, ocv * iPeak - iPeak * iPeak * Rb) : 0;
   const others = demand - propulsionDemand;
   e.propulsionLimit = e.energized ? Math.max(0, battMax + genAvailable - others) : 0;
   return { fuelBurnedKg: burned * cfg.fuel.density, seawaterIntoFuelKg: seawaterKg };
