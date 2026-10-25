@@ -48,7 +48,16 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
 src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   SubmarineScene.ts   cena principal: casco, lemes, câmeras, pick(), modo sem água
   subModel.ts         modelo .glb do SX-1 (public/models/sx1-leve|alta.glb): nomes fixos das peças (SUB_PARTS),
-                      SubModelRig liga lemes/hélice/mastros ao estado; sem o arquivo fica o casco gerado (reserva)
+                      SubModelRig liga lemes/hélice/mastros ao estado; sem o arquivo fica o casco gerado (reserva);
+                      pistões hidráulicos dos lemes (SX1_Atuador_*, actuatorPose) seguem o ângulo de cada par
+  pressureHull.ts     casco resistente (raio interno 2,9 m, anteparas antes dos TLP): o corte (Systems.ts) e o interior do Blender
+                      ficam dentro dele; teste tests/systemsLayout.test.ts
+  shaftLine.ts        linha de eixo (motor principal, mancal de escora, eixo até o hélice): posições do interior do Blender;
+                      teste tests/systemsLayout.test.ts (nada do corte encosta nela)
+  interiorModel.ts    corte com o interior do Blender (meio casco aberto, qualidade média/alta): InteriorRig liga válvulas,
+                      bombas, eixo e tanques ao estado; Systems.ts fica com água, partículas, setas e rótulos (setInteriorMode)
+  (interior)          public/models/sx1-interior.glb: tanques/tubos/válvulas do corte modelados no Blender (usado pelo corte;
+                      scripts/blender/build_sx1_interior.py + exportar_interior.ts; teste tests/subInterior.test.ts)
   subEnvironment.ts   reflexo do céu só no submarino (.glb): mapa de ambiente com as cores da cena (dia/noite/submerso)
   renderPerf.ts       escala de resolução (fixa ou automática, AdaptiveScale), FrameMeter e contadores do renderizador;
                       as duas cenas (SubmarineScene, ControlRoomScene) têm setRenderScale()/renderStats(); UI: components/FpsMeter.tsx

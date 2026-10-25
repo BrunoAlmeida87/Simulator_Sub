@@ -14,12 +14,12 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, prune, meshopt } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
-import { statSync, mkdirSync } from 'node:fs';
+import { statSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const LIMITE = { alta: 6 * 1024 * 1024, leve: 2 * 1024 * 1024 };
+const LIMITE = { alta: 6 * 1024 * 1024, leve: 2 * 1024 * 1024, interior: 4 * 1024 * 1024 };
 
 await MeshoptDecoder.ready;
 await MeshoptEncoder.ready;
@@ -27,7 +27,9 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 
 mkdirSync(join(root, 'public', 'models'), { recursive: true });
 let falhou = false;
-for (const nivel of ['alta', 'leve']) {
+// o interior (build_sx1_interior.py) é opcional: só entra se o .raw.glb existir
+const niveis = ['alta', 'leve', ...(existsSync(join(root, 'build', 'modelo', 'sx1-interior.raw.glb')) ? ['interior'] : [])];
+for (const nivel of niveis) {
   const src = join(root, 'build', 'modelo', `sx1-${nivel}.raw.glb`);
   const out = join(root, 'public', 'models', `sx1-${nivel}.glb`);
   const doc = await io.read(src);

@@ -16,6 +16,7 @@ import { REQUIRED_PARTS, SUB_PARTS, SubModelRig } from '../src/render3d/subModel
 import { defaultVessel } from '../src/sim/config/defaultVessel';
 import { buildHullGeometry } from '../src/sim/physics/hullGeometry';
 import { periscopeHeadZ, periscopeCfg } from '../src/sim/systems/actuation';
+import { buildScenario } from '../src/sim/scenarios';
 
 const v = defaultVessel();
 const geom = buildHullGeometry(v.hull);
@@ -164,9 +165,17 @@ describe.each(['alta', 'leve'])('modelo 3D sx1-%s.glb', (nivel) => {
     for (const gn of docs[nivel].getRoot().listScenes()[0].listChildren()) build(gn, root);
     const rig = new SubModelRig(root);
     const ids = rig.pickables.map((o) => (o.userData.pick as { id: string }).id).sort();
-    expect(ids).toEqual(['bow', 'bow', 'prop', 'rudder', 'rudder', 'snorkel', 'stern', 'stern']);
+    // 6 lemes + hélice + snorkel + 3 pistões (cilindro e haste cada): vela (bow), popa horizontal (stern), direção (rudder)
+    expect(ids).toEqual(['bow', 'bow', 'bow', 'bow', 'prop', 'rudder', 'rudder', 'rudder', 'rudder', 'snorkel', 'stern', 'stern', 'stern', 'stern']);
     expect(rig.shellMeshes.length).toBeGreaterThan(5);
-    // peças móveis não entram no casco externo
-    for (const m of rig.shellMeshes) expect(m.name.startsWith('SX1_Leme') || m.name.startsWith('SX1_Helice') || m.name.startsWith('SX1_Mastro')).toBe(false);
+    // peças móveis (lemes com madre e cana, pistões, hélice, mastros) não entram no casco externo
+    for (const m of rig.shellMeshes) expect(/^SX1_(Leme|Helice|Mastro|Atuador)/.test(m.name), m.name).toBe(false);
+    // os três pistões se movem com os lemes: curso de ~0,1–0,3 m com 20–25° de leme
+    const e = buildScenario('superficie');
+    rig.update(v, e.state, 20 * (Math.PI / 180), 25 * (Math.PI / 180), -25 * (Math.PI / 180), 25 * (Math.PI / 180), 0, false);
+    for (const n of ['SX1_LemeVela_BE', 'SX1_LemePopa_BE', 'SX1_LemePopa_Sup']) {
+      expect(Math.abs(rig.strokes[n]), n).toBeGreaterThan(0.1);
+      expect(Math.abs(rig.strokes[n]), n).toBeLessThan(0.35);
+    }
   });
 });

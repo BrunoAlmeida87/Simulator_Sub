@@ -413,6 +413,62 @@ export class SystemsVis {
   /** objetos clicáveis (com userData.pick) */
   readonly pickables: THREE.Object3D[] = [];
 
+  // ------------------------------------------------- interior do Blender (meio casco aberto)
+  /**
+   * Com o interior do Blender (interiorModel.ts) no corte, as formas simples deste desenho
+   * (tubos, válvulas, bombas, garrafas, bateria, geradores e contornos dos tanques) saem e
+   * ficam a água dos tanques, as partículas, as setas e os rótulos — recortados pelo mesmo
+   * plano do meio casco aberto.
+   */
+  private interiorMode = false;
+  private cutPlane: THREE.Plane | null = null;
+
+  setInteriorMode(on: boolean, plane: THREE.Plane | null): void {
+    if (on === this.interiorMode && plane === this.cutPlane) return;
+    this.interiorMode = on;
+    this.cutPlane = plane;
+    const extra = on && plane ? [plane] : [];
+    for (const t of this.tanks) {
+      const cp = this.clipPlanes.get(t.id);
+      t.waterMat.clippingPlanes = cp ? [cp.water, ...extra] : extra.length ? extra : null;
+      t.airMat.clippingPlanes = cp ? [cp.air, ...extra] : extra.length ? extra : null;
+      (t.surf.material as THREE.Material).clippingPlanes = extra.length ? extra : null;
+      t.waterMat.needsUpdate = t.airMat.needsUpdate = (t.surf.material as THREE.Material).needsUpdate = true;
+    }
+    const pm = this.points.material as THREE.PointsMaterial;
+    pm.clippingPlanes = extra.length ? extra : null;
+    pm.needsUpdate = true;
+  }
+
+  /** Estados e seleção que o interior do Blender usa (mesmos nomes do arranjo exportado). */
+  interiorLinks(): {
+    valves: { name: string; owners: string[]; get: (e: SimulationEngine) => ValveState; pick: unknown; directional: boolean }[];
+    pumps: { name: string; owners: string[]; get: (e: SimulationEngine) => { speed: number; cmd: boolean; failed: boolean }; pick: unknown }[];
+    tanks: { id: string; cat: TankCategory }[];
+  } {
+    return {
+      valves: this.valves.map((v) => ({ name: v.name, owners: v.owners, get: v.get, pick: v.mesh.userData.pick, directional: !!v.directional })),
+      pumps: this.pumps.map((p) => ({ name: p.name, owners: p.owners, get: p.get, pick: p.body.userData.pick })),
+      tanks: this.tanks.map((t) => ({ id: t.id, cat: t.cat })),
+    };
+  }
+
+  /** Mesma regra de filtro/destaque do corte: o que aparece e o que fica apagado. */
+  visibility(layers: SceneLayers): { shown: (owners: string[]) => boolean; dim: (owners: string[]) => boolean; tankShown: (id: string) => boolean } {
+    const filt = layers.tankFilter ? new Set(layers.tankFilter) : null;
+    const SYS: Record<TankCategory, string> = { lastro: 'HP', compensacao: 'compensacao', trim: 'trim', banda: 'heel' };
+    const sysOn = new Set<string>();
+    if (filt) for (const t of this.tanks) if (filt.has(t.id)) sysOn.add(SYS[t.cat]);
+    const ids = this.tankIds;
+    const hl = layers.highlight;
+    const shown = (owners: string[]) => {
+      if (!filt) return true;
+      const own = owners.filter((o) => ids.has(o));
+      return own.length ? own.some((o) => filt.has(o)) : owners.some((o) => sysOn.has(o));
+    };
+    return { shown, dim: (owners) => !!hl && !owners.includes(hl), tankShown: (id) => !filt || filt.has(id) };
+  }
+
   // ------------------------------------------------------------- circuitos
   private pipe(pts: THREE.Vector3[], color: number, owners: string[], r = 0.11): void {
     this.pipePaths.push(pts);
@@ -666,8 +722,9 @@ export class SystemsVis {
     // calculada para ele (compensationNetwork).
     const cmp = v.compensation;
     const heel = v.heel;
-    const zH = 2.3;
-    const yL = 1.5;
+    // dentro do casco resistente (pressureHull.ts): coletor acima do porão, ao lado do tanque central (|y| > meia-boca do TC)
+    const zH = 1.7;
+    const yL = 1.45;
     const mainT = cmp.tanks[0];
     // comprimento do tanque (seção do casco) ou da caixa antiga (largura padrão w)
     const lenOf = (t: InternalTankConfig, w: number) => (t.hullRadius !== undefined ? tankSection(t).length : t.capacity / (t.height * w));
@@ -699,9 +756,9 @@ export class SystemsVis {
     };
     const rIn = (x: number, y: number) => Math.sqrt(Math.max(0, geom.radiusAt(x) ** 2 - y * y));
     const seaIn = b2l(xLeg, yL, rIn(xLeg, yL) + 0.8);
-    const vam = b2l(xLeg, yL, (zH + rIn(xLeg, yL)) / 2);
+    const vam = b2l(xLeg, yL, zH + 0.3 * (rIn(xLeg, yL) - zH));
     const seaOut = b2l(xLeg, -yL, rIn(xLeg, -yL) + 0.8);
-    const vdm = b2l(xLeg, -yL, (zH + rIn(xLeg, -yL)) / 2);
+    const vdm = b2l(xLeg, -yL, zH + 0.3 * (rIn(xLeg, -yL) - zH));
     const pumpP = node3d.pump;
     const xTank = Object.fromEntries(branches.map((b) => [b.id, mCoord[b.id]]));
     const flows = (en: SimulationEngine) => compensationFlows(en.vessel.compensation, en.state.compensation, en.vessel.heel, en.state.heel);
@@ -758,13 +815,28 @@ export class SystemsVis {
     if (cmp.transfer && this.e0.state.compensation.transfer) {
       const tanks = [v.heel.tankA, ...cmp.tanks, v.heel.tankB];
       const ids = tanks.map(t => t.id);
+      // nível do circuito: acima do topo do tanque central (dentro do casco resistente, fora dos tanques)
+      const zT = 1.0;
       const nodes: Record<string, THREE.Vector3> = {
-        'header:A': b2l(0, 0, 2.1), 'header:B': b2l(5.5, 0, 2.1),
-        'vdc:A': b2l(1.9, -0.35, 2.1), 'vdc:B': b2l(1.9, 0.35, 2.1),
-        'vdc:P': b2l(3.1, -0.35, 2.1), 'vdc:T': b2l(3.1, 0.35, 2.1),
-        'pump:in': b2l(4.5, 0.4, 2.5), 'pump:out': b2l(4.5, -0.4, 2.5),
+        'header:A': b2l(0, 0, zT), 'header:B': b2l(5.5, 0, zT),
+        'vdc:A': b2l(1.9, -0.35, zT), 'vdc:B': b2l(1.9, 0.35, zT),
+        'vdc:P': b2l(3.1, -0.35, zT), 'vdc:T': b2l(3.1, 0.35, zT),
+        'pump:in': b2l(4.5, 0.4, zT), 'pump:out': b2l(4.5, -0.4, zT),
       };
-      tanks.forEach(t => { nodes[`tank:${t.id}`] = b2l(t.center.x, t.center.y, t.center.z + t.height / 2 - 0.15); });
+      // tomada de cada tanque: central pelo topo; laterais junto ao fundo, do lado de dentro (onde o casco curva)
+      const takeoff = (t: InternalTankConfig): [number, number] => {
+        if (t.hullRadius === undefined || Math.abs(t.center.y) < 0.5) {
+          const sc = t.hullRadius !== undefined ? tankSection(t) : null;
+          return [t.center.y, sc ? sc.zTop + 0.15 : t.center.z - t.height / 2 + 0.15];
+        }
+        const sc = tankSection(t);
+        const yi = t.center.y < 0 ? sc.y1 - 0.15 : sc.y0 + 0.15;
+        return [yi, Math.min(sc.zBot, Math.sqrt(Math.max(0, (t.hullRadius ?? 3) ** 2 - yi * yi))) - 0.2];
+      };
+      tanks.forEach(t => {
+        const [ty, tz] = takeoff(t);
+        nodes[`tank:${t.id}`] = b2l(t.center.x, ty, tz);
+      });
       const circuitOf = (en: SimulationEngine) => buildCompensationCircuit(en.state.compensation, ids);
       const edges = circuitOf(this.e0).edges;
       edges.forEach(edge => {
@@ -772,7 +844,7 @@ export class SystemsVis {
         const tank = tanks.find(t => edge.from === `tank:${t.id}`);
         if (tank) {
           const x = edge.to === 'header:A' ? 0 : 5.5;
-          points = [nodes[edge.from], b2l(x, tank.center.y, 1.9), nodes[edge.to]];
+          points = [nodes[edge.from], b2l(x, takeoff(tank)[0], zT), nodes[edge.to]];
           this.valve(points[0].clone().lerp(points[1], 0.45), `${tank.id} → coletor ${edge.to.slice(-1)}`,
             en => selectorValve(en.state.compensation.transfer!, tank.id, edge.to === 'header:A' ? 'A' : 'B'), [tank.id, 'compensacao']);
         }
@@ -780,12 +852,12 @@ export class SystemsVis {
         this.stream(points, new THREE.Color(0x9dffc8), ['compensacao'], en =>
           sq(circuitEdgeFlow(circuitOf(en), edge.id, en.state.compensation.transfer!.pump.flow) / 0.010));
       });
-      this.pump(b2l(4.5, 0, 2.5), cmp.transfer.pump.name, en => en.state.compensation.transfer!.pump, ['compensacao']);
+      this.pump(b2l(4.5, 0, zT), cmp.transfer.pump.name, en => en.state.compensation.transfer!.pump, ['compensacao']);
       // Corpo da direcional com as quatro portas conectadas, em vez de uma esfera solta.
       const material = new THREE.MeshStandardMaterial({ color: 0x8ee9cc, emissive: 0x245c50, metalness: 0.5, roughness: 0.4, transparent: true, fog: false });
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.45, 1.6), material);
       const group = new THREE.Group();
-      group.position.copy(b2l(2.5, 0, 2.1));
+      group.position.copy(b2l(2.5, 0, zT));
       const lever = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.08, 0.12), material);
       lever.position.y = 0.36;
       group.add(body, lever);
@@ -810,8 +882,11 @@ export class SystemsVis {
       const c = v.trim;
       const A = c.tankA.center;
       const B = c.tankB.center;
-      const pp = b2l(9, -0.75, 2.72);
-      transfer('trim', [b2l(A.x, A.y * 0.75, A.z + c.tankA.height / 2 - 0.15), b2l(A.x, -0.75, 2.72), pp, b2l(B.x, -0.75, 2.72), b2l(B.x, B.y * 0.75, B.z + c.tankB.height / 2 - 0.15)], pp, 0xa86a12, 0xffd18a, 0.012);
+      // linha de trim acima do topo dos tanques (dentro do casco resistente, sem atravessar o tanque central)
+      const yT = -0.95;
+      const zT = 1.3;
+      const pp = b2l(9, yT, zT);
+      transfer('trim', [b2l(A.x, A.y * 0.75, A.z + c.tankA.height / 2 - 0.15), b2l(A.x, yT, zT), pp, b2l(B.x, yT, zT), b2l(B.x, B.y * 0.75, B.z + c.tankB.height / 2 - 0.15)], pp, 0xa86a12, 0xffd18a, 0.012);
     }
     // --- banda: TB-BB ↔ bomba BB ↔ TB-BE, travessa a vante do tanque central (por cima dele)
     {
@@ -820,7 +895,7 @@ export class SystemsVis {
       const xF = Math.max(A.x + lenOf(heel.tankA, 1.0) / 2, mainT ? mainT.center.x + lenOf(mainT, 2.6) / 2 : A.x) + 0.5;
       const xa = A.x + lenOf(heel.tankA, 1.0) / 2 - 0.35;
       const xb = B.x + lenOf(heel.tankB, 1.0) / 2 - 0.35;
-      const zT = 1.35;
+      const zT = 1.0;
       const pp = b2l(xF, 0, zT);
       // aspiração junto ao fundo de cada tanque lateral (o ponto mais baixo fica do lado de dentro, onde o casco curva)
       const sump = (t: InternalTankConfig): [number, number] => {
@@ -862,6 +937,21 @@ export class SystemsVis {
   }
 
   update(e: SimulationEngine, sub: THREE.Object3D, layers: SceneLayers, step: number, labels: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
+    this.updateInner(e, sub, layers, step, labels, proj);
+    if (!this.interiorMode) return;
+    // meio casco aberto com o interior do Blender: ficam água, ar, partículas, setas e rótulos
+    for (const p of this.pipeMats) p.mesh.visible = false;
+    for (const v of this.valves) v.mesh.visible = false;
+    for (const p of this.pumps) {
+      p.body.visible = false;
+      p.rotor.visible = false;
+    }
+    for (const b of this.hpBottles) b.grp.visible = false;
+    for (const m of [...this.batt, ...this.battBar, ...this.gens.map((g) => g.mesh)]) m.visible = false;
+    for (const t of this.tanks) for (const m of t.meshes) if (m instanceof THREE.LineSegments) m.visible = false;
+  }
+
+  private updateInner(e: SimulationEngine, sub: THREE.Object3D, layers: SceneLayers, step: number, labels: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
     const showT = layers.tanks;
     const showP = layers.tanks && layers.pipes;
     const showF = layers.tanks && layers.flows;
