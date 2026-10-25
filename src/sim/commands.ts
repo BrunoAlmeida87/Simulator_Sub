@@ -464,7 +464,7 @@ export function failureCatalog(e: SimulationEngine): FailureDef[] {
     { target: 'pump:heel', name: v.heel.pump.name, group: 'Bombas', effect: 'Sem correção de banda.' },
     { target: 'motor', name: 'Motor elétrico principal', group: 'Propulsão', effect: 'Torque nulo; o submarino desacelera pela resistência (inércia conservada).' },
     { target: 'battery', name: 'Bateria principal (isolamento por falha)', group: 'Energia', effect: 'Barramento depende apenas dos geradores (se disponíveis).' },
-    { target: 'hydraulics', name: 'Planta hidráulica', group: 'Hidráulica', effect: 'Lemes e válvulas imobilizados quando a pressão cai abaixo do mínimo.' },
+    { target: 'hydraulics', name: 'Planta hidráulica', group: 'Hidráulica', effect: 'Lemes e válvulas hidráulicas imobilizados quando a pressão cai abaixo do mínimo (o sopro de emergência tem acionamento próprio).' },
   ];
   for (const t of v.ballast.tanks) {
     list.push({ target: `valve:ballast:${t.id}:vent`, name: t.ventValve.name + ' — travada', group: 'Válvulas', effect: 'Válvula imobilizada na posição atual.' });

@@ -14,7 +14,8 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import { C, box, button, digital, rrect, screenBg, text } from './draw';
 import { bearingRange, contactsLocal, cpa, fmtLat, fmtLon, nedToLatLon, EXERCISE_AREA, latLonToNed, type Contact } from '../../sim/geo';
 import { trafficAt, trafficForEnv } from '../../sim/traffic';
-import { periscopeCfg } from '../../sim/systems/actuation';
+import { periscopeCfg, periscopeHeadZ } from '../../sim/systems/actuation';
+import { pointHeightAboveWater } from './mastHeight';
 import { toKnots } from '../../sim/units';
 import { rng } from './textures';
 
@@ -42,14 +43,15 @@ export function roomContacts(e: SimulationEngine, act: Pick<RoomActions, 'geoOri
 /** antena/óptica fora d'água: periscópio ou snorkel IÇADOS com a cabeça emersa, ou na superfície (mastros recolhidos não contam) */
 export function mastOut(e: SimulationEngine): boolean {
   const v = e.vessel;
-  const o = e.outputs;
-  if (o.surfaced) return true;
-  const base = v.hull.diameter + v.hull.sail.height;
+  if (e.outputs.surfaced) return true;
+  // topo de cada mastro içado, com a atitude do casco, acima do nível médio da água
+  const top = -(v.hull.diameter / 2 + v.hull.sail.height);
   const heads: number[] = [];
   const pp = e.state.periscope?.pos ?? 0;
-  if (pp > 0.95) heads.push(base + 0.3 + periscopeCfg(v).extension * pp);
-  if (e.state.snorkel.pos > 0.95) heads.push(base + v.hull.snorkelMast.extension * e.state.snorkel.pos);
-  return heads.some((h) => o.depthKeel - h < -0.2);
+  if (pp > 0.95) heads.push(pointHeightAboveWater(e, periscopeCfg(v).x, periscopeHeadZ(v, pp), false));
+  const sp = e.state.snorkel.pos;
+  if (sp > 0.95) heads.push(pointHeightAboveWater(e, v.hull.snorkelMast.x, top - v.hull.snorkelMast.extension * sp, false));
+  return heads.some((h) => h > 0.2);
 }
 
 const SL: Record<Contact['kind'], number> = { mercante: 152, pesqueiro: 136, rebocador: 142, patrulha: 146 };

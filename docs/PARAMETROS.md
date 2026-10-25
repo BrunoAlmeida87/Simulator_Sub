@@ -96,7 +96,7 @@ Os ganhos que comandam lemes (rumo, pitch e lemes de vela) são multiplicados po
 | Acréscimo de resistência na superfície | +120 % |
 | C_dc (escoamento cruzado) | 0,8 |
 | Sustentação do casco C_Lc (base D²) | 1,2 em x_cp = −8 m |
-| Fator de Munk | 0,75 |
+| Fator de Munk | 0,75 (aplicado à força a₁×ω e ao momento a₁×v, mantendo potência nula) |
 | Massa adicional | X_u̇ = 2,5 % · Y_v̇ = Z_ẇ = 95 % de ρV · M_q̇ = N_ṙ = 0,85·ρ∫πr²x²dx |
 | Amortecimento linear | sway/heave 3×10⁴ N·s/m · roll 3×10⁶ · pitch/yaw 4×10⁷ N·m·s |
 | Radiação de ondas (superfície) | heave 1,2×10⁶ · pitch 4×10⁸ · roll 2×10⁶ |
@@ -109,7 +109,7 @@ Os ganhos que comandam lemes (rumo, pitch e lemes de vela) são multiplicados po
 | Rampa de rotação | 8 rpm/s |
 | Hélice | D = 4,4 m, 7 pás; K_T0 = 0,229; K_Q0 = 0,0372; J₀ = 1,0/1,1; w = 0,25; t = 0,15 |
 | Velocidade máxima submersa (resultado do modelo) | ≈ 18 nós (limitada pela potência) |
-| Bateria | 11 000 Ah; V_oc 440–560 V; R = 4 mΩ; I_máx 7 000 A |
+| Bateria | 11 000 Ah; V_oc 440–560 V; R = 4 mΩ; I_máx 7 000 A (e ≤ V_oc/2R); recarga 3 500 A até 90 % de SoC, reduzida linearmente a 0 em 100 %; η_recarga 0,92 |
 | Diesel-geradores | 2 × 1,1 MW; partida em 30 s; consumo específico de 215 g/kWh |
 | Cargas fixas | habitabilidade 60 kW; navegação/controle 12 kW |
 | Compressor de ar | 0,12 kg/s total; 80 kW; recarrega os dois circuitos até o menor limite entre banco e compressor; prioridade às ampolas durante emergência |

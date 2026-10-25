@@ -148,6 +148,7 @@ A simulação, a cena 3D e a costa de Sepetiba (dados embutidos) funcionam offli
 │   └── styles/global.css
 ├── tests/                        # Vitest: validação física e testes unitários
 ├── scripts/report.ts             # gera docs/VALIDACAO.md
+├── scripts/physics-snapshot.ts   # retrato da física (cenários, roteiros, manobras) para comparar antes/depois
 └── docs/                         # documentação técnica
 ```
 
@@ -216,7 +217,7 @@ O modelo do SX-1 é reprodutível: `scripts/blender/build_sx1.py` monta tudo (ca
 
 ## Testes e validação
 
-`npm test` executa **28 testes**. Os 12 casos de validação física produzem **métricas numéricas** verificáveis:
+`npm test` executa **368 testes** em 48 arquivos (física, interface e renderização). Os 13 casos de validação física produzem **métricas numéricas** verificáveis:
 
 | # | Verificação | Exemplo de resultado |
 |---|---|---|
@@ -229,7 +230,7 @@ O modelo do SX-1 é reprodutível: `scripts/blender/build_sx1.py` monta tudo (ca
 | 7 | Coerência profundidade × pressão | 1,007 bar a cada 10 m; sensor = estado; ρ_cal documentada |
 | 8 | Pausa, reinício, aceleração e salvamento | estados idênticos em ×1 e ×10; pausa não altera o estado; continuação idêntica após recuperar |
 | 9 | Instrumentos consistentes | erro nulo sem ruído; RMS ≈ σ no modo avançado |
-| 10 | Sem geração artificial de massa ou energia | erro de massa < 0,001 kg; balanço elétrico < 1 J; energia cinética passiva decrescente |
+| 10 | Balanços de massa e energia (escopo verificado) | erro de massa < 0,001 kg; barramento e bateria < 1 J; demanda não atendida separada; energia cinética passiva decrescente |
 | + | EOS-80 e hidrostática | valores de verificação da UNESCO com erro < 0,001 kg/m³ |
 | + | Sequência completa | superfície → 50 m → equilíbrio → guinada → trim → emersão em ~400 s |
 

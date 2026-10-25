@@ -74,6 +74,10 @@ export interface DosingState {
   dir?: 'AtoB' | 'BtoA';
   timer: number;
   message: string;
+  /** s seguidos sem vazão na fase de escoamento (compensação) */
+  stall?: number;
+  /** quantidade pedida, quando o alvo foi reduzido à capacidade disponível */
+  requested?: number;
 }
 
 /** VDC da compensação: VDC 4/2: posição 0 = direta, 1 = inversa; valores intermediários são trânsito. */
@@ -126,6 +130,8 @@ export interface ElectricalState {
   batteryPower: number; // W (+ descarga)
   propulsionLimit: number; // W disponíveis para a propulsão no próximo passo
   chargeLimited: boolean;
+  /** demanda não atendida no último passo (W): sobrecarga da bateria ou barramento desenergizado */
+  unservedPower?: number;
 }
 
 export interface PropulsionState {
@@ -229,6 +235,9 @@ export interface Ledger {
   mass0: number; // massa interna inicial (referência)
   /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (cargas e peso deslocável) */
   cargoIn?: number;
+  /** energia pedida pelas cargas e a parte não atendida pelo barramento (J); ausentes em salvamentos antigos */
+  loadRequested?: number;
+  loadUnserved?: number;
 }
 
 export interface SimState {

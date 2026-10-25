@@ -3,6 +3,7 @@ import { buildScenario } from '../src/sim/scenarios';
 import { applyCommand } from '../src/sim/commands';
 import { bankCircuit, bankPressure, updateCompressor, updateHpManifold } from '../src/sim/systems/hpAir';
 import { updateBallastTank } from '../src/sim/systems/ballast';
+import { updateValve } from '../src/sim/systems/components';
 import { qToMat3 } from '../src/sim/core/math';
 import { makeDepthOf, type StepContext } from '../src/sim/core/context';
 import type { SimulationEngine } from '../src/sim/core/engine';
@@ -170,5 +171,40 @@ describe('Sopro de emergência: reserva e alimentação independentes', () => {
     restored.advanceSim(3);
     expect(restored.state).toEqual(e.state);
     expect(Math.abs(e.outputs.massAudit)).toBeLessThan(1e-6);
+  });
+  it('falha hidráulica não impede o sopro de emergência; válvulas hidráulicas continuam paradas', () => {
+    const e = buildScenario('submerso_50');
+    applyCommand(e, { type: 'failure', target: 'hydraulics', active: true });
+    e.advanceSim(5);
+    const reserve = mass(e, 'emergency');
+    const vents = e.vessel.ballast.tanks.map((t) => e.state.ballast[t.id].vent.pos);
+    applyCommand(e, { type: 'emergencyBlow', open: true });
+    applyCommand(e, { type: 'mbtBlow', tank: 'ALL', open: true });
+    e.advanceSim(8);
+    for (const b of banks(e, 'emergency')) expect(e.state.hpAir.banks[b.id].valve.pos).toBe(1);
+    for (const t of e.vessel.ballast.tanks) {
+      expect(e.state.ballast[t.id].emergencyBlow.pos).toBe(1);
+      expect(e.state.ballast[t.id].blow.pos).toBe(0); // sopro normal é hidráulico
+    }
+    expect(e.vessel.ballast.tanks.map((t) => e.state.ballast[t.id].vent.pos)).toEqual(vents);
+    expect(reserve - mass(e, 'emergency')).toBeGreaterThan(100);
+    expect(Math.abs(e.outputs.massAudit)).toBeLessThan(1e-6);
+    // e fecha de novo sem hidráulica
+    applyCommand(e, { type: 'emergencyBlow', open: false });
+    e.advanceSim(4);
+    for (const t of e.vessel.ballast.tanks) expect(e.state.ballast[t.id].emergencyBlow.pos).toBe(0);
+  });
+
+  it('válvula sem acionamento hidráulico não consome da planta', () => {
+    const e = buildScenario('submerso_50');
+    const t = e.vessel.ballast.tanks[0];
+    const st = e.state.ballast[t.id];
+    st.emergencyBlow.cmd = 1;
+    expect(updateValve(t.emergencyBlowValve, st.emergencyBlow, 0.5, false)).toBe(0);
+    expect(st.emergencyBlow.pos).toBeGreaterThan(0);
+    st.blow.cmd = 1;
+    expect(updateValve(t.blowValve, st.blow, 0.5, false)).toBe(0);
+    expect(st.blow.pos).toBe(0);
+    expect(updateValve(t.blowValve, st.blow, 0.5, true)).toBeGreaterThan(0);
   });
 });

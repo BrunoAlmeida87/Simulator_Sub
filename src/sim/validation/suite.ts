@@ -440,8 +440,8 @@ export const VALIDATION_CASES: ValidationCase[] = [
   },
   {
     id: 'V10',
-    title: '10. Sem geração artificial de massa ou energia',
-    description: 'Sequência com mergulho, compensação, sopro e diesel: balanços de massa e energia fecham; casco sem propulsão perde energia mecânica monotonicamente.',
+    title: '10. Balanços de massa e energia (escopo verificado)',
+    description: 'Sequência com mergulho, compensação, sopro e diesel: balanços de massa, do barramento (demanda pedida = atendida + não atendida) e da bateria fecham; casco sem propulsão perde energia mecânica. Verifica esta sequência, não prova conservação em todas as condições (ver LIMITACOES).',
     run: () => {
       const e = buildScenario('superficie', uniformConfig());
       applyCommand(e, { type: 'telegraph', rpm: 90 });
@@ -466,6 +466,8 @@ export const VALIDATION_CASES: ValidationCase[] = [
       const massErr = e.outputs.massAudit;
       const busErr = L.batteryChemical - L.batteryOut - L.batteryLoss;
       const loadsMinusSupply = L.loadEnergy - (L.generatorEnergy + L.batteryOut);
+      // demanda pedida = atendida + não atendida (a atendida é o fornecimento)
+      const demandClosure = (L.loadRequested ?? 0) - L.loadEnergy - (L.loadUnserved ?? 0);
       // energia mecânica de um casco passivo (sem propulsão, neutro, homogêneo)
       const p = buildScenario('submerso_50', uniformConfig());
       p.state.propulsion.rpmCmd = 0;
@@ -492,7 +494,9 @@ export const VALIDATION_CASES: ValidationCase[] = [
           m('Ar comprimido admitido (compressor)', e.state.ledger.airCompressed, 'kg', 'referência', true),
           m('Combustível queimado', e.state.ledger.fuelBurned, 'kg', '> 0 (diesel operou)', e.state.ledger.fuelBurned > 0),
           m('Bateria: E_química − E_terminais − perdas', busErr, 'J', '|erro| < 1 J', Math.abs(busErr) < 1),
-          m('Barramento: cargas − (geradores + bateria)', loadsMinusSupply, 'J', '|erro| < 1 J', Math.abs(loadsMinusSupply) < 1),
+          m('Barramento: cargas atendidas − (geradores + bateria)', loadsMinusSupply, 'J', '|erro| < 1 J', Math.abs(loadsMinusSupply) < 1),
+          m('Demanda pedida − atendida − não atendida', demandClosure, 'J', '|erro| < 1 J', Math.abs(demandClosure) < 1),
+          m('Demanda não atendida (fração da pedida)', (L.loadUnserved ?? 0) / Math.max(1, L.loadRequested ?? 0), 'fração', '< 1 % na operação normal', (L.loadUnserved ?? 0) < 0.01 * (L.loadRequested ?? 0)),
           m('Trabalho no hélice ≤ energia elétrica', L.propellerWork / Math.max(1, L.loadEnergy), '—', '< 1', L.propellerWork < L.loadEnergy),
           m('Energia cinética do casco passivo não cresce', mono ? 1 : 0, 'bool', '1', mono),
           m('Energia cinética inicial → final', sk.y[sk.y.length - 1] / sk.y[0], 'fração', '< 1', sk.y[sk.y.length - 1] < sk.y[0]),

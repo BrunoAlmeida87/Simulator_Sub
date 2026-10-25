@@ -98,12 +98,17 @@ export function hullForces(
   const lift = zeroWrench();
   const D = cfg.hull.diameter;
   const K = 0.5 * rho * D * D * h.bodyLiftCoeff * immFraction;
-  const Zl = -K * u * w;
-  const Yl = -K * u * v;
+  // |u|: a força transversal se opõe à velocidade transversal também em marcha a ré
+  // (com u assinado ela passava a empurrar a favor e injetava energia); o centro de
+  // pressão é espelhado em ré (mesma posição relativa ao escoamento: atrás, em relação ao avanço)
+  const au = Math.abs(u);
+  const xcp = u >= 0 ? h.bodyLiftXcp : -h.bodyLiftXcp;
+  const Zl = -K * au * w;
+  const Yl = -K * au * v;
   lift.F.y = Yl;
   lift.F.z = Zl;
-  lift.M.y = -h.bodyLiftXcp * Zl;
-  lift.M.z = h.bodyLiftXcp * Yl;
+  lift.M.y = -xcp * Zl;
+  lift.M.z = xcp * Yl;
 
   const damping = zeroWrench();
   const ld = h.linearDamping;
@@ -144,9 +149,18 @@ export function liftCoefficient(alpha: number, ar: number, stallDeg: number): nu
   return Math.sign(alpha) * cl;
 }
 
+/**
+ * Fator do arrasto de separação (1,1·sen²α): 0,15 em ângulo pequeno → 1 no estol,
+ * com transição suave (derivada contínua) entre 0,30 e 0,40 rad em vez de um salto em 0,35.
+ */
+export function separationFactor(alpha: number): number {
+  const t = Math.min(1, Math.max(0, (Math.abs(alpha) - 0.3) / 0.1));
+  return 0.15 + 0.85 * t * t * (3 - 2 * t);
+}
+
 export function dragCoefficient(alpha: number, cl: number, ar: number): number {
   const s = Math.sin(alpha);
-  return 0.008 + (cl * cl) / (Math.PI * ar * 0.85) + 1.1 * s * s * (Math.abs(alpha) > 0.35 ? 1 : 0.15);
+  return 0.008 + (cl * cl) / (Math.PI * ar * 0.85) + 1.1 * s * s * separationFactor(alpha);
 }
 
 export interface FinResult extends Wrench {
