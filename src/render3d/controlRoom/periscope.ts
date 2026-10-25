@@ -8,20 +8,21 @@
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { Contact } from '../../sim/geo';
 import { periscopeCfg, periscopeHeadZ } from '../../sim/systems/actuation';
-import { qToMat3 } from '../../sim/core/math';
+import { pointHeightAboveWater } from './mastHeight';
 import { roomContacts, type RoomContact } from './panelsCombat';
 import type { RoomActions } from './actions';
 
 /** altura típica do mastro/superestrutura de cada classe de contato (m) */
 export const TARGET_HEIGHT: Record<Contact['kind'], number> = { mercante: 32, patrulha: 20, rebocador: 13, pesqueiro: 9 };
 
-/** altura da cabeça do periscópio acima da superfície (m; negativa = submersa). null = periscópio arriado. */
+/**
+ * altura do topo da cabeça do periscópio acima do nível médio da água (m;
+ * negativa = submersa), com o caturro e o balanço do casco. null = periscópio arriado.
+ */
 export function periHeadAbove(e: SimulationEngine): number | null {
   const pos = e.state.periscope?.pos ?? 0;
   if (pos < 0.02) return null;
-  const v = e.vessel;
-  const head = v.hull.diameter + v.hull.sail.height + 0.3 + periscopeCfg(v).extension * pos;
-  return head - e.outputs.depthKeel;
+  return pointHeightAboveWater(e, periscopeCfg(e.vessel).x, periscopeHeadZ(e.vessel, pos), false);
 }
 
 /**
@@ -32,15 +33,7 @@ export function periHeadAbove(e: SimulationEngine): number | null {
 export function periHeadClearance(e: SimulationEngine, t = e.state.t): number | null {
   const pos = e.state.periscope?.pos ?? 0;
   if (pos < 0.02) return null;
-  const v = e.vessel;
-  const s = e.state;
-  const R = qToMat3(s.body.quat);
-  const x = periscopeCfg(v).x;
-  const z = periscopeHeadZ(v, pos) + 0.3;
-  const n = s.body.pos.x + R[0] * x + R[2] * z;
-  const ea = s.body.pos.y + R[3] * x + R[5] * z;
-  const d = s.body.pos.z + R[6] * x + R[8] * z;
-  return -d - e.env.waves.elevation(n, ea, t);
+  return pointHeightAboveWater(e, periscopeCfg(e.vessel).x, periscopeHeadZ(e.vessel, pos) + 0.3, true, t);
 }
 
 /** alcance geométrico até o horizonte entre um olho a hEye m e um alvo de hTarget m (m) */
