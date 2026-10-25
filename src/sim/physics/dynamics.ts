@@ -259,9 +259,14 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const b1: Vec3 = { x: A.K * imm * w.x, y: A.M * imm * w.y, z: A.N * imm * w.z };
   const Iw: Vec3 = { x: I.x * w.x, y: I.y * w.y, z: I.z * w.z };
   const wxv = vCross(w, v);
-  const a1xw = vCross(a1, w);
+  // acoplamento translação–rotação da massa adicional: força a₁×ω e momento de Munk a₁×v.
+  // O fator de Munk (redução viscosa) multiplica OS DOIS termos: o bloco fora da diagonal
+  // de C_A continua antissimétrico e a potência v·F + ω·M desse par segue nula.
+  const kM = cfg.hydro.munkFactor;
+  const a1xwFull = vCross(a1, w);
+  const a1xw: Vec3 = { x: a1xwFull.x * kM, y: a1xwFull.y * kM, z: a1xwFull.z * kM };
   const munkFull = vCross(a1, v);
-  const munk: Vec3 = { x: munkFull.x * cfg.hydro.munkFactor, y: munkFull.y * cfg.hydro.munkFactor, z: munkFull.z * cfg.hydro.munkFactor };
+  const munk: Vec3 = { x: munkFull.x * kM, y: munkFull.y * kM, z: munkFull.z * kM };
   const wxIw = vCross(w, Iw);
   const b1xw = vCross(b1, w);
   const coriolis: Wrench = {

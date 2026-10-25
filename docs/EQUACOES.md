@@ -101,11 +101,12 @@ Os itens são: peso leve, cargas variáveis, combustível compensado, ar AP, ág
 - Termos de Coriolis e centrípetos (lado direito):
 
 ```
-F = −m(ω × v) + a₁ × ω ,            a₁ = (A₁₁u, A₂₂v, A₃₃w)
+F = −m(ω × v) + k_Munk·(a₁ × ω) ,            a₁ = (A₁₁u, A₂₂v, A₃₃w)
 M = −ω × (Iω) + k_Munk·(a₁ × v) + b₁ × ω ,   b₁ = (A₄₄p, A₅₅q, A₆₆r)
 ```
 
 - O termo a₁ × v contém o **momento de Munk**, (A₃₃ − A₁₁)·u·w em pitch e (A₁₁ − A₂₂)·u·v em guinada. Ele é instabilizante; k_Munk ≈ 0,75 representa a redução viscosa.
+- k_Munk multiplica os **dois** termos do acoplamento translação–rotação (força a₁ × ω e momento a₁ × v). Assim o bloco fora da diagonal de C_A continua antissimétrico e a potência desse par é nula: v·F + ω·M = 0 para quaisquer velocidades (teste `inertialCoupling`). Aplicar o fator só ao momento criaria energia (≈ 6,7 kW com u = 4 m/s, w = 0,2 m/s, q = −0,02 rad/s).
 - Integração **RK4** com passo fixo. Massas e posições de lemes ficam congeladas dentro do passo (separação de operadores).
 
 ## 5. Forças hidrodinâmicas (`physics/hydrodynamics.ts`)

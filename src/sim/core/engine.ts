@@ -179,7 +179,7 @@ export class SimulationEngine {
     };
   }
 
-  private forceInputs(mp: MassProps): ForceInputs {
+  forceInputs(mp: MassProps): ForceInputs {
     const s = this.state;
     const rho = this.env.densityAt(Math.max(0, s.body.pos.z));
     const k = rho / 1025;
