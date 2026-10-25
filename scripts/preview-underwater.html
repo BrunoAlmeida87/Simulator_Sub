@@ -1,0 +1,46 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>SX-1 · prévia dos efeitos submersos</title>
+<style>body{margin:0;background:#071723;color:#deedf5;font:16px system-ui}header{height:85px;box-sizing:border-box;padding:16px 30px;background:#0b1d2b;border-bottom:1px solid #315364}h1{font-size:21px;margin:0 0 7px}p{margin:0;color:#a5bac8}#scene{height:calc(100vh - 125px)}footer{height:40px;box-sizing:border-box;padding:10px 30px;font-size:13px;color:#a5bac8}</style>
+<header><h1 id="title"></h1><p id="detail"></p></header><div id="scene"></div><footer>Prévia no renderizador do simulador · estados controlados para comparação visual · modelo ilustrativo</footer>
+<script type="module">
+import { buildScenario } from '/src/sim/scenarios.ts';
+import { SimRunner } from '/src/sim/core/runner.ts';
+import { SubmarineScene } from '/src/render3d/SubmarineScene.ts';
+import { qFromEuler } from '/src/sim/core/math.ts';
+const mode = new URLSearchParams(location.search).get('mode') || 'cavitation';
+const e = buildScenario('submerso_50');
+e.env.setSeaState(0);
+e.env.cfg.bottom = {baseDepth: mode==='cavitation'||mode==='deep'?150:32, slopeNorth:0,slopeEast:0,roughness:0,wavelength:1800};
+e.env.cfg.geo = undefined;
+const depth = mode==='cavitation'?12:mode==='deep'?80:mode==='contact'?29:27.8;
+const rpm = mode==='cavitation'||mode==='deep'?160:70;
+const speed = mode==='cavitation'||mode==='deep'?14:mode==='contact'?1:5;
+e.state.body.pos = {x:0,y:0,z:depth};
+e.state.body.quat = qFromEuler(0,0,0);
+e.state.body.vel = {x:speed*0.514444,y:0,z:0};
+e.state.propulsion.omega = rpm * Math.PI/30;
+e.state.propulsion.thrust = rpm===160?180000:35000;
+e.state.propulsion.shaftAngle=0;
+e.computeOutputs();
+e.prevPos={...e.state.body.pos};e.prevQuat={...e.state.body.quat};
+const runner = new SimRunner(e);runner.alphaOverride=1;
+const scene = new SubmarineScene(document.querySelector('#scene'),runner,'livre','media');
+scene.layers.depthLines=false;scene.layers.presLight=true;scene.layers.trail=false;scene.layers.labels=false;scene.layers.markers=false;
+scene.realisticFog=false;
+scene.setView('livre');
+if(mode==='cavitation'||mode==='deep') scene.setCameraPose({pos:[19,5,53],target:[0,0,28]});
+else scene.setCameraPose({pos:[43,5,42],target:[0,-1,0]});
+document.querySelector('#title').textContent=mode==='cavitation'?'01 · Cavitação na hélice':mode==='deep'?'02 · Mesma rotação em maior profundidade':mode==='contact'?'04 · Contato da quilha com o fundo':'03 · Passagem próxima ao fundo';
+document.querySelector('#detail').textContent=`${speed} nós · ${rpm} rpm · eixo a ${depth.toFixed(1)} m`+(mode==='cavitation'||mode==='deep'?' · câmera aproximada da popa':` · fundo a 32 m · folga central: ${Math.max(0,32-depth-3.1).toFixed(1)} m`);
+window.preview={e,scene,runner,mode};
+window.advancePreview=(seconds)=>{
+ for(let j=0;j<Math.round(seconds*30);j++){
+  e.state.t+=1/30;e.state.propulsion.shaftAngle+=e.state.propulsion.omega/30;
+  e.state.body.pos.x+=e.state.body.vel.x/30;
+  e.prevPos={...e.state.body.pos};
+  scene.underwaterFx.update(e,1/30,e.state.body.pos.x,0,e.state.t,800,true);
+ }
+ scene.render();
+ return {particles:scene.underwaterFx.particles.length,sediment:scene.underwaterFx.particles.filter(p=>p.sediment).length};
+};
+scene.render();window.ready=true;
+</script></html>

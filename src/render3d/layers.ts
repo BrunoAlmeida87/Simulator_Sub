@@ -16,7 +16,7 @@ export interface SceneLayers {
   labels: boolean;
   /** boias e marcadores de distância fixos no cenário */
   markers: boolean;
-  /** esteira, onda de proa, espuma, rastro do hélice, bolhas da descarga dos diesel e aspiração do snorkel */
+  /** esteira, onda de proa, espuma, rastro do hélice, cavitação, sedimento do fundo, bolhas da descarga dos diesel e aspiração do snorkel */
   wake: boolean;
   /** vento aparente: poucas linhas discretas de vento acima da água */
   wind: boolean;
@@ -104,7 +104,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   labels: { label: 'Identificações', title: 'Nomes e valores sobre a cena (tanques, válvulas, navios, superfície…)' },
   batteryInfo: { label: 'Bateria (%)', title: 'Carga da bateria e geradores em carga, junto aos componentes (com o corte/tanques)' },
   airInfo: { label: 'Ar comprimido', title: 'Pressão e quantidade de ar de cada grupo de garrafas, junto às garrafas (com o corte/tanques)' },
-  wake: { label: 'Esteira', title: 'Esteira, onda de proa, espuma, rastro do hélice, bolhas da descarga dos diesel e aspiração do snorkel' },
+  wake: { label: 'Esteira', title: 'Esteira, onda de proa, espuma, rastro do hélice, cavitação, sedimento do fundo, bolhas da descarga dos diesel e aspiração do snorkel' },
   wind: { label: 'Vento', title: 'Vento aparente: poucas linhas de vento acima da água; com o submarino avançando, vêm da proa' },
   flag: { label: 'Bandeira', title: 'Bandeira no mastro da vela, tremulando com o vento aparente (some quando a vela submerge)' },
   pennant: { label: 'Flâmula', title: 'Flâmula no topo da vela mostrando o vento aparente (submarino na superfície)' },
