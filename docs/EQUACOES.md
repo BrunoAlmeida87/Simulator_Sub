@@ -138,7 +138,8 @@ Para cada superfície, o escoamento local é v_loc = v + ω × r:
 α = δ + atan2(v_n, v_x)                       (reduzido a [−90°, 90°]; placa fina)
 C_Lα = 2π·AR / (2 + √(AR² + 4))               (Helmbold)
 C_L = C_Lα·α (|α| ≤ α_estol); transição de 8°; depois 0,9·sen 2α
-C_D = 0,008 + C_L²/(π·AR·0,85) + 1,1·sen²α
+C_D = 0,008 + C_L²/(π·AR·0,85) + 1,1·sen²α·f_sep(α)
+f_sep = 0,15 + 0,85·S(t) ,  t = clamp((|α| − 0,30)/0,10, 0, 1) ,  S(t) = 3t² − 2t³   (transição suave para o estol)
 L = ½·ρ·|V|²·A·C_L ,   D = ½·ρ·|V|²·A·C_D
 ```
 
