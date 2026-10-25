@@ -53,21 +53,37 @@ function OwnerTag({ o }: { o: Owner }) {
   );
 }
 
-/** campo numérico compacto: envia no Enter ou ao sair do campo */
+/**
+ * campo numérico compacto: envia no Enter ou ao sair do campo, sempre que o
+ * operador digitou algo — mesmo o valor já mostrado (em MAN isso é a
+ * pré-seleção da ordem); sem digitação, sair do campo não envia nada
+ */
 function MiniNum({ value, onSet, min, max, unit, dec = 0, label, dim }: { value: number; onSet: (v: number) => void; min: number; max: number; unit: string; dec?: number; label: string; dim?: boolean }) {
   const shown = dec ? (Math.round(value * 10) / 10).toFixed(dec) : String(Math.round(value));
   const [v, setV] = useState(shown);
+  const edited = useRef(false);
   useEffect(() => setV(shown), [shown]);
   const commit = () => {
+    const typed = edited.current;
+    edited.current = false;
     const x = Number(v.replace(',', '.'));
-    if (!Number.isFinite(x)) return setV(shown);
-    const y = Math.max(min, Math.min(max, x));
-    if (Math.abs(y - value) > 1e-6) onSet(y);
-    else setV(shown);
+    if (!typed || !Number.isFinite(x)) return setV(shown);
+    onSet(Math.max(min, Math.min(max, x)));
+    setV(shown);
   };
   return (
     <span className={`mini-num ${dim ? 'dim' : ''}`}>
-      <input aria-label={label} inputMode="decimal" value={v} onChange={(ev) => setV(ev.target.value)} onBlur={commit} onKeyDown={(ev) => ev.key === 'Enter' && (ev.currentTarget as HTMLInputElement).blur()} />
+      <input
+        aria-label={label}
+        inputMode="decimal"
+        value={v}
+        onChange={(ev) => {
+          edited.current = true;
+          setV(ev.target.value);
+        }}
+        onBlur={commit}
+        onKeyDown={(ev) => ev.key === 'Enter' && (ev.currentTarget as HTMLInputElement).blur()}
+      />
       <u>{unit}</u>
     </span>
   );
@@ -172,11 +188,12 @@ function GovCard({ e }: { e: SimulationEngine }) {
 // ------------------------------------------------------------ piloto automático
 function ApRow({ e, ch }: { e: SimulationEngine; ch: Channel }) {
   const ap = e.state.autopilot;
-  const o = e.outputs;
   const mode = ch === 'heading' ? ap.headingMode : ch === 'depth' ? ap.depthMode : ap.pitchMode;
   const set = ch === 'heading' ? ap.headingSet : ch === 'depth' ? ap.depthSet : ap.pitchSet;
   const tel = ch === 'heading' ? ap.tHeading : ch === 'depth' ? ap.tDepth : ap.tPitch;
-  const meas = ch === 'heading' ? `${fmt(o.euler.heading, 0)}°` : ch === 'depth' ? `${fmt(o.depthKeel, 1)} m` : `${fmt(o.euler.pitch, 1)}°`;
+  // medido = leitura dos sensores que o piloto usa (com as falhas de sensor), coerente com o erro ao lado
+  const r = e.apReadings;
+  const meas = ch === 'heading' ? `${fmt(r.heading, 0)}°` : ch === 'depth' ? `${fmt(r.depth, 1)} m` : `${fmt(r.pitch, 1)}°`;
   const preset = mode === 'MANUAL' && !!ap.preset?.[ch];
   const by = channelBy(e, ch);
   const label = { heading: 'Rumo', depth: 'Profund.', pitch: 'Inclinação' }[ch];
