@@ -413,6 +413,62 @@ export class SystemsVis {
   /** objetos clicáveis (com userData.pick) */
   readonly pickables: THREE.Object3D[] = [];
 
+  // ------------------------------------------------- interior do Blender (meio casco aberto)
+  /**
+   * Com o interior do Blender (interiorModel.ts) no corte, as formas simples deste desenho
+   * (tubos, válvulas, bombas, garrafas, bateria, geradores e contornos dos tanques) saem e
+   * ficam a água dos tanques, as partículas, as setas e os rótulos — recortados pelo mesmo
+   * plano do meio casco aberto.
+   */
+  private interiorMode = false;
+  private cutPlane: THREE.Plane | null = null;
+
+  setInteriorMode(on: boolean, plane: THREE.Plane | null): void {
+    if (on === this.interiorMode && plane === this.cutPlane) return;
+    this.interiorMode = on;
+    this.cutPlane = plane;
+    const extra = on && plane ? [plane] : [];
+    for (const t of this.tanks) {
+      const cp = this.clipPlanes.get(t.id);
+      t.waterMat.clippingPlanes = cp ? [cp.water, ...extra] : extra.length ? extra : null;
+      t.airMat.clippingPlanes = cp ? [cp.air, ...extra] : extra.length ? extra : null;
+      (t.surf.material as THREE.Material).clippingPlanes = extra.length ? extra : null;
+      t.waterMat.needsUpdate = t.airMat.needsUpdate = (t.surf.material as THREE.Material).needsUpdate = true;
+    }
+    const pm = this.points.material as THREE.PointsMaterial;
+    pm.clippingPlanes = extra.length ? extra : null;
+    pm.needsUpdate = true;
+  }
+
+  /** Estados e seleção que o interior do Blender usa (mesmos nomes do arranjo exportado). */
+  interiorLinks(): {
+    valves: { name: string; owners: string[]; get: (e: SimulationEngine) => ValveState; pick: unknown; directional: boolean }[];
+    pumps: { name: string; owners: string[]; get: (e: SimulationEngine) => { speed: number; cmd: boolean; failed: boolean }; pick: unknown }[];
+    tanks: { id: string; cat: TankCategory }[];
+  } {
+    return {
+      valves: this.valves.map((v) => ({ name: v.name, owners: v.owners, get: v.get, pick: v.mesh.userData.pick, directional: !!v.directional })),
+      pumps: this.pumps.map((p) => ({ name: p.name, owners: p.owners, get: p.get, pick: p.body.userData.pick })),
+      tanks: this.tanks.map((t) => ({ id: t.id, cat: t.cat })),
+    };
+  }
+
+  /** Mesma regra de filtro/destaque do corte: o que aparece e o que fica apagado. */
+  visibility(layers: SceneLayers): { shown: (owners: string[]) => boolean; dim: (owners: string[]) => boolean; tankShown: (id: string) => boolean } {
+    const filt = layers.tankFilter ? new Set(layers.tankFilter) : null;
+    const SYS: Record<TankCategory, string> = { lastro: 'HP', compensacao: 'compensacao', trim: 'trim', banda: 'heel' };
+    const sysOn = new Set<string>();
+    if (filt) for (const t of this.tanks) if (filt.has(t.id)) sysOn.add(SYS[t.cat]);
+    const ids = this.tankIds;
+    const hl = layers.highlight;
+    const shown = (owners: string[]) => {
+      if (!filt) return true;
+      const own = owners.filter((o) => ids.has(o));
+      return own.length ? own.some((o) => filt.has(o)) : owners.some((o) => sysOn.has(o));
+    };
+    return { shown, dim: (owners) => !!hl && !owners.includes(hl), tankShown: (id) => !filt || filt.has(id) };
+  }
+
   // ------------------------------------------------------------- circuitos
   private pipe(pts: THREE.Vector3[], color: number, owners: string[], r = 0.11): void {
     this.pipePaths.push(pts);
@@ -881,6 +937,21 @@ export class SystemsVis {
   }
 
   update(e: SimulationEngine, sub: THREE.Object3D, layers: SceneLayers, step: number, labels: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
+    this.updateInner(e, sub, layers, step, labels, proj);
+    if (!this.interiorMode) return;
+    // meio casco aberto com o interior do Blender: ficam água, ar, partículas, setas e rótulos
+    for (const p of this.pipeMats) p.mesh.visible = false;
+    for (const v of this.valves) v.mesh.visible = false;
+    for (const p of this.pumps) {
+      p.body.visible = false;
+      p.rotor.visible = false;
+    }
+    for (const b of this.hpBottles) b.grp.visible = false;
+    for (const m of [...this.batt, ...this.battBar, ...this.gens.map((g) => g.mesh)]) m.visible = false;
+    for (const t of this.tanks) for (const m of t.meshes) if (m instanceof THREE.LineSegments) m.visible = false;
+  }
+
+  private updateInner(e: SimulationEngine, sub: THREE.Object3D, layers: SceneLayers, step: number, labels: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
     const showT = layers.tanks;
     const showP = layers.tanks && layers.pipes;
     const showF = layers.tanks && layers.flows;

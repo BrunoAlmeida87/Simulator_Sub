@@ -19,6 +19,9 @@ const OUT = process.argv[3] ?? join('build', 'prints');
 function prefs({ screen = 'v3d', view = 'perspectiva', cut = false, dry = true, quality = 'alta', graphics = null }) {
   return {
     ...(graphics ? { 'sx1.graphics.v1': JSON.stringify({ quality, ...graphics }) } : {}),
+    // 2ª janela: mesmas camadas de corte/água (sobreposição própria dela)
+    'sx1.ui.visual.layers': JSON.stringify({ tanks: cut, noWater: dry }),
+    'sx1.ui.visual.view': JSON.stringify(view),
     'sx1.prefs.v2': JSON.stringify({ screen, eng: false }),
     'sx1.quality.v1': quality,
     'sx1.ui.v3d.view': JSON.stringify(view),
@@ -69,6 +72,11 @@ async function shot(browser, mode, s) {
     await page.getByRole('button', { name: 'Carregar', exact: true }).click();
   }
   await page.waitForTimeout(3500);
+  // passos (opcional): cliques em botões pelo nome e esperas, ex. comandar uma manobra e trocar de tela
+  for (const st of s.steps ?? []) {
+    if (st.click) await page.getByRole('button', { name: st.click, exact: !!st.exact }).first().click();
+    if (st.wait) await page.waitForTimeout(st.wait);
+  }
   const canvas = page.locator('canvas').first();
   const box = await canvas.boundingBox();
   if (s.orbit && box) {

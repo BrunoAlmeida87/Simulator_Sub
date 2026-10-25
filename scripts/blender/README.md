@@ -98,8 +98,9 @@ de escoamento e volantes pela posição (`build/modelo/fluidos/`); o terceiro co
   O teste `tests/systemsLayout.test.ts` garante que bombas, válvulas e tubulações do corte ficam dentro dele
   (só os tubos ao mar o atravessam) e que nenhuma válvula ou bomba fica dentro do volume de um tanque.
 
-- O site **ainda não carrega** o `sx1-interior.glb`; o corte atual continua o mesmo. O teste
-  `tests/subInterior.test.ts` garante que o arquivo segue o corte publicado (mesmas peças e posições).
+- O corte do site carrega o `sx1-interior.glb` (`src/render3d/interiorModel.ts`, meio casco aberto) e liga cada
+  peça ao estado pelos dados em extras (`tipo`, `nome`, `sistemas`, `eixo_giro`). Os testes `tests/subInterior.test.ts`
+  e `tests/interiorModel.test.ts` garantem que o arquivo segue o corte publicado (mesmas peças, posições e nomes).
 - Nomes fixos (`SX1I_Tanque_<ID>`, `SX1I_Valvula_<nome>`, `SX1I_Bomba_<nome>`, `SX1I_Tubo_<n>`…), nós só com
   translação; volantes e rotores são filhos com origem no eixo de giro (`eixo_giro` em extras).
   Nome, sistemas e trajetos ficam em extras (no Three.js, `userData`) para ligar cada peça ao estado.
