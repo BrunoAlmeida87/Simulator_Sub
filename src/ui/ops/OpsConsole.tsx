@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { cmd, runner } from '../store';
-import { usePersisted } from '../persist';
+import { loadPersisted, usePersisted } from '../persist';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { CommandRecord } from '../../sim/core/state';
 import { TELEGRAPH } from '../components/Controls';
@@ -43,12 +43,13 @@ function channelBy(e: SimulationEngine, ch: Channel): string | null {
   return null;
 }
 
-function OwnerTag({ o }: { o: Owner }) {
+/** dono do canal; short = só o símbolo (console compacto): ⚙ piloto, ⟳ manobra — com a mesma borda e o texto na dica */
+function OwnerTag({ o, short }: { o: Owner; short?: boolean }) {
   const cls = o === 'PILOTO' ? 'pi' : o === 'MANOBRA' ? 'mn' : 'op';
   const tip = o === 'PILOTO' ? 'Comandado pelo piloto automático: um toque manual passa o canal a MAN' : o === 'MANOBRA' ? 'Comandado pela manobra automática' : 'Comandado pelo operador';
   return (
-    <span className={`own ${cls}`} title={tip}>
-      {o}
+    <span className={`own ${cls} ${short ? 'short' : ''}`} title={`${o}: ${tip}`} aria-label={o}>
+      {short ? (o === 'PILOTO' ? '⚙' : o === 'MANOBRA' ? '⟳' : 'OP') : o}
     </span>
   );
 }
@@ -258,6 +259,15 @@ function ApCard({ e }: { e: SimulationEngine }) {
 }
 
 // ------------------------------------------------------------ manobras
+/** Manter cota: cancela a manobra, zera vante e ré e liga o piloto de profundidade na cota atual */
+function manterCota(): void {
+  maneuver.cancel(runner);
+  cmd({ type: 'surface', id: 'bow', angle: 0 });
+  cmd({ type: 'surface', id: 'stern', angle: 0 });
+  cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO', hold: true });
+}
+const MANTER_TIP = 'Cancela a manobra, zera os lemes de vante e de ré e liga o piloto de profundidade na cota atual';
+
 function ManCard() {
   const [target, setTarget] = usePersisted('pilot.target', 50);
   const imm = maneuver.active === 'imergir';
@@ -285,15 +295,7 @@ function ManCard() {
         <button className={maneuver.active === 'emergir' ? 'run' : ''} onClick={() => maneuver.active !== 'emergir' && maneuver.start(runner, 'emergir')}>
           {maneuver.active === 'emergir' ? '⟳' : '⬆'} Emergir
         </button>
-        <button
-          onClick={() => {
-            maneuver.cancel(runner);
-            cmd({ type: 'surface', id: 'bow', angle: 0 });
-            cmd({ type: 'surface', id: 'stern', angle: 0 });
-            cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO', hold: true });
-          }}
-          title="Cancela a manobra, zera os lemes de vante e de ré e liga o piloto de profundidade na cota atual"
-        >
+        <button onClick={manterCota} title={MANTER_TIP}>
           ═ Manter cota
         </button>
       </div>
@@ -317,6 +319,90 @@ export function OpsConsole({ e }: { e: SimulationEngine }) {
       <GovCard e={e} />
       <ApCard e={e} />
       <ManCard />
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ console compacto (telas baixas)
+/** ordem vizinha do telégrafo (dir = +1 mais avante, −1 mais a ré), a partir da ordem atual */
+export function telegraphStep(rpmCmd: number, dir: 1 | -1): number {
+  const rpms = TELEGRAPH.map((t) => t.rpm);
+  const at = rpms.indexOf(Math.round(rpmCmd));
+  if (at >= 0) return rpms[Math.max(0, Math.min(rpms.length - 1, at + dir))];
+  // fora das ordens (ajuste fino): vai para a ordem seguinte no sentido pedido
+  return dir > 0 ? (rpms.find((r) => r > rpmCmd) ?? rpms[rpms.length - 1]) : ([...rpms].reverse().find((r) => r < rpmCmd) ?? rpms[0]);
+}
+
+const FIN_SHORT: Record<FinId, string> = { rudder: 'Dir.', bow: 'Vte', stern: 'Ré' };
+
+/**
+ * Uma linha (~48 px) com o essencial do console: telégrafo (◀ ▶ entre as
+ * ordens), lemes com o dono quando não é o operador, pilotos e manobras.
+ * "▴ Console" abre o console completo por cima do rodapé da cena.
+ */
+export function OpsConsoleCompact({ e, onOpen }: { e: SimulationEngine; onOpen: () => void }) {
+  const p = e.state.propulsion;
+  const ap = e.state.autopilot;
+  // lido a cada quadro: a gaveta (console completo) pode ter mudado a cota enquanto esta linha estava montada
+  const target = loadPersisted('pilot.target', 50);
+  const tel = TELEGRAPH.find((t) => t.rpm === Math.round(p.rpmCmd))?.label ?? `${fmt(p.rpmCmd, 0)} rpm`;
+  const imm = maneuver.active === 'imergir';
+  const em = maneuver.active === 'emergir';
+  const apTxt = (mode: string, set: string) => (mode === 'AUTO' ? `AUTO ${set}` : 'MAN');
+  return (
+    <div className="ops-console compact" role="group" aria-label="Console de governo (compacto)">
+      <span className="cc-grp" aria-label="Propulsão">
+        <button onClick={() => cmd({ type: 'telegraph', rpm: telegraphStep(p.rpmCmd, -1) })} title="Ordem anterior do telégrafo (mais a ré)" aria-label="Telégrafo: ordem anterior">
+          ◀
+        </button>
+        <b className={`cc-tel ${p.rpmCmd < 0 ? 'rev' : ''}`}>{tel}</b>
+        <button onClick={() => cmd({ type: 'telegraph', rpm: telegraphStep(p.rpmCmd, 1) })} title="Próxima ordem do telégrafo (mais avante)" aria-label="Telégrafo: próxima ordem">
+          ▶
+        </button>
+        <small>{fmt(e.outputs.rpm, 0)} rpm</small>
+      </span>
+      <span className="cc-grp" aria-label="Lemes">
+        {(['rudder', 'bow', 'stern'] as FinId[]).map((id) => {
+          const st = e.state.surfaces[id];
+          const o = finOwner(e, id);
+          return (
+            <span key={id} className="cc-fin" title={`${FIN_NAME[id]}: ordem ${fmt(Math.abs(st.cmd), 1)}°${finDir(id, st.cmd)}, real ${fmt(Math.abs(st.actual), 1)}° · ${o} · teclas ${FIN_KEYS[id]}`}>
+              {FIN_SHORT[id]}{' '}
+              <b>
+                {fmt(Math.abs(st.cmd), 0)}°{finDir(id, st.cmd)}
+              </b>
+              {o !== 'OPERADOR' && <OwnerTag o={o} short />}
+            </span>
+          );
+        })}
+      </span>
+      <span className="cc-grp" aria-label="Piloto automático">
+        <span>
+          Rumo <b className={ap.headingMode === 'AUTO' ? 'auto' : ''}>{apTxt(ap.headingMode, `${fmt(ap.headingSet, 0)}°`)}</b>
+        </span>
+        <span>
+          Prof. <b className={ap.depthMode === 'AUTO' ? 'auto' : ''}>{apTxt(ap.depthMode, `${fmt(ap.depthSet, 0)} m`)}</b>
+        </span>
+        {ap.pitchMode === 'AUTO' && (
+          <span>
+            Incl. <b className="auto">AUTO {fmt(ap.pitchSet, 1)}°</b>
+          </span>
+        )}
+      </span>
+      <span className="cc-grp cc-mv" aria-label="Manobras">
+        <button className={imm ? 'run' : ''} onClick={() => !imm && maneuver.start(runner, 'imergir', target)} title={imm ? 'Imersão em andamento' : `Imergir para ${target} m (cota no console completo)`}>
+          {imm ? '⟳' : '⬇'} Imergir {fmt(imm ? maneuver.target : target, 0)} m
+        </button>
+        <button className={em ? 'run' : ''} onClick={() => !em && maneuver.start(runner, 'emergir')}>
+          {em ? '⟳' : '⬆'} Emergir
+        </button>
+        <button onClick={manterCota} title={MANTER_TIP}>
+          ═ Manter
+        </button>
+      </span>
+      <button className="cc-open" onClick={onOpen} title="Abrir o console completo sobre a cena (Esc fecha)">
+        ▴ Console
+      </button>
     </div>
   );
 }
