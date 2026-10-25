@@ -440,8 +440,8 @@ export const VALIDATION_CASES: ValidationCase[] = [
   },
   {
     id: 'V10',
-    title: '10. Sem geração artificial de massa ou energia',
-    description: 'Sequência com mergulho, compensação, sopro e diesel: balanços de massa e energia fecham; casco sem propulsão perde energia mecânica monotonicamente.',
+    title: '10. Balanços de massa e energia (escopo verificado)',
+    description: 'Sequência com mergulho, compensação, sopro e diesel: balanços de massa, do barramento (demanda pedida = atendida + não atendida) e da bateria fecham; casco sem propulsão perde energia mecânica. Verifica esta sequência, não prova conservação em todas as condições (ver LIMITACOES).',
     run: () => {
       const e = buildScenario('superficie', uniformConfig());
       applyCommand(e, { type: 'telegraph', rpm: 90 });

@@ -21,7 +21,8 @@
  *
  * Simplificações: CG tratado na origem para os termos inerciais (o desvio do
  * CG entra pelos momentos de peso); produtos de inércia desprezados; massa
- * adicional escalada pela fração imersa; sem ondas e correntes.
+ * adicional escalada pela fração imersa; sem correntes. Ondas entram pela
+ * elevação local (empuxo) e por forças de inércia aproximadas (ver EQUACOES §14).
  */
 import type { VesselConfig } from '../config/types';
 import type { Environment } from '../environment/environment';

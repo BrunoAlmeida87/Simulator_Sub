@@ -63,7 +63,7 @@ c(s) = (2/3)·(r² − s²)^{3/2} / A          (centróide ao longo de n̂)
 V = Σ A_i·Δx ;   B = Σ A_i·Δx·c_i / V
 ```
 
-O cálculo é exato para fatias normais ao eixo, em qualquer pitch, banda ou calado. Com a mesma rotina, ele cobre a flutuação na superfície (estabilidade de plano de flutuação) e a condição submersa (estabilidade por BG).
+A seção de cada fatia é calculada analiticamente (exata para fatias normais ao eixo, em qualquer pitch, banda ou calado); o casco inteiro é uma quadratura longitudinal de 100 fatias (volume com erro ≈ 0,009 % frente à integral analítica), não uma solução exata. Com a mesma rotina, ele cobre a flutuação na superfície (estabilidade de plano de flutuação) e a condição submersa (estabilidade por BG).
 
 ### 3.3 Compressibilidade do casco
 
@@ -272,18 +272,21 @@ Os controladores usam as leituras dos sensores. A transferência é sem salto (b
 Espectro de Pierson–Moskowitz (Hs, Tp do estado do mar), discretizado em N = 24 componentes de amplitude aᵢ = √(2 S(ωᵢ) Δω), direção θᵢ com espalhamento cos², fase aleatória (semente fixa). Águas profundas: kᵢ = ωᵢ²/g.
 
 ```
-η(x,t)   = Σ aᵢ cos(kᵢ·x − ωᵢ t + φᵢ)
-u(x,z,t) = Σ aᵢ ωᵢ e^(−kᵢ z) [cos(·) k̂ᵢ , sin(·)]       (z positivo para baixo)
-a = ∂u/∂t ;  p_d = ρ g Σ aᵢ e^(−kᵢ z) cos(·)
+η(x,t)   = Σ aᵢ cos(kᵢ·x − ωᵢ t + φᵢ)                      (η positivo para cima)
+u_h(x,z,t) = Σ aᵢ ωᵢ e^(−kᵢ z) cos(·) k̂ᵢ                    (horizontal)
+u_z(x,z,t) = −Σ aᵢ ωᵢ e^(−kᵢ z) sin(·)                       (NED: z positivo para baixo)
+a = ∂u/∂t ;  p̃_d = g Σ aᵢ e^(−kᵢ z) cos(·)   [m²/s²; a pressão dinâmica é ρ·p̃_d, em Pa]
 ```
 
-Em cada fatia do casco: o empuxo usa a imersão relativa à superfície local (z − η); o arrasto transversal usa a velocidade relativa à orbital; e a força de inércia é
+Em cada fatia do casco: o empuxo usa a profundidade relativa à superfície local, **z + η** (η para cima, z para baixo); o arrasto transversal usa a velocidade relativa à orbital; e a força de inércia é
 
 ```
-F = (Ca + f_FK) ρ A dx a_água ,  Ca = 1 ,  f_FK = imersão da fatia
+F = (Ca + f_FK) ρ A dx a_água ,  Ca = 1 ,  f_FK = clamp((z_fatia − r)/R, 0, 1)
 ```
 
-O campo é avaliado uma vez por passo (no meio do passo). A pressão na quilha soma ρ p_d, e o snorkel compara a cabeça com a elevação local. O oceano 3D (shader WebGL) usa exatamente as mesmas componentes e fases. Verificado no teste V13 (decaimento e^(−kz)).
+f_FK **não** é a fração imersa: é uma rampa empírica (0 com a fatia tocando a superfície, 1 a partir de um raio do casco abaixo dela), porque perto da superfície o efeito da onda já entra pela η local no empuxo.
+
+O campo é avaliado uma vez por passo (no meio do passo), na pose do início do passo; é um acoplamento aproximado, não preserva a ordem 4 do RK4. A pressão na quilha soma ρ·p̃_d (uma única multiplicação por ρ), e o snorkel compara a cabeça com a elevação local. O oceano 3D (shader WebGL) usa exatamente as mesmas componentes e fases. Verificado no teste V13 (decaimento e^(−kz)).
 
 ## 15. Balanços de verificação
 

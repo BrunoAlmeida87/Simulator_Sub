@@ -1,6 +1,6 @@
 # Relatório de validação física
 
-Gerado automaticamente por `npm run report` em 2026-10-22T01:43:36.587Z.
+Gerado automaticamente por `npm run report` em 2026-10-25T00:29:30.062Z.
 
 Cada caso executa um cenário demonstrativo independente e compara **métricas numéricas** com critérios objetivos. Os mesmos casos são executados por `npm test` (Vitest) e pela tela **Validação** do simulador.
 
@@ -13,13 +13,13 @@ Pairando sem seguimento: admitir 1,5 t de água de compensação deve gerar flut
 | Métrica | Valor | Unidade | Critério | OK |
 |---|---:|---|---|:-:|
 | Deriva com equilíbrio neutro (60 s) | 0.0000 | m | |Δz| < 0,5 m | ✓ |
-| Flutuabilidade líquida após admitir 1,5 t | -1513.9628 | kg | −1500 ± 150 kg | ✓ |
-| Afundamento em 240 s | 30.3200 | m | > 5 m | ✓ |
+| Flutuabilidade líquida após admitir 1,5 t | -1513.9627 | kg | −1500 ± 150 kg | ✓ |
+| Afundamento em 240 s | 30.3198 | m | > 5 m | ✓ |
 | Velocidade vertical (descendo) | 0.2145 | m/s | > 0 e ±15 % da terminal prevista | ✓ |
 | Velocidade terminal prevista (arrasto cruzado + linear) | 0.2257 | m/s | referência | ✓ |
 | Velocidade vertical após esgotar 3 t | -0.1993 | m/s | < 0 (subindo) | ✓ |
 
-> Velocidade terminal: ½·ρ·C_dc·A_lat·v² + c_lin·v = |Δm|·g (peso aparente equilibrado pelo arrasto vertical). (tempo de execução: 2517 ms)
+> Velocidade terminal: ½·ρ·C_dc·A_lat·v² + c_lin·v = |Δm|·g (peso aparente equilibrado pelo arrasto vertical). (tempo de execução: 1968 ms)
 
 ## ✅ 2. Redistribuição longitudinal de massa altera o trim
 
@@ -27,26 +27,26 @@ Transferir 1 t de TT-AV para TT-AR (velocidade nula): proa deve subir; ângulo f
 
 | Métrica | Valor | Unidade | Critério | OK |
 |---|---:|---|---|:-:|
-| Massa transferida | 999.1094 | kg | 1000 ± 30 kg | ✓ |
-| Variação de pitch (simulada) | 2.8699 | ° | > 0 (proa para cima) | ✓ |
-| Variação de pitch (prevista) | 2.8699 | ° | referência | ✓ |
-| Erro relativo simulado × previsto | 4.654e-4 | % | < 10 % | ✓ |
-| Rigidez longitudinal W·BG | 6.7513 | MN·m/rad | referência | ✓ |
+| Massa transferida | 1000.3614 | kg | 1000 ± 30 kg | ✓ |
+| Variação de pitch (simulada) | 2.8733 | ° | > 0 (proa para cima) | ✓ |
+| Variação de pitch (prevista) | 2.8733 | ° | referência | ✓ |
+| Erro relativo simulado × previsto | 9.666e-4 | % | < 10 % | ✓ |
+| Rigidez longitudinal W·BG | 6.7519 | MN·m/rad | referência | ✓ |
 
-> Oscilação amortecida de longo período (≈ 2π√(I_yy/(W·BG))) antes de estabilizar. (tempo de execução: 1277 ms)
+> Oscilação amortecida de longo período (≈ 2π√(I_yy/(W·BG))) antes de estabilizar. (tempo de execução: 1200 ms)
 
 ## ✅ 3. Redistribuição transversal de massa altera a banda
 
-Transferir 1 t de TB-BB para TB-BE: o submarino deve adernar para boreste conforme Δφ = Δm·g·Δy / (W·BG).
+Transferir 1 t de TB-BB para TB-BE: o submarino deve adernar para boreste conforme tan Δφ = g·Δ(Σ m·ȳ) / (W·BG), com ȳ o centroide da água em cada tanque.
 
 | Métrica | Valor | Unidade | Critério | OK |
 |---|---:|---|---|:-:|
-| Massa transferida | 999.1200 | kg | 1000 ± 30 kg | ✓ |
-| Variação de banda (simulada) | 0.3997 | ° | > 0 (boreste) | ✓ |
-| Variação de banda (prevista) | 0.3997 | ° | referência | ✓ |
-| Erro relativo | 8.259e-8 | % | < 10 % | ✓ |
+| Massa transferida | 999.4452 | kg | 1000 ± 30 kg | ✓ |
+| Variação de banda (simulada) | 0.3653 | ° | > 0 (boreste) | ✓ |
+| Variação de banda (prevista) | 0.3653 | ° | referência | ✓ |
+| Erro relativo | 9.409e-8 | % | < 10 % | ✓ |
 
-> Arquitetura de banda fictícia (tanques laterais). (tempo de execução: 621 ms)
+> Arquitetura de banda fictícia (tanques laterais). (tempo de execução: 690 ms)
 
 ## ✅ 4. Efetividade dos lemes depende da velocidade
 
@@ -58,25 +58,25 @@ Mesma deflexão dos lemes de ré (10°) a 0, 0,5 e 5 m/s: força ∝ U² (razão
 | Força a U = 0,5 m/s | 1588.3149 | N | referência | ✓ |
 | Força a U = 5 m/s | 1.588e+5 | N | referência | ✓ |
 | Razão de forças (5 / 0,5 m/s) | 100.0000 | — | 100 ± 10 (∝ U²) | ✓ |
-| Δpitch em 20 s a 0,5 m/s | 0.3143 | ° | pequeno | ✓ |
-| Δpitch em 20 s a 5 m/s | 15.3120 | ° | > 10× o caso lento | ✓ |
+| Δpitch em 20 s a 0,5 m/s | 0.3156 | ° | pequeno | ✓ |
+| Δpitch em 20 s a 5 m/s | 15.3560 | ° | > 10× o caso lento | ✓ |
 
-> L = ½·ρ·U²·A·C_L(α): sem escoamento não há força hidrodinâmica. (tempo de execução: 189 ms)
+> L = ½·ρ·U²·A·C_L(α): sem escoamento não há força hidrodinâmica. (tempo de execução: 209 ms)
 
 ## ✅ 5. Rumo responde progressivamente à deflexão do leme
 
-A 6 nós: leme 15° BE ⇒ taxa de guinada cresce gradualmente e o rumo aumenta; 15° BB ⇒ simétrico; leme a meio ⇒ rumo mantido.
+A 6 nós (11.1 km/h): leme 15° BE ⇒ taxa de guinada cresce gradualmente e o rumo aumenta; 15° BB ⇒ simétrico; leme a meio ⇒ rumo mantido.
 
 | Métrica | Valor | Unidade | Critério | OK |
 |---|---:|---|---|:-:|
-| Δrumo em 60 s (15° BE) | 43.7161 | ° | > 15° | ✓ |
-| Δrumo em 60 s (15° BB) | -43.7104 | ° | < −15° (simétrico ±10 %) | ✓ |
+| Δrumo em 60 s (15° BE) | 44.0425 | ° | > 15° | ✓ |
+| Δrumo em 60 s (15° BB) | -44.0370 | ° | < −15° (simétrico ±10 %) | ✓ |
 | Δrumo em 60 s (leme a meio) | 0.0019 | ° | |Δψ| < 0,5° | ✓ |
-| Taxa de guinada após 5 s | 0.3772 | °/s | < taxa após 60 s (progressiva) | ✓ |
-| Taxa de guinada após 60 s | 0.7514 | °/s | referência | ✓ |
+| Taxa de guinada após 5 s | 0.3795 | °/s | < taxa após 60 s (progressiva) | ✓ |
+| Taxa de guinada após 60 s | 0.7625 | °/s | referência | ✓ |
 | Rumo monotônico (BE) | 1.0000 | bool | 1 | ✓ |
 
-> O casco ganha ângulo de deriva e a guinada se estabelece após o transitório de inércia. (tempo de execução: 464 ms)
+> O casco ganha ângulo de deriva e a guinada se estabelece após o transitório de inércia. (tempo de execução: 460 ms)
 
 ## ✅ 6. Bombas e válvulas possuem estados transitórios
 
@@ -86,13 +86,13 @@ Curso das válvulas, partida das bombas e alagamento dos TLP não são instantâ
 |---|---:|---|---|:-:|
 | Posição do suspiro em t_curso/2 | 0.5040 | — | 0,5 ± 0,05 | ✓ |
 | Posição do suspiro em t_curso | 1.0000 | — | 1,0 | ✓ |
-| Enchimento do TLP após 5 s | 12.1335 | % | < 40 % (limitado pela saída de ar) | ✓ |
+| Enchimento do TLP após 5 s | 12.1336 | % | < 40 % (limitado pela saída de ar) | ✓ |
 | Enchimento do TLP após 90 s | 99.9276 | % | > 95 % | ✓ |
 | Rotação da bomba em t_partida/2 | 0.5000 | — | 0,5 ± 0,05 | ✓ |
-| Vazão da bomba de trim em t_partida/2 | 4.7911 | L/s | < vazão plena | ✓ |
-| Vazão plena da bomba de trim | 11.2583 | L/s | > 0 | ✓ |
+| Vazão da bomba de trim em t_partida/2 | 5.5159 | L/s | < vazão plena | ✓ |
+| Vazão plena da bomba de trim | 11.2626 | L/s | > 0 | ✓ |
 
-> O alagamento é limitado pela vazão de ar através do suspiro (orifício compressível). (tempo de execução: 453 ms)
+> O alagamento é limitado pela vazão de ar através do suspiro (orifício compressível). (tempo de execução: 421 ms)
 
 ## ✅ 7. Coerência entre profundidade e pressão
 
@@ -107,7 +107,7 @@ A pressão externa cresce monotonicamente com a profundidade (≈ 1 bar/10 m), a
 | Profundidade indicada − geométrica | 0.0529 | m | |Δ| < 1 % (efeito de ρ_cal) | ✓ |
 | Pressão a 300 m (absoluta) | 31.2170 | bar | ≈ 31,3 | ✓ |
 
-> dp/dz = ρ(S,T,p)·g integrada com EOS-80; profundímetro: z = (p − p_atm)/(ρ_cal·g), ρ_cal = 1025 (tempo de execução: 10 ms)
+> dp/dz = ρ(S,T,p)·g integrada com EOS-80; profundímetro: z = (p − p_atm)/(ρ_cal·g), ρ_cal = 1025 (tempo de execução: 8 ms)
 
 ## ✅ 8. Estado válido com pausa, reinício, aceleração e salvamento
 
@@ -122,7 +122,7 @@ Passo fixo: ×1 e ×10 produzem estados idênticos; pausa não altera o estado; 
 | Continuação após salvar/recuperar idêntica | 1.0000 | bool | 1 | ✓ |
 | Variáveis de estado finitas | 1.0000 | bool | 1 | ✓ |
 
-> Determinismo: acumulador de tempo real com passo fixo dt = 0,02 s. (tempo de execução: 520 ms)
+> Determinismo: acumulador de tempo real com passo fixo dt = 0,02 s. (tempo de execução: 529 ms)
 
 ## ✅ 9. Instrumentos consistentes com o estado simulado
 
@@ -140,27 +140,29 @@ Sem ruído, as leituras coincidem com as grandezas físicas; com instrumentaçã
 | Modo avançado: erro médio do profundímetro | 0.0011 | m | |média| < σ | ✓ |
 | Modo avançado: RMS do erro | 0.0515 | m | ≈ σ (0,5σ … 2σ) | ✓ |
 
-> Classificação na interface: MED (sensor), CALC (calculado), CMD (comando). (tempo de execução: 279 ms)
+> Classificação na interface: MED (sensor), CALC (calculado), CMD (comando). (tempo de execução: 263 ms)
 
-## ✅ 10. Sem geração artificial de massa ou energia
+## ✅ 10. Balanços de massa e energia (escopo verificado)
 
-Sequência com mergulho, compensação, sopro e diesel: balanços de massa e energia fecham; casco sem propulsão perde energia mecânica monotonicamente.
+Sequência com mergulho, compensação, sopro e diesel: balanços de massa, do barramento (demanda pedida = atendida + não atendida) e da bateria fecham; casco sem propulsão perde energia mecânica. Verifica esta sequência, não prova conservação em todas as condições (ver LIMITACOES).
 
 | Métrica | Valor | Unidade | Critério | OK |
 |---|---:|---|---|:-:|
 | Erro do balanço de massa interna | -2.894e-4 | kg | |erro| < 1 kg | ✓ |
 | Água admitida do mar | 799.9830 | kg | referência | ✓ |
-| Água descarregada ao mar | 1199.6538 | kg | referência | ✓ |
+| Água descarregada ao mar | 1199.6480 | kg | referência | ✓ |
 | Ar ventilado + derramado | 1385.4654 | kg | referência | ✓ |
 | Ar comprimido admitido (compressor) | 14.4000 | kg | referência | ✓ |
 | Combustível queimado | 5.9125 | kg | > 0 (diesel operou) | ✓ |
-| Bateria: E_química − E_terminais − perdas | 2.534e-6 | J | |erro| < 1 J | ✓ |
-| Barramento: cargas − (geradores + bateria) | 0.0000 | J | |erro| < 1 J | ✓ |
+| Bateria: E_química − E_terminais − perdas | 2.150e-6 | J | |erro| < 1 J | ✓ |
+| Barramento: cargas atendidas − (geradores + bateria) | 0.0000 | J | |erro| < 1 J | ✓ |
+| Demanda pedida − atendida − não atendida | 2.384e-7 | J | |erro| < 1 J | ✓ |
+| Demanda não atendida (fração da pedida) | 0.0000 | fração | < 1 % na operação normal | ✓ |
 | Trabalho no hélice ≤ energia elétrica | 0.7845 | — | < 1 | ✓ |
 | Energia cinética do casco passivo não cresce | 1.0000 | bool | 1 | ✓ |
 | Energia cinética inicial → final | 0.2641 | fração | < 1 | ✓ |
 
-> Massa interna exclui a água livre dos TLP (comunicante com o mar). Fronteiras: admissão/descarga de mar, ar ventilado/derramado, compressor, combustível compensado, alagamentos. (tempo de execução: 2527 ms)
+> Massa interna exclui a água livre dos TLP (comunicante com o mar). Fronteiras: admissão/descarga de mar, ar ventilado/derramado, compressor, combustível compensado, alagamentos. (tempo de execução: 2425 ms)
 
 ## ✅ Extra: ondas — resposta decai com a profundidade
 
@@ -169,15 +171,15 @@ Mesmo espectro de ondas (estado do mar 4) na física e no oceano 3D: na superfí
 | Métrica | Valor | Unidade | Critério | OK |
 |---|---:|---|---|:-:|
 | Hs do estado do mar 4 | 2.0000 | m | referência | ✓ |
-| Velocidade vertical RMS na superfície | 0.2090 | m/s | > 0,05 | ✓ |
-| Taxa de pitch RMS na superfície | 0.2990 | °/s | > 0,05 | ✓ |
+| Velocidade vertical RMS na superfície | 0.2089 | m/s | > 0,05 | ✓ |
+| Taxa de pitch RMS na superfície | 0.3006 | °/s | > 0,05 | ✓ |
 | Velocidade vertical RMS a 100 m | 9.666e-4 | m/s | referência | ✓ |
 | Razão 100 m / superfície | 0.0046 | — | < 0,1 (decaimento exponencial) | ✓ |
-| Velocidade vertical RMS com mar calmo | 1.061e-8 | m/s | < 1e−3 | ✓ |
-| Snorkel em mar 5: amostras com válvula de cabeça fechada | 36.0000 | de 120 | > 0 (cristas cobrem a cabeça) | ✓ |
-| Snorkel em mar 5: amostras com válvula aberta | 84.0000 | de 120 | > 0 | ✓ |
+| Velocidade vertical RMS com mar calmo | 9.967e-9 | m/s | < 1e−3 | ✓ |
+| Snorkel em mar 5: amostras com válvula de cabeça fechada | 32.0000 | de 120 | > 0 (cristas cobrem a cabeça) | ✓ |
+| Snorkel em mar 5: amostras com válvula aberta | 88.0000 | de 120 | > 0 | ✓ |
 
-> Empuxo por fatia com a elevação local, forças de inércia da água (Froude–Krylov + massa adicional) e escoamento relativo; o oceano 3D usa as mesmas componentes. Perto da superfície surge uma força média para baixo e um momento de proa para baixo (sucção de ondas), compensados aqui pelo piloto automático de profundidade. (tempo de execução: 4346 ms)
+> Empuxo por fatia com a elevação local, forças de inércia da água (Froude–Krylov + massa adicional) e escoamento relativo; o oceano 3D usa as mesmas componentes. Perto da superfície surge uma força média para baixo e um momento de proa para baixo (sucção de ondas), compensados aqui pelo piloto automático de profundidade. (tempo de execução: 3088 ms)
 
 ## ✅ Extra: equação de estado EOS-80 e hidrostática
 
@@ -194,7 +196,7 @@ Valores de verificação publicados da UNESCO e volume submerso igual ao volume 
 | Borda livre do casco na superfície | 1.1525 | m | > 0 | ✓ |
 | Pitch de equilíbrio na superfície | 0.2287 | ° | |θ| < 1,5° | ✓ |
 
-> Fofonoff & Millard (1983), UNESCO Tech. Pap. Mar. Sci. 44. (tempo de execução: 22 ms)
+> Fofonoff & Millard (1983), UNESCO Tech. Pap. Mar. Sci. 44. (tempo de execução: 15 ms)
 
 ## ✅ Extra: sequência completa de operação
 
@@ -202,12 +204,12 @@ Superfície → mergulho → 50 m → equilíbrio → mudança de rumo → ajust
 
 | Métrica | Valor | Unidade | Critério | OK |
 |---|---:|---|---|:-:|
-| Preparar: ordenar 6 nós | 45.0000 | s | velocidade > 4 nós | ✓ |
+| Preparar: ordenar 6 nós (11.1 km/h) | 45.0000 | s | velocidade > 4 nós (7.4 km/h) | ✓ |
 | Mergulhar: abrir suspiros dos TLP | 77.0000 | s | TLP > 95 % cheios | ✓ |
 | Descer com lemes a 50 m (piloto de profundidade) | 186.0000 | s | |z − 50| < 2 m | ✓ |
 | Fechar suspiros e equilibrar (compensação) | 202.0000 | s | |flutuabilidade líquida| < 300 kg | ✓ |
-| Alterar rumo em +90° | 269.0000 | s | erro de rumo < 2° | ✓ |
-| Ajustar trim (equilíbrio estático < 0,5°) | 275.0000 | s | |θ_eq estático| < 0,5° | ✓ |
-| Emergir: subir a cota periscópica e soprar TLP | 354.0000 | s | quilha < 8 m (superfície) | ✓ |
+| Alterar rumo em +90° | 268.0000 | s | erro de rumo < 2° | ✓ |
+| Ajustar trim (equilíbrio estático < 0,5°) | 274.0000 | s | |θ_eq estático| < 0,5° | ✓ |
+| Emergir: subir a cota periscópica e soprar TLP | 352.0000 | s | quilha < 8 m (superfície) | ✓ |
 
-> O mesmo roteiro está disponível na interface como "Demonstração automática". (tempo de execução: 1235 ms)
+> O mesmo roteiro está disponível na interface como "Demonstração automática". (tempo de execução: 1257 ms)
