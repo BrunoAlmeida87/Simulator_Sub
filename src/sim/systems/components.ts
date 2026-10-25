@@ -71,7 +71,9 @@ export function pumpFlow(cfg: PumpConfig, speed: number, dp: number): number {
 
 /**
  * Vazão com perda de carga quadrática na linha: Δp_total = Δp_est + k·Q², k = perda/Q₀².
- * Solução fechada de Q² (1 + Q₀²k/H) = s²Q₀² (1 − Δp_est/H).
+ * Interseção da curva da bomba (s²Δp₀ − Δp₀Q²/Q₀²) com a da linha:
+ *   Q² (1 + Q₀²k/Δp₀) = Q₀² (s² − Δp_est/Δp₀)
+ * (o termo da linha não escala com a rotação: leis de afinidade).
  */
 export function pumpFlowWithLine(cfg: PumpConfig, speed: number, dpStatic: number, lineLossAtRated: number): number {
   if (speed <= 1e-4) return 0;
@@ -79,7 +81,7 @@ export function pumpFlowWithLine(cfg: PumpConfig, speed: number, dpStatic: numbe
   const k = lineLossAtRated / (cfg.ratedFlow * cfg.ratedFlow);
   const rhs = speed * speed * cfg.ratedFlow * cfg.ratedFlow * (1 - dpStatic / H);
   if (rhs <= 0) return 0;
-  const q = Math.sqrt(rhs / (1 + (cfg.ratedFlow * cfg.ratedFlow * k) / H));
+  const q = Math.sqrt(rhs / (1 + (cfg.ratedFlow * cfg.ratedFlow * k) / cfg.shutoffPressure));
   return Math.min(q, 1.25 * speed * cfg.ratedFlow);
 }
 

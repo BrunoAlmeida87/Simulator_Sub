@@ -195,7 +195,7 @@ O compressor adiciona no máximo ṁ_c·Δt ao conjunto de bancos por linhas com
 ```
 Admissão:     Q = min(C_d·A·a·√(2Δp/ρ), Q_reg) ,   Δp = p_mar − p_interna
 Descarga:     Q = s·Q₀·√(1 − Δp/(s²·Δp₀))           (curva da bomba, leis de afinidade)
-Transferência: Q² (1 + Q₀²k/H) = s²Q₀² (1 − Δp_est/H) ,  Δp_est = ρ·g·(z_nível,origem − z_topo,destino)
+Transferência: Q² (1 + Q₀²k/Δp₀) = s²Q₀² (1 − Δp_est/H) = Q₀² (s² − Δp_est/Δp₀) ,  Δp_est = ρ·g·(z_nível,origem − z_topo,destino)
 Potência:     P = Q·Δp/η + P₀·s
 Previsão estática:  Δθ ≈ atan(Δm·g·Δx / (W·BG)) ,  Δφ ≈ atan(Δm·g·Δy / (W·BG))
 ```
