@@ -48,6 +48,12 @@ O segundo comando fica rodando: dê o terceiro em outro terminal. Os prints saem
   nunca no pivô.
 - Malhas fixas do casco externo usam o prefixo `SX1_Casco_…`: escotilhas, sonar de flanco, embornais,
   portas dos tubos, carenagens e janelas da vela. O topo do casco é liso, sem faixa de convés em relevo.
+- **Pistões dos lemes** (`build_actuators`): madres e canas são filhas do leme (`<leme>_Madre`, `<leme>_Cana`);
+  os pistões são `SX1_Atuador_<leme>_Cilindro` (origem no olhal fixo) e `SX1_Atuador_<leme>_Haste` (origem no
+  pino da cana), com `<leme>` = LemeVela_BE, LemePopa_BE (par horizontal) e LemePopa_Sup (par de direção).
+  No site, `SubModelRig` aponta o cilindro para o pino e move a haste com ele (`actuatorPose`). As madres da
+  popa contornam o eixo (curvas à vante e a ré, `ACT`); folgas no giro de ±30°: ≈ 11 cm entre elas, ≈ 5 cm até o
+  tubo telescópico e ≈ 4 cm até o casco. `pose_fins`/`preview_actuators` geram prévias com os lemes girados.
 - As marcas de calado continuam sendo desenhadas pelo código (`SX1_MarcasCalado` é opcional e não é gerado).
 - **Oclusão ambiente**: calculada no Cycles (`bake_ao`) com todas as malhas juntas e gravada no atributo de
   cor `AO`, exportado como `COLOR_0` (multiplica a cor base no site). Os mastros móveis ficam sem sombra de

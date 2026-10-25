@@ -333,6 +333,9 @@ def build_materials(cfg):
     M['helice'] = principled('SX1_Helice', (0.42, 0.31, 0.19), 0.32, 0.9)[0]
     M['mastro'] = principled('SX1_Mastro', (0.07, 0.075, 0.08), 0.45, 0.5)[0]
     M['vidro'] = principled('SX1_Vidro', (0.01, 0.02, 0.03), 0.05, 0.9)[0]
+    M['madre'] = principled('SX1_Madre', (0.42, 0.43, 0.45), 0.35, 0.85)[0]  # madres e canas (aço)
+    M['atuador'] = principled('SX1_Atuador', (0.62, 0.48, 0.06), 0.45, 0.2)[0]  # cilindro hidráulico pintado
+    M['haste'] = principled('SX1_Haste', (0.85, 0.86, 0.88), 0.12, 1.0)[0]  # haste cromada
     return M
 
 
@@ -717,6 +720,242 @@ def build_fins(cfg, M):
     return out
 
 
+# ------------------------------------------------------------------ madres, canas e pistões hidráulicos
+# Cada par de lemes gira junto (como na física): uma madre só por par, com a parte do meio curva contornando o
+# eixo do hélice, uma cana e um pistão. As duas madres da popa se cruzam perto do eixo; para não se baterem no
+# giro (±30°), a curva da madre dos lemes horizontais fica à vante (raio 0,55 m) e a dos lemes de direção a ré
+# (raio 0,85 m, 0,75 m a ré); folgas mínimas no giro: ≈ 11 cm entre elas, ≈ 5 cm até o tubo telescópico e ≈ 4 cm até o casco.
+#   - nós SX1_Atuador_<par>_Cilindro (origem no pino do olhal fixo) e SX1_Atuador_<par>_Haste (origem no pino da
+#     cana); <par> = nome do leme que carrega a madre (LemeVela_BE, LemePopa_BE, LemePopa_Sup);
+#   - madre e cana são filhas do nó do leme (giram com ele); no site o cilindro aponta para o pino da cana e a
+#     haste acompanha o pino (src/render3d/subModel.ts).
+ACT = dict(
+    h_yoke=0.55, h_dy=0.25,  # madre dos lemes horizontais: raio da curva e deslocamento à vante
+    v_yoke=0.85, v_dy=-0.75,  # madre dos lemes de direção: raio da curva e deslocamento a ré
+    r_stock=0.055,  # raio das madres
+    anchor_y=-29.9,  # olhais dos pistões da popa (x do corpo)
+    sail_anchor_y=9.0,  # olhal do pistão da vela
+)
+
+
+def tube_path(path, r, n=16):
+    """Tubo fechado ao longo de um caminho (transporte paralelo do referencial)."""
+    P = [np.array(p, dtype=float) for p in path]
+    T = []
+    for i in range(len(P)):
+        a = P[min(i + 1, len(P) - 1)] - P[max(i - 1, 0)]
+        T.append(a / (np.linalg.norm(a) or 1))
+    ref = np.array((0, 0, 1.0)) if abs(T[0][2]) < 0.9 else np.array((1.0, 0, 0))
+    u = np.cross(T[0], ref)
+    u /= np.linalg.norm(u)
+    verts = []
+    for i, p in enumerate(P):
+        if i:
+            u = u - T[i] * np.dot(u, T[i])
+            u /= np.linalg.norm(u)
+        w = np.cross(T[i], u)
+        for k in range(n):
+            t = 2 * math.pi * k / n
+            verts.append(tuple(p + (u * math.cos(t) + w * math.sin(t)) * r))
+    faces = []
+    for i in range(len(P) - 1):
+        for k in range(n):
+            k1 = (k + 1) % n
+            faces.append((i * n + k, i * n + k1, (i + 1) * n + k1, (i + 1) * n + k))
+    faces.append(tuple(range(n - 1, -1, -1)))
+    last = (len(P) - 1) * n
+    faces.append(tuple(last + k for k in range(n)))
+    return verts, faces
+
+
+def cyl_between(a, b, r, n=16):
+    """Cilindro fechado de a até b."""
+    a, b = np.array(a, dtype=float), np.array(b, dtype=float)
+    return tube_path([a, b], r, n)
+
+
+def arc_points(center, u, w, radius, a0, a1, steps):
+    c, u, w = (np.array(x, dtype=float) for x in (center, u, w))
+    return [c + radius * (u * math.cos(a0 + (a1 - a0) * i / steps) + w * math.sin(a0 + (a1 - a0) * i / steps)) for i in range(steps + 1)]
+
+
+def merge_local(parts, origin):
+    verts, faces = [], []
+    o = np.array(origin, dtype=float)
+    for v, f in parts:
+        b = len(verts)
+        verts += [tuple(np.array(p) - o) for p in v]
+        faces += [tuple(i + b for i in ff) for ff in f]
+    return verts, faces
+
+
+def child_mesh(name, parts, mat, parent):
+    """Malha filha de um nó (vértices dados no mundo; o nó não tem rotação)."""
+    verts, faces = merge_local(parts, parent.location)
+    uvs = [tuple((verts[i][0] + verts[i][1], verts[i][2]) for i in f) for f in faces]
+    me = make_mesh(name, verts, faces, uvs, mat, sharp_deg=50)
+    return add_object(name, me, (0, 0, 0), parent)
+
+
+def actuator(pair, anchor, pin, M, n):
+    """Pistão hidráulico entre o olhal fixo (anchor) e o pino da cana (pin): cilindro + haste com olhal."""
+    a, p = np.array(anchor, dtype=float), np.array(pin, dtype=float)
+    d = p - a
+    L = float(np.linalg.norm(d))
+    d /= L
+    body_len = 0.55 * L
+    cyl = add_object(f'SX1_Atuador_{pair}_Cilindro', None, tuple(a))
+    cyl.empty_display_size = 0.2
+    body = [cyl_between(a + d * 0.06, a + d * body_len, 0.085, n), cyl_between(a + d * (body_len - 0.03), a + d * (body_len + 0.02), 0.1, n)]
+    body.append(cyl_between(a - d * 0.06, a + d * 0.08, 0.05, n))  # olhal fixo
+    for s in (0.18, body_len - 0.12):  # tomadas de óleo (avante e a ré)
+        q = a + d * s
+        up = np.array((0, 0, 1.0)) if abs(d[2]) < 0.9 else np.array((1.0, 0, 0))
+        side = np.cross(d, up)
+        side /= np.linalg.norm(side)
+        body.append(cyl_between(q, q + side * 0.14, 0.022, 8))
+    child_mesh(f'SX1_Atuador_{pair}_Cilindro_Malha', body, M['atuador'], cyl)
+    rod = add_object(f'SX1_Atuador_{pair}_Haste', None, tuple(p))
+    rod.empty_display_size = 0.2
+    rod_len = 0.62 * L  # entra no cilindro (sobra para o curso nos dois sentidos)
+    parts = [cyl_between(p - d * rod_len, p - d * 0.05, 0.04, n), cyl_between(p - d * 0.07, p + d * 0.05, 0.055, n)]
+    child_mesh(f'SX1_Atuador_{pair}_Haste_Malha', parts, M['haste'], rod)
+    return cyl, rod
+
+
+def build_actuators(cfg, M, fins):
+    n = 16 if cfg['slots'] else 8
+    rs = ACT['r_stock']
+    y0 = STERN_X
+    r0 = radius_at(STERN_X) - 0.1
+    # --- lemes de vela: madre atravessando a vela, cana para cima, pistão para ré
+    be = fins['SX1_LemeVela_BE']
+    w = SAIL['width'] / 2
+    ys, zs = SAIL_PLANE['x'], SAIL_PLANE['z']
+    pin_v = (0.0, ys, zs + 0.5)
+    child_mesh('SX1_LemeVela_BE_Madre', [cyl_between((-w + 0.02, ys, zs), (w - 0.02, ys, zs), rs + 0.01, n)], M['madre'], be)
+    child_mesh('SX1_LemeVela_BE_Cana', [cyl_between((0, ys, zs), pin_v, 0.045, n), cyl_between((-0.07, ys, zs + 0.5), (0.07, ys, zs + 0.5), 0.06, n)], M['madre'], be)
+    actuator('LemeVela_BE', (0.0, ACT['sail_anchor_y'], zs + 0.5), pin_v, M, n)
+    # --- popa, lemes horizontais (BB/BE): madre ao longo de X, curva por cima do eixo, à vante
+    h = fins['SX1_LemePopa_BE']
+    ry, dy = ACT['h_yoke'], ACT['h_dy']
+    path = [(-r0 + 0.05, y0, 0), (-ry, y0, 0), (-ry, y0 + dy, 0)]
+    path += [tuple(p) for p in arc_points((0, y0 + dy, 0), (-1, 0, 0), (0, 0, 1), ry, 0, math.pi, 24)][1:-1]
+    path += [(ry, y0 + dy, 0), (ry, y0, 0), (r0 - 0.05, y0, 0)]
+    child_mesh('SX1_LemePopa_BE_Madre', [tube_path(round_corners(path, 0.12), rs, n)], M['madre'], h)
+    pin_h = (0.9, y0, 0.42)
+    child_mesh('SX1_LemePopa_BE_Cana', [cyl_between((0.9, y0, 0), pin_h, 0.045, n), cyl_between((0.9, y0 - 0.07, 0.42), (0.9, y0 + 0.07, 0.42), 0.06, n)], M['madre'], h)
+    actuator('LemePopa_BE', (0.9, ACT['anchor_y'], 0.42), pin_h, M, n)
+    # --- popa, lemes de direção (superior/inferior): madre ao longo de Z, curva por bombordo, a ré
+    v = fins['SX1_LemePopa_Sup']
+    r_inf = radius_at(STERN_X) - 0.1
+    rv, dv = ACT['v_yoke'], ACT['v_dy']
+    path = [(0, y0, r0 - 0.05), (0, y0, rv), (0, y0 + dv, rv)]
+    path += [tuple(p) for p in arc_points((0, y0 + dv, 0), (0, 0, 1), (-1, 0, 0), rv, 0, math.pi, 24)][1:-1]
+    path += [(0, y0 + dv, -rv), (0, y0, -rv), (0, y0, -r_inf + 0.05)]
+    child_mesh('SX1_LemePopa_Sup_Madre', [tube_path(round_corners(path, 0.12), rs, n)], M['madre'], v)
+    pin_v2 = (0.42, y0, 1.02)
+    child_mesh('SX1_LemePopa_Sup_Cana', [cyl_between((0, y0, 1.02), pin_v2, 0.045, n), cyl_between((0.42, y0 - 0.07, 1.02), (0.42, y0 + 0.07, 1.02), 0.06, n)], M['madre'], v)
+    actuator('LemePopa_Sup', (0.42, ACT['anchor_y'], 1.02), pin_v2, M, n)
+
+
+def round_corners(pts, rb, nseg=5):
+    P = [np.array(p, dtype=float) for p in pts]
+    out = [P[0]]
+    for i in range(1, len(P) - 1):
+        a, b, c = P[i - 1], P[i], P[i + 1]
+        d1, d2 = b - a, c - b
+        L1, L2 = np.linalg.norm(d1), np.linalg.norm(d2)
+        if L1 < 1e-6 or L2 < 1e-6:
+            continue
+        d1, d2 = d1 / L1, d2 / L2
+        ang = math.acos(max(-1.0, min(1.0, float(np.dot(d1, d2)))))
+        if ang < 0.05:
+            out.append(b)
+            continue
+        t = min(rb * math.tan(ang / 2), 0.45 * L1, 0.45 * L2)
+        p1, p2 = b - d1 * t, b + d2 * t
+        for k in range(nseg + 1):
+            s = k / nseg
+            out.append((1 - s) ** 2 * p1 + 2 * (1 - s) * s * b + s * s * p2)
+    out.append(P[-1])
+    return [tuple(p) for p in out]
+
+
+def pose_fins(g_bow=0.0, g_h=0.0, g_v=0.0):
+    """Gira os lemes (graus) e move os pistões como o site (subModel.ts → actuatorPose). Só para prévias."""
+    from mathutils import Quaternion, Vector
+
+    turns = {
+        'SX1_LemeVela_BE': ((1, 0, 0), g_bow), 'SX1_LemeVela_BB': ((1, 0, 0), g_bow),
+        'SX1_LemePopa_BE': ((1, 0, 0), g_h), 'SX1_LemePopa_BB': ((-1, 0, 0), -g_h),
+        'SX1_LemePopa_Sup': ((0, 0, 1), g_v), 'SX1_LemePopa_Inf': ((0, 0, -1), -g_v),
+    }
+    for name, (axis, deg) in turns.items():
+        o = bpy.data.objects[name]
+        o.rotation_mode = 'QUATERNION'
+        o.rotation_quaternion = Quaternion(Vector(axis), math.radians(deg))
+    bpy.context.view_layer.update()
+    strokes = {}
+    for cyl in [o for o in bpy.data.objects if o.name.startswith('SX1_Atuador_') and o.name.endswith('_Cilindro')]:
+        pair = cyl.name[len('SX1_Atuador_'):-len('_Cilindro')]
+        rod = bpy.data.objects[f'SX1_Atuador_{pair}_Haste']
+        fin = bpy.data.objects['SX1_' + pair]
+        if 'rest' not in rod:
+            rod['rest'] = list(rod.location)
+        pin0 = Vector(rod['rest'])
+        pin = fin.location + fin.rotation_quaternion @ (pin0 - fin.location)
+        d0, d1 = pin0 - cyl.location, pin - cyl.location
+        q = d0.rotation_difference(d1)
+        for x in (cyl, rod):
+            x.rotation_mode = 'QUATERNION'
+            x.rotation_quaternion = q
+        rod.location = pin
+        strokes[pair] = round(d1.length - d0.length, 3)
+    bpy.context.view_layer.update()
+    return strokes
+
+
+def preview_actuators(out_dir):
+    """Prévia dos pistões: casco translúcido, lemes girados e pistões acompanhando."""
+    keep = ('SX1_Leme', 'SX1_Atuador', 'SX1_Helice')
+    ghost = {}
+    for o in bpy.data.objects:
+        if o.type != 'MESH':
+            continue
+        top = o
+        while top.parent is not None:
+            top = top.parent
+        if top.name.startswith(keep):
+            continue
+        for i, m in enumerate(o.data.materials):
+            if m is None:
+                continue
+            if m.name not in ghost:
+                g = m.copy()
+                g.node_tree.nodes['Principled BSDF'].inputs['Alpha'].default_value = 0.14
+                if hasattr(g, 'surface_render_method'):
+                    g.surface_render_method = 'BLENDED'
+                ghost[m.name] = g
+            o.data.materials[i] = ghost[m.name]
+    h = {'__file__': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'preview_sx1.py'), '__name__': 'sx1_prev'}
+    exec(compile(open(h['__file__'], encoding='utf-8').read(), h['__file__'], 'exec'), h)
+    out = {}
+    for tag, pose in (('repouso', (0, 0, 0)), ('leme', (15, 20, -25))):
+        out[tag] = pose_fins(*pose)
+        h['VIEWS'].clear()
+        h['VIEWS'].update(
+            {
+                f'pistoes_popa_{tag}': ((7, -24, 4.5), (0, -31, 0), 34),
+                f'pistoes_popa_baixo_{tag}': ((6, -25, -4), (0, -31, 0), 34),
+                f'pistoes_vela_{tag}': ((5, 15, 9), (0, 10, 6.2), 34),
+            }
+        )
+        h['render_all'](out_dir)
+    pose_fins(0, 0, 0)
+    return out
+
+
 # ------------------------------------------------------------------ hélice (7 pás com saia)
 def build_propeller(cfg, M):
     pv = (0.0, PROP['x'], 0.0)
@@ -855,7 +1094,7 @@ def bake_ao(cfg):
         top = o
         while top.parent is not None:
             top = top.parent
-        if top.name.startswith(('SX1_Mastro', 'SX1_Periscopio')):
+        if top.name.startswith(('SX1_Mastro', 'SX1_Periscopio', 'SX1_Atuador')) or o.name.endswith(('_Madre', '_Cana')):
             ao = np.ones_like(ao)
         f = (1 - AO_STRENGTH * (1 - ao)) * (AO_BOTTOM + (1 - AO_BOTTOM) * (0.5 + 0.5 * up))
         f = np.clip(f, AO_MIN, 1.0)
@@ -875,7 +1114,8 @@ def build(level):
     hull, err = build_hull(cfg, M)
     build_hull_details(cfg, M)
     build_sail(cfg, M)
-    build_fins(cfg, M)
+    fins = {o.name: o for o in build_fins(cfg, M)}
+    build_actuators(cfg, M, fins)
     build_propeller(cfg, M)
     build_masts(cfg, M)
     bpy.context.view_layer.update()

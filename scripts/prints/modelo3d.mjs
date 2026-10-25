@@ -79,6 +79,15 @@ async function shot(browser, mode, s) {
     await page.mouse.move(cx + s.orbit[0], cy + s.orbit[1], { steps: 25 });
     await page.mouse.up();
   }
+  if (s.pan && box) {
+    // arrasta a vista (botão direito = deslocar a câmera)
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    await page.mouse.move(cx, cy);
+    await page.mouse.down({ button: 'right' });
+    await page.mouse.move(cx + s.pan[0], cy + s.pan[1], { steps: 20 });
+    await page.mouse.up({ button: 'right' });
+  }
   if (s.zoom && box) {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     for (let i = 0; i < Math.abs(s.zoom); i++) {
