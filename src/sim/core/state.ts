@@ -74,6 +74,10 @@ export interface DosingState {
   dir?: 'AtoB' | 'BtoA';
   timer: number;
   message: string;
+  /** s seguidos sem vazão na fase de escoamento (compensação) */
+  stall?: number;
+  /** quantidade pedida, quando o alvo foi reduzido à capacidade disponível */
+  requested?: number;
 }
 
 /** VDC da compensação: VDC 4/2: posição 0 = direta, 1 = inversa; valores intermediários são trânsito. */

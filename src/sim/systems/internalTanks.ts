@@ -87,6 +87,9 @@ export function compensationWater(cfg: CompensationConfig, st: CompensationState
   return compensationBranches(cfg, st, heelCfg, heelSt).reduce((a, b) => a + b.st.mass, 0);
 }
 
+/** s sem vazão na fase de escoamento antes de a sequência de compensação desistir */
+const STALL_TIMEOUT = 15;
+
 function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, ctx: StepContext, expectedRate: number, branches: CompensationBranch[]): void {
   const d = st.dosing;
   if (!d || !d.active) return;
@@ -94,6 +97,18 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
   const main = branches.filter((b) => !b.heel);
   const sides = branches.filter((b) => b.heel);
   const allIds = branches.map((b) => b.valveId);
+  const room = (list: CompensationBranch[]) => (d.mode === 'admitir' ? list.reduce((a, b) => a + Math.max(0, tankCapacityMass(b.cfg) - b.st.mass), 0) : list.reduce((a, b) => a + b.st.mass, 0));
+  if (d.phase === 'alinhando' && d.timer <= ctx.dt + 1e-9) {
+    // antes de alinhar: o pedido cabe nos tanques ligados ao coletor?
+    const cap = room(branches);
+    if (cap < 1) {
+      d.phase = 'finalizando';
+      d.message = d.mode === 'admitir' ? 'Sem espaço: tanques de compensação cheios — nada admitido' : 'Sem água nos tanques de compensação — nada esgotado';
+    } else if (cap < d.target - d.moved) {
+      d.requested = d.target;
+      d.target = d.moved + cap;
+    }
+  }
   if (d.phase === 'alinhando') {
     // a sequência usa o tanque central; os ramais de banda (simétricos) só abrem se o central não comportar a quantidade
     const remaining = d.target - d.moved;
@@ -134,6 +149,12 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
       d.phase = 'finalizando';
       d.message = 'Falha da bomba durante a sequência';
     }
+    // sem progresso (tanques cheios/vazios, válvula travada, bomba sem vazão, conexão emersa): encerra e informa
+    d.stall = expectedRate < 0.05 ? (d.stall ?? 0) + ctx.dt : 0;
+    if (d.phase === 'escoando' && d.stall > STALL_TIMEOUT) {
+      d.phase = 'finalizando';
+      d.message = `Sem vazão por ${STALL_TIMEOUT} s — sequência encerrada; faltaram ${Math.max(0, d.target - d.moved).toFixed(0)} kg`;
+    }
   }
   if (d.phase === 'finalizando') {
     st.inlet.cmd = 0;
@@ -144,7 +165,7 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
       for (const id of allIds) st.tankValves[id].cmd = 0;
       d.phase = 'concluido';
       d.active = false;
-      if (!d.message) d.message = `Concluído: ${(d.moved / 1000).toFixed(2)} t movimentadas`;
+      if (!d.message) d.message = `Concluído: ${(d.moved / 1000).toFixed(2)} t movimentadas` + (d.requested ? ` (pedido ${(d.requested / 1000).toFixed(2)} t; limitado à capacidade dos tanques)` : '');
     }
   }
 }
