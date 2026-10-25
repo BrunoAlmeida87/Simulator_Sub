@@ -54,6 +54,7 @@ import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
 import { droneIdle, droneStart, droneStep, type DroneInput, type DronePose } from './drone';
 import { BASE_FOV, DEEP_VIEWS, dollyRatio } from './deepPerspective';
 import { SubEnvironment, envColors, envIntensity, type EnvColors } from './subEnvironment';
+import { InteriorRig, cutSide, interiorEnabled, interiorUrl, setCutPlane } from './interiorModel';
 import { readRenderStats, type RenderStats } from './renderPerf';
 
 /**
@@ -204,6 +205,15 @@ export class SubmarineScene {
   private hullMesh!: THREE.Mesh;
   /** modelo detalhado (.glb, subModel.ts) quando carregado; null = casco gerado pelo código (reserva) */
   private model: SubModelRig | null = null;
+  /** interior do Blender no corte (meio casco aberto); carregado só quando o corte é ligado */
+  private interior: InteriorRig | null = null;
+  private interiorState: 'idle' | 'loading' | 'ok' | 'failed' = 'idle';
+  /** plano do meio casco aberto (mundo) e lado removido (o da câmera) */
+  private cutPlane = new THREE.Plane();
+  private cutSign: 1 | -1 = 1;
+  private halfOpen = false;
+  /** materiais do casco do .glb recortados pelo plano (cópias; o original fica para fora do corte) */
+  private clipMats = new Map<THREE.Material, THREE.Material>();
   private disposed = false;
   private pickables: THREE.Object3D[] = [];
   private dryBg = new THREE.Color(0x5a6b7e);
@@ -894,7 +904,7 @@ export class SubmarineScene {
     const h = this.container.clientHeight;
     const rc = new THREE.Raycaster();
     rc.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
-    const list = [...this.pickables, ...this.systems.pickables, this.trimVis.block];
+    const list = [...this.pickables, ...this.systems.pickables, this.trimVis.block, ...(this.halfOpen && this.interior ? this.interior.pickables : [])];
     const hits = rc.intersectObjects(list, true);
     const visible = (o: THREE.Object3D | null): boolean => {
       for (let n = o; n; n = n.parent) if (!n.visible) return false;
@@ -922,16 +932,60 @@ export class SubmarineScene {
     return this.systems.pick(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
   }
 
-  private hullState = { cut: false, op: 1, pres: false, light: '', shell: true };
+  private hullState = { cut: false, op: 1, pres: false, light: '', shell: true, half: false };
+  /** cópia de um material do casco recortada pelo plano do meio casco aberto */
+  private clipMat(m: THREE.Material): THREE.Material {
+    let c = this.clipMats.get(m);
+    if (!c) {
+      c = m.clone();
+      c.clippingPlanes = [this.cutPlane];
+      c.side = THREE.DoubleSide;
+      this.clipMats.set(m, c);
+    }
+    return c;
+  }
+
+  /** Carrega o interior do Blender (uma vez); sem o arquivo fica o corte antigo. */
+  private loadInterior(): void {
+    this.interiorState = 'loading';
+    loadSubModel(interiorUrl(), this.renderer)
+      .then((src) => {
+        if (this.disposed) return;
+        try {
+          const rig = new InteriorRig(src, this.systems.interiorLinks());
+          rig.root.visible = false;
+          this.sub.add(rig.root);
+          this.interior = rig;
+          this.interiorState = 'ok';
+          this.hullState = { ...this.hullState, op: -1 };
+        } catch (err) {
+          this.interiorState = 'failed';
+          console.warn(`[SX-1] interior recusado; mantido o corte antigo (${err instanceof Error ? err.message : String(err)})`);
+        }
+      })
+      .catch((err: unknown) => {
+        this.interiorState = 'failed';
+        console.info(`[SX-1] interior ${interiorUrl()} indisponível; mantido o corte antigo (${err instanceof Error ? err.message : String(err)})`);
+      });
+  }
+
+  /** true quando o corte usa o interior do Blender (meio casco aberto). */
+  get interiorCut(): boolean {
+    return this.halfOpen;
+  }
+
   private applyHull(): void {
     const cut = this.layers.tanks;
-    const op = cut ? Math.max(0.04, Math.min(1, this.layers.hullOpacity)) : 1;
+    // meio casco aberto: o casco fica como fora do corte (opaco, com texturas), só recortado pelo plano
+    const half = this.halfOpen;
+    const cutLook = cut && !half;
+    const op = cutLook ? Math.max(0.04, Math.min(1, this.layers.hullOpacity)) : 1;
     const pres = this.layers.presLight;
     const light = this.lighting;
     // casco externo oculto: ficam os lemes, o hélice, o mastro e (com o corte) os componentes internos
     const shell = this.layers.hull !== false;
     const hs = this.hullState;
-    if (hs.cut === cut && hs.op === op && hs.pres === pres && hs.light === light && hs.shell === shell) return;
+    if (hs.cut === cut && hs.op === op && hs.pres === pres && hs.light === light && hs.shell === shell && hs.half === half) return;
     for (const o of this.shell) o.visible = shell;
     const hc = pres ? LIGHTING.estudio.hull : (LIGHTING[light] ?? LIGHTING.clara).hull;
     for (const [m, tx] of [
@@ -940,17 +994,21 @@ export class SubmarineScene {
     ] as const) {
       m.transparent = op < 0.999;
       m.opacity = op;
-      m.color.set(cut ? 0x9cc0e4 : hc.color);
+      m.color.set(cutLook ? 0x9cc0e4 : hc.color);
       m.emissive.set(hc.emissive);
       m.depthWrite = op >= 0.999;
       // no corte as placas do revestimento atrapalham a leitura dos tanques
-      m.map = cut ? null : (tx?.map ?? null);
-      m.bumpMap = cut ? null : (tx?.bump ?? null);
+      m.map = cutLook ? null : (tx?.map ?? null);
+      m.bumpMap = cutLook ? null : (tx?.bump ?? null);
+      m.clippingPlanes = half ? [this.cutPlane] : null;
+      m.side = half ? THREE.DoubleSide : THREE.FrontSide;
       m.needsUpdate = true;
     }
     this.deckMat.transparent = op < 0.999;
     this.deckMat.opacity = op;
     this.deckMat.depthWrite = op >= 0.999;
+    this.deckMat.clippingPlanes = half ? [this.cutPlane] : null;
+    this.deckMat.needsUpdate = true;
     if (this.decals) this.decals.group.visible = !cut && shell;
     for (const m of this.draftMarks) m.visible = !cut && shell;
     // no corte o casco é desenhado depois do oceano (fica visível abaixo da linha d'água)
@@ -958,12 +1016,13 @@ export class SubmarineScene {
     // modelo .glb: no corte usa o material transparente do casco gerado (sem texturas); fora dele, o do arquivo
     if (this.model)
       for (const m of this.model.shellMeshes) {
-        m.material = cut ? this.hullMat : (m.userData.baseMaterial as THREE.Material);
+        const base = m.userData.baseMaterial as THREE.Material;
+        m.material = half ? this.clipMat(base) : cutLook ? this.hullMat : base;
         m.renderOrder = cut ? 5 : 0;
       }
-    // sem o casco, o contorno lateral fica como referência da forma
-    this.profile.visible = cut || !shell;
-    this.hullState = { cut, op, pres, light, shell };
+    // sem o casco, o contorno lateral fica como referência da forma (no meio casco aberto o próprio casco mostra)
+    this.profile.visible = cutLook || (!shell && !half);
+    this.hullState = { cut, op, pres, light, shell, half };
   }
 
   private headingVectors(): { fwd: THREE.Vector3; stbd: THREE.Vector3 } {
@@ -1676,6 +1735,13 @@ export class SubmarineScene {
     }
     // navios: luzes de navegação junto com as do submarino
     this.ships.lights = { on: !dry && navLightsOn(this.daylight, dl), cam: this.camera.position, time: this.wallTime };
+    // corte com o interior do Blender (meio casco aberto): carrega na 1ª vez; plano do lado da câmera
+    if (this.layers.tanks && this.interiorState === 'idle' && interiorEnabled(this.quality)) this.loadInterior();
+    this.halfOpen = this.layers.tanks && !!this.interior;
+    if (this.halfOpen) {
+      this.cutSign = cutSide(this.sub.worldToLocal(this.camera.position.clone()).x, this.cutSign);
+      setCutPlane(this.cutPlane, this.sub, this.cutSign);
+    }
     // camadas: casco, tanques/circuitos, vetores
     this.applyHull();
     this.camera.updateMatrixWorld();
@@ -1698,7 +1764,16 @@ export class SubmarineScene {
           y1: Math.max(...corners.map((p) => p.y)) + 10,
         }
       : null;
-    this.systems.update(e, this.sub, this.layers, Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0), lbl, proj);
+    const sysStep = Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0);
+    this.systems.setInteriorMode(this.halfOpen, this.halfOpen ? this.cutPlane : null);
+    this.systems.update(e, this.sub, this.layers, sysStep, lbl, proj);
+    if (this.interior) {
+      this.interior.root.visible = this.halfOpen;
+      if (this.halfOpen) {
+        this.interior.setClip(this.cutPlane);
+        this.interior.update(e, this.systems.visibility(this.layers), this.layers.pipes, sysStep, !!this.layers.tankFilter);
+      }
+    }
     this.forces.update(e, this.sub, this.camera, this.layers, lbl, proj);
     this.trimVis.update(e, this.sub, this.layers, lbl, proj);
     this.cargoVis.update(e, this.sub, this.layers, lbl, proj);
