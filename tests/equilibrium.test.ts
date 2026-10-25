@@ -33,6 +33,12 @@ describe('Cálculo de compensação', () => {
     expect(sol.limits).toContain('banda');
     expect(Math.abs(sol.residualRollMoment)).toBeGreaterThan(1e5);
     expect(sol.message).toMatch(/banda/);
+    // mesmo sinal do momento que o motor calcula com a solução aplicada (carga a BE ⇒ adernar a BE, +)
+    expect(sol.residualRollMoment).toBeGreaterThan(0);
+    solveNeutralCompensation(e, e.state.body.pos.z, true);
+    e.computeOutputs();
+    expect(Math.sign(e.outputs.weightHeelMoment)).toBe(Math.sign(sol.residualRollMoment));
+    expect(e.outputs.weightHeelMoment / sol.residualRollMoment).toBeCloseTo(1, 1);
   });
 });
 

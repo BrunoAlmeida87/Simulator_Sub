@@ -31,7 +31,7 @@ export interface CompensationSolution {
   heelB: number;
   residualKg: number;
   residualMoment: number; // N·m, pitch (+ = proa para cima)
-  residualRollMoment: number; // N·m, banda
+  residualRollMoment: number; // N·m, banda (+ = adernar a BE, como weightHeelMoment)
 }
 
 /** Calcula (sem aplicar, se apply = false) a água de compensação/trim/banda para neutralidade a uma profundidade. */
@@ -112,7 +112,8 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
   const mpF = computeMassProps(cfg, s, engine.light, rho);
   const g = env.cfg.gravity;
   const residualMoment = mpF.mass * (xB - mpF.cg.x) * g;
-  const residualRollMoment = mpF.mass * (hs.center.y - mpF.cg.y) * g;
+  // eixo x do corpo, z para baixo: peso a boreste (y_G > 0) dá momento +W·y_G (adernar a BE)
+  const residualRollMoment = mpF.mass * (mpF.cg.y - hs.center.y) * g;
   const limits: CompensationSolution['limits'] = [];
   if (clampedComp || Math.abs(Mreq - mpF.mass) >= 5) limits.push('compensação');
   if (clampedTrim) limits.push('trim');
