@@ -1,4 +1,4 @@
-/** Faixa inferior de indicadores principais (Pilotagem e janela de visualização). */
+/** Faixa inferior de indicadores principais (tela Operação e janela de visualização). */
 import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtSpeed } from '../format';
 

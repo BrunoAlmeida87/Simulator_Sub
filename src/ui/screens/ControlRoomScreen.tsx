@@ -95,7 +95,7 @@ function ContactsTable({ e, acts }: { e: SimulationEngine; acts: RoomActions }) 
   );
 }
 
-/** conteúdo 2D de cada estação (os mesmos controles da Pilotagem) */
+/** conteúdo 2D de cada estação (os mesmos controles da Operação) */
 function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine; acts: RoomActions; onPeri: () => void }) {
   const ui = useUi();
   const G = GROUPS;
@@ -124,7 +124,12 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
       </>
     ),
     instrumentos: <G.nav.Body e={e} />,
-    alarmes: <G.falhas.Body e={e} />,
+    alarmes: (
+      <>
+        <G.alarmes.Body e={e} />
+        <G.falhas.Body e={e} />
+      </>
+    ),
     lastro: (
       <>
         <div className="row" style={{ flexWrap: 'wrap', gap: 4 }}>
