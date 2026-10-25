@@ -19,7 +19,8 @@ import { ManeuverStatus } from '../components/ManeuverStatus';
 import { GROUP_TITLE, GROUP_ICON, GROUP_COLOR, GROUP_SECTIONS, GROUP_SHORT, SIDE_GROUPS, type GroupId } from '../ops/opsBus';
 import { GROUPS } from '../ops/OpsGroups';
 import { OpsStrip } from '../ops/OpsStrip';
-import { OpsConsole, TakeoverToast, EmergencyBox } from '../ops/OpsConsole';
+import { OpsConsole, OpsConsoleCompact, TakeoverToast, EmergencyBox } from '../ops/OpsConsole';
+import { clampSideWidth, isCompact, SIDE_MAX, SIDE_MIN, type ConsoleMode } from '../ops/layout';
 import { useOpsBus } from '../ops/useOpsBus';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { OverlayCtl } from '../components/OverlayCtl';
@@ -186,8 +187,36 @@ export function PilotScreen() {
   const ap = e.state.autopilot;
   const st = navStatus(e);
   const L = e.vessel.limits;
+
+  // console compacto: automático quando falta altura (só no layout de duas colunas), ou escolhido
+  const opsRef = useRef<HTMLDivElement>(null);
+  const [opsH, setOpsH] = useState(0);
+  useEffect(() => {
+    const el = opsRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setOpsH(window.innerWidth > 1100 ? el.clientHeight : 0));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const [consoleMode, setConsoleMode] = usePersisted<ConsoleMode>('ops.consoleMode', 'auto');
+  const compact = isCompact(consoleMode, opsH);
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => {
+    if (!compact || !drawer) return;
+    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && setDrawer(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [compact, drawer]);
+
+  // largura do painel de sistemas: arrastar a alça (salva); duplo clique volta ao padrão
+  const [sideW, setSideW] = usePersisted<number | null>('ops.sideW', null);
+  const [dragW, setDragW] = useState<number | null>(null);
+  const sideRef = useRef<HTMLElement>(null);
+  const drag = useRef<{ x: number; w: number } | null>(null);
+  const curW = dragW ?? (sideW !== null ? clampSideWidth(sideW, window.innerWidth) : null);
+  const setWidth = (w: number) => setSideW(clampSideWidth(w, window.innerWidth));
   return (
-    <div className="ops">
+    <div className="ops" ref={opsRef} style={curW !== null ? ({ '--ops-side': `${curW}px` } as CSSProperties) : undefined}>
       <div className="ops-main">
         <OpsStrip e={e} />
         <div className="ops-view">
@@ -240,9 +269,20 @@ export function PilotScreen() {
                 ...seaSections(quality, setQuality),
               ]}
             />
-            <div className="pres-bottom ops-bottom">
-              <TakeoverToast e={e} />
-              <ManeuverStatus compact cancel />
+            {/* aviso de troca de comando e faixa da manobra; com a gaveta aberta ficam logo acima dela */}
+            <div className={`ops-bottom-stack ${compact && drawer ? 'with-drawer' : ''}`}>
+              <div className="ops-bottom">
+                <TakeoverToast e={e} />
+                <ManeuverStatus compact cancel />
+              </div>
+              {compact && drawer && (
+                <div className="ops-drawer" role="dialog" aria-label="Console completo">
+                  <OpsConsole e={e} />
+                  <button className="btn sm ops-drawer-close" onClick={() => setDrawer(false)} title="Recolher o console (Esc)">
+                    ▾ Recolher
+                  </button>
+                </div>
+              )}
             </div>
             {!runner.running && e.state.t === 0 && (
               <button className="btn ok lg pilot-start" onClick={() => ((runner.running = true), runner.notify())}>
@@ -251,12 +291,60 @@ export function PilotScreen() {
             )}
           </Scene3D>
         </div>
-        <OpsConsole e={e} />
+        {compact ? <OpsConsoleCompact e={e} onOpen={() => setDrawer(!drawer)} /> : <OpsConsole e={e} />}
       </div>
-      <aside className="ops-side" aria-label="Sistemas">
+      <aside className="ops-side" aria-label="Sistemas" ref={sideRef}>
+        <div
+          className="ops-grip"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Largura do painel de sistemas"
+          aria-valuemin={SIDE_MIN}
+          aria-valuemax={SIDE_MAX}
+          aria-valuenow={Math.round(curW ?? sideRef.current?.offsetWidth ?? 0)}
+          tabIndex={0}
+          title="Arraste para ajustar a largura do painel · duplo clique: largura padrão · setas ← →"
+          onPointerDown={(ev) => {
+            drag.current = { x: ev.clientX, w: sideRef.current?.offsetWidth ?? 400 };
+            ev.currentTarget.setPointerCapture(ev.pointerId);
+          }}
+          onPointerMove={(ev) => {
+            const d = drag.current;
+            if (d) setDragW(clampSideWidth(d.w + (d.x - ev.clientX), window.innerWidth));
+          }}
+          onPointerUp={() => {
+            if (dragW !== null) setWidth(dragW);
+            drag.current = null;
+            setDragW(null);
+          }}
+          onPointerCancel={() => {
+            drag.current = null;
+            setDragW(null);
+          }}
+          onDoubleClick={() => setSideW(null)}
+          onKeyDown={(ev) => {
+            const w = sideRef.current?.offsetWidth ?? 400;
+            if (ev.key === 'ArrowLeft') setWidth(w + 20);
+            else if (ev.key === 'ArrowRight') setWidth(w - 20);
+            else if (ev.key === 'Home') setSideW(null);
+            else return;
+            ev.preventDefault();
+          }}
+        />
         <div className="ops-tools">
           <b>Sistemas</b>
           <span className="subtle">{ops.st.pinned.length ? `${ops.st.pinned.length} fixado(s) + 1 livre` : 'fixe até dois grupos'}</span>
+          <select
+            className="ops-cmode"
+            value={consoleMode}
+            onChange={(ev) => setConsoleMode(ev.target.value as ConsoleMode)}
+            aria-label="Console de governo"
+            title="Console de governo: automático (compacto quando falta altura), sempre completo ou sempre compacto"
+          >
+            <option value="auto">Console: auto</option>
+            <option value="completo">Console: completo</option>
+            <option value="compacto">Console: compacto</option>
+          </select>
           <button className="btn sm" onClick={() => ops.collapseAll()}>
             Recolher todos
           </button>

@@ -96,3 +96,35 @@ describe('Dono de cada leme', () => {
     maneuver.cancel(r);
   });
 });
+
+import { clampSideWidth, isCompact, COMPACT_BELOW, SIDE_MIN, SIDE_MAX } from '../src/ui/ops/layout';
+import { telegraphStep } from '../src/ui/ops/OpsConsole';
+import { TELEGRAPH } from '../src/ui/components/Controls';
+
+describe('Fase C: console compacto e largura do painel', () => {
+  it('automático: compacto só quando falta altura; escolha manual vence', () => {
+    expect(isCompact('auto', COMPACT_BELOW - 1)).toBe(true); // 1366×768 com o navegador (~490 px)
+    expect(isCompact('auto', 600)).toBe(false); // 1366×768 em tela cheia
+    expect(isCompact('auto', 0)).toBe(false); // coluna única (celular): altura não conta
+    expect(isCompact('compacto', 900)).toBe(true);
+    expect(isCompact('completo', 300)).toBe(false);
+  });
+
+  it('largura do painel fica entre 340 e 560 px e em no máximo 45 % da janela', () => {
+    expect(clampSideWidth(100, 1920)).toBe(SIDE_MIN);
+    expect(clampSideWidth(900, 1920)).toBe(SIDE_MAX);
+    expect(clampSideWidth(600, 1100)).toBe(Math.round(1100 * 0.45));
+    expect(clampSideWidth(450, 1366)).toBe(450);
+  });
+
+  it('◀ ▶ do console compacto andam pelas ordens do telégrafo', () => {
+    const rpms = TELEGRAPH.map((t) => t.rpm);
+    expect(telegraphStep(0, 1)).toBe(rpms[rpms.indexOf(0) + 1]);
+    expect(telegraphStep(0, -1)).toBe(rpms[rpms.indexOf(0) - 1]);
+    expect(telegraphStep(rpms[rpms.length - 1], 1)).toBe(rpms[rpms.length - 1]);
+    expect(telegraphStep(rpms[0], -1)).toBe(rpms[0]);
+    // fora das ordens (ajuste fino de ±10 rpm): vai para a ordem seguinte no sentido pedido
+    expect(telegraphStep(85, 1)).toBe(rpms.find((r) => r > 85));
+    expect(telegraphStep(85, -1)).toBe([...rpms].reverse().find((r) => r < 85));
+  });
+});
