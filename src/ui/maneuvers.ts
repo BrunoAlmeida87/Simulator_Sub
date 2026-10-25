@@ -1,5 +1,5 @@
 /**
- * Manobras rápidas da tela de pilotagem/apresentação. Não alteram a física:
+ * Manobras rápidas da tela Operação/apresentação. Não alteram a física:
  * apenas emitem, em sequência, os mesmos comandos que o operador daria
  * manualmente (todos registrados), avançando quando a condição física é
  * atingida. Expõem a etapa atual, os comandos enviados e o resultado

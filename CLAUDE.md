@@ -93,7 +93,9 @@ src/ui/               INTERFACE (React)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
                       SystemsOverview (Sistemas › Visão geral: cartões por sistema)
                       sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
-  ops/                central de operação da Pilotagem (grupos expansíveis, faixa inferior, opsBus)
+  ops/                central de operação da tela Operação (id 'pilotagem'): OpsConsole (console inferior, dono do canal,
+                      aviso de troca de comando, sopro de emergência com tampa), grupos expansíveis (OpsGroups), opsBus
+                      (até 2 fixados + 1 livre; 'nav' = console), faixa de indicadores (OpsStrip)
   components/         controles, seletores (TankSelector, VectorSelector, LayerPanel, LightPanel = Sol e luzes), gráficos, Scene3D
   graphics.ts         preferências gráficas (qualidade, iluminação, sol e luzes…), salvas e enviadas à 2ª janela,
                       NavBar (navegação em dois níveis; no celular, grupo ▾ + telas)

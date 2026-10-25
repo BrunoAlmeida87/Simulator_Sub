@@ -14,7 +14,7 @@ export function HelpScreen() {
       <Panel title="Primeiros passos">
         <ol style={{ paddingLeft: 18, margin: 0 }}>
           <li>
-            Na aba <b>Pilotagem</b>, pressione <b>▶ Iniciar simulação</b> e opere o telégrafo, os lemes e o lastro (ou as manobras rápidas) vendo o submarino em 3D.
+            Na tela <b>Operação</b>, pressione <b>▶ Iniciar simulação</b> e opere o telégrafo, os lemes e o lastro (ou as manobras rápidas) vendo o submarino em 3D.
           </li>
           <li>
             Para conduzir uma apresentação, use a aba <b>Apresentação</b>: escolha uma situação pronta, pressione <b>Preparar</b> e mostre ao mesmo tempo os tanques, os vetores de peso, empuxo e resultante e o movimento do submarino.
@@ -63,7 +63,7 @@ export function HelpScreen() {
             <tr><td><code>W</code> / <code>S</code></td><td>Lemes de ré DESCER / SUBIR 5°</td></tr>
             <tr><td><code>Q</code> / <code>E</code></td><td>Lemes de vante DESCER / SUBIR 5°</td></tr>
             <tr><td><code>+</code> / <code>−</code></td><td>Telégrafo ±10 rpm</td></tr>
-            <tr><td><code>0</code>…<code>8</code></td><td>Telas numeradas: 0 Pilotagem … 8 Sala de comando (o número aparece na navegação)</td></tr>
+            <tr><td><code>0</code>…<code>8</code></td><td>Telas numeradas: 0 Operação … 8 Sala de comando (o número aparece na navegação)</td></tr>
             <tr><td><code>I</code></td><td>Modo engenharia</td></tr>
           </tbody>
         </table>

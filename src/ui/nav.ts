@@ -60,7 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
     short: 'Operação',
     hint: 'Pilotar o submarino: central de operação, instrumentos, governo e mapa',
     screens: [
-      { id: 'pilotagem', key: '0', label: 'Pilotagem', hint: 'Central de operação: cena 3D, comandos essenciais e todos os sistemas em grupos' },
+      { id: 'pilotagem', key: '0', label: 'Operação', hint: 'Central de operação: cena 3D, console de governo e todos os sistemas em grupos' },
       { id: 'comando', key: '1', label: 'Central de comando', hint: 'Instrumentos: profundidade, rumo, atitude, velocidade, lemes, telégrafo e piloto automático' },
       { id: 'governo', label: 'Governo', hint: 'Painel de governo: manche, alavancas, telégrafo e piloto' },
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
