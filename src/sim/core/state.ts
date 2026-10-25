@@ -130,6 +130,8 @@ export interface ElectricalState {
   batteryPower: number; // W (+ descarga)
   propulsionLimit: number; // W disponíveis para a propulsão no próximo passo
   chargeLimited: boolean;
+  /** demanda não atendida no último passo (W): sobrecarga da bateria ou barramento desenergizado */
+  unservedPower?: number;
 }
 
 export interface PropulsionState {
@@ -233,6 +235,9 @@ export interface Ledger {
   mass0: number; // massa interna inicial (referência)
   /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (cargas e peso deslocável) */
   cargoIn?: number;
+  /** energia pedida pelas cargas e a parte não atendida pelo barramento (J); ausentes em salvamentos antigos */
+  loadRequested?: number;
+  loadUnserved?: number;
 }
 
 export interface SimState {

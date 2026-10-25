@@ -64,3 +64,42 @@ describe('Bateria nos limites de carga', () => {
     }
   });
 });
+
+import { updateElectrical } from '../src/sim/systems/electrical';
+import type { StepContext } from '../src/sim/core/context';
+
+describe('Balanço elétrico: demanda pedida × atendida (auditoria A01)', () => {
+  it('sobrecarga sem geração: a parte não atendida aparece e o balanço fecha', () => {
+    const e = buildScenario('submerso_50');
+    const s = e.state;
+    const L = s.ledger;
+    const before = { req: L.loadRequested ?? 0, served: L.loadEnergy, un: L.loadUnserved ?? 0 };
+    const dt = 0.02;
+    updateElectrical(e.vessel.electrical, s, { dt } as StepContext, { teste: 10e6 }, 0, 0);
+    const req = (L.loadRequested ?? 0) - before.req;
+    const served = L.loadEnergy - before.served;
+    const un = (L.loadUnserved ?? 0) - before.un;
+    expect(req).toBeCloseTo(10e6 * dt, 3);
+    expect(served).toBeLessThan(5e6 * dt);
+    expect(un).toBeGreaterThan(5e6 * dt);
+    expect(req - served - un).toBeCloseTo(0, 3);
+    expect(s.electrical.unservedPower).toBeGreaterThan(5e6);
+    expect(s.electrical.chargeLimited).toBe(true);
+  });
+
+  it('operação normal: demanda totalmente atendida', () => {
+    const e = buildScenario('submerso_50');
+    e.advanceSim(30);
+    expect(e.state.electrical.unservedPower).toBe(0);
+    expect(e.state.ledger.loadUnserved).toBe(0);
+    expect(e.state.ledger.loadRequested).toBeGreaterThan(0);
+  });
+
+  it('barramento desenergizado: toda a demanda fica sem atender', () => {
+    const e = buildScenario('submerso_50');
+    applyCommand(e, { type: 'breaker', closed: false });
+    e.advanceSim(2);
+    expect(e.state.electrical.energized).toBe(false);
+    expect(e.state.electrical.unservedPower).toBeCloseTo(e.state.electrical.totalLoad, 6);
+  });
+});

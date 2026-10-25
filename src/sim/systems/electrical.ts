@@ -153,6 +153,11 @@ export function updateElectrical(
 
   const delivered = energized ? gen + (batteryActive ? pBatt : 0) : 0;
   s.ledger.loadEnergy += delivered * dt;
+  // o que as cargas pediram e o que ficou sem atender (fornecimento < demanda)
+  const unserved = demand - delivered > 1 ? demand - delivered : 0; // tolerância de 1 W (arredondamento)
+  e.unservedPower = unserved;
+  s.ledger.loadRequested = (s.ledger.loadRequested ?? 0) + demand * dt;
+  s.ledger.loadUnserved = (s.ledger.loadUnserved ?? 0) + unserved * dt;
   e.loads = { ...demands };
   e.totalLoad = demand;
   e.generation = gen;
