@@ -98,12 +98,17 @@ export function hullForces(
   const lift = zeroWrench();
   const D = cfg.hull.diameter;
   const K = 0.5 * rho * D * D * h.bodyLiftCoeff * immFraction;
-  const Zl = -K * u * w;
-  const Yl = -K * u * v;
+  // |u|: a força transversal se opõe à velocidade transversal também em marcha a ré
+  // (com u assinado ela passava a empurrar a favor e injetava energia); o centro de
+  // pressão é espelhado em ré (mesma posição relativa ao escoamento: atrás, em relação ao avanço)
+  const au = Math.abs(u);
+  const xcp = u >= 0 ? h.bodyLiftXcp : -h.bodyLiftXcp;
+  const Zl = -K * au * w;
+  const Yl = -K * au * v;
   lift.F.y = Yl;
   lift.F.z = Zl;
-  lift.M.y = -h.bodyLiftXcp * Zl;
-  lift.M.z = h.bodyLiftXcp * Yl;
+  lift.M.y = -xcp * Zl;
+  lift.M.z = xcp * Yl;
 
   const damping = zeroWrench();
   const ld = h.linearDamping;
