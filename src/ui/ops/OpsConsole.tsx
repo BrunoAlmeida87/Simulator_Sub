@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { cmd, runner } from '../store';
-import { usePersisted } from '../persist';
+import { loadPersisted, usePersisted } from '../persist';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { CommandRecord } from '../../sim/core/state';
 import { TELEGRAPH } from '../components/Controls';
@@ -343,7 +343,8 @@ const FIN_SHORT: Record<FinId, string> = { rudder: 'Dir.', bow: 'Vte', stern: 'R
 export function OpsConsoleCompact({ e, onOpen }: { e: SimulationEngine; onOpen: () => void }) {
   const p = e.state.propulsion;
   const ap = e.state.autopilot;
-  const [target] = usePersisted('pilot.target', 50);
+  // lido a cada quadro: a gaveta (console completo) pode ter mudado a cota enquanto esta linha estava montada
+  const target = loadPersisted('pilot.target', 50);
   const tel = TELEGRAPH.find((t) => t.rpm === Math.round(p.rpmCmd))?.label ?? `${fmt(p.rpmCmd, 0)} rpm`;
   const imm = maneuver.active === 'imergir';
   const em = maneuver.active === 'emergir';
