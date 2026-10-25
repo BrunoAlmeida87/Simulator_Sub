@@ -433,7 +433,8 @@ export class SystemsVis {
       t.waterMat.clippingPlanes = cp ? [cp.water, ...extra] : extra.length ? extra : null;
       t.airMat.clippingPlanes = cp ? [cp.air, ...extra] : extra.length ? extra : null;
       (t.surf.material as THREE.Material).clippingPlanes = extra.length ? extra : null;
-      t.waterMat.needsUpdate = t.airMat.needsUpdate = (t.surf.material as THREE.Material).needsUpdate = true;
+      t.edgeMat.clippingPlanes = extra.length ? extra : null;
+      t.waterMat.needsUpdate = t.airMat.needsUpdate = t.edgeMat.needsUpdate = (t.surf.material as THREE.Material).needsUpdate = true;
     }
     const pm = this.points.material as THREE.PointsMaterial;
     pm.clippingPlanes = extra.length ? extra : null;
@@ -948,7 +949,9 @@ export class SystemsVis {
     }
     for (const b of this.hpBottles) b.grp.visible = false;
     for (const m of [...this.batt, ...this.battBar, ...this.gens.map((g) => g.mesh)]) m.visible = false;
-    for (const t of this.tanks) for (const m of t.meshes) if (m instanceof THREE.LineSegments) m.visible = false;
+    // contorno de cada tanque na cor da categoria (como no corte antigo) e água mais viva
+    const hl = layers.highlight;
+    for (const t of this.tanks) if (!hl || hl === t.id) t.waterMat.emissiveIntensity = hl ? 1.0 : 0.85;
   }
 
   private updateInner(e: SimulationEngine, sub: THREE.Object3D, layers: SceneLayers, step: number, labels: Label3D[], proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {

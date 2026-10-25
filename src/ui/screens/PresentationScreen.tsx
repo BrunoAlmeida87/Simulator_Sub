@@ -53,6 +53,7 @@ export const LAYER_LIST: LayerKey[] = [
   'tanks',
   'pipes',
   'flows',
+  'halfCut',
   'labels',
   'batteryInfo',
   'airInfo',

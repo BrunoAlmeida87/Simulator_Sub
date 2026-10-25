@@ -12,6 +12,8 @@ export interface SceneLayers {
   pipes: boolean;
   /** animação dos escoamentos de água e ar */
   flows: boolean;
+  /** corte em MEIO CASCO ABERTO (metade do lado da câmera removida); desligado = raio-X (casco translúcido) */
+  halfCut: boolean;
   /** identificações (nomes, funções, percentuais, valores) */
   labels: boolean;
   /** boias e marcadores de distância fixos no cenário */
@@ -63,6 +65,7 @@ export const defaultLayers = (): SceneLayers => ({
   tanks: false,
   pipes: false,
   flows: true,
+  halfCut: false,
   labels: true,
   markers: false,
   wake: true,
@@ -101,6 +104,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   tanks: { label: 'Tanques (corte)', title: 'Casco transparente com os tanques' },
   pipes: { label: 'Tubulações', title: 'Tubulações, válvulas e bombas (no corte)' },
   flows: { label: 'Escoamentos', title: 'Partículas das vazões calculadas (no corte)' },
+  halfCut: { label: 'Meio casco aberto', title: 'Corte realista: a metade do casco do lado da câmera é removida (com o corte/tanques). Desligado: raio-X, casco translúcido', mode: true },
   labels: { label: 'Identificações', title: 'Nomes e valores sobre a cena (tanques, válvulas, navios, superfície…)' },
   batteryInfo: { label: 'Bateria (%)', title: 'Carga da bateria e geradores em carga, junto aos componentes (com o corte/tanques)' },
   airInfo: { label: 'Ar comprimido', title: 'Pressão e quantidade de ar de cada grupo de garrafas, junto às garrafas (com o corte/tanques)' },
@@ -141,7 +145,7 @@ export const fullExternalLayers = (): SceneLayers => ({
 
 /** Grupos das camadas nos painéis (ordem de exibição). */
 export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exclude<BoolLayer, 'hull'>[] }[] = [
-  { id: 'interior', label: 'Tanques e sistemas', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows'] },
+  { id: 'interior', label: 'Tanques e sistemas', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows', 'halfCut'] },
   { id: 'vetores', label: 'Forças e vetores', title: 'Forças sobre o submarino', keys: ['vectors', 'hydroVectors', 'trimVectors'] },
   {
     id: 'refs',

@@ -84,10 +84,24 @@ interface Part {
   base: number;
   /** some com a camada "Tubulações" desligada */
   piping: boolean;
+  /** tipo da peça (extras do glTF) */
+  tipo: string;
   tank?: string;
 }
 
-const TANK_OPACITY = 0.3;
+const TANK_OPACITY = 0.16;
+/** luz própria das peças (fração da cor no emissivo): o interior não fica no escuro dentro do casco */
+export const SELF_LIGHT = 0.4;
+
+/** Modos do corte: raio-X (casco translúcido, padrão) ou meio casco aberto (camada "Meio casco aberto"). */
+export type CutMode = 'raiox' | 'meio';
+
+/** Opacidade da estrutura (casco resistente/anteparas e cavernas) em cada modo; 0 = escondida. */
+export function structureOpacity(tipo: string, mode: CutMode): number | null {
+  if (tipo === 'casco_resistente' || tipo === 'antepara') return mode === 'raiox' ? 0.1 : 0.85;
+  if (tipo === 'cavernas') return mode === 'raiox' ? 0 : 0.3;
+  return null;
+}
 
 /** Peças do interior ligadas ao estado. Construído sobre uma CÓPIA da cena do glTF (materiais por cena). */
 export class InteriorRig {
@@ -121,7 +135,8 @@ export class InteriorRig {
     this.root.traverse((o) => {
       const tipo = o.userData?.tipo as string | undefined;
       if (!tipo) return;
-      for (let p = o.parent; p; p = p.parent) if (p.userData?.tipo && tops.includes(p)) return;
+      // as cavernas são filhas do casco resistente no arquivo, mas têm opacidade própria em cada modo
+      if (tipo !== 'cavernas') for (let p = o.parent; p; p = p.parent) if (p.userData?.tipo && tops.includes(p)) return;
       tops.push(o);
     });
     for (const node of tops) {
@@ -147,7 +162,7 @@ export class InteriorRig {
         m.renderOrder = 6; // depois do oceano (como o corte)
       });
       const sistemas = typeof node.userData.sistemas === 'string' ? (node.userData.sistemas as string).split(',').filter(Boolean) : null;
-      const part: Part = { node, owners: sistemas, mats, base: 1, piping: false };
+      const part: Part = { node, owners: sistemas, mats, base: 1, piping: false, tipo };
       const pick = (t: unknown) => {
         if (!t) return;
         node.userData.pick = t;
@@ -217,8 +232,26 @@ export class InteriorRig {
         pick({ kind: 'prop', id: 'prop' });
         for (const o of [node, ...node.children]) if (Array.isArray(o.userData?.eixo_giro)) this.spinners.push({ obj: o, rest: o.quaternion.clone(), axis: blenderAxis(o.userData.eixo_giro as number[]) });
       }
+      // luz própria (menos nos tanques, que são vidro tingido)
+      if (tipo !== 'tanque') for (const m of mats) if (m instanceof THREE.MeshStandardMaterial) m.emissive.copy(m.color).multiplyScalar(SELF_LIGHT);
       this.parts.push(part);
     }
+    this.setMode('raiox');
+  }
+
+  private mode: CutMode = 'raiox';
+
+  /** Raio-X: casco resistente quase invisível e sem cavernas; meio casco aberto: estrutura à vista, cavernas fracas. */
+  setMode(mode: CutMode): void {
+    this.mode = mode;
+    for (const p of this.parts) {
+      const o = structureOpacity(p.tipo, mode);
+      if (o !== null) p.base = o;
+    }
+  }
+
+  get cutMode(): CutMode {
+    return this.mode;
   }
 
   /** Plano do meio casco aberto (o mesmo objeto é lido a cada quadro; null = sem recorte). */
@@ -241,6 +274,7 @@ export class InteriorRig {
       else if (p.owners?.includes('__energia')) visible = !filterActive;
       else if (p.owners) visible = vis.shown(p.owners);
       if (p.piping && !pipes) visible = false;
+      if (p.base <= 0) visible = false; // estrutura escondida no modo
       p.node.visible = visible;
       const dim = !!p.owners && !p.owners.includes('__energia') && vis.dim(p.owners);
       const op = p.base * (dim ? 0.18 : 1);

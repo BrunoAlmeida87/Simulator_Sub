@@ -54,7 +54,8 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       ficam dentro dele; teste tests/systemsLayout.test.ts
   shaftLine.ts        linha de eixo (motor principal, mancal de escora, eixo até o hélice): posições do interior do Blender;
                       teste tests/systemsLayout.test.ts (nada do corte encosta nela)
-  interiorModel.ts    corte com o interior do Blender (meio casco aberto, qualidade média/alta): InteriorRig liga válvulas,
+  interiorModel.ts    corte com o interior do Blender (qualidade média/alta): raio-X por padrão, meio casco aberto com a camada
+                      halfCut (InteriorRig.setMode; lado de dentro do casco claro em SubmarineScene.clipMat); InteriorRig liga válvulas,
                       bombas, eixo e tanques ao estado; Systems.ts fica com água, partículas, setas e rótulos (setInteriorMode)
   (interior)          public/models/sx1-interior.glb: tanques/tubos/válvulas do corte modelados no Blender (usado pelo corte;
                       scripts/blender/build_sx1_interior.py + exportar_interior.ts; teste tests/subInterior.test.ts)
