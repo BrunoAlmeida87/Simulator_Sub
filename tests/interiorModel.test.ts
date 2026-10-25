@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { NodeIO, type Node as GNode } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
-import { InteriorRig, blenderAxis, cutSide, setCutPlane, valveColor, wheelAngle } from '../src/render3d/interiorModel';
+import { InteriorRig, SELF_LIGHT, blenderAxis, cutSide, setCutPlane, structureOpacity, valveColor, wheelAngle } from '../src/render3d/interiorModel';
 import { SystemsVis } from '../src/render3d/Systems';
 import { buildScenario } from '../src/sim/scenarios';
 import { defaultLayers } from '../src/render3d/layers';
@@ -125,6 +125,38 @@ describe('interior do arquivo ligado ao corte e ao estado', () => {
     const tlpMat = (node('SX1I_Tanque_TLP1BB').getObjectByProperty('isMesh', true) as THREE.Mesh).material as THREE.Material;
     const tcMat = (node('SX1I_Tanque_TC').getObjectByProperty('isMesh', true) as THREE.Mesh).material as THREE.Material;
     expect(tlpMat.opacity).toBeLessThan(tcMat.opacity);
+  });
+
+  it('raio-X (padrão): casco resistente quase invisível, sem cavernas; meio aberto: estrutura à vista', () => {
+    expect(structureOpacity('casco_resistente', 'raiox')).toBeLessThan(0.2);
+    expect(structureOpacity('cavernas', 'raiox')).toBe(0);
+    expect(structureOpacity('casco_resistente', 'meio')).toBeGreaterThan(0.6);
+    expect(structureOpacity('tubo', 'meio')).toBeNull();
+    const rig = new InteriorRig(src, sys.interiorLinks());
+    expect(rig.cutMode).toBe('raiox');
+    const cav = rig.root.getObjectByProperty('name', 'SX1I_Cavernas') ?? rig.parts.find((p) => p.tipo === 'cavernas')?.node;
+    expect(cav).toBeTruthy();
+    rig.update(e, sys.visibility({ ...defaultLayers(), tanks: true }), true, 0, false);
+    expect(cav!.visible).toBe(false);
+    rig.setMode('meio');
+    rig.update(e, sys.visibility({ ...defaultLayers(), tanks: true }), true, 0, false);
+    expect(cav!.visible).toBe(true);
+    // luz própria nas peças (o interior não fica escuro dentro do casco); tanques sem
+    const eixo = (rig.root.getObjectByName('SX1I_Eixo')!.getObjectByProperty('isMesh', true) as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    expect(eixo.emissive.r).toBeCloseTo(eixo.color.r * SELF_LIGHT, 6);
+  });
+
+  it('com o interior, o corte mantém o contorno colorido de cada tanque e só some a tubulação simples', () => {
+    const s2 = new SystemsVis(e, null);
+    s2.setInteriorMode(true, null);
+    const sub = new THREE.Object3D();
+    s2.update(e, sub, { ...defaultLayers(), tanks: true, pipes: true }, 0, [], () => ({ x: 0, y: 0, visible: false }));
+    const edges = s2.group.children.length ? ([] as THREE.Object3D[]) : [];
+    s2.group.traverse((o) => {
+      if (o instanceof THREE.LineSegments) edges.push(o);
+    });
+    expect(edges.length).toBeGreaterThan(0);
+    expect(edges.every((o) => o.visible)).toBe(true);
   });
 
   it('o plano de corte chega a todos os materiais do interior', () => {

@@ -98,7 +98,8 @@ de escoamento e volantes pela posição (`build/modelo/fluidos/`); o terceiro co
   O teste `tests/systemsLayout.test.ts` garante que bombas, válvulas e tubulações do corte ficam dentro dele
   (só os tubos ao mar o atravessam) e que nenhuma válvula ou bomba fica dentro do volume de um tanque.
 
-- O corte do site carrega o `sx1-interior.glb` (`src/render3d/interiorModel.ts`, meio casco aberto) e liga cada
+- O corte do site carrega o `sx1-interior.glb` (`src/render3d/interiorModel.ts`: raio-X por padrão, meio casco aberto pela camada
+  *Meio casco aberto*) e liga cada
   peça ao estado pelos dados em extras (`tipo`, `nome`, `sistemas`, `eixo_giro`). Os testes `tests/subInterior.test.ts`
   e `tests/interiorModel.test.ts` garantem que o arquivo segue o corte publicado (mesmas peças, posições e nomes).
 - Nomes fixos (`SX1I_Tanque_<ID>`, `SX1I_Valvula_<nome>`, `SX1I_Bomba_<nome>`, `SX1I_Tubo_<n>`…), nós só com

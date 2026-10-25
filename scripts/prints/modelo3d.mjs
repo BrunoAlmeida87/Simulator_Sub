@@ -16,7 +16,7 @@ const URL_ANTES = process.env.URL_ANTES ?? null;
 const OUT = process.argv[3] ?? join('build', 'prints');
 
 /** preferências gravadas antes de abrir (mesmas chaves que a interface usa) */
-function prefs({ screen = 'v3d', view = 'perspectiva', cut = false, dry = true, quality = 'alta', graphics = null }) {
+function prefs({ screen = 'v3d', view = 'perspectiva', cut = false, dry = true, quality = 'alta', graphics = null, layers = null }) {
   return {
     ...(graphics ? { 'sx1.graphics.v1': JSON.stringify({ quality, ...graphics }) } : {}),
     // 2ª janela: mesmas camadas de corte/água (sobreposição própria dela)
@@ -28,6 +28,8 @@ function prefs({ screen = 'v3d', view = 'perspectiva', cut = false, dry = true, 
     'sx1.ui.v3d.cut': JSON.stringify(cut),
     'sx1.ui.v3d.dry': JSON.stringify(dry),
     'sx1.ui.v3d.trail': 'false',
+    // camadas extras da Vista 3D (ex.: { halfCut: true } = meio casco aberto)
+    ...(layers ? { 'sx1.ui.v3d.layers': JSON.stringify(layers) } : {}),
   };
 }
 
@@ -56,6 +58,8 @@ async function shot(browser, mode, s) {
   // no contexto inteiro: vale também para a 2ª janela
   await ctx.route('**/models/*.glb', (r) => {
     glb.push(r.request().url());
+    // semInterior: só o interior fica de fora (mostra o corte antigo, transparente)
+    if (s.semInterior && r.request().url().includes('interior')) return r.abort();
     return mode === 'antes' && !URL_ANTES ? r.abort() : r.continue();
   });
   const kv = prefs(s.p);

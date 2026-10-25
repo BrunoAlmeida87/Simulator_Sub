@@ -904,7 +904,7 @@ export class SubmarineScene {
     const h = this.container.clientHeight;
     const rc = new THREE.Raycaster();
     rc.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
-    const list = [...this.pickables, ...this.systems.pickables, this.trimVis.block, ...(this.halfOpen && this.interior ? this.interior.pickables : [])];
+    const list = [...this.pickables, ...this.systems.pickables, this.trimVis.block, ...(this.layers.tanks && this.interior ? this.interior.pickables : [])];
     const hits = rc.intersectObjects(list, true);
     const visible = (o: THREE.Object3D | null): boolean => {
       for (let n = o; n; n = n.parent) if (!n.visible) return false;
@@ -940,6 +940,18 @@ export class SubmarineScene {
       c = m.clone();
       c.clippingPlanes = [this.cutPlane];
       c.side = THREE.DoubleSide;
+      // lado de dentro do casco (faces de trás) cinza-claro, como nas ilustrações em corte; o de fora fica como é
+      c.onBeforeCompile = (sh) => {
+        sh.fragmentShader = sh.fragmentShader.replace(
+          '#include <color_fragment>',
+          '#include <color_fragment>\nif (!gl_FrontFacing) diffuseColor.rgb = vec3(0.4, 0.44, 0.48);',
+        );
+        sh.fragmentShader = sh.fragmentShader.replace(
+          '#include <emissivemap_fragment>',
+          '#include <emissivemap_fragment>\nif (!gl_FrontFacing) totalEmissiveRadiance = vec3(0.07, 0.08, 0.09);',
+        );
+      };
+      c.customProgramCacheKey = () => 'sx1-casco-cortado';
       this.clipMats.set(m, c);
     }
     return c;
@@ -1737,7 +1749,8 @@ export class SubmarineScene {
     this.ships.lights = { on: !dry && navLightsOn(this.daylight, dl), cam: this.camera.position, time: this.wallTime };
     // corte com o interior do Blender (meio casco aberto): carrega na 1ª vez; plano do lado da câmera
     if (this.layers.tanks && this.interiorState === 'idle' && interiorEnabled(this.quality)) this.loadInterior();
-    this.halfOpen = this.layers.tanks && !!this.interior;
+    // raio-X (padrão) ou meio casco aberto (camada própria)
+    this.halfOpen = this.layers.tanks && !!this.interior && !!this.layers.halfCut;
     if (this.halfOpen) {
       this.cutSign = cutSide(this.sub.worldToLocal(this.camera.position.clone()).x, this.cutSign);
       setCutPlane(this.cutPlane, this.sub, this.cutSign);
@@ -1765,12 +1778,14 @@ export class SubmarineScene {
         }
       : null;
     const sysStep = Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0);
-    this.systems.setInteriorMode(this.halfOpen, this.halfOpen ? this.cutPlane : null);
+    const showInt = this.layers.tanks && !!this.interior;
+    this.systems.setInteriorMode(showInt, this.halfOpen ? this.cutPlane : null);
     this.systems.update(e, this.sub, this.layers, sysStep, lbl, proj);
     if (this.interior) {
-      this.interior.root.visible = this.halfOpen;
-      if (this.halfOpen) {
-        this.interior.setClip(this.cutPlane);
+      this.interior.root.visible = showInt;
+      if (showInt) {
+        this.interior.setClip(this.halfOpen ? this.cutPlane : null);
+        if (this.interior.cutMode !== (this.halfOpen ? 'meio' : 'raiox')) this.interior.setMode(this.halfOpen ? 'meio' : 'raiox');
         this.interior.update(e, this.systems.visibility(this.layers), this.layers.pipes, sysStep, !!this.layers.tankFilter);
       }
     }

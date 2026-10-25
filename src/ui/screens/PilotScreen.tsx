@@ -54,6 +54,7 @@ const PILOT_LAYER_KEYS: LayerKey[] = [
   'tanks',
   'pipes',
   'flows',
+  'halfCut',
   'labels',
   'batteryInfo',
   'airInfo',

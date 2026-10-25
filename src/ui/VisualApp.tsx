@@ -27,6 +27,7 @@ const LAYER_KEYS: LayerKey[] = [
   'tanks',
   'pipes',
   'flows',
+  'halfCut',
   'batteryInfo',
   'airInfo',
   'wake',
