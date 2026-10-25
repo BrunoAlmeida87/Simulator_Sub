@@ -35,3 +35,26 @@ describe('Cálculo de compensação', () => {
     expect(sol.message).toMatch(/banda/);
   });
 });
+
+import { qFromEuler } from '../src/sim/core/math';
+
+describe('Rigidez hidrostática com sinal (auditoria A08)', () => {
+  it('submerso e nivelado: estável nos dois eixos, rigidez positiva', () => {
+    const e = buildScenario('submerso_50');
+    e.computeOutputs();
+    expect(e.outputs.pitchStable).toBe(true);
+    expect(e.outputs.rollStable).toBe(true);
+    expect(e.outputs.rollStiffnessSigned).toBeGreaterThan(1e5);
+    expect(e.outputs.rollStiffnessSigned).toBeCloseTo(e.outputs.rollStiffness, 6);
+  });
+
+  it('casco invertido: rigidez de banda negativa, marcada instável e sem previsão linear', () => {
+    const e = buildScenario('submerso_50');
+    e.state.body.quat = qFromEuler((179 * Math.PI) / 180, 0, 0);
+    e.computeOutputs();
+    expect(e.outputs.rollStiffnessSigned).toBeLessThan(-1e5);
+    expect(e.outputs.rollStable).toBe(false);
+    expect(Math.abs(e.outputs.staticRollEq - e.outputs.euler.roll)).toBeLessThan(1e-9);
+    expect(Number.isFinite(e.outputs.staticRollEq)).toBe(true);
+  });
+});

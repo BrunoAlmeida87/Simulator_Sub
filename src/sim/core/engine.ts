@@ -23,7 +23,7 @@ import { buildHullGeometry, type HullGeometry } from '../physics/hullGeometry';
 import { computeMassProps, resolveLightship, type MassProps, type ResolvedMass } from '../physics/massProperties';
 import { computeForces, computeWaveCache, fullAddedMass, rk4Step, type AddedMass, type BodyState, type ForceBreakdown, type ForceInputs, type WaveCache } from '../physics/dynamics';
 import { makeDepthOf, type StepContext } from './context';
-import { mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLocal, mulMat3TVec as mulMat3TVecLocal, vCross as vCrossLocal, type Mat3, type Quat, type Vec3 } from './math';
+import { clamp, mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLocal, mulMat3TVec as mulMat3TVecLocal, vCross as vCrossLocal, type Mat3, type Quat, type Vec3 } from './math';
 import { computeHydrostatics as computeHydrostaticsLocal } from '../physics/hydrostatics';
 import type { SimState } from './state';
 import { updateBallastTank } from '../systems/ballast';
@@ -35,6 +35,9 @@ import { updateElectrical, updateGenerators } from '../systems/electrical';
 import { updateAutopilot, type ApReadings } from '../systems/autopilot';
 import { updateNavigation, updateSensors, type TrueValues } from '../systems/sensors';
 import { evaluateAlarms } from '../systems/alarms';
+
+/** rigidez hidrostática (N·m/rad) abaixo da qual o equilíbrio é tratado como instável/indiferente */
+const MIN_STIFFNESS = 1e3;
 
 export interface SimOutputs {
   mp: MassProps;
@@ -65,11 +68,20 @@ export interface SimOutputs {
   /** momento devido à separação longitudinal/transversal entre G e B (N·m) */
   weightTrimMoment: number;
   weightHeelMoment: number;
-  /** rigidez hidrostática (N·m/rad) e ângulos de equilíbrio estático previstos */
+  /**
+   * rigidez hidrostática (N·m/rad), limitada a ≥ 1 para as divisões das telas;
+   * o valor com sinal e a estabilidade estão em *StiffnessSigned / *Stable
+   */
   pitchStiffness: number;
   rollStiffness: number;
-  staticPitchEq: number; // graus
-  staticRollEq: number; // graus
+  pitchStiffnessSigned: number;
+  rollStiffnessSigned: number;
+  /** rigidez positiva: o ângulo tende a voltar; false = instável, sem previsão linear */
+  pitchStable: boolean;
+  rollStable: boolean;
+  /** ângulos de equilíbrio estático previstos (graus); instável ⇒ ângulo atual */
+  staticPitchEq: number;
+  staticRollEq: number;
   BG: number;
   airIntake: boolean;
   hpManifoldBar: number;
@@ -468,8 +480,13 @@ export class SimulationEngine {
     const d = 0.003;
     const mP = this.hydrostaticMoment(mp, qFromEulerLocal(e.phi, e.theta + d, e.psi));
     const mR = this.hydrostaticMoment(mp, qFromEulerLocal(e.phi + d, e.theta, e.psi));
-    const pitchStiff = Math.max(1, -(mP.y - m0.y) / d);
-    const rollStiff = Math.max(1, -(mR.x - m0.x) / d);
+    // rigidez com sinal: ≤ 0 = equilíbrio instável (ou indiferente) — sem previsão linear nesse caso
+    const pitchK = -(mP.y - m0.y) / d;
+    const rollK = -(mR.x - m0.x) / d;
+    const pitchStable = pitchK > MIN_STIFFNESS;
+    const rollStable = rollK > MIN_STIFFNESS;
+    const pitchStiff = Math.max(1, pitchK);
+    const rollStiff = Math.max(1, rollK);
     const hpBar = s.hpAir.manifoldPressure / 1e5;
     this.outputs = {
       mp,
@@ -499,8 +516,12 @@ export class SimulationEngine {
       weightHeelMoment: W * (G.y - B.y),
       pitchStiffness: pitchStiff,
       rollStiffness: rollStiff,
-      staticPitchEq: (e.theta + m0.y / pitchStiff) * RAD,
-      staticRollEq: (e.phi + m0.x / rollStiff) * RAD,
+      pitchStiffnessSigned: pitchK,
+      rollStiffnessSigned: rollK,
+      pitchStable,
+      rollStable,
+      staticPitchEq: pitchStable ? clamp((e.theta + m0.y / pitchStiff) * RAD, -90, 90) : e.theta * RAD,
+      staticRollEq: rollStable ? clamp((e.phi + m0.x / rollStiff) * RAD, -180, 180) : e.phi * RAD,
       BG: BGvert,
       airIntake: s.snorkel.headValveOpen,
       hpManifoldBar: hpBar,

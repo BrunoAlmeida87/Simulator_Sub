@@ -370,13 +370,13 @@ export function TrimHeelScreen() {
             <Readout label="Banda de equilíbrio estático" value={o.staticRollEq} unit="°" digits={2} kind="CALC" />
             <Readout label="Momento transversal dos pesos" value={fmtMoment(o.weightHeelMoment)} kind="CALC" />
             <Readout label="Posição transversal de G" value={o.mp.cg.y * 1000} unit="mm" digits={1} kind="CALC" />
-            <Readout label="Rigidez transversal" value={o.rollStiffness / 1e6} unit="MN·m/rad" digits={2} kind="CALC" />
+            <Readout label="Rigidez transversal" value={o.rollStable ? o.rollStiffnessSigned / 1e6 : `${fmt(o.rollStiffnessSigned / 1e6, 2)} — INSTÁVEL`} unit="MN·m/rad" digits={2} kind="CALC" />
             <Readout label="TB-BB / TB-BE" value={`${tankVolume(s.heel.tankA).toFixed(2)} / ${tankVolume(s.heel.tankB).toFixed(2)}`} unit="m³" kind="MED" />
           </div>
         </div>
         <div className="note">
           Arquitetura <b>fictícia</b> de tanques laterais. Submerso, a estabilidade transversal vem de BG (G abaixo de B): momento restaurador ≈ W·BG·sen φ. Tendência de retorno:{' '}
-          {Math.abs(o.euler.roll - o.staticRollEq) < 0.05 ? 'em equilíbrio.' : `retorna para ${fmt(o.staticRollEq, 2)}°.`}
+          {!o.rollStable ? 'nenhuma — rigidez transversal negativa (equilíbrio instável), sem previsão.' : Math.abs(o.euler.roll - o.staticRollEq) < 0.05 ? 'em equilíbrio.' : `retorna para ${fmt(o.staticRollEq, 2)}°.`}
         </div>
       </Panel>
       <CompensationCircuitPanel e={e} />
