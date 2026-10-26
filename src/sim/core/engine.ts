@@ -34,6 +34,7 @@ import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, 
 import { updateElectrical, updateGenerators } from '../systems/electrical';
 import { updateAutopilot, type ApReadings } from '../systems/autopilot';
 import { updateNavigation, updateSensors, type TrueValues } from '../systems/sensors';
+import { cavitationLevel } from '../systems/cavitation';
 import { evaluateAlarms } from '../systems/alarms';
 
 /** rigidez hidrostática (N·m/rad) abaixo da qual o equilíbrio é tratado como instável/indiferente */
@@ -445,6 +446,7 @@ export class SimulationEngine {
         contact: s.contact,
         speed: s.body.vel.x,
         declination: this.env.cfg.magneticDeclination,
+        cavitation: cavitationLevel(cfg, s, this.env),
       },
       this.config.settings.dt,
     );

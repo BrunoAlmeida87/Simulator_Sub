@@ -282,3 +282,5 @@ O circuito de compensação permite transferir água entre os tanques de banda B
 - **Efeitos submersos (protótipo):** cavitação visual dependente da rotação e
   pressão local; ressuspensão de sedimento por proximidade/contato com o fundo.
   Integrados à camada Esteira. [Proposta, limites e capturas](docs/EFEITOS-SUBMERSOS.md).
+
+- **Cavitação:** critérios e intensidade atual em Configurações → Cavitação da hélice; alerta de prioridade média com confirmação de 1 s, reconhecimento e histórico, independente da visualização 3D.

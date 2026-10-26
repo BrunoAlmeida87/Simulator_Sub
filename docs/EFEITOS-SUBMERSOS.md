@@ -136,3 +136,12 @@ Reprodução com Vite e Playwright: `python scripts/capture-trail.py after`.
 
 ![Antes](img/efeitos-submersos/trail-before.png)
 ![Depois](img/efeitos-submersos/trail-after.png)
+
+## Consulta e supervisão
+
+O cálculo de cavitação foi centralizado em `src/sim/systems/cavitation.ts` e é
+usado pelo renderizador, pela seção **Configurações → Cavitação da hélice** e
+pelo motor de alarmes. A intensidade máxima das pás dispara o alerta de
+prioridade média após 1 s acima de ou igual a 5%; normaliza abaixo de 2%.
+Os limiares são de supervisão para evitar avisos breves junto ao início, não
+alteram o critério de formação das bolhas. Não depende das camadas gráficas.

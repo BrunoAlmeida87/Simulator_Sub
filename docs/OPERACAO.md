@@ -516,3 +516,18 @@ Ao passar a menos de 6 m do fundo, o movimento e o jato da hélice podem levanta
 uma nuvem de sedimento. O primeiro toque gera um pulso que se dispersa e assenta.
 Os efeitos param em pausa e são ocultos em **Sem água**. Os limiares são
 ilustrativos e não alteram a física. Ver [modelo, plano e imagens](EFEITOS-SUBMERSOS.md).
+
+### Parâmetros e alerta de cavitação
+
+Em **Configurações → Cavitação da hélice**, consulte o critério de início,
+coeficientes, dimensões da hélice em uso, exemplos de rpm × velocidade ×
+profundidade do eixo e a intensidade atual. Os valores são de consulta; os
+exemplos se recalculam com a hélice e o perfil da água atuais.
+
+O alerta **Cavitação na hélice (estimativa)**, prioridade média, confirma após
+1 s com intensidade máxima nas pás de pelo menos 5% e normaliza abaixo de 2%.
+A diferença evita oscilações do aviso junto ao limiar. Usa o mesmo cálculo das
+bolhas, mas funciona mesmo sem cena 3D ou com Esteira desligada. Aparece no
+anunciador e em Segurança, com reconhecimento e histórico normais. Após
+normalizar, permanece visível até ser reconhecido. É uma estimativa educacional,
+sem efeitos adicionais no empuxo ou rendimento.

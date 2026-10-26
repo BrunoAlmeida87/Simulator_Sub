@@ -5,6 +5,7 @@
  * apenas VISUAL, se afeta a SIMULAÇÃO AGORA (comando registrado, sem
  * reiniciar) ou se EXIGE REINICIAR o cenário.
  */
+import { CavitationPanel } from '../components/CavitationPanel';
 import { LightPanel } from '../components/LightPanel';
 import { DEFAULT_TRAIL_STYLE } from '../../render3d/trailStyle';
 import { useEffect, useReducer, useRef, useState } from 'react';
@@ -897,6 +898,7 @@ export function SettingsScreen() {
         <RecordingPanel />
         <IdentityPanel />
         <GraphicsPanel />
+        <CavitationPanel />
         <MarineLifePanel />
         <EnvironmentPanel />
         <BottomPanel />

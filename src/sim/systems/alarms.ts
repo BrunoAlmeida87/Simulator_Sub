@@ -7,6 +7,7 @@
  * Um alarme normalizado e não reconhecido permanece na lista até o
  * reconhecimento.
  */
+import { CAVITATION_ALARM_ON, CAVITATION_ALARM_OFF, CAVITATION_ALARM_DELAY } from './cavitation';
 import type { SimState } from '../core/state';
 import type { VesselConfig } from '../config/types';
 
@@ -26,6 +27,7 @@ export interface AlarmEvalContext {
   contact: boolean;
   speed: number;
   declination: number;
+  cavitation: number;
 }
 
 export interface AlarmDef {
@@ -41,6 +43,9 @@ export interface AlarmDef {
 export const PRIORITY_LABEL: Record<number, string> = { 1: 'CRÍTICO', 2: 'ALTO', 3: 'MÉDIO', 4: 'INFO' };
 
 export const ALARM_DEFS: AlarmDef[] = [
+  { id: 'CAVITATION', priority: 3, text: 'Cavitação na hélice (estimativa)', delay: CAVITATION_ALARM_DELAY, system: 'Propulsão',
+    cond: (c) => c.cavitation >= (c.s.alarms.runtime.CAVITATION?.active ? CAVITATION_ALARM_OFF : CAVITATION_ALARM_ON),
+    detail: (c) => `intensidade ${(c.cavitation * 100).toFixed(0)}% · reduzir rotação ou aumentar a profundidade, respeitando a folga do fundo e os limites operacionais` },
   { id: 'DEPTH_TEST', priority: 1, text: 'Profundidade além do limite de teste fictício', delay: 0.5, system: 'Segurança', cond: (c) => c.depthTrue > c.cfg.limits.testDepth },
   { id: 'DEPTH_OP', priority: 2, text: 'Profundidade além do limite operacional fictício', delay: 1, system: 'Segurança', cond: (c) => c.depthTrue > c.cfg.limits.operatingDepth },
   { id: 'BOTTOM_CRIT', priority: 1, text: 'Proximidade crítica do fundo', delay: 0.5, system: 'Navegação', cond: (c) => c.altitude < c.cfg.limits.minAltitudeCrit, detail: (c) => `altitude ${c.altitude.toFixed(1)} m` },
