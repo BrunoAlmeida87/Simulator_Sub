@@ -1,0 +1,71 @@
+/* Isolado no Governo: não altera os controles compartilhados da Sala. */
+.helm-redesign { --gov-accent: #42d0ef; gap: 14px; max-width: 1900px; margin: 0 auto; }
+.helm-redesign .gov-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 2px; }
+.helm-redesign .gov-eyebrow { color: var(--gov-accent); font-size: 10px; letter-spacing: .16em; }
+.helm-redesign h1 { font-size: 24px; margin-top: 3px; letter-spacing: -.02em; }
+.helm-redesign h1 span { font-size: 13px; color: #9cb3c9; font-weight: 400; margin-left: 12px; letter-spacing: 0; }
+.helm-redesign .gov-telemetry { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: #101f2e; border: 1px solid #294253; border-radius: 10px; padding: 14px 4px; }
+.helm-redesign .gov-telemetry > div { display: flex; flex-direction: column; gap: 5px; padding: 0 18px; border-right: 1px solid #294253; min-width: 0; }
+.helm-redesign .gov-telemetry > div:last-child { border: 0; }
+.helm-redesign .gov-telemetry span { color: #acc0d2; font-size: 12px; }
+.helm-redesign .gov-telemetry strong { font: 600 24px var(--mono); color: #e2f6ff; }
+.helm-redesign .gov-telemetry small { font-size: 14px; color: #acc0d2; }
+.helm-redesign .gov-telemetry .gov-authority { font: 600 13px/1.6 var(--sans); color: var(--gov-accent); }
+.helm-redesign .helm-view { height: clamp(210px, 26vh, 320px); min-height: 210px; border-radius: 10px; border-color: #294253; }
+.helm-redesign .helm-console { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, .85fr); align-items: stretch; gap: 14px; }
+.helm-redesign .helm-sec { padding: 16px; background: #101c29; border: 1px solid #294253; border-radius: 10px; }
+.helm-redesign .helm-sec.gov, .helm-redesign .helm-sec.inst, .helm-redesign .helm-sec.pwr { border-top: 2px solid var(--gov-accent); grid-column: auto; order: 0; }
+.helm-redesign .helm-sec > header { min-height: 28px; gap: 9px; flex-wrap: wrap; margin-bottom: 18px; font-size: 14px; letter-spacing: 0; }
+.helm-redesign .helm-sec > header b { color: #e2f6ff; }
+.helm-redesign .gov-section-number { color: var(--gov-accent); font: 12px var(--mono); border: 1px solid #315061; border-radius: 5px; padding: 4px 6px; }
+.helm-redesign .helm-row { gap: 12px; flex-wrap: nowrap; }
+.helm-redesign .gov > .helm-row > .helm-col:first-child { flex: 1; }
+.helm-redesign .helm-yoke { width: min(230px, 100%); }
+.helm-redesign .helm-lever { max-width: 100%; }
+.helm-redesign .helm-read { font-size: 12px; gap: 5px; line-height: 1.5; }
+.helm-redesign .gov-subheading { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 20px; padding-top: 14px; border-top: 1px solid #294253; font-weight: 600; }
+.helm-redesign .gov-subheading span { font-size: 11px; color: #9cb3c9; font-weight: 400; }
+.helm-redesign .helm-ap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.helm-redesign .helm-apbox { background: #0b1622; width: 100%; padding: 10px 5px; }
+.helm-redesign .helm-apbox > .row { justify-content: center; gap: 8px; }
+.helm-redesign .helm-knob svg { width: 86px; height: 86px; }
+.helm-redesign .helm-knob .subtle { text-align: center; }
+.helm-redesign .helm-inst { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.helm-redesign .gov-instrument { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-width: 0; padding: 12px 5px; background: #0b1622; border: 1px solid #23394c; border-radius: 8px; }
+.helm-redesign .gov-instrument > span { color: #b9cde2; font-size: 12px; }
+.helm-redesign .gov-instrument svg { max-width: 100%; height: auto; }
+.helm-redesign .gov-feedback { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; font-size: 12px; color: #b9cde2; padding: 16px 0; }
+.helm-redesign .gov-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.helm-redesign .gov-dot.cmd { background: #36c5f0; }
+.helm-redesign .gov-dot.real { background: #3ddc84; }
+.helm-redesign .gov-metrics, .helm-redesign .gov-rpm-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.helm-redesign .gov-metrics > div, .helm-redesign .gov-rpm-pair > div { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid #294253; border-radius: 8px; background: #0b1622; }
+.helm-redesign .gov-metrics span, .helm-redesign .gov-rpm-pair span { color: #acc0d2; font-size: 12px; }
+.helm-redesign .gov-metrics b { font: 600 16px var(--mono); }
+.helm-redesign .gov-rpm-pair { margin-top: 20px; }
+.helm-redesign .gov-rpm-pair b { font: 600 24px var(--mono); color: #ffb347; }
+.helm-redesign .gov-rpm-pair > div:last-child b { color: #3ddc84; }
+.helm-redesign .gov-rpm-pair small { font-size: 12px; }
+.helm-redesign .gov-stop { width: 100%; margin: 12px 0; min-height: 42px; border-color: #698399; background: #233447; font-weight: 600; }
+.helm-redesign .btn, .helm-redesign .seg button { min-height: 34px; }
+.helm-redesign .btn:focus-visible, .helm-redesign .seg button:focus-visible { outline: 2px solid var(--gov-accent); outline-offset: 3px; }
+.helm-redesign .note { font-size: 12px; line-height: 1.6; margin-top: 14px; color: #9cb3c9; }
+@media (max-width: 1200px) {
+  .helm-redesign .helm-console { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .helm-redesign .helm-sec.inst { grid-column: 1 / -1; order: -1; }
+  .helm-redesign .helm-inst { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .helm-redesign .gov-metrics { max-width: 600px; margin: 0 auto; }
+}
+@media (max-width: 700px) {
+  .helm-redesign .gov-heading { align-items: flex-start; }
+  .helm-redesign h1 span { display: block; margin: 5px 0 0; }
+  .helm-redesign .gov-telemetry { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 0; }
+  .helm-redesign .gov-telemetry > div { padding: 0 12px; }
+  .helm-redesign .gov-telemetry > div:last-child { grid-column: 1 / -1; border-top: 1px solid #294253; padding-top: 10px; }
+  .helm-redesign .gov-telemetry strong { font-size: 20px; }
+  .helm-redesign .helm-console { grid-template-columns: minmax(0, 1fr); }
+  .helm-redesign .helm-inst { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .helm-redesign .helm-sec { padding: 12px; }
+  .helm-redesign .btn, .helm-redesign .seg button { min-height: 44px; }
+  .helm-redesign .helm-view { height: 240px; }
+}
