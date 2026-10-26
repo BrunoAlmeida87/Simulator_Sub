@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import { qToMat3 } from '../sim/core/math';
-import { cavitationIntensity, sedimentIntensity } from './underwaterFxModel';
+import { sedimentIntensity } from './underwaterFxModel';
+import { cavitationSamples } from '../sim/systems/cavitation';
 
 interface Particle {
   n: number;
@@ -144,12 +145,8 @@ export class UnderwaterFx {
       if (this.particles.length < this.capacity) this.particles.push(p);
     };
     // Amostra as pás: pressão local incorpora profundidade, ondas e atitude.
-    for (let blade = 0; blade < prop.blades; blade++) {
-      const a = s.propulsion.shaftAngle + (blade * 2 * Math.PI) / prop.blades;
-      const r = radius * 0.9;
-      const p = world(propX, Math.cos(a) * r, Math.sin(a) * r);
-      const depth = p.d + e.env.waves.elevation(p.n, p.e, t);
-      const k = depth > 0 ? cavitationIntensity(e.env.pressureAt(depth), rho, e.env.temperatureAt(depth), s.propulsion.omega, r, u * (1 - prop.wakeFraction)) : 0;
+    for (const p of cavitationSamples(e.vessel, s, e.env, t)) {
+      const k = p.intensity;
       this.cavCarry += (k * 650 * dt) / prop.blades;
       while (this.cavCarry >= 1) {
         this.cavCarry--;
