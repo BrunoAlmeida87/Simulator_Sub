@@ -16,6 +16,7 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 const V3D_LAYER_DEFAULTS = {
   pipes: true,
   flows: true,
+  halfCut: false,
   labels: true,
   batteryInfo: true,
   airInfo: false,

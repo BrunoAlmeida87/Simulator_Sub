@@ -33,6 +33,7 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 const PILOT_LAYER_DEFAULTS = {
   pipes: true,
   flows: true,
+  halfCut: false,
   labels: true,
   batteryInfo: true,
   airInfo: false,
