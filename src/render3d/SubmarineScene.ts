@@ -213,6 +213,8 @@ export class SubmarineScene {
   private cutPlane = new THREE.Plane();
   private cutSign: 1 | -1 = 1;
   private halfOpen = false;
+  /** interior do Blender à vista neste quadro (desenhado e clicável) */
+  private interiorShown = false;
   /** materiais do casco do .glb recortados pelo plano (cópias; o original fica para fora do corte) */
   private clipMats = new Map<THREE.Material, THREE.Material>();
   private disposed = false;
@@ -912,7 +914,7 @@ export class SubmarineScene {
     const h = this.container.clientHeight;
     const rc = new THREE.Raycaster();
     rc.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera);
-    const list = [...this.pickables, ...this.systems.pickables, this.trimVis.block, ...(this.layers.tanks && this.interior ? this.interior.pickables : [])];
+    const list = [...this.pickables, ...this.systems.pickables, this.trimVis.block, ...(this.interiorShown && this.interior ? this.interior.pickables : [])];
     const hits = rc.intersectObjects(list, true);
     const visible = (o: THREE.Object3D | null): boolean => {
       for (let n = o; n; n = n.parent) if (!n.visible) return false;
@@ -1757,9 +1759,10 @@ export class SubmarineScene {
     // navios: luzes de navegação junto com as do submarino
     this.ships.lights = { on: !dry && navLightsOn(this.daylight, dl), cam: this.camera.position, time: this.wallTime };
     // corte com o interior do Blender (meio casco aberto): carrega na 1ª vez; plano do lado da câmera
-    if (this.layers.tanks && this.interiorState === 'idle' && interiorEnabled(this.quality)) this.loadInterior();
+    const intOn = this.layers.tanks && interiorEnabled(this.quality, !!this.layers.halfCut);
+    if (intOn && this.interiorState === 'idle') this.loadInterior();
     // raio-X (padrão) ou meio casco aberto (camada própria)
-    this.halfOpen = this.layers.tanks && !!this.interior && !!this.layers.halfCut;
+    this.halfOpen = intOn && !!this.interior && !!this.layers.halfCut;
     if (this.halfOpen) {
       this.cutSign = cutSide(this.sub.worldToLocal(this.camera.position.clone()).x, this.cutSign);
       setCutPlane(this.cutPlane, this.sub, this.cutSign);
@@ -1787,7 +1790,8 @@ export class SubmarineScene {
         }
       : null;
     const sysStep = Math.min(3, this.runner.timeScale) * (this.runner.running ? dtR : 0);
-    const showInt = this.layers.tanks && !!this.interior;
+    const showInt = intOn && !!this.interior;
+    this.interiorShown = showInt;
     this.systems.setInteriorMode(showInt, this.halfOpen ? this.cutPlane : null);
     this.systems.update(e, this.sub, this.layers, sysStep, lbl, proj);
     if (this.interior) {

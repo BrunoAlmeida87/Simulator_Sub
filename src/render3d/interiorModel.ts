@@ -19,9 +19,12 @@ import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import type { ValveState } from '../sim/core/state';
 
-/** Nível de detalhe: com qualidade gráfica baixa fica o corte antigo (celular). */
-export function interiorEnabled(quality: 'baixa' | 'media' | 'alta'): boolean {
-  return quality !== 'baixa';
+/**
+ * Interior do Blender no corte: com qualidade média/alta sempre; com a baixa (celular) só quando o meio casco aberto
+ * é pedido (ele depende do interior); senão fica o corte antigo, mais leve.
+ */
+export function interiorEnabled(quality: 'baixa' | 'media' | 'alta', halfCut = false): boolean {
+  return quality !== 'baixa' || halfCut;
 }
 
 export function interiorUrl(): string {

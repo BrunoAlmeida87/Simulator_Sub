@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { NodeIO, type Node as GNode } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
-import { InteriorRig, SELF_LIGHT, blenderAxis, cutSide, setCutPlane, structureOpacity, valveColor, wheelAngle } from '../src/render3d/interiorModel';
+import { InteriorRig, SELF_LIGHT, blenderAxis, cutSide, interiorEnabled, setCutPlane, structureOpacity, valveColor, wheelAngle } from '../src/render3d/interiorModel';
 import { SystemsVis } from '../src/render3d/Systems';
 import { buildScenario } from '../src/sim/scenarios';
 import { defaultLayers } from '../src/render3d/layers';
@@ -36,6 +36,13 @@ beforeAll(async () => {
 });
 
 describe('meio casco aberto', () => {
+  it('o meio casco aberto carrega o interior em qualquer qualidade; na baixa, sem ele, fica o corte leve', () => {
+    expect(interiorEnabled('alta')).toBe(true);
+    expect(interiorEnabled('media')).toBe(true);
+    expect(interiorEnabled('baixa')).toBe(false);
+    expect(interiorEnabled('baixa', true)).toBe(true);
+  });
+
   it('some a metade do lado da câmera, com histerese no plano', () => {
     expect(cutSide(3, -1)).toBe(1);
     expect(cutSide(-3, 1)).toBe(-1);
