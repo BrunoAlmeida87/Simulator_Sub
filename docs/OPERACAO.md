@@ -531,3 +531,16 @@ bolhas, mas funciona mesmo sem cena 3D ou com Esteira desligada. Aparece no
 anunciador e em Segurança, com reconhecimento e histórico normais. Após
 normalizar, permanece visível até ser reconhecido. É uma estimativa educacional,
 sem efeitos adicionais no empuxo ou rendimento.
+
+### Governo — console de instrumentos
+
+A tela **Operação → Governo** reúne três áreas: direção e profundidade,
+instrumentos e potência. A faixa superior identifica a profundidade da quilha,
+a velocidade, o rumo, a atitude e os modos dos pilotos. O manche e os pilotos
+mantêm os comandos existentes; a alavanca de vante mostra ordem e posição real.
+
+Use **Recolher cena 3D** para concentrar a tela no console; **Mostrar cena 3D**
+restaura a cena com suas opções de câmera e camadas. Essa preferência fica salva.
+**PARAR · ordem de 0 rpm** comanda a parada do eixo, cuja rotação real continua
+seguindo a rampa do motor — não pausa a simulação. Em telas menores os
+instrumentos passam para a primeira linha e os painéis se empilham.
