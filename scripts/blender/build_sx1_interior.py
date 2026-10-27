@@ -23,6 +23,10 @@ Contrato (para o corte futuro no site):
                                   com origem no centro do volante (gira em torno da haste)
       SX1I_Bomba_<nome>           bomba; filho SX1I_Bomba_<nome>_Rotor (acoplamento, gira no eixo vertical)
       SX1I_Garrafa_<grupo>_<k>, SX1I_Abertura_<n>, SX1I_Bateria_<k>, SX1I_Gerador_<id>
+      SX1I_TuboTorpedo_<n>        tubo lançador (n = 1…6; ímpares BE); filhos _PortaInterna e _PortaExterna
+                                  (origem na dobradiça, eixo_giro e abre_graus em extras), _Ejetor, _Garrafa,
+                                  _ValvulaDisparo, _ValvulaAlagamento, _ValvulaSuspiro, _Passagem, _Trilho
+      SX1I_SalaTorpedos           piso sobre o TT-AV, estantes e trilhos de içamento
   - cada nó leva em "extras" os dados originais (nome, sistemas, eixo do tubo, haste…): no Three.js
     ficam em object.userData;
   - toda malha é fechada (manifold): um plano de corte com tampa (stencil) ou booleana funciona.
@@ -211,6 +215,10 @@ def materials(D):
     mat('polo_pos', (0.6, 0.06, 0.04), 0.4, 0.5)
     mat('polo_neg', (0.02, 0.02, 0.02), 0.4, 0.5)
     mat('cobre', (0.75, 0.42, 0.2), 0.3, 1.0)
+    mat('tubo_torpedo', (0.44, 0.47, 0.46), 0.55, 0.35)  # tubos lançadores (aço pintado: pouco espelhado, sem faixas da compressão)
+    mat('porta_tubo', (0.22, 0.26, 0.30), 0.45, 0.5)  # portas interna e externa dos tubos
+    mat('ejetor', (0.28, 0.34, 0.40), 0.45, 0.4)  # cilindros de ejeção
+    mat('estante', (0.33, 0.35, 0.36), 0.5, 0.55)  # piso, estantes e trilhos da sala de torpedos
     for cat in {t['categoria'] for t in D['tanques']}:
         cor = next(t['cor'] for t in D['tanques'] if t['categoria'] == cat)
         # tanque: chapa pintada de cinza claro, levemente tingida pela categoria (estilo técnico)
@@ -827,13 +835,210 @@ def build_propulsion(D, M, parent):
     return P
 
 
+# ------------------------------------------------------------------ tubos lançadores e sala de torpedos
+# Medidas: src/render3d/torpedoTubes.ts (gravadas no JSON pelo exportar_interior.ts, em coordenadas do CORPO:
+# x vante, y boreste, z para baixo). Seis tubos de 533 mm da culatra (porta interna, na sala de torpedos) até a
+# boca (porta externa do tubo, atrás da porta do casco); ejeção por ar comprimido: garrafa de lançamento →
+# válvula de disparo → cilindro de ejeção → água na culatra. Estantes laterais e piso sobre o TT-AV.
+def bpt(p):
+    """corpo (x vante, y boreste, z baixo) → Blender (X boreste, Y proa, Z cima)"""
+    return v3((p['y'], p['x'], -p['z'])) if isinstance(p, dict) else v3((p[1], p[0], -p[2]))
+
+
+def tube_shell(c0, axis, length, r_out, r_in, n=32):
+    """Tubo de parede (anel) fechado: de c0 ao longo de axis, com furo de raio r_in."""
+    a, u, w = frame(axis)
+    c0 = v3(c0)
+    verts = []
+    for s in (0.0, length):
+        for rr in (r_out, r_in):
+            for k in range(n):
+                t = 2 * math.pi * k / n
+                verts.append(tuple(c0 + a * s + (u * math.cos(t) + w * math.sin(t)) * rr))
+    o0, i0, o1, i1 = 0, n, 2 * n, 3 * n
+    faces = []
+    for k in range(n):
+        k1 = (k + 1) % n
+        faces.append((o0 + k, o0 + k1, o1 + k1, o1 + k))  # face externa
+        faces.append((i0 + k1, i0 + k, i1 + k, i1 + k1))  # furo
+        faces.append((o0 + k1, o0 + k, i0 + k, i0 + k1))  # topo de ré
+        faces.append((o1 + k, o1 + k1, i1 + k1, i1 + k))  # topo de vante
+    return verts, faces
+
+
+def small_valve(c, axis, stem, r):
+    """Válvula pequena (corpo, pescoços, castelo e haste); devolve (partes do corpo, centro do volante)."""
+    c, a, h = v3(c), unit(v3(axis)), unit(v3(stem))
+    body = [sphere(c, r * 2.0, 8)]
+    for sx in (-1, 1):
+        body.append(cylinder(c + a * sx * r * 2.4, a, r * 1.1, r * 1.4, n=8))
+        body.append(cylinder(c + a * sx * r * 3.1, a, r * 2.0, r * 0.4, n=10))
+    body.append(cylinder(c + h * r * 2.6, h, r * 1.1, r * 1.6, n=8))
+    body.append(cylinder(c + h * r * 4.6, h, r * 0.22, r * 2.4, n=6))
+    return body, c + h * r * 5.8
+
+
+def wheel_parts(c, h, R):
+    wheel = [torus(c, h, R, R * 0.13, 14, 4), cylinder(c, h, R * 0.18, R * 0.25, n=6)]
+    _, u, w = frame(h)
+    for k in range(3):
+        t = 2 * math.pi * k / 3
+        d = u * math.cos(t) + w * math.sin(t)
+        wheel.append(cylinder(c + d * R * 0.5, d, R * 0.07, R * 0.95, n=4))
+    return wheel
+
+
+def build_torpedoes(D, M, parent):
+    T = D['torpedos']
+    S = T['sala']
+    up = v3((0, 0, 1))
+    hp_cor = next(g['cor'] for g in D['garrafas'])
+    for t in T['tubos']:
+        n = t['n']
+        side = 1 if t['side'] == 'BE' else -1
+        name = f'SX1I_TuboTorpedo_{n}'
+        a = unit(bpt(t['eixo']))
+        b = bpt(t['culatra'])
+        Lt = t['comprimento']
+        muzzle = b + a * Lt
+        # referenciais da seção: "lado" (para fora, horizontal) e "cima" (perpendicular ao eixo)
+        lat = unit(np.cross(a, up)) * (-1 if np.dot(np.cross(a, up), v3((side, 0, 0))) < 0 else 1)
+        upp = unit(np.cross(lat, a)) * 1.0
+        if upp[2] < 0:
+            upp = -upp
+        ro, ri = T['outerRadius'], T['boreRadius']
+        extras = {
+            'tipo': 'tubo_torpedo', 'nome': t['nome'], 'numero': n, 'bordo': t['side'], 'calibre': T['caliber'],
+            'comprimento': round(Lt, 4), 'eixo': [round(float(x), 5) for x in a],
+            'culatra': [round(float(x), 4) for x in b], 'boca': [round(float(x), 4) for x in muzzle],
+        }
+        body = [tube_shell(b, a, Lt, ro, ri)]
+        # flange da culatra e anel da boca: anéis por fora da parede (sem vértices em comum com o tubo)
+        body.append(tube_shell(b - a * 0.06, a, 0.2, ro + 0.06, ri + 0.004))
+        body.append(tube_shell(muzzle - a * 0.1, a, 0.097, ro + 0.02, ro - 0.012, n=24))
+        s = 1.6
+        while s < Lt - 0.8:  # cintas de reforço
+            body.append(tube_shell(b + a * s, a, 0.05, ro + 0.02, ro - 0.012, n=24))
+            s += 2.0
+        e = mesh_obj(name, body, M['tubo_torpedo'], parent, b, sharp=35, extras=extras)
+        # anel de passagem na antepara resistente e trilho-guia no fundo do furo
+        s_bh = t['antepara']
+        rail_c = b + a * (Lt / 2) - upp * (ri - 0.012)
+        mesh_obj(name + '_Passagem', [tube_shell(b + a * (s_bh - 0.08), a, 0.16, ro + 0.11, ro + 0.002, n=24)], M['aco'], e, b + a * s_bh)
+        mesh_obj(name + '_Trilho', [box(rail_c, (0.05, Lt - 0.3, 0.022), (lat, a, upp))], M['aco'], e, rail_c)
+        # porta interna (culatra): disco com anel de travamento e alavanca; dobradiça vertical do lado de fora
+        hinge_i = b - a * 0.09 + lat * (ro + 0.08)
+        dc = b - a * 0.09
+        door = [cylinder(dc, a, ro + 0.05, 0.07, n=32), torus(dc - a * 0.045, a, ro - 0.02, 0.022, 24, 4)]
+        door.append(cylinder(dc - a * 0.07, a, 0.09, 0.06, n=12))  # cubo do fecho
+        door.append(box(dc - a * 0.1 - lat * 0.12, (0.32, 0.035, 0.035), (lat, upp, a)))  # alavanca
+        for dz in (-0.18, 0.18):
+            door.append(cylinder(hinge_i + upp * dz, upp, 0.035, 0.12, n=8))  # dobradiças
+            door.append(box(hinge_i + upp * dz - lat * 0.06 - a * 0.0, (0.12, 0.05, 0.05), (lat, upp, a)))
+        mesh_obj(name + '_PortaInterna', door, M['porta_tubo'], e, hinge_i,
+                 extras={'tipo': 'porta_tubo', 'eixo_giro': [float(x) for x in upp], 'abre_graus': 100})
+        # porta externa do tubo (na boca), dobradiça em cima
+        hinge_o = muzzle + a * 0.04 + upp * (ro + 0.03)
+        oc = muzzle + a * 0.04
+        odoor = [cylinder(oc, a, ro - 0.01, 0.05, n=24), cylinder(oc + a * 0.03, a, ro * 0.55, 0.02, n=16)]
+        odoor.append(cylinder(hinge_o, lat, 0.03, 0.3, n=8))
+        mesh_obj(name + '_PortaExterna', odoor, M['porta_tubo'], e, hinge_o,
+                 extras={'tipo': 'porta_tubo', 'eixo_giro': [float(x) for x in lat], 'abre_graus': 95})
+        # ejeção por ar comprimido: cilindro de ejeção ao lado da culatra, garrafa de lançamento e válvula de disparo
+        z = T['rowZ'][t['row']]
+        ej, fl = S['ejector'], S['flask']
+        ej_c = bpt({'x': (ej['x0'] + ej['x1']) / 2, 'y': side * ej['y'], 'z': z})
+        ej_len = ej['x1'] - ej['x0']
+        yax = v3((0, 1, 0))
+        cyl = [cylinder(ej_c, yax, ej['radius'], ej_len, n=20)]
+        for sx in (-0.5, 0.5):
+            cyl.append(cylinder(ej_c + yax * sx * ej_len, yax, ej['radius'] + 0.04, 0.06, n=20))  # flanges
+        cyl.append(box(ej_c - v3((0, 0, ej['radius'] + 0.08)), (0.3, ej_len * 0.7, 0.1)))  # jazente
+        # conduto de água: da cabeça do cilindro até a lateral do tubo, logo à vante da culatra
+        s_in = (bpt({'x': ej['x1'] + 0.42, 'y': 0, 'z': 0})[1] - b[1]) / a[1]
+        tube_side = b + a * s_in + lat * (ro - 0.02)
+        p0 = ej_c + yax * (ej_len / 2)
+        p1 = v3((p0[0], tube_side[1], p0[2]))
+        duct = rounded([p0, p1, tube_side], 0.12)
+        cyl.append(sweep(duct, 0.085, 10))
+        ejn = mesh_obj(name + '_Ejetor', cyl, M['ejetor'], e, ej_c, extras={'tipo': 'ejetor', 'nome': f"Cilindro de ejeção {n}"})
+        fl_c = bpt({'x': (fl['x0'] + fl['x1']) / 2, 'y': side * fl['y'], 'z': z})
+        fl_len = fl['x1'] - fl['x0']
+        flask = [lathe(fl_c, yax, bottle_profile(fl_len, fl['radius']), 12)]
+        for sx in (-0.3, 0.25):
+            flask.append(torus(fl_c + yax * sx * fl_len, yax, fl['radius'] + 0.01, 0.014, 14, 4))
+        mesh_obj(name + '_Garrafa', flask, M['pintura_' + hp_cor.lstrip('#')], e, fl_c,
+                 extras={'tipo': 'garrafa_lancamento', 'nome': f'Garrafa de lançamento {n}'})
+        # linha de ar: bico da garrafa → válvula de disparo → lateral do cilindro de ejeção
+        v_c = fl_c + yax * (fl_len / 2 + 0.32)
+        q0 = fl_c + yax * (fl_len / 2 + 0.08)
+        q2 = v3((ej_c[0] + side * (ej['radius'] - 0.02), v_c[1], v_c[2]))
+        air = [sweep(rounded([q0, v_c, q2], 0.08, 4), 0.035, 8)]
+        mesh_obj(name + '_LinhaAr', air, M['pintura_' + hp_cor.lstrip('#')], e, v_c)
+        vb, wc = small_valve(v_c, v3((side, 0, 0)), up, 0.045)
+        vb.append(box(wc + up * 0.02, (0.16, 0.12, 0.1)))  # atuador (disparo remoto)
+        mesh_obj(name + '_ValvulaDisparo', vb, M['fundido'], e, v_c, extras={'tipo': 'valvula_tubo', 'nome': f'Válvula de disparo {n}'})
+        # alagamento (embaixo) e suspiro (em cima), do lado de dentro dos tubos
+        for k, (nome, s_v, dz) in enumerate((('Alagamento', 1.15, -1), ('Suspiro', 0.8, 1))):
+            c_t = b + a * s_v
+            vc = c_t - lat * (ro + 0.12) + upp * dz * 0.14
+            parts, wcen = small_valve(vc, upp, -lat, 0.035)
+            parts.append(sweep([c_t - lat * (ro - 0.03) + upp * dz * 0.14, vc], 0.03, 8))
+            vn = mesh_obj(f'{name}_Valvula{nome}', parts, M['fundido'], e, vc, extras={'tipo': 'valvula_tubo', 'nome': f'{nome} do tubo {n}'})
+            mesh_obj(f'{name}_Valvula{nome}_Volante', wheel_parts(wcen, -lat, 0.09), M['volante'], vn, wcen,
+                     extras={'eixo_giro': [float(x) for x in -lat]})
+    # ---- sala de torpedos: piso sobre o TT-AV, estantes laterais e trilhos de içamento
+    room = []
+    dk = S['deck']
+    zt = -dk['z']
+    half = math.sqrt(max(0.0, D['casco']['raioResistente'] ** 2 - (dk['z'] + 0.03) ** 2)) - 0.04
+    dc = v3((0, (dk['x0'] + dk['x1']) / 2, zt - dk['thickness'] / 2))
+    room.append(box(dc, (2 * half, dk['x1'] - dk['x0'], dk['thickness'])))
+    rk = S['racks']
+    rl = rk['x1'] - rk['x0']
+    for sd in (1, -1):
+        yc = sd * rk['y']
+        for tz in rk['tiers']:
+            zc = -tz - 0.267  # apoio logo abaixo da arma
+            for dy in (-0.2, 0.2):  # longarinas
+                room.append(box(v3((yc + dy, (rk['x0'] + rk['x1']) / 2, zc - 0.05)), (0.06, rl, 0.08)))
+            for k in range(4):  # berços
+                xx = rk['x0'] + 0.4 + k * (rl - 0.8) / 3
+                room.append(box(v3((yc, xx, zc + 0.02)), (0.56, 0.1, 0.07)))
+                for dy in (-0.25, 0.25):
+                    room.append(box(v3((yc + dy, xx, zc + 0.12)), (0.06, 0.1, 0.18)))
+        # colunas da estante, do fundo do casco resistente até acima do nível de cima
+        yo = sd * (rk['y'] + 0.36)
+        zbot = -math.sqrt(max(0.0, D['casco']['raioResistente'] ** 2 - yo ** 2)) + 0.05
+        ztop = -min(rk['tiers']) + 0.35
+        for k in range(3):
+            xx = rk['x0'] + 0.05 + k * (rl - 0.1) / 2
+            room.append(box(v3((yo, xx, (zbot + ztop) / 2)), (0.08, 0.08, ztop - zbot)))
+            for tz in rk['tiers']:
+                room.append(box(v3(((yo + yc) / 2, xx, -tz - 0.32)), (abs(yo - yc) + 0.25, 0.06, 0.06)))  # braços
+    ho = S['hoist']
+    for sd in (1, -1):
+        yc = sd * ho['y']
+        hz = -ho['z']
+        hl = ho['x1'] - ho['x0']
+        room.append(box(v3((yc, (ho['x0'] + ho['x1']) / 2, hz)), (0.08, hl, 0.16)))  # viga I (alma)
+        for dz in (-0.08, 0.08):
+            room.append(box(v3((yc, (ho['x0'] + ho['x1']) / 2, hz + dz)), (0.16, hl, 0.025)))  # mesas
+        ztop = math.sqrt(max(0.0, D['casco']['raioResistente'] ** 2 - yc ** 2)) - 0.05
+        for k in range(4):
+            xx = ho['x0'] + 0.3 + k * (hl - 0.6) / 3
+            room.append(box(v3((yc, xx, (hz + 0.08 + ztop) / 2)), (0.05, 0.05, ztop - hz - 0.08)))  # pendurais
+    mesh_obj('SX1I_SalaTorpedos', room, M['estante'], parent, v3((0, (rk['x0'] + dk['x1']) / 2, 0)), sharp=30,
+             extras={'tipo': 'sala_torpedos', 'nome': 'Sala de torpedos'})
+
+
 # ------------------------------------------------------------------ montagem
 def build_interior(json_path):
     D = json.load(open(json_path, encoding='utf-8'))
     M = materials(D)
     root = group('SX1I_Interior')
     root['gerado_de'] = D['gerado']
-    grp = {k: group('SX1I_' + k, root) for k in ('Estrutura', 'Tanques', 'Tubulacoes', 'Valvulas', 'Bombas', 'ArAP', 'Aberturas', 'Energia')}
+    grp = {k: group('SX1I_' + k, root) for k in ('Estrutura', 'Tanques', 'Tubulacoes', 'Valvulas', 'Bombas', 'ArAP', 'Aberturas', 'Energia', 'Armas')}
     build_pressure_hull(D, M, grp['Estrutura'])
     build_propulsion(D, M, root)
     build_tanks(D, M, grp['Tanques'])
@@ -844,6 +1049,8 @@ def build_interior(json_path):
     build_ports(D, M, grp['Aberturas'])
     build_battery(D, M, grp['Energia'])
     build_generators(D, M, grp['Energia'])
+    if 'torpedos' in D:
+        build_torpedoes(D, M, grp['Armas'])
     bpy.context.view_layer.update()
     return D
 
@@ -886,6 +1093,13 @@ def bake_ao(objs, samples=48, distance=0.7, strength=0.7):
         col = np.empty(n * 4, dtype=np.float32)
         me.color_attributes['AO'].data.foreach_get('color', col)
         ao = col.reshape(-1, 4)[:, 0]
+        if under(o, 'SX1I_Armas'):
+            # peças longas (tubos de 8 m): média por vértice, senão o ruído de cada canto vira faixa ao longo da face
+            vi = np.empty(n, dtype=np.int64)
+            me.loops.foreach_get('vertex_index', vi)
+            soma = np.bincount(vi, weights=ao, minlength=len(me.vertices))
+            cont = np.maximum(np.bincount(vi, minlength=len(me.vertices)), 1)
+            ao = (soma / cont)[vi]
         f = np.clip(1 - strength * (1 - ao), 0.3, 1.0)
         out = np.repeat(f[:, None], 4, axis=1)
         out[:, 3] = 1.0
@@ -1161,6 +1375,45 @@ def preview_fluids(json_path, out_dir):
     return h['render_all'](out_dir)
 
 
+def preview_torpedoes(json_path, out_dir):
+    """Prévia dos tubos lançadores e da sala de torpedos dentro do submarino translúcido."""
+    base.build('alta')
+    exterior = [o for o in bpy.data.objects if o.type == 'MESH']
+    build_interior(json_path)
+    keep = [o for o in interior_meshes() if under(o, 'SX1I_Armas') or under(o, 'SX1I_Antepara_Vante')]
+    bake_ao(keep, samples=24)
+    for o in interior_meshes():
+        if o not in keep:
+            o.hide_render = True
+    ghost = {}
+    for o in exterior:
+        for i, m in enumerate(o.data.materials):
+            if m is None:
+                continue
+            if m.name not in ghost:
+                g = m.copy()
+                g.name = m.name + '_fantasma'
+                b = g.node_tree.nodes['Principled BSDF']
+                b.inputs['Alpha'].default_value = 0.12
+                if hasattr(g, 'surface_render_method'):
+                    g.surface_render_method = 'BLENDED'
+                g.use_backface_culling = True
+                ghost[m.name] = g
+            o.data.materials[i] = ghost[m.name]
+    h = {'__file__': os.path.join(HERE, 'preview_sx1.py'), '__name__': 'sx1_prev'}
+    exec(compile(open(h['__file__'], encoding='utf-8').read(), h['__file__'], 'exec'), h)
+    h['VIEWS'].clear()
+    h['VIEWS'].update(
+        {
+            'torpedos_lado': ((-30, 26, 3), (0, 26.5, -0.3), 40),
+            'torpedos_34_proa': ((16, 47, -7), (0, 28, -0.6), 40),
+            'torpedos_cima': ((0.5, 25, 34), (0, 25, 0), 40),
+            'torpedos_sala': ((-0.4, 15.2, 0.9), (0, 24.0, -0.2), 22),
+        }
+    )
+    return h['render_all'](out_dir)
+
+
 def main(argv):
     jp = os.path.join(ROOT, 'build', 'modelo', 'interior.json')
     out = os.path.join(ROOT, 'build', 'modelo')
@@ -1179,6 +1432,8 @@ def main(argv):
         info['previas'] = preview_cut(jp, os.path.join(out, 'corte'))
     if '--propulsao' in argv:
         info['propulsao'] = preview_propulsion(jp, os.path.join(out, 'propulsao'))
+    if '--torpedos' in argv:
+        info['torpedos'] = preview_torpedoes(jp, os.path.join(out, 'torpedos'))
     if '--fluidos' in argv:
         info['fluidos'] = preview_fluids(jp, os.path.join(out, 'fluidos'))
     print('SX1I', info)
