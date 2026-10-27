@@ -49,6 +49,9 @@ import { TerrainLayer, type TerrainDetail } from './Terrain';
 import { ShipyardModel } from './Shipyard';
 import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 import { MarineLife } from './MarineLife';
+import { AmbientParticles } from './AmbientParticles';
+import { BottomLife } from './BottomLife';
+import { DEFAULT_AMBIENT, type AmbientSettings } from './ambientMotion';
 import { periscopeCfg, periscopeHeadZ } from '../sim/systems/actuation';
 import { SubModelRig, loadSubModel, subModelLevel, subModelUrl } from './subModel';
 import { BRIDGE_EYE, NAKED_FOV, bridgeFelt } from './bridge';
@@ -269,16 +272,16 @@ export class SubmarineScene {
   /** vento aparente: linhas de vento e flâmula na vela */
   private wind!: WindFx;
   /** partículas em suspensão (fixas no mundo) — referência visual de movimento */
-  private snow: THREE.Points;
+  private snow: AmbientParticles;
+  private bottomLife: BottomLife;
+  ambientSettings: AmbientSettings = { ...DEFAULT_AMBIENT };
   private depthRefs: DepthRefs;
   private depthLines = new DepthLines();
   /** espaçamento das linhas de profundidade (m), das preferências gráficas */
   depthLineSpacing = 25;
   /** referências discretas de profundidade (Configurações → Gráficos) */
   depthRefsOn = true;
-  private snowBase: Float32Array;
-  private static readonly SNOW_N = 1400;
-  private static readonly SNOW_BOX = { h: 140, v: 60 };
+
   private bubbles: THREE.Points;
   private trail: Line2;
   trailStyle: TrailStyle = { ...DEFAULT_TRAIL_STYLE };
@@ -427,19 +430,11 @@ export class SubmarineScene {
       this.scene.add(this.exBubbles);
     }
 
-    // partículas em suspensão (neve marinha), fixas no referencial do mundo
-    const nS = SubmarineScene.SNOW_N;
-    this.snowBase = new Float32Array(nS * 3);
-    for (let i = 0; i < nS; i++) {
-      this.snowBase[i * 3] = Math.random() * SubmarineScene.SNOW_BOX.h;
-      this.snowBase[i * 3 + 1] = Math.random() * SubmarineScene.SNOW_BOX.h;
-      this.snowBase[i * 3 + 2] = Math.random() * SubmarineScene.SNOW_BOX.v;
-    }
-    const sgeo = new THREE.BufferGeometry();
-    sgeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(nS * 3), 3));
-    this.snow = new THREE.Points(sgeo, new THREE.PointsMaterial({ color: 0xbfe3ff, size: 0.5, transparent: true, opacity: 0.6, depthWrite: false, map: this.dot }));
-    this.snow.frustumCulled = false;
-    this.scene.add(this.snow);
+    // Partículas em suspensão: deriva e oscilação no referencial do mundo.
+    this.snow = new AmbientParticles(quality === 'baixa' ? 700 : 1400);
+    this.scene.add(this.snow.points);
+    this.bottomLife = new BottomLife(quality === 'baixa' ? 0.5 : 1);
+    this.scene.add(this.bottomLife.group);
     // referências discretas de profundidade (faixas de partículas e sombra no fundo)
     this.depthRefs = new DepthRefs(this.dot);
     this.scene.add(this.depthRefs.group);
@@ -1453,23 +1448,10 @@ export class SubmarineScene {
     }
     ep.needsUpdate = true;
 
-    // neve marinha: posições fixas no mundo, reenquadradas numa caixa em torno do submarino
-    {
-      const B = SubmarineScene.SNOW_BOX;
-      const sp = this.snow.geometry.getAttribute('position') as THREE.BufferAttribute;
-      const mod = (a: number, m: number) => ((a % m) + m) % m;
-      for (let i = 0; i < SubmarineScene.SNOW_N; i++) {
-        const rn = mod(this.snowBase[i * 3] - pn, B.h) - B.h / 2;
-        const re = mod(this.snowBase[i * 3 + 1] - pe, B.h) - B.h / 2;
-        const rd = mod(this.snowBase[i * 3 + 2] - pd, B.v) - B.v / 2;
-        const d = pd + rd;
-        if (d < 0.8) sp.setXYZ(i, 0, -1e6, 0);
-        else sp.setXYZ(i, re, -d, -rn);
-      }
-      sp.needsUpdate = true;
-    }
     // esteira, onda de proa, rastro do hélice, jato dos suspiros
     const pixelScale = this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    this.snow.update(e.env, s.t, pn, pe, pd, pixelScale, this.ambientSettings);
+    this.underwaterFx.ambientSettings = this.ambientSettings;
     this.fx.update(e, step, pn, pe, tWave, pixelScale, this.layers.wake);
     this.underwaterFx.update(e, step, pn, pe, tWave, pixelScale, this.layers.wake && !this.layers.noWater);
     {
@@ -1655,7 +1637,7 @@ export class SubmarineScene {
     const deepColor = uw.horizon.clone();
     this.ocean.setLight(dl.sunDir, dl.sunK, dl.moonDir, dl.moonK, this.pal.zenith, this.pal.fog, 0.12 + 0.88 * dl.day, dl.under);
     // neve marinha: no escuro só se vê de perto (fica discreta)
-    (this.snow.material as THREE.PointsMaterial).opacity = 0.6 * (0.25 + 0.75 * dl.under);
+    this.snow.setLight(0.25 + 0.75 * dl.under);
     this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
     this.nightSky.update(dl, this.camera.position, !under && !dry0, pal.moonI, this.pal.zenith, this.pal.fog);
     terrain.night = coastOn ? dl.night : 0;
@@ -1686,10 +1668,11 @@ export class SubmarineScene {
     this.fx.group.visible = this.fx.group.visible && !dry;
     this.bubbles.visible = !dry;
     this.exBubbles.visible = !dry && this.layers.wake;
-    this.snow.visible = !dry;
+    this.snow.points.visible = !dry;
+    this.bottomLife.update(e.env, s.t, pn, pe, this.ambientSettings, !dry && under);
     // referências de profundidade: faixas e sombra (opção gráfica); a linha tracejada superfície–submarino–fundo
     // é o eixo dos rótulos de cota, por isso também segue a camada "Identificações"
-    this.depthRefs.update(e.env, pn, pe, pd, (e.outputs.euler.heading * Math.PI) / 180, e.vessel.hull.length, e.vessel.hull.diameter, this.depthRefsOn && !dry);
+    this.depthRefs.update(e.env, pn, pe, pd, (e.outputs.euler.heading * Math.PI) / 180, e.vessel.hull.length, e.vessel.hull.diameter, this.depthRefsOn && !dry, s.t, this.ambientSettings);
     this.depthLine.visible = this.depthRefsOn && this.layers.labels && !dry;
     // linhas de profundidade a cada 25 m (camada própria; somem sem água)
     this.depthLines.spacing = this.depthLineSpacing;
@@ -1899,6 +1882,7 @@ export class SubmarineScene {
     this.searchlights.dispose();
     this.nightSky.dispose();
     this.marineLife.dispose();
+    this.bottomLife.dispose();
     this.wind.dispose();
     this.ensign.dispose();
     this.shipyard?.dispose();

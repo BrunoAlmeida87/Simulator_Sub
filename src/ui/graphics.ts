@@ -5,6 +5,7 @@
  * (hora do dia, luar, luzes de navegação, faróis). Guardadas no navegador e
  * enviadas à segunda janela. Nada aqui altera a física.
  */
+import { DEFAULT_AMBIENT, type AmbientSettings } from '../render3d/ambientMotion';
 import { useEffect, useReducer } from 'react';
 import type { OceanQuality } from '../render3d/Ocean';
 import type { SceneLighting } from '../render3d/lighting';
@@ -15,7 +16,7 @@ import type { DeepLevel } from '../render3d/deepPerspective';
 import { DEFAULT_TRAIL_STYLE, type TrailStyle } from '../render3d/trailStyle';
 import { parseRenderScale, type RenderScaleSetting } from '../render3d/renderPerf';
 
-export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings, TrailStyle {
+export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings, TrailStyle, AmbientSettings {
   quality: OceanQuality;
   /** texturas do casco: 'alta' (placas anecoicas, marcas, mais resolução) ou 'normal' */
   textures: 'alta' | 'normal';
@@ -78,6 +79,9 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     shipRange: typeof p?.shipRange === 'number' && p.shipRange >= 2 && p.shipRange <= 30 ? p.shipRange : base.shipRange,
     coastDetail: p?.coastDetail === 'baixa' || p?.coastDetail === 'media' || p?.coastDetail === 'alta' ? p.coastDetail : base.coastDetail,
     lighting: p?.lighting === 'natural' || p?.lighting === 'clara' || p?.lighting === 'estudio' ? p.lighting : base.lighting,
+    ambientMotion: p?.ambientMotion === 'desligado' || p?.ambientMotion === 'suave' || p?.ambientMotion === 'moderado' ? p.ambientMotion : base.ambientMotion,
+    currentDirection: num(p?.currentDirection, 0, 359, base.currentDirection),
+    bottomLifeDensity: p?.bottomLifeDensity === 'desligada' || p?.bottomLifeDensity === 'discreta' || p?.bottomLifeDensity === 'moderada' || p?.bottomLifeDensity === 'abundante' ? p.bottomLifeDensity : base.bottomLifeDensity,
     fishDensity: p?.fishDensity === 'desligada' || p?.fishDensity === 'discreta' || p?.fishDensity === 'moderada' || p?.fishDensity === 'abundante' ? p.fishDensity : base.fishDensity,
     fishJumps: typeof p?.fishJumps === 'boolean' ? p.fishJumps : base.fishJumps,
     fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
@@ -106,6 +110,7 @@ class GraphicsStore {
     const q = typeof window !== 'undefined' ? initialQuality() : 'alta';
     const def: GraphicsSettings = {
       ...DEFAULT_MARINE_LIFE,
+      ...DEFAULT_AMBIENT,
       ...DEFAULT_TRAIL_STYLE,
       quality: q,
       textures: q === 'baixa' ? 'normal' : 'alta',

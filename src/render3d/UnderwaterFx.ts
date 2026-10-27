@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ambientFlow, DEFAULT_AMBIENT, type AmbientSettings } from './ambientMotion';
 import type { SimulationEngine } from '../sim/core/engine';
 import { qToMat3 } from '../sim/core/math';
 import { sedimentIntensity } from './underwaterFxModel';
@@ -21,6 +22,7 @@ interface Particle {
 /** Partículas no mundo (origem flutuante); envelhecem somente em tempo simulado. */
 export class UnderwaterFx {
   readonly group = new THREE.Group();
+  ambientSettings: AmbientSettings = { ...DEFAULT_AMBIENT };
   private particles: Particle[] = [];
   private pos: THREE.BufferAttribute;
   private size: THREE.BufferAttribute;
@@ -135,8 +137,9 @@ export class UnderwaterFx {
       p.ve *= drag;
       // Sedimento: subida inicial pelo escoamento, depois queda com velocidade terminal.
       p.vd = p.sediment ? 0.14 + (p.vd - 0.14) * Math.exp(-0.8 * dt) : p.vd;
-      p.n += p.vn * dt;
-      p.e += p.ve * dt;
+      const flow = p.sediment ? ambientFlow(p.n, p.e, p.d, t, this.ambientSettings) : { n: 0, e: 0 };
+      p.n += (p.vn + flow.n) * dt;
+      p.e += (p.ve + flow.e) * dt;
       p.d += p.vd * dt;
       return p.d > -e.env.waves.elevation(p.n, p.e, t) && p.d < e.env.bottomDepthAt(p.n, p.e);
     });

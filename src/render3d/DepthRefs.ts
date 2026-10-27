@@ -1,7 +1,7 @@
 /**
  * REFERÊNCIAS DISCRETAS DE PROFUNDIDADE (só visual, lidas do estado):
  *  - faixas finas de partículas em suspensão em cotas fixas (a cada 20 m),
- *    paradas no mundo: ao subir ou descer, o submarino as atravessa, o que
+ *    com deriva horizontal: ao subir ou descer, o submarino as atravessa, o que
  *    dá a noção da variação de profundidade sem linhas nem números;
  *  - sombra suave no fundo, sob o submarino, que fica mais nítida e escura
  *    quanto menor a altitude (distância ao fundo simulado), alinhada ao
@@ -9,32 +9,26 @@
  * Ligadas/desligadas em Configurações → Gráficos.
  */
 import * as THREE from 'three';
+import { ambientRandom, ambientStrength, DEFAULT_AMBIENT, type AmbientSettings } from './ambientMotion';
 import type { Environment } from '../sim/environment/environment';
 
 const SPACING = 20; // m entre faixas
 const FIRST = 10; // m (primeira faixa)
 const SLOTS = 8; // faixas desenhadas em torno da cota atual
-const PER = 420; // partículas por faixa
+const PER = 220; // partículas por faixa
 const BOX = 120; // m (caixa horizontal em volta do submarino)
 
 export class DepthRefs {
   readonly group = new THREE.Group();
   private bands: THREE.Points;
-  private base: Float32Array;
   private shadow: THREE.Mesh;
   private shadowMat: THREE.MeshBasicMaterial;
 
   constructor(dot: THREE.Texture | null) {
     this.group.name = 'Referências de profundidade';
-    this.base = new Float32Array(SLOTS * PER * 3);
-    for (let i = 0; i < SLOTS * PER; i++) {
-      this.base[i * 3] = Math.random() * BOX;
-      this.base[i * 3 + 1] = Math.random() * BOX;
-      this.base[i * 3 + 2] = (Math.random() - 0.5) * 1.2; // espessura da faixa (m)
-    }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(SLOTS * PER * 3), 3));
-    this.bands = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xd8f0e2, size: 0.42, transparent: true, opacity: 0.5, depthWrite: false, map: dot ?? undefined }));
+    this.bands = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xd8f0e2, size: 0.16, transparent: true, opacity: 0.28, depthWrite: false, map: dot ?? undefined }));
     this.bands.frustumCulled = false;
     this.group.add(this.bands);
     // sombra: elipse de borda suave (textura circular esticada)
@@ -48,7 +42,7 @@ export class DepthRefs {
    * @param pn,pe posição horizontal do submarino (m, NED); a cena é centrada nela
    * @param pd profundidade do eixo (m); heading rumo (rad); length/beam do casco (m)
    */
-  update(env: Environment, pn: number, pe: number, pd: number, heading: number, length: number, beam: number, enabled: boolean): void {
+  update(env: Environment, pn: number, pe: number, pd: number, heading: number, length: number, beam: number, enabled: boolean, time = 0, settings: AmbientSettings = DEFAULT_AMBIENT): void {
     this.group.visible = enabled && pd > 2;
     if (!this.group.visible) return;
     const bottom = env.bottomDepthAt(pn, pe);
@@ -66,10 +60,16 @@ export class DepthRefs {
           pos.setXYZ(j, 0, -1e6, 0);
           continue;
         }
-        // posições fixas no mundo (cada faixa com sua semente: deslocamento por k)
-        const rn = mod(this.base[j * 3] + k * 37.1 - pn, BOX) - BOX / 2;
-        const re = mod(this.base[j * 3 + 1] + k * 53.7 - pe, BOX) - BOX / 2;
-        pos.setXYZ(j, re, -(depth + this.base[j * 3 + 2]), -rn);
+        // Identidade por faixa (k), independente da janela de profundidades visíveis.
+        const phase = ambientRandom(k, i, 4) * Math.PI * 2;
+        const speed = ambientStrength(settings) * 0.18;
+        const angle = settings.currentDirection * Math.PI / 180;
+        const sway = ambientStrength(settings) * (0.1 + 0.5 * Math.exp(-depth / 25)) * Math.sin(time * 0.3 + phase);
+        const rn = mod(ambientRandom(k,i,1) * BOX + Math.cos(angle)*speed*time - Math.sin(angle)*sway - pn, BOX) - BOX/2;
+        const re = mod(ambientRandom(k,i,2) * BOX + Math.sin(angle)*speed*time + Math.cos(angle)*sway - pe, BOX) - BOX/2;
+        const d = depth + (ambientRandom(k,i,3)-0.5)*1.2;
+        if (d >= env.bottomDepthAt(pn+rn,pe+re)-0.3) pos.setXYZ(j,0,-1e6,0);
+        else pos.setXYZ(j,re,-d,-rn);
       }
     }
     pos.needsUpdate = true;
