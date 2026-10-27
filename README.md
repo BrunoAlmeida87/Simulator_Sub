@@ -284,3 +284,8 @@ O circuito de compensação permite transferir água entre os tanques de banda B
   Integrados à camada Esteira. [Proposta, limites e capturas](docs/EFEITOS-SUBMERSOS.md).
 
 - **Cavitação:** critérios e intensidade atual em Configurações → Cavitação da hélice; alerta de prioridade média com confirmação de 1 s, reconhecimento e histórico, independente da visualização 3D.
+
+- **Ambiente submarino vivo:** neve marinha com deriva e oscilação mesmo parado,
+  rochas/esponjas e vegetação rasa em grupos, areia com pequenas ondulações e
+  peixes próximos do fundo com pausas suaves. Movimento e densidade ajustáveis
+  em Configurações → Vida marinha e ambiente submarino; respeita pausa e segunda janela.

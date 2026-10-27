@@ -55,7 +55,7 @@ const SPECS: Record<TerrainDetail, { near: RingSpec; mid: RingSpec | null; far: 
 };
 
 /** textura de detalhe (ruído suave), multiplicada pelas cores dos vértices */
-function detailTexture(): THREE.Texture | null {
+function detailTexture(ripples = false): THREE.Texture | null {
   if (typeof document === 'undefined') return null;
   const N = 256;
   const c = document.createElement('canvas');
@@ -83,7 +83,7 @@ function detailTexture(): THREE.Texture | null {
   };
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
-      const v = 0.78 + 0.16 * sample(g1, 16, x, y) + 0.1 * sample(g2, 64, x, y);
+      const v = 0.78 + 0.16 * sample(g1, 16, x, y) + 0.1 * sample(g2, 64, x, y) + (ripples ? 0.035 * Math.sin(x * Math.PI / 4 + 0.7 * Math.sin(y * Math.PI / 32)) : 0);
       const i = (y * N + x) * 4;
       img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.min(255, v * 255);
       img.data[i + 3] = 255;
@@ -334,7 +334,12 @@ export class TerrainLayer {
     const tex = detailTexture();
     this.bedMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
     this.landMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
-    if (tex) this.bedMat.map = this.landMat.map = tex;
+    if (tex) {
+      this.landMat.map = tex;
+      this.bedMat.map = detailTexture(true);
+      this.bedMat.bumpMap = this.bedMat.map;
+      this.bedMat.bumpScale = 0.12;
+    }
     decorate(this.bedMat);
     // depois de decorate: encadeia o ajuste de sombreador dele (cáusticas)
     addSatellite(this.bedMat, this.satU, 'fundo');
@@ -391,6 +396,7 @@ export class TerrainLayer {
     this.mid?.dispose(this.group);
     this.far?.dispose(this.group);
     this.bedMat.map?.dispose();
+    this.landMat.map?.dispose();
     this.bedMat.dispose();
     this.landMat.dispose();
   }

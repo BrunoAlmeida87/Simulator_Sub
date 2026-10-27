@@ -544,3 +544,31 @@ restaura a cena com suas opções de câmera e camadas. Essa preferência fica s
 **PARAR · ordem de 0 rpm** comanda a parada do eixo, cuja rotação real continua
 seguindo a rampa do motor — não pausa a simulação. Em telas menores os
 instrumentos passam para a primeira linha e os painéis se empilham.
+
+### Ambiente submarino vivo
+
+Em **Configurações → Vida marinha e ambiente submarino**:
+
+- **Movimento ambiente:** desligado, suave (padrão) ou moderado. A neve marinha
+  deriva lentamente, oscila e decanta mesmo com o submarino parado. A maioria
+  dos flocos é pequena e discreta; poucos são maiores. O vai e volta é mais
+  perceptível em águas rasas. Pausar a simulação pausa esse movimento.
+- **Direção da corrente visual:** rumo para onde a água segue (0° Norte,
+  90° Leste). Partículas, vegetação e sedimento levantado usam essa direção;
+  não acrescenta forças à física do submarino.
+- **Densidade do fundo:** desligada, discreta, moderada (padrão) ou abundante.
+  Rochas e esponjas aparecem em grupos com areia livre entre eles. Tufos de
+  vegetação aparecem somente até 40 m, uma aproximação visual de luz disponível.
+  Pequenas ondulações da areia são textura/relevo visual, sem alterar o fundo físico.
+
+Rochas e organismos presos ao fundo mantêm posições fixas no mundo. A vegetação
+balança com as raízes fixas; peixes próximos ao fundo alternam avanço e pausas
+suaves. Os objetos são decorativos, não acrescentam colisões. O modo **Sem água**
+os oculta. As preferências são salvas e sincronizadas entre janelas. Partículas
+e objetos usam identidades determinísticas, para repetir a cena no mesmo tempo.
+A qualidade baixa reduz as partículas e a quantidade de objetos decorativos.
+
+As faixas discretas de referência de profundidade também têm deriva horizontal,
+mas mantêm a cota vertical para continuar indicando subida/descida. Capturas do
+resultado em `docs/img/ambiente-vivo/`; reprodução visual com Vite na porta 5173:
+`python scripts/capture-ambient.py` (Playwright e Chromium).
