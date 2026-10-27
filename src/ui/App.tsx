@@ -14,6 +14,7 @@ import { HelmScreen } from './screens/HelmScreen';
 import { ControlRoomScreen } from './screens/ControlRoomScreen';
 import { PresentationScreen } from './screens/PresentationScreen';
 import { TacticalMapScreen } from './screens/TacticalMapScreen';
+import { SonarScreen } from './screens/SonarScreen';
 import { EnergyFlowScreen } from './screens/EnergyFlowScreen';
 import { BallastScreen } from './screens/BallastScreen';
 import { TrimHeelScreen } from './screens/TrimHeelScreen';
@@ -391,6 +392,7 @@ export function App() {
     apresentacao: <PresentationScreen />,
     estudio: <StudioScreen />,
     mapa: <TacticalMapScreen />,
+    sonar: <SonarScreen />,
     energia: <EnergyFlowScreen />,
     comando: <CommandCenter />,
     sistemas: <SystemsOverview />,

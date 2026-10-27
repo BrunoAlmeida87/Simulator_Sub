@@ -139,6 +139,15 @@ Fundos de mapa, todos gratuitos e sem chave de API: tático escuro e mapa (OpenS
 **Navios no 3D:** os contatos do quadro tático aparecem como navios no mar das cenas 3D (camada **Navios**, ligada por padrão), na mesma posição geográfica, com o mesmo rumo e a mesma velocidade da tabela de contatos — a conversão é a mesma (`contactsLocal`). Modelos leves por tipo: graneleiro (M1), porta-contêineres (M2), pesqueiro (P1), rebocador (R1) e navio-patrulha (N1), com esteira proporcional à velocidade e rótulo com identificação, distância, rumo e velocidade. A vista **Navio próximo** mira o navio mais perto, com teleobjetiva. O alcance de desenho (5–30 km) fica em Configurações → Qualidade gráfica. São apenas visuais: não colidem nem interagem com a física. Os contatos são fictícios (não são posições AIS reais).
 
 **Navios adicionais:** em Configurações → Qualidade gráfica, *Navios adicionais* (0 a 20) acrescenta tráfego fictício em volta da área do cenário (ids T01, T02…), além dos cinco contatos fixos. Cada navio percorre em vaivém um trecho reto que só é aceito se houver água com profundidade para o seu calado em todo o caminho (segundo o fundo e a costa simulados), se passar a mais de 500 m da posição inicial do submarino e se ficar afastado dos trechos de todos os outros navios — por isso nunca aparecem sobrepostos. Mesma posição na cena 3D, no mapa e na tabela de contatos (com CPA). Para manter a fluidez, só os navios dentro do alcance de desenho são desenhados, com modelos leves; aumentar ou reduzir a quantidade vale na hora.
+## Sonar visual
+
+A aba **Sonar** é uma demonstração acústica separada do mapa tático e da física do submarino. O cenário começa com um navio, outro submarino e uma rocha fictícios; os símbolos mostram o tipo de objeto no plano circular. Eles podem ser editados pelos controles ou movidos ao clicar no plano. Marcação é medida em graus a partir do norte; alcance máximo exibido: 6 km.
+
+- **Ativo:** clique em *Emitir pulso*. A frente de onda se expande a uma velocidade do som ajustável (1400 a 1600 m/s). Quando alcança um alvo, surge uma onda de eco; o contato aparece na lista ao fim do tempo de ida e volta. A distância é calculada por `d = c × Δt / 2`.
+- **Passivo:** o sistema não emite pulso. Ondas saem dos objetos que produzem ruído, e a cascata mostra suas direções e intensidades relativas. Rocha e destroço não aparecem na escuta passiva; a distância permanece desconhecida nesse modo.
+- **Editar cenário:** selecione um objeto e ajuste tipo (navio, submarino, rocha ou destroço), marcação, distância, ruído emitido e reflexão. *+ Submarino* e *+ Objeto* acrescentam contatos; *Restaurar* devolve a configuração inicial. A opção *Mostrar objetos do cenário* revela ou esconde suas posições e tipos. Trocar o tipo aplica valores iniciais de ruído e reflexão, que podem ser ajustados em seguida.
+
+O tempo acústico roda 2 vezes mais rápido que o relógio para facilitar a apresentação. O modelo é didático: não gera som físico, não usa hidrofone, frequência, batimetria nem refração. O controle *Reflexão* afeta a intensidade visual dos ecos.
 
 ## Fluxo de energia
 

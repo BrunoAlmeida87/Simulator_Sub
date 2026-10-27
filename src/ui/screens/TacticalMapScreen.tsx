@@ -444,7 +444,7 @@ export function TacticalMapScreen() {
                 })}
             </tbody>
           </table>
-          <div className="note">CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios (não são posições AIS reais) e aparecem como navios na cena 3D, na mesma posição; não há sonar simulado.</div>
+          <div className="note">CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios (não são posições AIS reais) e aparecem como navios na cena 3D. A aba Sonar traz uma demonstração acústica separada.</div>
         </Panel>
         <Panel title="Rota (pontos de passagem)">
           <div className="row">
