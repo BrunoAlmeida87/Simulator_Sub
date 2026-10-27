@@ -10,6 +10,7 @@ import type { ViewMode } from '../../render3d/SubmarineScene';
 
 const VIEWS: [ViewMode, string][] = [
   ['perseguicao', 'Perseguição'],
+  ['cinematografica', 'Cinematográfica'],
   ['piloto', 'Lateral'],
   ['perspectiva', 'Perspectiva'],
   ['perfil', 'Perfil'],

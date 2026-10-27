@@ -39,6 +39,7 @@ export const FRAMES: [ViewMode, string, string][] = [
   ['navio', 'Navio', 'Mira o navio (contato da mesa tática) mais próximo'],
   ['piloto', 'Seguir', 'Câmera lateral que acompanha o submarino'],
   ['perseguicao', 'Perseguição', 'Câmera atrás do submarino'],
+  ['cinematografica', 'Cinematográfica', 'Acompanhamento suave com leves oscilações de filmagem'],
   ['fixa', 'Fixa', 'Câmera parada no cenário: o submarino atravessa o quadro'],
   ['passadico', 'Passadiço', 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50'],
   ['drone', 'Drone', 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade'],

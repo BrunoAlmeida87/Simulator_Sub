@@ -49,6 +49,7 @@ const VIEWS: ViewOption<ViewMode | 'seguir'>[] = [
   { id: 'seguir', label: 'Igual ao controle', tip: 'Segue a vista da janela de controle' },
   { id: 'piloto', label: 'Lateral' },
   { id: 'perseguicao', label: 'Perseguição' },
+  { id: 'cinematografica', label: 'Cinematográfica' },
   { id: 'perspectiva', label: 'Perspectiva' },
   { id: 'superficie', label: 'Superfície' },
   { id: 'submerso', label: 'Submerso' },

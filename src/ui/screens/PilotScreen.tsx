@@ -77,6 +77,7 @@ const PILOT_LAYER_KEYS: LayerKey[] = [
 const PILOT_VIEWS: ViewOption[] = [
   { id: 'piloto', label: 'Lateral' },
   { id: 'perseguicao', label: 'Perseguição' },
+  { id: 'cinematografica', label: 'Cinematográfica' },
   { id: 'perspectiva', label: 'Perspectiva', tip: 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa' },
   { id: 'tanques', label: 'Vista tanques', tip: 'Câmera de perto no corte (liga os tanques)' },
   { id: 'forcas', label: 'Vista forças', tip: 'Câmera lateral para os vetores (liga peso/empuxo)' },

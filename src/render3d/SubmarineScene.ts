@@ -73,6 +73,7 @@ import { readRenderStats, type RenderStats } from './renderPerf';
 export type ViewMode =
   | 'piloto'
   | 'perseguicao'
+  | 'cinematografica'
   | 'perspectiva'
   | 'perfil'
   | 'frente'
@@ -1126,6 +1127,14 @@ export class SubmarineScene {
         cam.y = this.sideCamY();
         return cam;
       }
+      case 'cinematografica': {
+        // Oscilações contínuas em tempo real: câmera operada à mão, sem saltos aleatórios.
+        const t = this.wallTime;
+        return c
+          .addScaledVector(fwd, -Math.max(95, 70 / asp) + 1.2 * Math.sin(t * 0.43))
+          .addScaledVector(stbd, 18 + 1.5 * Math.sin(t * 0.71) + 0.35 * Math.sin(t * 1.83))
+          .add(new THREE.Vector3(0, 16 + 0.8 * Math.sin(t * 0.93) + 0.2 * Math.sin(t * 2.17), 0));
+      }
       case 'perseguicao':
         return c
           .add(fwd.multiplyScalar(-Math.max(95, 70 / Math.max(0.3, this.camera.aspect))))
@@ -1599,7 +1608,10 @@ export class SubmarineScene {
       const target = this.cameraTarget(this.view);
       this.viewFrom.add(delta);
       const k = 1 - Math.pow(1 - this.viewBlend, 3);
-      this.camera.position.lerpVectors(this.viewFrom, target, k);
+      if (this.view === 'cinematografica' && this.viewBlend >= 1) {
+        // Amortecimento independente da taxa de quadros, mantendo a origem flutuante.
+        this.camera.position.add(delta).lerp(target, 1 - Math.exp(-2.5 * dtR));
+      } else this.camera.position.lerpVectors(this.viewFrom, target, k);
       this.controls.target.copy(subPos);
       if (this.view === 'perspectiva') this.controls.target.copy(this.perspectiveFrame().target);
       if (this.view === 'piloto') this.controls.target.add(this.headingVectors().fwd.multiplyScalar(this.pilotLead()));
@@ -1613,6 +1625,10 @@ export class SubmarineScene {
       this.camera.up.copy(fwd);
     }
     this.controls.update();
+    if (this.view === 'cinematografica') {
+      // Inclinação discreta (< 0,4°), aplicada após o lookAt e removida no quadro seguinte.
+      this.camera.rotateZ(this.viewBlend * (0.005 * Math.sin(this.wallTime * 0.67) + 0.0015 * Math.sin(this.wallTime * 1.61)));
+    }
 
     // ambiente subaquático. Na cabeça do periscópio e no passadiço a referência é a onda no ponto do olho:
     // na cota periscópica as cristas passam por cima da cabeça e a vista mergulha e volta
