@@ -3,6 +3,7 @@
  * Aleatoriedade estável: pausa, replay, troca de aba e segunda janela mostram
  * os mesmos peixes, sem escrever no estado físico nem acumular partículas.
  */
+import { ambientFlow, DEFAULT_AMBIENT, type AmbientSettings } from './ambientMotion';
 import type { Environment } from '../sim/environment/environment';
 
 export type FishDensity = 'desligada' | 'discreta' | 'moderada' | 'abundante';
@@ -50,7 +51,7 @@ function random(a: number, b: number, salt: number): number {
  * Limite fixo: por célula, 1 nadador (+1 com chance de 30 %) no discreto e 2 (+1 com 30 %) no moderado —
  * até 27 e 36 peixes nas 9 células; saltos raros. Cada nadador tem posição e órbita próprias (sem cardumes artificiais).
  */
-export function sampleMarineLife(env: Environment, time: number, pn: number, pe: number, settings: MarineLifeSettings, out: FishPose[] = []): FishPose[] {
+export function sampleMarineLife(env: Environment, time: number, pn: number, pe: number, settings: MarineLifeSettings & Partial<AmbientSettings>, out: FishPose[] = []): FishPose[] {
   out.length = 0;
   if (settings.fishDensity === 'desligada' || (!settings.fishJumps && !settings.fishUnderwater)) return out;
   const t = Math.max(0, time);
@@ -94,10 +95,14 @@ export function sampleMarineLife(env: Environment, time: number, pn: number, pe:
           // Órbitas lentas de raios, velocidades e sentidos diferentes.
           const radius = 8 + rnd(7) * 16;
           const sign = rnd(8) < 0.5 ? -1 : 1;
-          const angle = heading + sign * t * (0.025 + rnd(9) * 0.035);
+          // Avanço sempre positivo, com pausas suaves e assíncronas perto do relevo.
+          const swimTime = habitat === 'fundo' ? t + 0.9 * Math.sin(t * 0.2 + rnd(11) * TAU) / 0.2 : t;
+          const angle = heading + sign * swimTime * (0.025 + rnd(9) * 0.035);
           n += Math.cos(angle) * radius;
           e += Math.sin(angle) * radius;
           heading = angle + (sign * Math.PI) / 2;
+          const flow = ambientFlow(n, e, env.bottomDepthAt(n,e), t, { ...DEFAULT_AMBIENT, ...settings });
+          n += flow.n * 3; e += flow.e * 3;
         }
         const bottom = env.bottomDepthAt(n, e);
         if (!Number.isFinite(bottom) || bottom < 5) continue;
@@ -106,7 +111,7 @@ export function sampleMarineLife(env: Environment, time: number, pn: number, pe:
         let y: number;
         if (jump) y = surface + height;
         else {
-          const depth = habitat === 'fundo' ? bottom - (2.5 + rnd(10) * 4) : Math.min(bottom - 3, 6 + rnd(10) * 65);
+          const depth = habitat === 'fundo' ? bottom - (1.5 + rnd(10) * 2) : Math.min(bottom - 3, 6 + rnd(10) * 65);
           y = Math.max(-bottom + 1.5, Math.min(surface - 1.5, -depth + Math.sin(t * 0.6 + rnd(11) * TAU) * 0.4));
         }
         const distance = Math.hypot(n - pn, e - pe);

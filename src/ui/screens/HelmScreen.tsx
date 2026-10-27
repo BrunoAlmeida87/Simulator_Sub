@@ -6,6 +6,7 @@
  * controle mostra o comandado e a resposta real; tudo usa os mesmos comandos
  * do simulador (aparecem no histórico e entram na gravação).
  */
+import './HelmScreen.css';
 import { cmd, useSim } from '../store';
 import { usePersisted } from '../persist';
 import { Scene3D } from '../components/Scene3D';
@@ -35,6 +36,7 @@ const HELM_VIEWS: ViewOption[] = [
 
 export function HelmScreen() {
   const e = useSim(20);
+  const [showScene, setShowScene] = usePersisted<boolean>('helm.showScene', true);
   const id = useIdentity();
   const [quality] = useQuality();
   const [view, setView] = usePersisted<ViewMode>('helm.view', 'perseguicao');
@@ -52,8 +54,19 @@ export function HelmScreen() {
   const order = TELEGRAPH.reduce((a, t) => (Math.abs(t.rpm - p.rpmCmd) < Math.abs(a.rpm - p.rpmCmd) ? t : a), TELEGRAPH[0]);
   const rated = v.propulsion.motor.ratedRpm;
   return (
-    <div className="helm">
-      <div className="helm-view">
+    <div className="helm helm-redesign">
+      <header className="gov-heading">
+        <div><span className="gov-eyebrow">OPERAÇÃO / POSTO DE GOVERNO</span><h1>Governo <span>Direção, profundidade e potência</span></h1></div>
+        <button className="btn" aria-expanded={showScene} aria-controls="gov-scene" onClick={() => setShowScene(!showScene)}>{showScene ? 'Recolher cena 3D' : 'Mostrar cena 3D'}</button>
+      </header>
+      <div className="gov-telemetry" aria-label="Situação do submarino">
+        <div><span>Profundidade da quilha</span><strong>{fmt(o.depthKeel, 1)} <small>m</small></strong></div>
+        <div><span>Velocidade</span><strong>{fmtSpeed(s.body.vel.x, 1)}</strong></div>
+        <div><span>Rumo</span><strong>{fmt(o.euler.heading, 0)}°</strong></div>
+        <div><span>Inclinação / banda</span><strong>{fmt(o.euler.pitch, 1)}° <small>/ {fmt(o.euler.roll, 1)}°</small></strong></div>
+        <div><span>Piloto automático</span><strong className="gov-authority">Rumo: {ap.headingMode === 'AUTO' ? 'AUTO' : 'MANUAL'}<br />Prof.: {ap.depthMode === 'AUTO' ? 'AUTO' : 'MANUAL'}</strong></div>
+      </div>
+      {showScene && <div className="helm-view" id="gov-scene">
         {/* syncVisual false: esta cena reduzida (sem vetores) não define a 2ª janela, que segue a última cena 3D completa */}
         <Scene3D quality={quality} view={view} labels={false} persistKey="helm" syncVisual={false} layers={{ ...lay, hydroVectors: false, vectors: false }}>
           <OverlayCtl
@@ -73,11 +86,11 @@ export function HelmScreen() {
             <b>{id.name}</b> · {fmt(o.depthKeel, 1)} m · {fmtSpeed(s.body.vel.x, 1)} · rumo {fmt(o.euler.heading, 0)}°
           </div>
         </Scene3D>
-      </div>
+      </div>}
       <div className="helm-console">
         <section className="helm-sec gov">
           <header>
-            <b>GOVERNO</b> <span className="subtle">direção e profundidade</span>
+            <span className="gov-section-number">01</span><b>Direção e profundidade</b>
           </header>
           <div className="helm-row">
             <div className="helm-col">
@@ -132,21 +145,23 @@ export function HelmScreen() {
                 bottomLabel="SUBIR"
                 unit="°"
                 ariaLabel="Lemes de vante"
-                height={300}
+                height={240}
                 onSet={(a) => cmd({ type: 'surface', id: 'bow', angle: a })}
               />
               <span className="subtle">Lemes de vante</span>
+              <div className="helm-read"><span>Ordem <b style={{ color: HELM_COLORS.CMD }}>{fmt(bw.cmd, 0)}°</b></span><span>Real <b style={{ color: HELM_COLORS.REAL }}>{fmt(bw.actual, 1)}°</b></span></div>
             </div>
           </div>
+          <div className="gov-subheading">Piloto automático <span>Referências de rumo e profundidade</span></div>
           <div className="helm-ap">
             <div className="helm-apbox">
               <div className="row">
                 <b>Rumo</b>
                 <div className="seg">
-                  <button className={ap.headingMode === 'MANUAL' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'heading', mode: 'MANUAL' })}>
+                  <button aria-pressed={ap.headingMode === 'MANUAL'} className={ap.headingMode === 'MANUAL' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'heading', mode: 'MANUAL' })}>
                     MAN
                   </button>
-                  <button className={ap.headingMode === 'AUTO' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'heading', mode: 'AUTO' })}>
+                  <button aria-pressed={ap.headingMode === 'AUTO'} className={ap.headingMode === 'AUTO' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'heading', mode: 'AUTO' })}>
                     AUTO
                   </button>
                 </div>
@@ -157,10 +172,10 @@ export function HelmScreen() {
               <div className="row">
                 <b>Profundidade</b>
                 <div className="seg">
-                  <button className={ap.depthMode === 'MANUAL' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'depth', mode: 'MANUAL' })}>
+                  <button aria-pressed={ap.depthMode === 'MANUAL'} className={ap.depthMode === 'MANUAL' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'depth', mode: 'MANUAL' })}>
                     MAN
                   </button>
-                  <button className={ap.depthMode === 'AUTO' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO' })}>
+                  <button aria-pressed={ap.depthMode === 'AUTO'} className={ap.depthMode === 'AUTO' ? 'on' : ''} onClick={() => cmd({ type: 'autopilot', channel: 'depth', mode: 'AUTO' })}>
                     AUTO
                   </button>
                 </div>
@@ -182,27 +197,32 @@ export function HelmScreen() {
 
         <section className="helm-sec inst">
           <header>
-            <b>INSTRUMENTOS</b>
+            <span className="gov-section-number">02</span><b>Instrumentos</b><span className="subtle">Resposta do submarino</span>
           </header>
           <div className="helm-inst">
-            <Compass heading={o.euler.heading} ordered={ap.headingMode === 'AUTO' ? ap.headingSet : null} rudder={rud.actual} size={190} />
-            <DepthTape
+            <div className="gov-instrument"><span>Rumo</span><Compass heading={o.euler.heading} ordered={ap.headingMode === 'AUTO' ? ap.headingSet : null} rudder={rud.actual} size={180} /></div>
+            <div className="gov-instrument"><span>Profundidade da quilha</span><DepthTape
               depth={o.depthKeel}
               ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null}
               bottom={o.bottomDepth}
               rate={o.verticalSpeed}
               opLimit={v.limits.operatingDepth}
               testLimit={v.limits.testDepth}
-              height={210}
-            />
-            <Attitude pitch={o.euler.pitch} roll={o.euler.roll} staticPitch={o.staticPitchEq} size={170} />
-            <Dial value={toKnots(s.body.vel.x)} min={-8} max={20} label="Velocidade" unit="nós" digits={1} size={150} />
+              height={200}
+            /></div>
+            <div className="gov-instrument"><span>Atitude</span><Attitude pitch={o.euler.pitch} roll={o.euler.roll} staticPitch={o.staticPitchEq} size={160} /></div>
+            <div className="gov-instrument"><span>Velocidade</span><Dial value={toKnots(s.body.vel.x)} min={-8} max={20} label="Velocidade" unit="nós" digits={1} size={150} /></div>
           </div>
+          <div className="gov-feedback">
+            <span><i className="gov-dot cmd" /> Comandado</span><span><i className="gov-dot real" /> Resposta real</span>
+          </div>
+          <div className="gov-metrics"><div><span>Velocidade vertical</span><b>{fmt(o.verticalSpeed, 2)} m/s</b></div><div><span>Profundidade do fundo</span><b>{fmt(o.bottomDepth, 1)} m</b></div></div>
+          <p className="note">Os marcadores distinguem a referência comandada da resposta atual. Mover um leme assume o controle manual do canal correspondente.</p>
         </section>
 
         <section className="helm-sec pwr">
           <header>
-            <b>POTÊNCIA</b> <span className="subtle">telégrafo</span>
+            <span className="gov-section-number">03</span><b>Potência</b> <span className="subtle">Telégrafo de máquinas</span>
           </header>
           <div className="helm-row">
             <Lever
@@ -215,7 +235,7 @@ export function HelmScreen() {
               color={HELM_COLORS.PWR}
               unit=""
               ariaLabel="Telégrafo (ordem de máquinas)"
-              height={330}
+              height={270}
               topLabel="AVANTE"
               bottomLabel="A RÉ"
               onSet={(rpm) => cmd({ type: 'telegraph', rpm })}
@@ -239,6 +259,8 @@ export function HelmScreen() {
               </div>
             </div>
           </div>
+          <div className="gov-rpm-pair"><div><span>Ordem do eixo</span><b>{fmt(p.rpmCmd, 0)} <small>rpm</small></b></div><div><span>Rotação real</span><b>{fmt(o.rpm, 0)} <small>rpm</small></b></div></div>
+          <button className="btn gov-stop" onClick={() => cmd({ type: 'telegraph', rpm: 0 })}>PARAR · ordem de 0 rpm</button>
           <div className="note">Arraste a alavanca: ela encaixa nas ordens do telégrafo. O ponteiro verde e o mostrador indicam a rotação real do eixo, que segue a ordem com a rampa do motor.</div>
         </section>
       </div>

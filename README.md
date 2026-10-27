@@ -51,6 +51,7 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Duas janelas | ✅ "⧉ 2ª janela": a cena numa segunda janela/monitor, espelhando a mesma simulação (BroadcastChannel); cliques nela abrem os controles na janela principal |
 | Vários monitores | ✅ "＋ Tela": o simulador completo (todas as abas) em mais janelas — ex.: Operação, cena 3D e Mapa tático em três monitores; os comandos dados em qualquer janela valem para a mesma simulação |
 | Mapa tático | ✅ Posição geográfica (Baía de Sepetiba, EBN da Ilha da Madeira, Itaguaí), derrota, vetor de velocidade, navegação estimada, contatos fictícios com CPA, rota por pontos de passagem com seguimento automático e medição; fundos gratuitos sem chave de API (OpenStreetMap, OpenTopoMap, Sentinel-2/EOX, OpenSeaMap) |
+| Sonar visual | ✅ Demonstração independente com pulso ativo, propagação e retorno de ecos, escuta passiva por marcação, navio, submarinos, rochas e destroços fictícios editáveis e velocidade do som ajustável |
 | Fluxo de energia | ✅ Diagrama animado (largura ∝ potência): geradores → barramento → bateria/consumidores; carga e descarga com tempo estimado |
 | Modo apresentação | ✅ Cena, tanques, forças e indicadores na mesma tela; situações prontas, câmera lenta, estado inicial, antes × agora, camadas independentes e etapas das manobras automáticas |
 | Oceano realista + ondas físicas | ✅ Oceano em shader (reflexo do céu, brilho do sol, espuma, cáusticas, janela de Snell vista de baixo) com as mesmas ondas que movem o submarino; estado do mar 0–6, qualidade gráfica e iluminação (natural, clara, estúdio) ajustáveis |
@@ -284,3 +285,8 @@ O circuito de compensação permite transferir água entre os tanques de banda B
   Integrados à camada Esteira. [Proposta, limites e capturas](docs/EFEITOS-SUBMERSOS.md).
 
 - **Cavitação:** critérios e intensidade atual em Configurações → Cavitação da hélice; alerta de prioridade média com confirmação de 1 s, reconhecimento e histórico, independente da visualização 3D.
+
+- **Ambiente submarino vivo:** neve marinha com deriva e oscilação mesmo parado,
+  rochas/esponjas e vegetação rasa em grupos, areia com pequenas ondulações e
+  peixes próximos do fundo com pausas suaves. Movimento e densidade ajustáveis
+  em Configurações → Vida marinha e ambiente submarino; respeita pausa e segunda janela.

@@ -151,6 +151,7 @@ export function Scene3D(props: Scene3DProps) {
             sc.daylight = graphics.get();
             sc.deepFov = graphics.get().deepPersp ? DEEP_FOVS[graphics.get().deepLevel] : 0;
             sc.marineLife.settings = graphics.get();
+            sc.ambientSettings = graphics.get();
             sc.layers = mergedLayers(opts.current);
             if (opts.current.periscope) sc.periscope = opts.current.periscope;
             const cp = opts.current.camPose;

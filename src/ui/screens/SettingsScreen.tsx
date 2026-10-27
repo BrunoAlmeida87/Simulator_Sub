@@ -528,7 +528,24 @@ function MarineLifePanel() {
   const g = useGraphics();
   const disabled = g.fishDensity === 'desligada';
   return (
-    <Panel title="Vida marinha" tag={<Kind k="visual" />}>
+    <Panel title="Vida marinha e ambiente submarino" tag={<Kind k="visual" />}>
+      <div className="col">
+        <label className="field"><span>Movimento ambiente</span>
+          <select value={g.ambientMotion} onChange={(ev) => graphics.set({ ambientMotion: ev.target.value as typeof g.ambientMotion })}>
+            <option value="desligado">Desligado</option><option value="suave">Suave (padrão)</option><option value="moderado">Moderado</option>
+          </select>
+        </label>
+        <label className="field"><span>Direção da corrente visual: {g.currentDirection}°</span>
+          <input type="range" min={0} max={359} step={1} value={g.currentDirection} onChange={(ev) => graphics.set({ currentDirection: Number(ev.target.value) })} />
+        </label>
+        <div className="note">Rumo para onde a água segue: 0° Norte, 90° Leste. Só visual, sem forças sobre o submarino. Partículas, vegetação e sedimento acompanham o tempo simulado e param em pausa.</div>
+        <label className="field"><span>Densidade do fundo</span>
+          <select value={g.bottomLifeDensity} onChange={(ev) => graphics.set({ bottomLifeDensity: ev.target.value as typeof g.bottomLifeDensity })}>
+            <option value="desligada">Desligada</option><option value="discreta">Discreta</option><option value="moderada">Moderada (padrão)</option><option value="abundante">Abundante</option>
+          </select>
+        </label>
+        <div className="note">Grupos de rochas e esponjas com áreas livres de areia. Vegetação apenas até 40 m, como aproximação de águas com luz. Objetos decorativos, sem colisão. As opções também valem para a segunda janela.</div>
+      </div>
       <label className="field">
         <span>Quantidade de peixes</span>
         <select value={g.fishDensity} onChange={(ev) => graphics.set({ fishDensity: ev.target.value as typeof g.fishDensity })}>
