@@ -605,3 +605,7 @@ As faixas discretas de referência de profundidade também têm deriva horizonta
 mas mantêm a cota vertical para continuar indicando subida/descida. Capturas do
 resultado em `docs/img/ambiente-vivo/`; reprodução visual com Vite na porta 5173:
 `python scripts/capture-ambient.py` (Playwright e Chromium).
+
+### Visão Cinematográfica
+
+Escolha **Cinematográfica** no seletor de câmeras para acompanhar o submarino por trás com pequenas oscilações laterais, verticais e de inclinação, como numa filmagem. O acompanhamento é amortecido e o movimento visual continua com a simulação pausada. Disponível também na segunda janela, na miniatura da sala de comando e no Estúdio de apresentações. A visão **Perseguição** mantém seu comportamento original.

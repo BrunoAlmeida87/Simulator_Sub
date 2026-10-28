@@ -23,7 +23,7 @@ export const DEEP_LABELS: Record<DeepLevel, string> = { leve: 'Leve', media: 'M�
  * distorção), o "Navio próximo" (enquadra um navio distante) e as vistas em
  * primeira pessoa (periscópio, passadiço e drone, com a óptica própria).
  */
-export const DEEP_VIEWS: ReadonlySet<ViewMode> = new Set<ViewMode>(['superficie', 'submerso', 'tanques', 'forcas', 'piloto', 'perseguicao', 'perfil', 'frente', 'topo', 'fixa', 'livre']);
+export const DEEP_VIEWS: ReadonlySet<ViewMode> = new Set<ViewMode>(['superficie', 'submerso', 'tanques', 'forcas', 'piloto', 'perseguicao', 'cinematografica', 'perfil', 'frente', 'topo', 'fixa', 'livre']);
 
 const tanHalf = (fovDeg: number) => Math.tan((Math.max(1, Math.min(170, fovDeg)) * Math.PI) / 360);
 

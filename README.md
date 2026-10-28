@@ -291,3 +291,5 @@ O circuito de compensação permite transferir água entre os tanques de banda B
   rochas/esponjas e vegetação rasa em grupos, areia com pequenas ondulações e
   peixes próximos do fundo com pausas suaves. Movimento e densidade ajustáveis
   em Configurações → Vida marinha e ambiente submarino; respeita pausa e segunda janela.
+
+A visão **Cinematográfica** acompanha o submarino com oscilações discretas de filmagem e amortecimento suave, como opção independente da câmera **Perseguição**.

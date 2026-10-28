@@ -114,6 +114,7 @@ export const VIEW_OPTIONS: [ViewMode, string][] = [
   ['torpedo', 'Torpedo (acompanhar)'],
   ['piloto', 'Seguir (lateral)'],
   ['perseguicao', 'Perseguição'],
+  ['cinematografica', 'Cinematográfica'],
   ['fixa', 'Fixa'],
   ['passadico', 'Passadiço'],
   ['drone', 'Drone'],
