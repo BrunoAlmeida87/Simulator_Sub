@@ -21,7 +21,8 @@
  *
  * Simplificações: CG tratado na origem para os termos inerciais (o desvio do
  * CG entra pelos momentos de peso); produtos de inércia desprezados; massa
- * adicional escalada pela fração imersa; sem ondas e correntes.
+ * adicional escalada pela fração imersa; sem correntes. Ondas entram pela
+ * elevação local (empuxo) e por forças de inércia aproximadas (ver EQUACOES §14).
  */
 import type { VesselConfig } from '../config/types';
 import type { Environment } from '../environment/environment';
@@ -74,6 +75,8 @@ export interface ForceInputs {
   tStage?: number;
   /** cinemática das ondas pré-calculada para o passo (undefined = calcular aqui) */
   waveCache?: WaveCache | null;
+  /** reação do lançamento de torpedo (corpo; ausente fora da ejeção) */
+  launch?: Wrench;
 }
 
 export interface WaveCache {
@@ -126,6 +129,8 @@ export interface ForceBreakdown {
   coriolis: Wrench; // inclui Munk
   munk: Vec3; // momento de Munk isolado
   waves: Wrench; // forças de inércia das ondas (Froude–Krylov + difração simplificada)
+  /** reação da ejeção de torpedo (zero fora do disparo) */
+  launch: Wrench;
   total: Wrench;
   hs: HydrostaticResult;
   rho: number;
@@ -259,9 +264,14 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const b1: Vec3 = { x: A.K * imm * w.x, y: A.M * imm * w.y, z: A.N * imm * w.z };
   const Iw: Vec3 = { x: I.x * w.x, y: I.y * w.y, z: I.z * w.z };
   const wxv = vCross(w, v);
-  const a1xw = vCross(a1, w);
+  // acoplamento translação–rotação da massa adicional: força a₁×ω e momento de Munk a₁×v.
+  // O fator de Munk (redução viscosa) multiplica OS DOIS termos: o bloco fora da diagonal
+  // de C_A continua antissimétrico e a potência v·F + ω·M desse par segue nula.
+  const kM = cfg.hydro.munkFactor;
+  const a1xwFull = vCross(a1, w);
+  const a1xw: Vec3 = { x: a1xwFull.x * kM, y: a1xwFull.y * kM, z: a1xwFull.z * kM };
   const munkFull = vCross(a1, v);
-  const munk: Vec3 = { x: munkFull.x * cfg.hydro.munkFactor, y: munkFull.y * cfg.hydro.munkFactor, z: munkFull.z * cfg.hydro.munkFactor };
+  const munk: Vec3 = { x: munkFull.x * kM, y: munkFull.y * kM, z: munkFull.z * kM };
   const wxIw = vCross(w, Iw);
   const b1xw = vCross(b1, w);
   const coriolis: Wrench = {
@@ -269,8 +279,9 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
     M: { x: -wxIw.x + munk.x + b1xw.x, y: -wxIw.y + munk.y + b1xw.y, z: -wxIw.z + munk.z + b1xw.z },
   };
 
+  const launch = fi.launch ?? zeroWrench();
   const total = zeroWrench();
-  for (const c of [weight, buoyancy, hf.resistance, hf.crossflow, hf.lift, hf.damping, finsTotal, propeller, contact, coriolis, waves]) addWrench(total, c);
+  for (const c of [weight, buoyancy, hf.resistance, hf.crossflow, hf.lift, hf.damping, finsTotal, propeller, contact, coriolis, waves, launch]) addWrench(total, c);
 
   return {
     weight,
@@ -285,6 +296,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
     coriolis,
     munk,
     waves,
+    launch,
     total,
     hs,
     rho,

@@ -4,18 +4,54 @@
  * registrado em ordem cronológica (tempo de simulação + descrição).
  */
 import type { SimulationEngine } from './core/engine';
-import type { SensorFailMode } from './core/state';
+import type { CargoLoad, SensorFailMode } from './core/state';
 import { newDosing } from './systems/internalTanks';
 import { acknowledgeAlarm } from './systems/alarms';
 import { bumplessInit } from './systems/autopilot';
+import { emergencyBlowActive } from './systems/hpAir';
 import { sensorDef } from './systems/sensors';
+import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
+import { seaPressureAtTube, torpedoCommand, tubeCommand, weaponTargets, type TorpedoAction, type TubeAction, type TubeCmdCtx } from './systems/weapons';
+import type { TubePresets } from './core/state';
+import { makeDepthOf } from './core/context';
+import { qToMat3 } from './core/math';
+import { DEFAULT_ORIGIN, type LatLon } from './geo';
+
+/** Alterações de ambiente aplicáveis durante a simulação (o estado é mantido). */
+export type EnvironmentPatch = Partial<Pick<EnvironmentConfig, 'salinity' | 'deepSalinity' | 'surfaceTemperature' | 'deepTemperature' | 'thermoclineDepth' | 'thermoclineThickness' | 'magneticDeclination'>> & {
+  bottom?: Partial<BottomConfig>;
+  /** costa e referência geográfica (origem do referencial local) */
+  geo?: Partial<GeoConfig>;
+};
+
+const ENV_LABEL: Record<string, [string, string]> = {
+  salinity: ['salinidade superficial', 'PSU'],
+  deepSalinity: ['salinidade profunda', 'PSU'],
+  surfaceTemperature: ['temperatura superficial', '°C'],
+  deepTemperature: ['temperatura profunda', '°C'],
+  thermoclineDepth: ['termoclina', 'm'],
+  thermoclineThickness: ['espessura da termoclina', 'm'],
+  magneticDeclination: ['declinação magnética', '°'],
+  'bottom.mode': ['modo do fundo', ''],
+  'bottom.baseDepth': ['fundo na origem', 'm'],
+  'bottom.slopeNorth': ['declive N', 'm/km'],
+  'bottom.slopeEast': ['declive L', 'm/km'],
+  'bottom.roughness': ['rugosidade', 'm'],
+  'bottom.wavelength': ['comprimento do relevo', 'm'],
+  'geo.coast': ['costa', ''],
+  'geo.shelfWidth': ['faixa costeira', 'm'],
+  'geo.origin': ['posição geográfica', ''],
+};
 
 export type FluidSystem = 'compensation' | 'trim' | 'heel';
 
 export type Command =
+  | { type: 'compensationRoute'; source: string; destination: string }
+  | { type: 'compensationTransferPump'; run: boolean }
+  | { type: 'compensationDirection'; reverse?: boolean; position?: 'direta' | 'inversa' }
   | { type: 'mbtVent'; tank: string; open: boolean }
   | { type: 'mbtBlow'; tank: string; open: boolean }
-  | { type: 'emergencyBlow' }
+  | { type: 'emergencyBlow'; open?: boolean; tank?: string }
   | { type: 'hpBankValve'; bank: string; open: boolean }
   | { type: 'compressor'; run: boolean }
   | { type: 'valve'; system: FluidSystem; valve: string; open: boolean }
@@ -25,15 +61,28 @@ export type Command =
   | { type: 'dosingAbort'; system: FluidSystem }
   | { type: 'telegraph'; rpm: number }
   | { type: 'surface'; id: string; angle: number }
-  | { type: 'autopilot'; channel: 'heading' | 'depth' | 'pitch'; mode: 'MANUAL' | 'AUTO' }
+  /** hold: AUTO na condição atual mesmo com ordem pré-selecionada (ex.: "Manter cota") */
+  | { type: 'autopilot'; channel: 'heading' | 'depth' | 'pitch'; mode: 'MANUAL' | 'AUTO'; hold?: boolean }
   | { type: 'setpoint'; channel: 'heading' | 'depth' | 'pitch'; value: number }
   | { type: 'snorkel'; raise: boolean }
+  | { type: 'periscope'; raise: boolean }
   | { type: 'generator'; id: string; run: boolean }
   | { type: 'breaker'; closed: boolean }
   | { type: 'ack'; id: string }
   | { type: 'seaState'; value: number; direction?: number }
+  | { type: 'cargoUpsert'; load: CargoLoad }
+  | { type: 'cargoRemove'; id: string }
+  | { type: 'environment'; patch: EnvironmentPatch }
   | { type: 'demoWeight'; x?: number; mass?: number }
-  | { type: 'failure'; target: string; active: boolean; param?: number | string };
+  /** desloca uma carga a bordo (id ou 'ALL' com home) para x, ou de volta à estiva (home) */
+  | { type: 'shiftLoad'; id: string; x?: number; home?: boolean }
+  /** referência dos vetores de trim (variação de água nos tanques de trim) = condição atual */
+  | { type: 'trimReference' }
+  | { type: 'failure'; target: string; active: boolean; param?: number | string }
+  /** ordem a um tubo lançador (sequência automática ou passo a passo); origin/traffic: onde achar o alvo */
+  | { type: 'tube'; tube: number; action: TubeAction; presets?: Partial<TubePresets>; origin?: LatLon; traffic?: number }
+  /** ordem a um torpedo em corrida pelo fio (alvo, rumo, cota, cortar o fio) ou recolher a arma de exercício */
+  | { type: 'torpedo'; id: string; action: TorpedoAction; target?: string | null; course?: number; depth?: number };
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
 
@@ -41,11 +90,75 @@ function tankName(e: SimulationEngine, id: string): string {
   return e.vessel.ballast.tanks.find((t) => t.id === id)?.name ?? id;
 }
 
+/** Origem dos comandos em curso: 'operador' ou o nome da automação que os emite. */
+let cmdSource = 'operador';
+
+/** Executa fn marcando os comandos emitidos com a origem dada (ex.: 'manobra'). */
+export function withCommandSource<T>(source: string, fn: () => T): T {
+  const prev = cmdSource;
+  cmdSource = source;
+  try {
+    return fn();
+  } finally {
+    cmdSource = prev;
+  }
+}
+
+export const currentCommandSource = (): string => cmdSource;
+
+/**
+ * Aplica um comando (única via de alteração do estado pela interface e pelas
+ * automações). Passa antes pelos ganchos de gravação/reprodução do motor.
+ */
 export function applyCommand(e: SimulationEngine, c: Command): void {
+  if (e.commandGate && !e.commandGate(c, cmdSource)) return;
+  e.commandTap?.(c, cmdSource);
+  e.busy++;
+  try {
+    applyCommandInner(e, c);
+  } finally {
+    e.busy--;
+  }
+}
+
+function applyCommandInner(e: SimulationEngine, c: Command): void {
   const s = e.state;
   const v = e.vessel;
   const log = (text: string, group: string) => e.log(text, group);
   switch (c.type) {
+    case 'compensationRoute': {
+      const tr = s.compensation.transfer;
+      const valid = [v.heel.tankA.id, v.heel.tankB.id, ...v.compensation.tanks.map(t => t.id)];
+      if (!tr || tr.pump.cmd || tr.pump.speed > 0.001 || tr.valveA.pos > 0.001 || tr.valveB.pos > 0.001 || c.source === c.destination || !valid.includes(c.source) || !valid.includes(c.destination)) break;
+      tr.source = c.source;
+      tr.destination = c.destination;
+      log(`Transferência de compensação: ${c.source} ↔ ${c.destination}`, 'Compensação');
+      break;
+    }
+    case 'compensationDirection': {
+      const tr = s.compensation.transfer;
+      if (!tr) break;
+      const position = c.position ?? (c.reverse ? 'inversa' : 'direta');
+      if (position !== 'direta' && position !== 'inversa') break;
+      tr.direction.cmd = position === 'inversa' ? 1 : 0;
+      log(`VDC 4/2: ${position} — ${position === 'inversa' ? 'B → T / P → A' : 'A → T / P → B'}`, 'Compensação');
+      break;
+    }
+    case 'compensationTransferPump': {
+      const cs = s.compensation;
+      const tr = cs.transfer;
+      if (!tr) break;
+      if (c.run) {
+        if (cs.dosing?.active) { cs.dosing.active = false; cs.dosing.phase = 'abortado'; cs.dosing.message = 'Cancelada para transferência interna'; }
+        cs.inlet.cmd = 0;
+        cs.discharge.cmd = 0;
+        cs.pump.cmd = false;
+      }
+      tr.valveA.cmd = tr.valveB.cmd = c.run ? 1 : 0;
+      tr.pump.cmd = c.run;
+      log(`BTC: ${c.run ? 'PARTIR' : 'PARAR'} transferência interna`, 'Compensação');
+      break;
+    }
     case 'mbtVent': {
       const ids = c.tank === 'ALL' ? v.ballast.tanks.map((t) => t.id) : [c.tank];
       for (const id of ids) s.ballast[id].vent.cmd = c.open ? 1 : 0;
@@ -59,12 +172,30 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       break;
     }
     case 'emergencyBlow': {
+      const open = c.open !== false;
+      const wasActive = emergencyBlowActive(s);
       for (const t of v.ballast.tanks) {
-        s.ballast[t.id].vent.cmd = 0;
-        s.ballast[t.id].blow.cmd = 1;
+        if (c.tank && c.tank !== 'ALL' && t.id !== c.tank) continue;
+        s.ballast[t.id].emergencyBlow.cmd = open ? 1 : 0;
+        if (open) {
+          s.ballast[t.id].vent.cmd = 0;
+          s.ballast[t.id].blow.cmd = 0;
+        }
       }
-      for (const b of v.hpAir.banks) s.hpAir.banks[b.id].valve.cmd = 1;
-      log('SOPRO DE EMERGÊNCIA: suspiros fechados, sopro aberto em todos os TLP, grupos AP abertos', 'Lastro');
+      if (open) for (const b of v.hpAir.banks) if (b.purpose === 'emergency') s.hpAir.banks[b.id].valve.cmd = 1;
+      log(`${open ? 'SOPRO DE EMERGÊNCIA: suspiros e sopro normal fechados; ampolas dedicadas; compressor automático com ar/energia' : 'FECHAR sopro de emergência'} — ${c.tank && c.tank !== 'ALL' ? tankName(e, c.tank) : 'todos os TLP'}`, 'Lastro');
+      if (open && !wasActive) {
+        // a subida fica com o ar: o piloto de profundidade/pitch não pode seguir mandando descer
+        const ap = s.autopilot;
+        if (ap.depthMode === 'AUTO' || ap.pitchMode === 'AUTO') {
+          ap.depthMode = 'MANUAL';
+          ap.pitchMode = 'MANUAL';
+          log('Profundidade: piloto automático DESENGAJADO pelo sopro de emergência (rumo mantido)', 'Controle automático');
+        }
+        s.surfaces.bow.cmd = 0;
+        s.surfaces.stern.cmd = 0;
+        log('Lemes de vante e de ré a 0° (sopro de emergência)', 'Governo');
+      }
       break;
     }
     case 'hpBankValve':
@@ -94,7 +225,7 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
           name = v.compensation.dischargeValve.name;
         } else if (cs.tankValves[c.valve]) {
           cs.tankValves[c.valve].cmd = val;
-          name = v.compensation.tankValves.find((x) => x.id === c.valve)?.name ?? c.valve;
+          name = v.compensation.tankValves.find((x) => x.id === c.valve)?.name ?? v.compensation.heelBranches?.find((b) => b.valve.id === c.valve)?.valve.name ?? c.valve;
         }
       } else {
         const ts = s[c.system];
@@ -130,8 +261,9 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
     }
     case 'dosing': {
       const kg = Math.abs(c.kg);
-      if (kg <= 0) break;
+      if (!Number.isFinite(kg) || kg <= 0 || (c.system === 'compensation' && c.mode === 'transferir')) break;
       if (c.system === 'compensation') {
+        if (s.compensation.transfer) { s.compensation.transfer.pump.cmd = false; s.compensation.transfer.valveA.cmd = s.compensation.transfer.valveB.cmd = 0; }
         s.compensation.dosing = newDosing(c.mode, kg);
         log(`Compensação: sequência automática — ${c.mode.toUpperCase()} ${kg.toFixed(0)} kg`, 'Compensação');
       } else {
@@ -179,7 +311,19 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
     case 'autopilot': {
       const ap = s.autopilot;
       const r = e.apReadings;
-      if (c.mode === 'AUTO') bumplessInit(s, c.channel, r);
+      const preset = (ap.preset ??= {});
+      // pré-seleção: ordem enviada em MANUAL vale ao passar para AUTO (como AUTO seguido da ordem)
+      const usePreset = c.mode === 'AUTO' && !c.hold && !!preset[c.channel];
+      const keep = c.channel === 'heading' ? ap.headingSet : c.channel === 'depth' ? ap.depthSet : ap.pitchSet;
+      if (c.mode === 'AUTO') {
+        bumplessInit(s, c.channel, r);
+        if (usePreset) {
+          if (c.channel === 'heading') ap.headingSet = keep;
+          else if (c.channel === 'depth') ap.depthSet = keep;
+          else ap.pitchSet = keep;
+        }
+        preset[c.channel] = false;
+      }
       if (c.channel === 'heading') ap.headingMode = c.mode;
       else if (c.channel === 'depth') {
         ap.depthMode = c.mode;
@@ -189,21 +333,28 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
         if (c.mode === 'AUTO') ap.depthMode = 'MANUAL';
       }
       const nm = { heading: 'Rumo', depth: 'Profundidade', pitch: 'Atitude (pitch)' }[c.channel];
-      log(`${nm}: modo ${c.mode === 'AUTO' ? 'AUTOMÁTICO' : 'MANUAL'}`, 'Controle automático');
+      const set = c.channel === 'heading' ? `${keep.toFixed(0)}°` : c.channel === 'depth' ? `${keep.toFixed(0)} m` : `${keep.toFixed(1)}°`;
+      log(`${nm}: modo ${c.mode === 'AUTO' ? 'AUTOMÁTICO' : 'MANUAL'}${usePreset ? ` — ordem pré-selecionada ${set}` : ''}`, 'Controle automático');
       break;
     }
     case 'setpoint': {
       const ap = s.autopilot;
+      const mode = c.channel === 'heading' ? ap.headingMode : c.channel === 'depth' ? ap.depthMode : ap.pitchMode;
+      (ap.preset ??= {})[c.channel] = mode === 'MANUAL';
       if (c.channel === 'heading') ap.headingSet = ((c.value % 360) + 360) % 360;
       else if (c.channel === 'depth') ap.depthSet = Math.max(0, c.value);
       else ap.pitchSet = Math.max(-20, Math.min(20, c.value));
       const nm = { heading: 'Rumo ordenado', depth: 'Profundidade ordenada', pitch: 'Pitch ordenado' }[c.channel];
-      log(`${nm}: ${c.value.toFixed(c.channel === 'pitch' ? 1 : 0)}${c.channel === 'depth' ? ' m' : '°'}`, 'Controle automático');
+      log(`${nm}: ${c.value.toFixed(c.channel === 'pitch' ? 1 : 0)}${c.channel === 'depth' ? ' m' : '°'}${mode === 'MANUAL' ? ' (pré-seleção: vale ao passar para AUTO)' : ''}`, 'Controle automático');
       break;
     }
     case 'snorkel':
       s.snorkel.cmd = c.raise;
       log(`Mastro do snorkel: ${c.raise ? 'IÇAR' : 'ARRIAR'}`, 'Energia');
+      break;
+    case 'periscope':
+      (s.periscope ??= { cmd: false, pos: 0 }).cmd = c.raise;
+      log(`Periscópio de ataque: ${c.raise ? 'IÇAR' : 'ARRIAR'}`, 'Navegação');
       break;
     case 'generator':
       s.electrical.generators[c.id].cmd = c.run;
@@ -222,6 +373,73 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
       log(`Estado do mar: ${Math.round(c.value)} (Hs = ${w.hs.toFixed(1)} m, Tp = ${w.tp.toFixed(1)} s)`, 'Ambiente');
       break;
     }
+    case 'cargoUpsert': {
+      const l = c.load;
+      const { x, y, z } = l.position;
+      const mass = l.quantity * l.unitMass;
+      if (!l.id || !l.name.trim() || !['pessoas', 'carga', 'torpedos', 'equipamentos'].includes(l.category)
+        || ![l.quantity, l.unitMass, mass, x, y, z].every(Number.isFinite)
+        || !Number.isInteger(l.quantity) || l.quantity < 1 || l.unitMass <= 0 || mass > 200000
+        || Math.abs(x) > v.hull.length / 2 || Math.hypot(y, z) > e.geom.radiusAt(x)) {
+        log('Carga recusada: confira massa, quantidade e posição dentro do casco.', 'Cargas');
+        break;
+      }
+      const loads = s.cargoLoads ??= [];
+      const index = loads.findIndex(item => item.id === l.id);
+      const previous = index < 0 ? 0 : loads[index].quantity * loads[index].unitMass;
+      const next = structuredClone({ ...l, name: l.name.trim().slice(0, 80) });
+      if (index < 0) loads.push(next); else loads[index] = next;
+      s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) + mass - previous;
+      log(`${index < 0 ? 'Embarcar' : 'Atualizar/mover'} ${next.name}: ${l.quantity} × ${l.unitMass} kg; posição (${x}, ${y}, ${z}) m`, 'Cargas');
+      break;
+    }
+    case 'cargoRemove': {
+      const load = s.cargoLoads?.find(l => l.id === c.id);
+      if (!load) break;
+      s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) - load.quantity * load.unitMass;
+      s.cargoLoads = s.cargoLoads!.filter(l => l.id !== c.id);
+      log(`Desembarcar ${load.name}: ${load.quantity * load.unitMass} kg`, 'Cargas');
+      break;
+    }
+    case 'environment': {
+      const env = e.config.environment;
+      const changes: string[] = [];
+      const note = (key: string, v: unknown) => {
+        const [lbl, unit] = ENV_LABEL[key] ?? [key, ''];
+        changes.push(`${lbl} ${typeof v === 'number' ? Number(v.toFixed(2)) : String(v)}${unit ? ' ' + unit : ''}`);
+      };
+      const { bottom, geo, ...rest } = c.patch;
+      if (geo) {
+        const cur = (env.geo ??= defaultGeo());
+        if (typeof geo.coast === 'boolean') {
+          cur.coast = geo.coast;
+          changes.push(`costa ${geo.coast ? 'LIGADA (terra e fundo costeiro na física)' : 'desligada'}`);
+        }
+        if (typeof geo.shelfWidth === 'number' && Number.isFinite(geo.shelfWidth)) {
+          cur.shelfWidth = Math.max(50, Math.min(20000, geo.shelfWidth));
+          note('geo.shelfWidth', cur.shelfWidth);
+        }
+        if (geo.origin && Number.isFinite(geo.origin.lat) && Number.isFinite(geo.origin.lon)) {
+          cur.origin = { lat: geo.origin.lat, lon: geo.origin.lon };
+          changes.push(`posição geográfica do referencial ${geo.origin.lat.toFixed(4)}°, ${geo.origin.lon.toFixed(4)}°`);
+        }
+      }
+      for (const [k, val] of Object.entries(rest)) {
+        if (typeof val !== 'number' || !Number.isFinite(val)) continue;
+        (env as unknown as Record<string, number>)[k] = val;
+        note(k, val);
+      }
+      if (bottom) {
+        for (const [k, val] of Object.entries(bottom)) {
+          if (k === 'mode' ? val !== 'uniforme' && val !== 'relevo' : typeof val !== 'number' || !Number.isFinite(val)) continue;
+          (env.bottom as unknown as Record<string, unknown>)[k] = k === 'baseDepth' ? Math.max(8, val as number) : val;
+          note('bottom.' + k, val);
+        }
+      }
+      e.rebuildEnvironment();
+      log(`Ambiente alterado (estado mantido): ${changes.join(', ') || 'sem mudanças'}`, 'Ambiente');
+      break;
+    }
     case 'demoWeight': {
       const dwc = v.mass.demoWeight;
       const d = s.demoWeight;
@@ -231,17 +449,65 @@ export function applyCommand(e: SimulationEngine, c: Command): void {
         log(`Peso deslocável: mover para x = ${d.xCmd.toFixed(1)} m (${d.xCmd > dwc.xNeutral ? 'para vante' : d.xCmd < dwc.xNeutral ? 'para ré' : 'posição neutra'})`, 'Trim');
       }
       if (c.mass !== undefined) {
-        const m = Math.max(0, Math.min(20000, c.mass));
-        s.ledger.cargoIn = (s.ledger.cargoIn ?? 0) + (m - d.mass);
-        log(`Peso deslocável: massa ${(d.mass / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (${m > d.mass ? 'embarcada' : 'desembarcada'} ${(Math.abs(m - d.mass) / 1000).toFixed(1)} t)`, 'Trim');
+        // a carga já está a bordo: muda só quanto dela anda no trilho (massa total do navio inalterada)
+        const m = Math.max(0, Math.min(dwc.mass, c.mass));
+        log(`Peso deslocável: parcela deslocada ${(Math.min(d.mass, dwc.mass) / 1000).toFixed(1)} t → ${(m / 1000).toFixed(1)} t (de ${(dwc.mass / 1000).toFixed(0)} t a bordo; massa total inalterada)`, 'Trim');
         d.mass = m;
+      }
+      break;
+    }
+    case 'trimReference':
+      s.trimRef = { a: s.trim.tankA.mass, b: s.trim.tankB.mass };
+      log(`Referência dos vetores de trim: condição atual (TT-AV ${(s.trim.tankA.mass / 1000).toFixed(2)} t, TT-AR ${(s.trim.tankB.mass / 1000).toFixed(2)} t)`, 'Trim');
+      break;
+    case 'shiftLoad': {
+      const list = v.mass.shiftLoads ?? [];
+      const st = (s.shiftLoads ??= {});
+      const targets = c.id === 'ALL' ? list : list.filter((l) => l.id === c.id);
+      if (!targets.length || (!c.home && (c.x === undefined || !Number.isFinite(c.x)))) {
+        log('Deslocamento de carga recusado: carga desconhecida ou posição inválida.', 'Trim');
+        break;
+      }
+      for (const lc of targets) {
+        const l = (st[lc.id] ??= { x: lc.home.x, xCmd: lc.home.x });
+        const x = c.home ? lc.home.x : Math.max(lc.xMin, Math.min(lc.xMax, c.x!));
+        l.xCmd = x;
+        const mass = lc.quantity * lc.unitMass;
+        const where = Math.abs(x - lc.home.x) < 0.05 ? 'posição de estiva' : x > lc.home.x ? 'para vante' : 'para ré';
+        log(`${lc.name} (${lc.quantity} × ${lc.unitMass} kg = ${(mass / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} t): deslocar para x = ${x.toFixed(1)} m (${where}; massa total inalterada)`, 'Trim');
       }
       break;
     }
     case 'failure':
       applyFailure(e, c.target, c.active, c.param);
       break;
+    case 'tube':
+      if (v.weapons) tubeCommand(weaponCtx(e, c.origin, c.traffic), c.tube, c.action, c.presets);
+      break;
+    case 'torpedo': {
+      const r = s.weapons?.runs.find((x) => x.id === c.id);
+      if (r) torpedoCommand(weaponCtx(e, r.origin, r.traffic), c.id, c.action, { target: c.target, course: c.course, depth: c.depth });
+      break;
+    }
   }
+}
+
+/** Contexto das ordens aos tubos: pressão do mar em cada boca e nome dos alvos. */
+function weaponCtx(e: SimulationEngine, origin?: LatLon, traffic?: number): TubeCmdCtx {
+  const s = e.state;
+  const R = qToMat3(s.body.quat);
+  const sc = { env: e.env, depthOf: makeDepthOf(s.body.pos, R), rhoLocal: e.env.densityAt(Math.max(0, s.body.pos.z)) };
+  const o = origin ?? e.env.cfg.geo?.origin ?? DEFAULT_ORIGIN;
+  return {
+    v: e.vessel,
+    s,
+    R: e.geom.radiusAt,
+    sea: (i) => seaPressureAtTube(sc, e.vessel.weapons!, e.vessel.weapons!.tubes[i], e.geom.radiusAt),
+    log: (text, group) => e.log(text, group),
+    origin: o,
+    traffic: traffic ?? 0,
+    targetName: (id) => weaponTargets(e.env, o, s.t, traffic ?? 0).find((x) => x.id === id)?.name,
+  };
 }
 
 /** Catálogo de falhas injetáveis (ambiente controlado de treinamento). */
@@ -257,12 +523,13 @@ export interface FailureDef {
 export function failureCatalog(e: SimulationEngine): FailureDef[] {
   const v = e.vessel;
   const list: FailureDef[] = [
+    ...(v.compensation.transfer ? [{ target: 'pump:compensationTransfer', name: v.compensation.transfer.pump.name, group: 'Bombas', effect: 'Sem transferência interna de compensação.' }, { target: 'valve:compensation:direction', name: v.compensation.transfer.directionValve.name, group: 'Válvulas', effect: 'Seletor de sentido imobilizado.' }] : []),
     { target: 'pump:compensation', name: v.compensation.pump.name, group: 'Bombas', effect: 'A bomba para; sequências de esgoto são abortadas.' },
     { target: 'pump:trim', name: v.trim.pump.name, group: 'Bombas', effect: 'Sem transferência de trim — usar lemes para corrigir atitude.' },
     { target: 'pump:heel', name: v.heel.pump.name, group: 'Bombas', effect: 'Sem correção de banda.' },
     { target: 'motor', name: 'Motor elétrico principal', group: 'Propulsão', effect: 'Torque nulo; o submarino desacelera pela resistência (inércia conservada).' },
     { target: 'battery', name: 'Bateria principal (isolamento por falha)', group: 'Energia', effect: 'Barramento depende apenas dos geradores (se disponíveis).' },
-    { target: 'hydraulics', name: 'Planta hidráulica', group: 'Hidráulica', effect: 'Lemes e válvulas imobilizados quando a pressão cai abaixo do mínimo.' },
+    { target: 'hydraulics', name: 'Planta hidráulica', group: 'Hidráulica', effect: 'Lemes e válvulas hidráulicas imobilizados quando a pressão cai abaixo do mínimo (o sopro de emergência tem acionamento próprio).' },
   ];
   for (const t of v.ballast.tanks) {
     list.push({ target: `valve:ballast:${t.id}:vent`, name: t.ventValve.name + ' — travada', group: 'Válvulas', effect: 'Válvula imobilizada na posição atual.' });
@@ -290,6 +557,7 @@ export function isFailureActive(e: SimulationEngine, target: string): boolean {
   const [kind, a, b, c] = target.split(':');
   switch (kind) {
     case 'pump':
+      if (a === 'compensationTransfer') return s.compensation.transfer?.pump.failed ?? false;
       return s[a as FluidSystem].pump.failed;
     case 'motor':
       return s.propulsion.failed;
@@ -299,6 +567,7 @@ export function isFailureActive(e: SimulationEngine, target: string): boolean {
       return s.hydraulics.failed;
     case 'valve':
       if (a === 'ballast') return s.ballast[b][c as 'vent' | 'blow'].stuck;
+      if (a === 'compensation' && b === 'direction') return s.compensation.transfer?.direction.stuck ?? false;
       if (a === 'compensation') return (b === 'inlet' ? s.compensation.inlet : s.compensation.discharge).stuck;
       if (a === 'trim') return s.trim.valveA.stuck;
       return false;
@@ -322,6 +591,11 @@ function applyFailure(e: SimulationEngine, target: string, active: boolean, para
   let label = target;
   switch (kind) {
     case 'pump':
+      if (a === 'compensationTransfer') {
+        if (s.compensation.transfer) s.compensation.transfer.pump.failed = active;
+        label = 'Bomba de transferência de compensação';
+        break;
+      }
       s[a as FluidSystem].pump.failed = active;
       label = e.vessel[a as FluidSystem].pump.name;
       break;
@@ -340,9 +614,9 @@ function applyFailure(e: SimulationEngine, target: string, active: boolean, para
     case 'valve': {
       let vs;
       if (a === 'ballast') vs = s.ballast[b][c as 'vent' | 'blow'];
-      else if (a === 'compensation') vs = b === 'inlet' ? s.compensation.inlet : s.compensation.discharge;
+      else if (a === 'compensation') vs = b === 'direction' ? s.compensation.transfer?.direction : b === 'inlet' ? s.compensation.inlet : s.compensation.discharge;
       else vs = s.trim.valveA;
-      vs.stuck = active;
+      if (vs) vs.stuck = active;
       label = `Válvula ${b}${c ? ' ' + c : ''}`;
       break;
     }

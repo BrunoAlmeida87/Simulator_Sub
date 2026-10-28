@@ -2,9 +2,12 @@
 import { runner, useSim } from '../store';
 import { maneuver, MANEUVER_STEPS } from '../maneuvers';
 import { demo } from '../demo';
-import { fmtTime } from '../format';
+import { fmt, fmtTime } from '../format';
 
-export function ManeuverStatus({ compact }: { compact?: boolean }) {
+const fmtNum = (x: number) => fmt(x, 0);
+
+/** cancel: mostra o botão Cancelar (único lugar na tela Operação) */
+export function ManeuverStatus({ compact, cancel }: { compact?: boolean; cancel?: boolean }) {
   const e = useSim(5);
   const m = maneuver;
   if (!m.active && !m.result && !demo.active) return null;
@@ -37,8 +40,15 @@ export function ManeuverStatus({ compact }: { compact?: boolean }) {
   const recent = m.sent.slice(compact ? -2 : -4);
   return (
     <div className="mstatus">
-      <div>
-        <b>⟳ {m.active === 'imergir' ? `IMERGIR para ${m.target} m` : 'EMERGIR'}</b> · etapa {m.step + 1}/{steps.length}: {m.phase || steps[m.step]} · {fmtTime(e.state.t - m.t0)}
+      <div className="mstatus-head">
+        <span>
+          <b>⟳ {m.active === 'imergir' ? `IMERGIR para ${fmtNum(m.target)} m` : 'EMERGIR'}</b> · etapa {m.step + 1}/{steps.length}: {m.phase || steps[m.step]} · {fmtTime(e.state.t - m.t0)}
+        </span>
+        {cancel && (
+          <button className="btn sm warn" style={{ pointerEvents: 'auto' }} onClick={() => maneuver.cancel(runner)}>
+            Cancelar manobra
+          </button>
+        )}
       </div>
       {!compact && (
         <div className="msteps">

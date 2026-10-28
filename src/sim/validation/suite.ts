@@ -10,6 +10,7 @@ import { solveNeutralCompensation } from '../equilibrium';
 import { SimulationEngine } from '../core/engine';
 import { SimRunner } from '../core/runner';
 import { applyCommand } from '../commands';
+import { tankWaterCentroid } from '../systems/internalTanks';
 import { seawaterDensity } from '../environment/seawater';
 import { computeHydrostatics } from '../physics/hydrostatics';
 import { qFromEuler, qToMat3, RAD, wrap360 } from '../core/math';
@@ -152,17 +153,19 @@ export const VALIDATION_CASES: ValidationCase[] = [
   {
     id: 'V03',
     title: '3. Redistribuição transversal de massa altera a banda',
-    description: 'Transferir 1 t de TB-BB para TB-BE: o submarino deve adernar para boreste conforme Δφ = Δm·g·Δy / (W·BG).',
+    description: 'Transferir 1 t de TB-BB para TB-BE: o submarino deve adernar para boreste conforme tan Δφ = g·Δ(Σ m·ȳ) / (W·BG), com ȳ o centroide da água em cada tanque.',
     run: () => {
       const e = buildScenario('pairando', uniformConfig());
       const ph0 = e.outputs.euler.roll;
       const v = e.vessel;
+      // momento transversal da água dos dois tanques (a seção segue o casco: o centroide muda com o nível)
+      const myHeel = () => e.state.heel.tankA.mass * tankWaterCentroid(v.heel.tankA, e.state.heel.tankA).y + e.state.heel.tankB.mass * tankWaterCentroid(v.heel.tankB, e.state.heel.tankB).y;
+      const my0 = myHeel();
       applyCommand(e, { type: 'dosing', system: 'heel', mode: 'transferir', kg: 1000, dir: 'AtoB' });
       const sr = record(e, 300, 1, (x) => x.outputs.euler.roll, 'Banda', '°');
       const transferred = e.state.heel.dosing?.moved ?? 0;
-      const dy = v.heel.tankB.center.y - v.heel.tankA.center.y;
       const W = e.outputs.mp.mass * 9.80665;
-      const pred = Math.atan((transferred * 9.80665 * dy) / (W * e.outputs.BG)) * RAD;
+      const pred = Math.atan(((myHeel() - my0) * 9.80665) / (W * e.outputs.BG)) * RAD;
       const dph = e.outputs.euler.roll - ph0;
       return {
         metrics: [
@@ -218,7 +221,7 @@ export const VALIDATION_CASES: ValidationCase[] = [
   {
     id: 'V05',
     title: '5. Rumo responde progressivamente à deflexão do leme',
-    description: 'A 6 nós: leme 15° BE ⇒ taxa de guinada cresce gradualmente e o rumo aumenta; 15° BB ⇒ simétrico; leme a meio ⇒ rumo mantido.',
+    description: 'A 6 nós (11.1 km/h): leme 15° BE ⇒ taxa de guinada cresce gradualmente e o rumo aumenta; 15° BB ⇒ simétrico; leme a meio ⇒ rumo mantido.',
     run: () => {
       const res: Record<string, { dpsi: number; r5: number; r40: number; series: Series }> = {};
       for (const [k, ang] of [
@@ -437,8 +440,8 @@ export const VALIDATION_CASES: ValidationCase[] = [
   },
   {
     id: 'V10',
-    title: '10. Sem geração artificial de massa ou energia',
-    description: 'Sequência com mergulho, compensação, sopro e diesel: balanços de massa e energia fecham; casco sem propulsão perde energia mecânica monotonicamente.',
+    title: '10. Balanços de massa e energia (escopo verificado)',
+    description: 'Sequência com mergulho, compensação, sopro e diesel: balanços de massa, do barramento (demanda pedida = atendida + não atendida) e da bateria fecham; casco sem propulsão perde energia mecânica. Verifica esta sequência, não prova conservação em todas as condições (ver LIMITACOES).',
     run: () => {
       const e = buildScenario('superficie', uniformConfig());
       applyCommand(e, { type: 'telegraph', rpm: 90 });
@@ -463,6 +466,8 @@ export const VALIDATION_CASES: ValidationCase[] = [
       const massErr = e.outputs.massAudit;
       const busErr = L.batteryChemical - L.batteryOut - L.batteryLoss;
       const loadsMinusSupply = L.loadEnergy - (L.generatorEnergy + L.batteryOut);
+      // demanda pedida = atendida + não atendida (a atendida é o fornecimento)
+      const demandClosure = (L.loadRequested ?? 0) - L.loadEnergy - (L.loadUnserved ?? 0);
       // energia mecânica de um casco passivo (sem propulsão, neutro, homogêneo)
       const p = buildScenario('submerso_50', uniformConfig());
       p.state.propulsion.rpmCmd = 0;
@@ -489,7 +494,9 @@ export const VALIDATION_CASES: ValidationCase[] = [
           m('Ar comprimido admitido (compressor)', e.state.ledger.airCompressed, 'kg', 'referência', true),
           m('Combustível queimado', e.state.ledger.fuelBurned, 'kg', '> 0 (diesel operou)', e.state.ledger.fuelBurned > 0),
           m('Bateria: E_química − E_terminais − perdas', busErr, 'J', '|erro| < 1 J', Math.abs(busErr) < 1),
-          m('Barramento: cargas − (geradores + bateria)', loadsMinusSupply, 'J', '|erro| < 1 J', Math.abs(loadsMinusSupply) < 1),
+          m('Barramento: cargas atendidas − (geradores + bateria)', loadsMinusSupply, 'J', '|erro| < 1 J', Math.abs(loadsMinusSupply) < 1),
+          m('Demanda pedida − atendida − não atendida', demandClosure, 'J', '|erro| < 1 J', Math.abs(demandClosure) < 1),
+          m('Demanda não atendida (fração da pedida)', (L.loadUnserved ?? 0) / Math.max(1, L.loadRequested ?? 0), 'fração', '< 1 % na operação normal', (L.loadUnserved ?? 0) < 0.01 * (L.loadRequested ?? 0)),
           m('Trabalho no hélice ≤ energia elétrica', L.propellerWork / Math.max(1, L.loadEnergy), '—', '< 1', L.propellerWork < L.loadEnergy),
           m('Energia cinética do casco passivo não cresce', mono ? 1 : 0, 'bool', '1', mono),
           m('Energia cinética inicial → final', sk.y[sk.y.length - 1] / sk.y[0], 'fração', '< 1', sk.y[sk.y.length - 1] < sk.y[0]),
@@ -676,8 +683,8 @@ export function fullSequenceSteps(): SequenceStep[] {
   const cmd = applyCommand;
   return [
     {
-      name: 'Preparar: ordenar 6 nós',
-      criterion: 'velocidade > 4 nós',
+      name: 'Preparar: ordenar 6 nós (11.1 km/h)',
+      criterion: 'velocidade > 4 nós (7.4 km/h)',
       timeout: 300,
       enter: (e) => cmd(e, { type: 'telegraph', rpm: 75 }),
       done: (e) => e.state.body.vel.x > 4 * KNOT,

@@ -1,5 +1,16 @@
 node_modules/
 dist/
+release/
 *.log
 .DS_Store
 coverage/
+__pycache__/
+*.pyc
+
+# fotos de referência (direitos autorais; fora do git)
+referencias/
+# arquivo de trabalho do Blender
+*.blend
+*.blend1
+# saída intermediária do modelo 3D (Blender)
+build/

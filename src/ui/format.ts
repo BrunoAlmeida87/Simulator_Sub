@@ -1,3 +1,5 @@
+import { KNOT, toKnots } from '../sim/units';
+
 export const fmt = (x: number, d = 1): string => {
   if (!Number.isFinite(x)) return '—';
   const s = x.toFixed(d);
@@ -40,3 +42,10 @@ export function fmtMoment(n: number): string {
   if (a >= 1e3) return (n / 1e3).toFixed(1) + ' kN·m';
   return n.toFixed(0) + ' N·m';
 }
+
+/** Velocidade em m/s apresentada nas duas unidades náuticas e rodoviárias. */
+export const fmtSpeed = (ms: number, digits = 1): string =>
+  `${fmt(toKnots(ms), digits)} nós (${fmt(ms * 3.6, Math.max(1, digits))} km/h)`;
+
+/** Valor já expresso em nós (sensores, métricas e histórico). */
+export const fmtKnots = (knots: number, digits = 1): string => fmtSpeed(knots * KNOT, digits);

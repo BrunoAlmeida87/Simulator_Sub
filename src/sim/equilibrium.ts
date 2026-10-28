@@ -19,7 +19,10 @@ import { RHO_NOMINAL, R_AIR } from './core/context';
 import { tankWaterCentroid } from './systems/internalTanks';
 
 export interface CompensationSolution {
+  /** neutralidade E atitude atingidas (massa, pitch e banda dentro da capacidade) */
   ok: boolean;
+  /** circuitos que ficaram no limite de capacidade */
+  limits: ('compensação' | 'trim' | 'banda')[];
   message: string;
   compensation: Record<string, number>; // kg finais por tanque
   trimA: number;
@@ -27,7 +30,8 @@ export interface CompensationSolution {
   heelA: number;
   heelB: number;
   residualKg: number;
-  residualMoment: number;
+  residualMoment: number; // N·m, pitch (+ = proa para cima)
+  residualRollMoment: number; // N·m, banda (+ = adernar a BE, como weightHeelMoment)
 }
 
 /** Calcula (sem aplicar, se apply = false) a água de compensação/trim/banda para neutralidade a uma profundidade. */
@@ -52,18 +56,34 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
   const xB = hs.center.x;
   const compIds = cfg.compensation.tanks.map((t) => t.id);
   const capC = (id: string) => cfg.compensation.tanks.find((t) => t.id === id)!.capacity * RHO_NOMINAL;
-  let clamped = false;
+  // restrições ativas na última iteração (a anterior pode saturar e a seguinte acomodar)
+  let clampedComp = false;
+  let clampedTrim = false;
+  let clampedHeel = false;
   for (let it = 0; it < 6; it++) {
+    clampedTrim = clampedHeel = false;
     const mp = computeMassProps(cfg, s, engine.light, rho);
     const M = mp.mass;
     const dmc = Mreq - M;
-    // distribui a compensação igualmente
+    // distribui a compensação igualmente pelos tanques de compensação (TC central)
+    let left = dmc;
     for (const id of compIds) {
       const st = s.compensation.tanks[id];
       const nv = st.mass + dmc / compIds.length;
       st.mass = clamp(nv, 0, capC(id));
-      if (nv !== st.mass) clamped = true;
+      left -= st.mass - (nv - dmc / compIds.length);
     }
+    // o que não coube no central vai, em partes iguais, aos tanques de banda ligados ao coletor
+    if (Math.abs(left) > 1e-6 && (cfg.compensation.heelBranches?.length ?? 0) > 0) {
+      const capH0 = cfg.heel.tankA.capacity * RHO_NOMINAL;
+      const capH1 = cfg.heel.tankB.capacity * RHO_NOMINAL;
+      const room = left > 0 ? Math.min(capH0 - s.heel.tankA.mass, capH1 - s.heel.tankB.mass) : Math.min(s.heel.tankA.mass, s.heel.tankB.mass);
+      const each = Math.sign(left) * Math.min(Math.abs(left) / 2, Math.max(0, room));
+      s.heel.tankA.mass += each;
+      s.heel.tankB.mass += each;
+      left -= 2 * each;
+    }
+    clampedComp = Math.abs(left) > 1;
     const mp2 = computeMassProps(cfg, s, engine.light, rho);
     const xA = tankWaterCentroid(cfg.trim.tankA, s.trim.tankA).x;
     const xBt = tankWaterCentroid(cfg.trim.tankB, s.trim.tankB).x;
@@ -73,22 +93,34 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
     const na = clamp(s.trim.tankA.mass - dt, 0, capTA);
     const moved = s.trim.tankA.mass - na;
     const nb = clamp(s.trim.tankB.mass + moved, 0, capTB);
-    if (Math.abs(moved - dt) > 1 || nb - s.trim.tankB.mass !== moved) clamped = true;
+    if (Math.abs(moved - dt) > 1 || nb - s.trim.tankB.mass !== moved) clampedTrim = true;
     s.trim.tankA.mass = s.trim.tankA.mass - (nb - s.trim.tankB.mass);
     s.trim.tankB.mass = nb;
     const mp3 = computeMassProps(cfg, s, engine.light, rho);
     const yA = cfg.heel.tankA.center.y;
     const yB = cfg.heel.tankB.center.y;
     const dh = (-mp3.mass * mp3.cg.y) / (yB - yA);
-    const capH = cfg.heel.tankA.capacity * RHO_NOMINAL;
-    const ha = clamp(s.heel.tankA.mass - dh, 0, capH);
-    const hb = clamp(s.heel.tankB.mass + (s.heel.tankA.mass - ha), 0, capH);
-    s.heel.tankA.mass = s.heel.tankA.mass - (hb - s.heel.tankB.mass);
+    const capHA = cfg.heel.tankA.capacity * RHO_NOMINAL;
+    const capHB = cfg.heel.tankB.capacity * RHO_NOMINAL;
+    const ha = clamp(s.heel.tankA.mass - dh, 0, capHA);
+    const hb = clamp(s.heel.tankB.mass + (s.heel.tankA.mass - ha), 0, capHB);
+    const movedH = hb - s.heel.tankB.mass; // A → B, conservando a massa
+    if (Math.abs(movedH - dh) > 1) clampedHeel = true;
+    s.heel.tankA.mass -= movedH;
     s.heel.tankB.mass = hb;
   }
   const mpF = computeMassProps(cfg, s, engine.light, rho);
+  const g = env.cfg.gravity;
+  const residualMoment = mpF.mass * (xB - mpF.cg.x) * g;
+  // eixo x do corpo, z para baixo: peso a boreste (y_G > 0) dá momento +W·y_G (adernar a BE)
+  const residualRollMoment = mpF.mass * (mpF.cg.y - hs.center.y) * g;
+  const limits: CompensationSolution['limits'] = [];
+  if (clampedComp || Math.abs(Mreq - mpF.mass) >= 5) limits.push('compensação');
+  if (clampedTrim) limits.push('trim');
+  if (clampedHeel) limits.push('banda');
   const sol: CompensationSolution = {
-    ok: !clamped && Math.abs(Mreq - mpF.mass) < 5,
+    ok: limits.length === 0,
+    limits,
     message: '',
     compensation: Object.fromEntries(compIds.map((id) => [id, s.compensation.tanks[id].mass])),
     trimA: s.trim.tankA.mass,
@@ -96,11 +128,12 @@ export function solveNeutralCompensation(engine: SimulationEngine, axisDepth: nu
     heelA: s.heel.tankA.mass,
     heelB: s.heel.tankB.mass,
     residualKg: Mreq - mpF.mass,
-    residualMoment: mpF.mass * (xB - mpF.cg.x) * env.cfg.gravity,
+    residualMoment,
+    residualRollMoment,
   };
   sol.message = sol.ok
     ? `Neutralidade a ${(axisDepth + cfg.hull.diameter / 2).toFixed(0)} m (quilha): resíduo ${sol.residualKg.toFixed(0)} kg`
-    : `Capacidade dos tanques insuficiente — resíduo ${sol.residualKg.toFixed(0)} kg`;
+    : `Capacidade dos tanques insuficiente (${limits.join(', ')}) — resíduo ${sol.residualKg.toFixed(0)} kg, ${(residualMoment / 1000).toFixed(0)} kN·m em pitch, ${(residualRollMoment / 1000).toFixed(0)} kN·m em banda`;
   if (!apply) {
     const b = JSON.parse(backup);
     s.compensation.tanks = b.c;

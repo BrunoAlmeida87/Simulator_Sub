@@ -7,12 +7,15 @@
  * janela de Snell vista de baixo e cáusticas.
  */
 import * as THREE from 'three';
+import { LIGHTING, waterColor, type WaterPalette } from './lighting';
 import type { WaveField } from '../sim/environment/waves';
 import { MAX_WAVE_COMPONENTS } from '../sim/environment/waves';
 
 export type OceanQuality = 'baixa' | 'media' | 'alta';
 
 const N = MAX_WAVE_COMPONENTS;
+/** raio da malha do mar (m): até o plano distante da câmera, senão além dele aparece o "mar achatado" escuro do terreno */
+const OCEAN_RADIUS = 30000;
 
 const COMMON = /* glsl */ `
 #define MAXW ${N}
@@ -37,19 +40,24 @@ void main() {
   vec2 hd = vec2(0.0);
   float dn = 0.0;
   float de = 0.0;
+  // espaçamento local da malha radial (~7,5 % do raio): ondas mais curtas que ~3 espaçamentos somem
+  // (senão a malha grossa amostra a onda com aliasing e aparecem estrias radiais vistas de longe)
+  float hv = 0.075 * max(length(wp.xz - uCamPos.xz), 4.0);
   for (int i = 0; i < MAXW; i++) {
     if (i >= uCount) break;
     vec4 w = uWave[i];
     vec2 d = uDir[i];
+    float att = 1.0 - smoothstep(1.0, 2.2, w.y * hv);
     float th = w.y * (d.x * nl + d.y * el) + w.z;
-    float c = cos(th);
-    float s = sin(th);
+    float c = cos(th) * att;
+    float s = sin(th) * att;
     eta += w.x * c;
     hd -= uChop * w.x * d * s;
     dn -= w.x * w.y * d.x * s;
     de -= w.x * w.y * d.y * s;
   }
-  float dist = length(wp.xz - uCamPos.xz);
+  // distância 3D: ao nível do mar é a horizontal; vista do alto (drone) as ondas somem antes de virar ruído
+  float dist = length(wp.xyz - uCamPos);
   float fade = 1.0 - smoothstep(1800.0, 6000.0, dist);
   wp.y += eta * fade;
   wp.x += hd.y * fade;
@@ -65,6 +73,10 @@ void main() {
 const FRAG = /* glsl */ `
 ${COMMON}
 uniform vec3 uSunDir;
+uniform float uSunK;
+uniform vec3 uMoonDir;
+uniform float uMoonK;
+uniform float uLightK;
 uniform vec3 uSkyZenith;
 uniform vec3 uSkyHorizon;
 uniform vec3 uDeep;
@@ -90,7 +102,9 @@ vec3 sky(vec3 d) {
   float h = clamp(d.y, 0.0, 1.0);
   vec3 c = mix(uSkyHorizon, uSkyZenith, pow(h, 0.55));
   float sd = max(dot(d, uSunDir), 0.0);
-  c += vec3(1.0, 0.92, 0.75) * pow(sd, 900.0) * 14.0 + vec3(1.0, 0.85, 0.65) * pow(sd, 12.0) * 0.35;
+  c += (vec3(1.0, 0.92, 0.75) * pow(sd, 900.0) * 14.0 + vec3(1.0, 0.85, 0.65) * pow(sd, 12.0) * 0.35) * uSunK;
+  float md = max(dot(d, uMoonDir), 0.0);
+  c += (vec3(0.85, 0.9, 1.0) * pow(md, 1400.0) * 6.0 + vec3(0.5, 0.6, 0.8) * pow(md, 30.0) * 0.12) * uMoonK;
   return c;
 }
 void main() {
@@ -101,12 +115,17 @@ void main() {
     float el = vWorld.x;
     float dn = 0.0;
     float de = 0.0;
+    // filtro pela área do pixel: componente cujo comprimento de onda é menor que ~2 pixels some
+    // (senão vira moiré/cintilação ao longe, onde o pixel cobre vários comprimentos de onda)
+    vec2 fw = fwidth(vWorld.xz);
+    float px = max(fw.x, fw.y);
     for (int i = 0; i < MAXW; i++) {
       if (i >= uCount) break;
       vec4 w = uWave[i];
       vec2 d = uDir[i];
+      float att = 1.0 - smoothstep(0.7, 2.0, w.y * px);
       float th = w.y * (d.x * nl + d.y * el) + w.z;
-      float s = sin(th);
+      float s = sin(th) * att;
       dn -= w.x * w.y * d.x * s;
       de -= w.x * w.y * d.y * s;
     }
@@ -139,12 +158,19 @@ void main() {
     vec3 body = mix(uDeep, uShallow, crest * 0.55 + 0.1);
     col = mix(body, refl, F);
     vec3 H = normalize(uSunDir + V);
-    col += vec3(1.0, 0.95, 0.85) * pow(max(dot(N, H), 0.0), 700.0) * 4.0;
+    // brilho do sol: o lóbulo alarga com a distância (superfície "mais rugosa" ao longe, sem pontinhos cintilando)
+    float sunRough = smoothstep(300.0, 4000.0, dist);
+    float sunExp = mix(700.0, 160.0, sunRough);
+    col += vec3(1.0, 0.95, 0.85) * pow(max(dot(N, H), 0.0), sunExp) * 4.0 * pow(sunExp / 700.0, 0.75) * uSunK;
+    // caminho do luar na água
+    vec3 Hm = normalize(uMoonDir + V);
+    col += vec3(0.75, 0.82, 1.0) * pow(max(dot(N, Hm), 0.0), mix(260.0, 90.0, sunRough)) * 1.6 * uMoonK;
     // espuma nas cristas (mar ≥ 3)
     float br = vnoise(q * 0.9 + uTime * 0.08) * 0.55 + vnoise(q * 3.1 - uTime * 0.1) * 0.45;
     float f = uFoam * smoothstep(0.62, 1.05, crest) * smoothstep(0.55, 0.85, br);
     col = mix(col, vec3(0.9, 0.95, 1.0), f * 0.85);
-    col = mix(col, uSkyHorizon, smoothstep(2500.0, 9500.0, dist));
+    // névoa pela distância horizontal: vista do alto (drone) a água logo abaixo não fica esbranquiçada
+    col = mix(col, uSkyHorizon, smoothstep(2500.0, 9500.0, length(vWorld.xz - uCamPos.xz)));
     alpha = mix(0.78, 1.0, max(F, smoothstep(60.0, 600.0, dist)));
   } else {
     // vista de baixo: janela de Snell (≈ 48,6°) e reflexão interna total fora dela
@@ -152,13 +178,16 @@ void main() {
     float cosI = dot(L, N);
     float win = smoothstep(0.60, 0.70, cosI);
     vec3 skyRef = sky(normalize(vec3(L.x * 0.6, 1.0, L.z * 0.6)));
-    col = mix(uUnderFog * 1.6 + vec3(0.01, 0.03, 0.04), skyRef * 0.9 + vec3(0.05, 0.12, 0.16), win);
-    col += vec3(0.9, 0.95, 1.0) * pow(max(dot(L, uSunDir), 0.0), 60.0) * 1.5 * win;
+    col = mix(uUnderFog * 1.6 + vec3(0.01, 0.03, 0.04) * uLightK, skyRef * 0.9 + vec3(0.05, 0.12, 0.16) * uLightK, win);
+    col += vec3(0.9, 0.95, 1.0) * pow(max(dot(L, uSunDir), 0.0), 60.0) * 1.5 * win * uSunK;
     col = mix(col, uUnderFog, 1.0 - exp(-dist * 0.0045));
     alpha = 0.96;
   }
   gl_FragColor = vec4(col, alpha);
-  #include <tonemapping_fragment>
+  // vista de baixo sem ajuste de tom: ao longe a superfície tem a mesma cor da névoa e do fundo subaquático
+  #if defined( TONE_MAPPING )
+  if (!under) gl_FragColor.rgb = toneMapping(gl_FragColor.rgb);
+  #endif
   #include <colorspace_fragment>
 }
 `;
@@ -213,6 +242,10 @@ export class Ocean {
         uCamPos: { value: new THREE.Vector3() },
         uChop: { value: 0.35 },
         uSunDir: { value: sunDir.clone().normalize() },
+        uSunK: { value: 1 },
+        uMoonDir: { value: new THREE.Vector3(0, 1, 0) },
+        uMoonK: { value: 0 },
+        uLightK: { value: 1 },
         uSkyZenith: { value: new THREE.Color(0x1f4f86) },
         uSkyHorizon: { value: new THREE.Color(0x9dbad4) },
         uDeep: { value: new THREE.Color(0x011a2c) },
@@ -224,9 +257,26 @@ export class Ocean {
         uFragWaves: { value: quality === 'baixa' ? 0 : 1 },
       },
     });
-    this.mesh = new THREE.Mesh(radialGrid(q.rings, q.segs, 12000), this.material);
+    this.mesh = new THREE.Mesh(radialGrid(q.rings, q.segs, OCEAN_RADIUS), this.material);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 2;
+  }
+
+  /**
+   * Sol, lua e céu do momento (daylight.ts). bodyK escurece a cor da água
+   * (1 = dia). Valores padrão = cena de dia como sempre foi.
+   */
+  setLight(sunDir: THREE.Vector3, sunK: number, moonDir: THREE.Vector3, moonK: number, zenith: THREE.Color, horizon: THREE.Color, bodyK: number, underK = 1): void {
+    const u = this.material.uniforms;
+    u.uLightK.value = underK;
+    u.uSunDir.value.copy(sunDir);
+    u.uSunK.value = sunK;
+    u.uMoonDir.value.copy(moonDir);
+    u.uMoonK.value = moonK;
+    u.uSkyZenith.value.copy(zenith);
+    u.uSkyHorizon.value.copy(horizon);
+    u.uDeep.value.setHex(0x011a2c).multiplyScalar(bodyK);
+    u.uShallow.value.setHex(0x0b5d70).multiplyScalar(bodyK);
   }
 
   /**
@@ -318,6 +368,9 @@ export class UnderwaterSky {
       side: THREE.BackSide,
       depthWrite: false,
       fog: false,
+      // sem ajuste de tom: a cor sai igual à da névoa (senão o fundo fica mais escuro que a água em volta
+      // e o limite do terreno aparece como uma faixa)
+      toneMapped: false,
       uniforms: {
         uUp: { value: new THREE.Color(0x3d8ab3) },
         uHorizon: { value: new THREE.Color(0x0a3550) },
@@ -357,14 +410,15 @@ export class UnderwaterSky {
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -1;
   }
-  /** Cores conforme a profundidade da câmera (m). */
-  update(camPos: THREE.Vector3, camDepth: number, time: number): { horizon: THREE.Color; up: THREE.Color } {
+  /** Cores conforme a profundidade da câmera (m) e o perfil de iluminação. */
+  update(camPos: THREE.Vector3, camDepth: number, time: number, water: WaterPalette = LIGHTING.natural.water, light = 1, sunK = 1): { horizon: THREE.Color; up: THREE.Color } {
     const u = this.material.uniforms;
-    const k = Math.min(1, camDepth / 250);
-    u.uUp.value.set(0x4a9bc4).lerp(new THREE.Color(0x06243a), k);
-    u.uHorizon.value.set(0x0e4566).lerp(new THREE.Color(0x020a12), Math.min(1, camDepth / 200));
-    u.uDown.value.set(0x041a2a).lerp(new THREE.Color(0x000306), Math.min(1, camDepth / 120));
-    u.uRays.value = Math.exp(-camDepth / 45);
+    waterColor(water.up, camDepth, u.uUp.value);
+    waterColor(water.horizon, camDepth, u.uHorizon.value);
+    waterColor(water.down, camDepth, u.uDown.value);
+    // claridade do momento (noite, água escura): escurece as três cores juntas
+    if (light !== 1) for (const c of [u.uUp.value, u.uHorizon.value, u.uDown.value] as THREE.Color[]) c.multiplyScalar(light);
+    u.uRays.value = Math.exp(-camDepth / 45) * sunK;
     u.uTime.value = time;
     this.mesh.position.copy(camPos);
     return { horizon: u.uHorizon.value, up: u.uUp.value };

@@ -9,9 +9,11 @@ import { fmt, fmtPower } from '../format';
 import { snorkelHeadDepth } from '../../sim/systems/actuation';
 import { makeDepthOf } from '../../sim/core/context';
 import { qToMat3 } from '../../sim/core/math';
+import { PropulsionDiagram } from '../components/PropulsionDiagram';
 
 const LOAD_NAMES: Record<string, string> = {
   MEP: 'Motor elétrico principal',
+  BTC: 'Bomba de transferência de compensação',
   BC: 'Bomba de compensação',
   BT: 'Bomba de trim',
   BB: 'Bomba de banda',
@@ -22,7 +24,7 @@ const LOAD_NAMES: Record<string, string> = {
 };
 
 export function PropulsionScreen() {
-  const e = useSim(8);
+  const e = useSim(10);
   const s = e.state;
   const v = e.vessel;
   const p = s.propulsion;
@@ -42,6 +44,9 @@ export function PropulsionScreen() {
   const maxLoad = Math.max(1, ...loads.map(([, w]) => w));
   return (
     <div className="grid">
+      <Panel title="Linha de eixo — motor elétrico → eixo → hélice" inspect="propulsion" className="span-all">
+        <PropulsionDiagram e={e} />
+      </Panel>
       <Panel title="Motor elétrico principal e eixo" inspect="propulsion">
         <div className="row" style={{ flexWrap: 'nowrap' }}>
           <Dial value={o.rpm} min={-m.ratedRpm} max={m.ratedRpm} label="Eixo" unit="rpm" cmd={p.rpmCmd} />
@@ -88,6 +93,7 @@ export function PropulsionScreen() {
           <Readout label="Tensão nos terminais" value={el.voltage} unit="V" digits={0} kind="MED" />
           <Readout label="Corrente" value={el.current} unit="A" digits={0} kind="MED" status={el.chargeLimited ? 'warn' : ''} />
           <Readout label="Potência da bateria" value={fmtPower(el.batteryPower)} kind="MED" />
+          <Readout label="Demanda não atendida" value={fmtPower(el.unservedPower ?? 0)} kind="CALC" status={(el.unservedPower ?? 0) > 1000 ? 'warn' : ''} title="Potência pedida pelas cargas que o barramento não conseguiu fornecer no último passo" />
           <Readout label="Carga restante" value={ahLeft} unit="Ah" digits={0} kind="CALC" />
           <Readout label="Autonomia no consumo atual" value={Number.isFinite(hoursLeft) ? fmt(hoursLeft, 1) : '∞'} unit="h" kind="CALC" />
         </div>

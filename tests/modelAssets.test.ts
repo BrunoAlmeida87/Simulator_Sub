@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MODEL_ASSETS, disposeModel } from '../src/render3d/modelAssets';
-import { CONTACT_MODELS, surfacePose } from '../src/render3d/SurfaceTraffic';
-import { contactsAt, DEFAULT_ORIGIN, OFFSHORE_ORIGIN, latLonToNed, nedToLatLon } from '../src/sim/geo';
+import { ImportedShips, assetForContact } from '../src/render3d/ImportedShips';
+import { ShipsLayer } from '../src/render3d/Ships';
+import { buildScenario } from '../src/sim/scenarios';
+import { DEFAULT_ORIGIN } from '../src/sim/geo';
+import { contactsAt } from '../src/sim/geo';
 import manifest from '../public/models/manifest.json';
 
 describe('Modelos exportados do Blender', () => {
@@ -41,25 +44,49 @@ describe('Modelos exportados do Blender', () => {
   });
 });
 
-describe('Contatos 3D e mapa tático', () => {
-  it('associa todos os modelos de superfície a contatos existentes', () => {
-    const contacts = contactsAt(0);
-    for (const [id, modelId] of Object.entries(CONTACT_MODELS)) {
-      expect(contacts.some((contact) => contact.id === id)).toBe(true);
-      expect(MODEL_ASSETS.some((asset) => asset.id === modelId)).toBe(true);
-    }
-    expect(new Set(Object.values(CONTACT_MODELS)).size).toBe(6);
-  });
-  it.each([DEFAULT_ORIGIN, OFFSHORE_ORIGIN])('mantém a posição do mapa ao mudar a origem: %o', (origin) => {
-    const own = { n: 120, e: -250 };
-    for (const contact of contactsAt(125)) {
-      const pose = surfacePose(contact, origin, own);
-      const expected = latLonToNed(origin, nedToLatLon(DEFAULT_ORIGIN, contact.n, contact.e));
-      expect(pose.x).toBeCloseTo(expected.e - own.e, 6);
-      expect(pose.z).toBeCloseTo(-(expected.n - own.n), 6);
-      const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), pose.yaw);
-      expect(forward.x).toBeCloseTo(Math.sin(THREE.MathUtils.degToRad(contact.course)), 6);
-      expect(forward.z).toBeCloseTo(-Math.cos(THREE.MathUtils.degToRad(contact.course)), 6);
+describe('Modelos importados nos contatos existentes', () => {
+  it('associa os seis navios aos GLBs correspondentes', () => {
+    const expected: Record<string, string> = { M1: 'graneleiro', M2: 'carga', R1: 'rebocador', RCON: 'convencional', RASD: 'asd', RVOI: 'voith' };
+    for (const [id, model] of Object.entries(expected)) {
+      const contact = contactsAt(0).find((c) => c.id === id)!;
+      expect(contact).toBeDefined();
+      expect(assetForContact(contact)).toBe(model);
+      expect(MODEL_ASSETS.some((asset) => asset.id === model)).toBe(true);
     }
   });
+  it('preserva as representações dos demais tipos e das barcas', () => {
+    expect(assetForContact({ kind: 'pesqueiro', name: 'Pesqueiro' })).toBeNull();
+    expect(assetForContact({ kind: 'patrulha', name: 'Patrulha' })).toBeNull();
+    expect(assetForContact({ kind: 'rebocador', name: 'Barca Rio–Niterói' })).toBeNull();
+  });
+});
+
+
+it('troca os modelos simplificados sem duplicar contatos nem remover esteiras e luzes', async () => {
+  const roots: THREE.Group[] = [];
+  const mock = vi.spyOn(ImportedShips.prototype, 'instance').mockImplementation(async () => {
+    const root = new THREE.Group();
+    root.add(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 10), new THREE.MeshStandardMaterial()));
+    roots.push(root);
+    return root;
+  });
+  const layer = new ShipsLayer();
+  try {
+    const engine = buildScenario('superficie');
+    layer.update(engine, 0, 0, 0, DEFAULT_ORIGIN, 100, true, null, () => ({ x: 0, y: 0, visible: true }));
+    await Promise.resolve();
+    const imported = layer.group.children.flatMap((ship) => ship.children.filter((child) => child.userData.modelAsset));
+    expect(imported).toHaveLength(6);
+    expect(layer.group.children).toHaveLength(contactsAt(0).length);
+    for (const ship of layer.group.children.filter((ship) => ship.children.some((child) => child.userData.modelAsset))) {
+      expect(ship.children).toHaveLength(3); // modelo importado, esteira e luzes
+      const model = ship.children.find((child) => child.userData.modelAsset)!;
+      const length = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3()).z;
+      expect(length).toBeGreaterThan(0);
+    }
+  } finally {
+    layer.dispose();
+    roots.forEach(disposeModel);
+    mock.mockRestore();
+  }
 });

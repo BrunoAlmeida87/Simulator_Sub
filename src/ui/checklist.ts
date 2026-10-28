@@ -22,7 +22,7 @@ export interface ProcStep {
 const tanksFill = (e: SimulationEngine) => e.vessel.ballast.tanks.reduce((a, t) => a + e.state.ballast[t.id].water, 0) / e.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
 
 export const PROCEDURE: ProcStep[] = [
-  { title: 'Preparar: ordenar seguimento (≥ 4 nós)', hint: 'Telégrafo AV MEIA (75 rpm). Os lemes precisam de escoamento para atuar.', ok: (e) => e.state.body.vel.x > 4 * KNOT },
+  { title: 'Preparar: ordenar seguimento ≥ 4 nós (7.4 km/h)', hint: 'Telégrafo AV MEIA (75 rpm). Os lemes precisam de escoamento para atuar.', ok: (e) => e.state.body.vel.x > 4 * KNOT },
   { title: 'Abrir os suspiros dos TLP', hint: 'Lastro → "Abrir suspiros". O ar escapa e a água entra pelos embornais.', ok: (e) => e.vessel.ballast.tanks.some((t) => e.state.ballast[t.id].vent.pos > 0.9) || tanksFill(e) > 0.95 },
   { title: 'TLP alagados (> 95 %)', hint: 'A reserva de flutuabilidade desaparece; o submarino fica próximo do neutro.', ok: (e) => tanksFill(e) > 0.95 },
   { title: 'Descer com os lemes abaixo de 20 m', hint: 'Lemes de vante a DESCER e de ré levemente a DESCER (ou piloto de profundidade).', ok: (e) => e.outputs.depthKeel > 20 },
@@ -100,6 +100,24 @@ export class ChecklistTracker {
       /* ignora dados inválidos */
     }
     this.reset(e);
+  }
+
+  snapshot(): Saved | null {
+    if (!this.engine) return null;
+    return { scenarioId: this.engine.state.scenarioId, t0: this.t0, tSaved: this.engine.state.t, h0: this.h0, status: [...this.status], tDone: [...this.tDone] };
+  }
+
+  /** adota o checklist salvo junto com a sessão (ou reinicia se não houver) */
+  restore(e: SimulationEngine, d: Partial<Saved> | null | undefined): void {
+    if (d && Array.isArray(d.status) && d.status.length === PROCEDURE.length && Array.isArray(d.tDone)) {
+      this.engine = e;
+      this.status = d.status as ProcStatus[];
+      this.tDone = d.tDone as (number | null)[];
+      this.h0 = Number(d.h0 ?? e.outputs.euler.heading);
+      this.t0 = Number(d.t0 ?? e.state.t);
+      this.version++;
+      this.save();
+    } else this.reset(e);
   }
 
   tick(r: SimRunner): void {

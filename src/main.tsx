@@ -8,13 +8,15 @@ import { demo } from './ui/demo';
 import { maneuver } from './ui/maneuvers';
 import { checklist } from './ui/checklist';
 import { tours } from './ui/tours';
-import { isVisualWindow, SyncMaster, SyncViewer } from './ui/sync';
+import { isPanelWindow, isVisualWindow, SyncMaster, SyncViewer } from './ui/sync';
 import { link } from './ui/link';
-import { route, mapOrigin } from './ui/routeNav';
+import { route } from './ui/routeNav';
+import { presPlayer } from './ui/presBuilder/player';
 
-if (isVisualWindow) {
-  // janela de visualização: não roda física, espelha a janela de controle
-  link.viewer = new SyncViewer(runner);
+if (isVisualWindow || isPanelWindow) {
+  // janela de visualização ou de tela: não roda física, espelha a janela de controle
+  // (a de tela envia à janela de controle tudo o que o operador fizer nela)
+  link.viewer = new SyncViewer(runner, isPanelWindow);
   const loop = () => {
     link.viewer!.frame();
     requestAnimationFrame(loop);
@@ -27,12 +29,14 @@ if (isVisualWindow) {
   const loop = (now: number) => {
     const dt = (now - last) / 1000;
     last = now;
-    runner.frame(dt);
+    // durante o avanço acelerado de uma apresentação, quem avança a física é o próprio avanço
+    if (!presPlayer.ff) runner.frame(dt);
     demo.tick(runner);
     maneuver.tick(runner);
     checklist.tick(runner);
     tours.tick(runner, dt);
-    route.tick(runner, mapOrigin.get());
+    presPlayer.tick(runner, dt);
+    route.tick(runner);
     link.master!.tick();
     requestAnimationFrame(loop);
   };

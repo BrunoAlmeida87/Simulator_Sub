@@ -9,9 +9,11 @@
  * a resposta é a da física. Cada etapa só avança quando a condição física é
  * atingida (ou por tempo esgotado, que fica registrado).
  */
+import { fmtSpeed } from './format';
 import type { SimRunner } from '../sim/core/runner';
 import type { SimulationEngine } from '../sim/core/engine';
-import { applyCommand, type Command } from '../sim/commands';
+import { applyCommand, withCommandSource, type Command } from '../sim/commands';
+import { replayLock } from './replayLock';
 import { verticalBalance, hydroArrows, toTf } from '../sim/forceVectors';
 import { toKnots } from '../sim/units';
 import type { SceneLayers } from '../render3d/layers';
@@ -98,9 +100,9 @@ export const TOURS: Tour[] = [
         layers: { vectors: false, hydroVectors: true, tanks: false, wake: true, markers: true, labels: true },
         timeScale: 2,
         enter: (_e, c) => c.send({ type: 'telegraph', rpm: 75 }),
-        text: (e) => `Telégrafo em AVANTE MEIA (75 rpm). O hélice empurra com ${f1(hydro(e, 'prop'))} kN e a água resiste com ${f1(hydro(e, 'drag'))} kN. Pela massa de ~${f1(e.outputs.mp.mass / 1000, 0)} t o casco acelera devagar: ${f1(toKnots(e.state.body.vel.x))} nós. Repare na esteira, na onda de proa e no rastro do hélice.`,
+        text: (e) => `Telégrafo em AVANTE MEIA (75 rpm). O hélice empurra com ${f1(hydro(e, 'prop'))} kN e a água resiste com ${f1(hydro(e, 'drag'))} kN. Pela massa de ~${f1(e.outputs.mp.mass / 1000, 0)} t o casco acelera devagar: ${fmtSpeed(e.state.body.vel.x)}. Repare na esteira, na onda de proa e no rastro do hélice.`,
         why: 'Os lemes de profundidade só geram força com escoamento (∝ U²). Por isso o mergulho é feito em movimento.',
-        waitFor: 'velocidade acima de 4 nós',
+        waitFor: 'velocidade acima de 4 nós (7.4 km/h)',
         done: (e) => toKnots(e.state.body.vel.x) > 4,
         minDwell: 12,
         timeout: 400,
@@ -213,7 +215,7 @@ export const TOURS: Tour[] = [
         view: 'submerso',
         layers: { vectors: false, hydroVectors: false, tanks: false, tankFilter: null, markers: true },
         timeScale: 1,
-        text: (e) => `Submarino a ${f1(e.outputs.depthKeel)} m, ${f1(toKnots(e.state.body.vel.x))} nós, pitch ${f1(e.outputs.euler.pitch)}°, resultante ${f1(e.outputs.netBuoyancyKg / 1000, 2)} t. Sequência: seguimento → suspiros abertos (TLP alagados) → suspiros fechados → descida com os lemes → nivelamento → compensação.`,
+        text: (e) => `Submarino a ${f1(e.outputs.depthKeel)} m, ${fmtSpeed(e.state.body.vel.x)}, pitch ${f1(e.outputs.euler.pitch)}°, resultante ${f1(e.outputs.netBuoyancyKg / 1000, 2)} t. Sequência: seguimento → suspiros abertos (TLP alagados) → suspiros fechados → descida com os lemes → nivelamento → compensação.`,
         waitFor: 'leitura',
         done: () => true,
         minDwell: 10,
@@ -224,6 +226,21 @@ export const TOURS: Tour[] = [
 ];
 
 // --------------------------------------------------------------- controlador
+export interface TourSnapshot {
+  tourId: string;
+  active: boolean;
+  k: number;
+  tStep: number;
+  dwell: number;
+  conditionMet: boolean;
+  outcome: TourOutcome[];
+  sent: { t: number; text: string; step: number }[];
+  finished: { ok: number; timeout: number; skipped: number; duration: number } | null;
+  mem: Record<string, number>;
+  lastT: number;
+  t0: number;
+}
+
 export class TourController {
   tour: Tour | null = null;
   active = false;
@@ -239,7 +256,71 @@ export class TourController {
   private t0 = 0;
   private runner: SimRunner | null = null;
 
+  private makeCtx(r: SimRunner, mem: Record<string, number>): TourCtx {
+    return {
+      mem,
+      send: (c) => {
+        const e = r.engine;
+        const log = e.state.commands;
+        const last = log[log.length - 1];
+        withCommandSource('guiado', () => applyCommand(e, c));
+        let i = log.length - 1;
+        while (i >= 0 && log[i] !== last) i--;
+        for (const rec of log.slice(i + 1)) this.sent.push({ t: rec.t, text: rec.text, step: this.k });
+      },
+    };
+  }
+
+  /** dados para salvar a sessão (retomada do roteiro automático na mesma etapa) */
+  snapshot(): TourSnapshot | null {
+    if (!this.tour) return null;
+    return {
+      tourId: this.tour.id,
+      active: this.active,
+      k: this.k,
+      tStep: this.tStep,
+      dwell: this.dwell,
+      conditionMet: this.conditionMet,
+      outcome: [...this.outcome],
+      sent: this.sent.slice(-60),
+      finished: this.finished,
+      mem: { ...this.ctx.mem },
+      lastT: this.lastT,
+      t0: this.t0,
+    };
+  }
+
+  /** restaura sem repetir os comandos de entrada da etapa (já contidos no estado físico) */
+  restore(r: SimRunner, d: Partial<TourSnapshot> | null | undefined): void {
+    const tour = d ? TOURS.find((t) => t.id === d.tourId) : undefined;
+    if (!d || !tour) {
+      this.tour = null;
+      this.active = false;
+      this.finished = null;
+      return;
+    }
+    this.runner = r;
+    this.tour = tour;
+    this.k = Math.max(0, Math.min(tour.steps.length - 1, Number(d.k ?? 0)));
+    this.active = !!d.active;
+    this.tStep = Number(d.tStep ?? 0);
+    this.dwell = Number(d.dwell ?? 0);
+    this.conditionMet = !!d.conditionMet;
+    this.outcome = Array.isArray(d.outcome) && d.outcome.length === tour.steps.length ? d.outcome : tour.steps.map(() => 'pendente');
+    this.sent = Array.isArray(d.sent) ? d.sent : [];
+    this.finished = d.finished ?? null;
+    this.lastT = Number(d.lastT ?? r.engine.state.t);
+    this.t0 = Number(d.t0 ?? 0);
+    this.ctx = this.makeCtx(r, { ...(d.mem ?? {}) });
+    const st = tour.steps[this.k];
+    if (this.active) {
+      if (st.layers) pres.setLayers(st.layers);
+      if (st.view) pres.setView(st.view);
+    }
+  }
+
   start(r: SimRunner, tour: Tour): void {
+    if (replayLock.active) return;
     this.runner = r;
     pres.prepare(r, { id: 'tour:' + tour.id, name: tour.name, scenario: tour.scenario, sea: tour.sea, view: tour.steps[0].view ?? 'forcas', layers: tour.steps[0].layers ?? {}, note: tour.description });
     this.tour = tour;
@@ -248,19 +329,8 @@ export class TourController {
     this.outcome = tour.steps.map(() => 'pendente');
     this.sent = [];
     this.finished = null;
-    this.ctx = {
-      mem: {},
-      send: (c) => {
-        const e = r.engine;
-        const log = e.state.commands;
-        const last = log[log.length - 1];
-        applyCommand(e, c);
-        let i = log.length - 1;
-        while (i >= 0 && log[i] !== last) i--;
-        for (const rec of log.slice(i + 1)) this.sent.push({ t: rec.t, text: rec.text, step: this.k });
-      },
-    };
-    r.engine.log(`CENÁRIO GUIADO iniciado: ${tour.name}`, 'Cenário guiado');
+    this.ctx = this.makeCtx(r, {});
+    r.engine.log(`ROTEIRO AUTOMÁTICO iniciado: ${tour.name}`, 'Roteiro automático');
     this.t0 = r.engine.state.t;
     this.enterStep(r);
     r.running = true;
@@ -275,7 +345,7 @@ export class TourController {
     this.conditionMet = false;
     this.lastT = e.state.t;
     this.outcome[this.k] = 'em curso';
-    e.log(`Cenário guiado — etapa ${this.k + 1}/${this.tour!.steps.length}: ${st.title}`, 'Cenário guiado');
+    e.log(`Roteiro automático — etapa ${this.k + 1}/${this.tour!.steps.length}: ${st.title}`, 'Roteiro automático');
     if (st.layers) pres.setLayers(st.layers);
     if (st.view) pres.setView(st.view);
     if (st.timeScale) r.timeScale = st.timeScale;
@@ -307,7 +377,7 @@ export class TourController {
 
   stop(r: SimRunner): void {
     if (!this.active) return;
-    r.engine.log('Cenário guiado encerrado pelo operador', 'Cenário guiado');
+    r.engine.log('Roteiro automático encerrado pelo operador', 'Roteiro automático');
     this.outcome[this.k] = 'pulada';
     this.active = false;
     this.summarize(r);
@@ -328,7 +398,7 @@ export class TourController {
     if (this.k >= this.tour!.steps.length) {
       this.active = false;
       this.summarize(r);
-      r.engine.log(`Cenário guiado concluído: ${this.finished!.ok}/${this.tour!.steps.length} etapas`, 'Cenário guiado');
+      r.engine.log(`Roteiro automático concluído: ${this.finished!.ok}/${this.tour!.steps.length} etapas`, 'Roteiro automático');
       r.timeScale = 1;
       r.notify();
       return;
@@ -337,7 +407,7 @@ export class TourController {
   }
 
   tick(r: SimRunner, realDt: number): void {
-    if (!this.active || !this.tour) return;
+    if (!this.active || !this.tour || replayLock.active) return;
     if (r !== this.runner) this.runner = r;
     const e = r.engine;
     const dt = e.state.t - this.lastT;
@@ -353,7 +423,7 @@ export class TourController {
     const st = this.tour.steps[this.k];
     if (!this.conditionMet && st.done(e, this.tStep, this.ctx)) {
       this.conditionMet = true;
-      e.log(`Cenário guiado — etapa ${this.k + 1} cumprida: ${st.waitFor}`, 'Cenário guiado');
+      e.log(`Roteiro automático — etapa ${this.k + 1} cumprida: ${st.waitFor}`, 'Roteiro automático');
       r.notify();
     }
     if (this.conditionMet && this.dwell >= st.minDwell) {
@@ -361,7 +431,7 @@ export class TourController {
       this.advance(r);
     } else if (!this.conditionMet && this.tStep > st.timeout) {
       this.outcome[this.k] = 'tempo esgotado';
-      e.log(`Cenário guiado — etapa ${this.k + 1}: TEMPO ESGOTADO (${st.waitFor})`, 'Cenário guiado');
+      e.log(`Roteiro automático — etapa ${this.k + 1}: TEMPO ESGOTADO (${st.waitFor})`, 'Roteiro automático');
       this.advance(r);
     }
   }

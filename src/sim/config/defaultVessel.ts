@@ -40,6 +40,7 @@ export function defaultVessel(): VesselConfig {
       keelRef: { x: 0, y: 0, z: 3.1 },
       sail: { xFwd: 14, xAft: 4, height: 5.2, width: 1.5 },
       snorkelMast: { x: 8, extension: 4.5, raiseTime: 12 },
+      periscopeMast: { x: 12.0, extension: 5.0, raiseTime: 8 },
     },
     mass: {
       lightshipMass: 'auto',
@@ -49,12 +50,19 @@ export function defaultVessel(): VesselConfig {
       gyration: { kxx: 2.4, kyy: 17.0, kzz: 17.0 },
       variableLoads: [
         { id: 'trip', name: 'Tripulação e mantimentos', mass: 9000, position: { x: 4, y: 0, z: 0.5 } },
-        { id: 'arm', name: 'Carga útil / armamento (fictício)', mass: 14000, position: { x: 19, y: 0, z: 0.8 } },
+        // as 6 armas nos tubos (weapons, 6 × 1,6 t) saíram desta parcela: a massa total do navio não muda
+        { id: 'arm', name: 'Carga útil / armamento sem os torpedos (fictício)', mass: 4400, position: { x: 19, y: 0, z: 0.8 } },
         { id: 'agua', name: 'Água doce e lubrificantes', mass: 6000, position: { x: -6, y: 0, z: 2.0 } },
       ],
       loadOffset: 0,
       loadOffsetPosition: { x: 3, y: 0, z: 1.0 },
-      demoWeight: { mass: 5000, xNeutral: 2, xMin: -25, xMax: 25, y: 0, z: 1.7, speed: 1.0 },
+      demoWeight: { mass: 30000, initialMass: 5000, xNeutral: 2, xMin: -25, xMax: 25, y: 0, z: 1.7, speed: 1.0 },
+      // cargas a bordo deslocáveis (parte da condição de projeto na posição de estiva; massa total inalterada ao deslocar)
+      shiftLoads: [
+        { id: 'torpedos', name: 'Torpedos de reserva', category: 'torpedos', quantity: 2, unitMass: 1600, home: { x: 13, y: 0, z: 1.3 }, xMin: 11, xMax: 22, speed: 0.25 },
+        { id: 'tripulantes', name: 'Tripulantes', category: 'pessoas', quantity: 16, unitMass: 85, home: { x: -10, y: 0, z: 0.9 }, xMin: -14, xMax: 22, speed: 0.8 },
+        { id: 'mantimentos', name: 'Mantimentos', category: 'carga', quantity: 12, unitMass: 50, home: { x: -3, y: 0, z: 1.4 }, xMin: -14, xMax: 22, speed: 0.4 },
+      ],
     },
     hydro: {
       totalResistanceCoeff: 0.0022,
@@ -165,6 +173,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 3.0e-4,
           ventValve: valve('VS1BB', 'Suspiro TLP-1 BB', 2.5),
           blowValve: valve('VA1BB', 'Sopro TLP-1 BB', 1.5),
+          emergencyBlowValve: valve('VE1BB', 'Sopro de emergência TLP-1 BB', 1.5, false),
         },
         {
           id: 'TLP1BE',
@@ -177,6 +186,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 3.0e-4,
           ventValve: valve('VS1BE', 'Suspiro TLP-1 BE', 2.5),
           blowValve: valve('VA1BE', 'Sopro TLP-1 BE', 1.5),
+          emergencyBlowValve: valve('VE1BE', 'Sopro de emergência TLP-1 BE', 1.5, false),
         },
         {
           id: 'TLP2BB',
@@ -189,6 +199,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 2.5e-4,
           ventValve: valve('VS2BB', 'Suspiro TLP-2 BB', 2.5),
           blowValve: valve('VA2BB', 'Sopro TLP-2 BB', 1.5),
+          emergencyBlowValve: valve('VE2BB', 'Sopro de emergência TLP-2 BB', 1.5, false),
         },
         {
           id: 'TLP2BE',
@@ -201,6 +212,7 @@ export function defaultVessel(): VesselConfig {
           blowArea: 2.5e-4,
           ventValve: valve('VS2BE', 'Suspiro TLP-2 BE', 2.5),
           blowValve: valve('VA2BE', 'Sopro TLP-2 BE', 1.5),
+          emergencyBlowValve: valve('VE2BE', 'Sopro de emergência TLP-2 BE', 1.5, false),
         },
       ],
     },
@@ -208,16 +220,21 @@ export function defaultVessel(): VesselConfig {
       banks: [
         { id: 'AP1', name: 'Garrafas AP grupo 1', volume: 4.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAP1', 'Isolamento grupo AP 1', 2.0) },
         { id: 'AP2', name: 'Garrafas AP grupo 2', volume: 4.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAP2', 'Isolamento grupo AP 2', 2.0) },
+        { id: 'AE1', name: 'Ampolas de emergência grupo 1', purpose: 'emergency', volume: 2.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAE1', 'Isolamento emergência 1', 2.0, false) },
+        { id: 'AE2', name: 'Ampolas de emergência grupo 2', purpose: 'emergency', volume: 2.0, initialPressure: 250 * BAR, maxPressure: 250 * BAR, valve: valve('VAE2', 'Isolamento emergência 2', 2.0, false) },
       ],
       temperature: 20,
       compressor: { massFlow: 0.12, power: 80e3, maxPressure: 250 * BAR },
     },
     compensation: {
-      tanks: [
-        { id: 'TC1', name: 'TC-1 Compensação vante', capacity: 12, height: 1.4, center: { x: 6.0, y: 0, z: 2.3 }, initialVolume: 6 },
-        { id: 'TC2', name: 'TC-2 Compensação ré', capacity: 12, height: 1.4, center: { x: -1.0, y: 0, z: 2.3 }, initialVolume: 6 },
+      transfer: { pump: pump('BTC', 'Bomba de transferência de compensação (BTC)', 0.010, 5, 0.6, 2e3, 3), directionValve: valve('VDC', 'Válvula direcional 4/2 de compensação (VDC)', 3), isolationValve: valve('VIC', 'Isolamento de transferência', 3), lineLoss: 0.6 * BAR },
+      // tanque central de compensação, sob o centro de gravidade; os tanques de banda (ao lado) ligam-se ao mesmo coletor
+      tanks: [{ id: 'TC', name: 'TC Compensação central', capacity: 22, height: 1.5, width: 2.6, hullRadius: 2.9, center: { x: 2.6, y: 0, z: 2.25 }, initialVolume: 11 }],
+      tankValves: [valve('VC', 'Válvula TC (central)', 4)],
+      heelBranches: [
+        { tank: 'A', valve: valve('VCBB', 'Ramal de compensação TB-BB', 4) },
+        { tank: 'B', valve: valve('VCBE', 'Ramal de compensação TB-BE', 4) },
       ],
-      tankValves: [valve('VC1', 'Válvula TC-1', 4), valve('VC2', 'Válvula TC-2', 4)],
       inletValve: valve('VAM', 'Admissão de mar (V-AM)', 5),
       dischargeValve: valve('VDM', 'Descarga ao mar (V-DM)', 5),
       inletArea: 2.5e-3,
@@ -228,8 +245,8 @@ export function defaultVessel(): VesselConfig {
     trim: {
       id: 'trim',
       name: 'Sistema de trim longitudinal',
-      tankA: { id: 'TTAV', name: 'TT-AV Trim vante', capacity: 8, height: 1.4, center: { x: 21.5, y: 0, z: 2.2 }, initialVolume: 4 },
-      tankB: { id: 'TTAR', name: 'TT-AR Trim ré', capacity: 8, height: 1.4, center: { x: -13.0, y: 0, z: 2.2 }, initialVolume: 4 },
+      tankA: { id: 'TTAV', name: 'TT-AV Trim vante', capacity: 12, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: 21.5, y: 0, z: 2.2 }, initialVolume: 6 },
+      tankB: { id: 'TTAR', name: 'TT-AR Trim ré', capacity: 12, height: 1.4, width: 2.2, hullRadius: 2.9, center: { x: -13.0, y: 0, z: 2.2 }, initialVolume: 6 },
       valveA: valve('VTAV', 'Isolamento TT-AV', 3),
       valveB: valve('VTAR', 'Isolamento TT-AR', 3),
       directionValve: valve('VDT', 'Seletor de sentido (trim)', 3),
@@ -238,9 +255,10 @@ export function defaultVessel(): VesselConfig {
     },
     heel: {
       id: 'heel',
-      name: 'Sistema de banda (arquitetura fictícia)',
-      tankA: { id: 'TBBB', name: 'TB-BB Banda bombordo', capacity: 4, height: 1.3, center: { x: 2.0, y: -2.4, z: 1.0 }, initialVolume: 2 },
-      tankB: { id: 'TBBE', name: 'TB-BE Banda boreste', capacity: 4, height: 1.3, center: { x: 2.0, y: 2.4, z: 1.0 }, initialVolume: 2 },
+      name: 'Sistema de banda (tanques laterais do conjunto de compensação)',
+      // ao lado do tanque central (mesma posição longitudinal); transferência BB ↔ BE pela bomba BB através do coletor central
+      tankA: { id: 'TBBB', name: 'TB-BB Banda bombordo', capacity: 5, height: 2.5, width: 1.3, hullRadius: 2.9, center: { x: 2.6, y: -2.25, z: 1.05 }, initialVolume: 2.5 },
+      tankB: { id: 'TBBE', name: 'TB-BE Banda boreste', capacity: 5, height: 2.5, width: 1.3, hullRadius: 2.9, center: { x: 2.6, y: 2.25, z: 1.05 }, initialVolume: 2.5 },
       valveA: valve('VBBB', 'Isolamento TB-BB', 3),
       valveB: valve('VBBE', 'Isolamento TB-BE', 3),
       directionValve: valve('VDB', 'Seletor de sentido (banda)', 3),
@@ -301,6 +319,60 @@ export function defaultVessel(): VesselConfig {
     },
     contact: { stiffness: 2.0e6, damping: 1.5e6, friction: 0.35 },
     internalPressure: 101325,
+    weapons: defaultWeapons(),
+  };
+}
+
+/**
+ * Seis tubos de 533 mm na proa, retos e paralelos ao eixo (duas colunas de 3, uma por bordo), com
+ * ejeção por ar comprimido e torpedo pesado de EXERCÍCIO (F21, valores de ordem de grandeza pública;
+ * nada aqui é dado de projeto real). Tanques de compensação das armas (TCA) sob o piso da sala de
+ * torpedos, ao lado do TT-AV: fornecem a água para alagar os tubos e recebem a compensação automática.
+ */
+export function defaultWeapons(): NonNullable<VesselConfig['weapons']> {
+  const KT = 1852 / 3600;
+  const rows = [-0.6, 0.2, 1.0];
+  // TCA: 2 × 5,2 m³ (x ≈ 18,7…24,5 m, entre o costado e o TT-AV); começam com água para alagar os seis tubos e folga para as recargas
+  const tca = (id: string, name: string, y: number) => ({ id, name, capacity: 5.2, height: 1.0, width: 1.2, hullRadius: 2.9, center: { x: 21.6, y, z: 2.0 }, initialVolume: 3.5 });
+  return {
+    breechX: 24.1,
+    boreRadius: 0.278,
+    outerRadius: 0.31,
+    muzzleClearance: 0.03,
+    tubes: rows.flatMap((z, row) => [
+      { n: row * 2 + 1, side: 'BE' as const, row, y: 0.7, z },
+      { n: row * 2 + 2, side: 'BB' as const, row, y: -0.7, z },
+    ]),
+    weapon: {
+      name: 'F21 (exercício)',
+      mass: 1600,
+      length: 6.4,
+      diameter: 0.533,
+      volume: 1.3,
+      speeds: { baixa: 25 * KT, alta: 50 * KT },
+      range: { baixa: 50000, alta: 20000 },
+      spinUp: 2.5,
+      turnRate: 12,
+      depthRate: 2.5,
+      safeDistance: 200,
+      acquisitionRange: 1800,
+      seekerHalfAngle: 45,
+      wireLength: 50000,
+      hitRadius: 25,
+      floatRate: 1.0,
+    },
+    initialLoaded: 6,
+    reserveLoad: 'torpedos',
+    tca: [tca('TCABB', 'TCA-BB Compensação das armas bombordo', -1.75), tca('TCABE', 'TCA-BE Compensação das armas boreste', 1.75)],
+    floodRate: 0.02,
+    drainRate: 0.03,
+    awcRate: 40,
+    equalizeTau: 2.0,
+    doorTime: 12,
+    breechTime: 6,
+    reloadTime: 300,
+    flask: { volume: 0.25, pressure: 150 * BAR, minPressure: 100 * BAR, rechargeFlow: 0.4 },
+    ejectSpeed: 13,
   };
 }
 

@@ -49,6 +49,7 @@ export function gasMassFlux(pUp: number, pDown: number, T: number): number {
 
 export interface BallastStepResult {
   airDrawn: number; // kg retirados do coletor AP neste passo
+  emergencyAirDrawn: number; // kg retirados do coletor dedicado de emergência
   airVented: number; // kg ao mar pelo suspiro
   airSpilled: number; // kg ao mar pelos embornais
   valveStrokes: number; // fração de curso percorrida (consumo hidráulico)
@@ -68,13 +69,17 @@ export function updateBallastTank(
   ctx: StepContext,
   manifoldPressure: number,
   bankTempK: number,
+  emergencyPressure = 0,
+  normalAvailable = Infinity,
+  emergencyAvailable = Infinity,
 ): BallastStepResult {
   const dt = ctx.dt;
   const g = ctx.env.cfg.gravity;
   const pAtm = ctx.env.cfg.atmosphericPressure;
   const strokes =
     updateValve(cfg.ventValve, st.vent, dt, ctx.hydraulicFactor > 0) +
-    updateValve(cfg.blowValve, st.blow, dt, ctx.hydraulicFactor > 0);
+    updateValve(cfg.blowValve, st.blow, dt, ctx.hydraulicFactor > 0) +
+    updateValve(cfg.emergencyBlowValve, st.emergencyBlow, dt, ctx.hydraulicFactor > 0);
 
   const Vt = cfg.volume;
   const Ah = cfg.volume / cfg.height;
@@ -138,8 +143,17 @@ export function updateBallastTank(
   if (blowA > 0 && manifoldPressure > pAir) {
     const mdot = CD_GAS * blowA * gasMassFlux(manifoldPressure, Math.max(pAir, pAtm * 0.2), bankTempK);
     const mLimit = Math.max(0, (manifoldPressure * va) / (R_AIR * T) - mAir);
-    drawn = Math.min(mdot * dt, mLimit);
+    drawn = Math.min(mdot * dt, mLimit, Math.max(0, normalAvailable));
     mAir += drawn;
+  }
+  let emergencyDrawn = 0;
+  pAir = pAirOf(Vnew);
+  const emergencyA = st.emergencyBlow.pos * cfg.blowArea;
+  if (emergencyA > 0 && emergencyPressure > pAir) {
+    const mdot = CD_GAS * emergencyA * gasMassFlux(emergencyPressure, Math.max(pAir, pAtm * 0.2), bankTempK);
+    const mLimit = Math.max(0, (emergencyPressure * va) / (R_AIR * T) - mAir);
+    emergencyDrawn = Math.min(mdot * dt, mLimit, Math.max(0, emergencyAvailable));
+    mAir += emergencyDrawn;
   }
   // ---- tanque vazio: excesso de ar escapa pelos embornais
   if (zPort > 0 && Vnew <= 1e-6) {
@@ -156,10 +170,11 @@ export function updateBallastTank(
   st.air = Math.max(0, mAir);
   st.mdotVent = vented / dt;
   st.mdotBlow = drawn / dt;
+  st.mdotEmergencyBlow = emergencyDrawn / dt;
   st.mdotSpill = spilled / dt;
   st.pAir = st.air > 0 ? (st.air * R_AIR * T) / Math.max(Vt - Vnew, 1e-7) : 0;
   st.pExtPort = pPort;
-  return { airDrawn: drawn, airVented: vented, airSpilled: spilled, valveStrokes: strokes };
+  return { airDrawn: drawn, emergencyAirDrawn: emergencyDrawn, airVented: vented, airSpilled: spilled, valveStrokes: strokes };
 }
 
 /** Volume do colchão de ar (m³). */

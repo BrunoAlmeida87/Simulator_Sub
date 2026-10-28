@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react';
+import type { ScreenId } from './nav';
 
-export type ScreenId = 'pilotagem' | 'apresentacao' | 'mapa' | 'energia' | 'comando' | 'lastro' | 'trim' | 'propulsao' | 'seguranca' | 'modelos' | 'v3d' | 'historico' | 'cenarios' | 'auxiliares' | 'validacao' | 'ajuda';
+/** telas: lista e grupos em ./nav.ts */
+export type { ScreenId };
 
 export interface UiState {
   screen: ScreenId;

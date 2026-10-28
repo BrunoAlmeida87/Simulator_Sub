@@ -1,6 +1,6 @@
 # Parâmetros da embarcação fictícia SX-1 "Marlim"
 
-Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública para um submarino convencional de ~70 m. Nenhum valor corresponde a um navio real. A fonte única é `src/sim/config/defaultVessel.ts`; a maioria pode ser alterada na tela **Cenários e configuração**.
+Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública para um submarino convencional de ~70 m. Nenhum valor corresponde a um navio real. A fonte única é `src/sim/config/defaultVessel.ts`; a maioria pode ser alterada na aba **⚙ Configurações** (ambiente e fundo sem reiniciar; embarcação e passo ao reiniciar o cenário).
 
 ## Dimensões e massas
 
@@ -20,16 +20,25 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Raios de giração (peso leve) | k_xx 2,4 m · k_yy = k_zz 17 m | |
 | Compressibilidade do casco | 4,6 × 10⁻¹⁰ Pa⁻¹ | sobre o volume não TLP |
 | Calado na superfície (quilha) | ≈ 5,05 m | 88 % do envelope imerso |
+| Mastro do snorkel | x = +8 m, curso 4,5 m, 12 s | hidráulico |
+| Periscópio de ataque | x = +12 m, curso 5,0 m, 8 s | hidráulico (mesmo consumo por curso do snorkel); sem efeito hidrodinâmico; cabeça fora d’água com a quilha a ≈ 16 m |
 
 ### Cargas variáveis (padrão)
 
 | Item | Massa | Posição x |
 |---|---|---|
 | Tripulação e mantimentos | 9 t | +4 m |
-| Carga útil (fictícia) | 14 t | +19 m |
+| Carga útil (fictícia), sem os torpedos | 4,4 t | +19 m |
+| Torpedos nos tubos (6 × 1,6 t) | 9,6 t | +27,5 m (estivados nos tubos) |
 | Água doce e lubrificantes | 6 t | −6 m |
 | Combustível (100 m³, tanque compensado de 120 m³) | 84 t + 20,5 t de água | −2 m |
 | Condição de carga leve / pesada | −6 t / +6 t | +3 m |
+| Peso deslocável (carga existente; desloca-se 2 a 30 t, padrão 5 t, sem mudar a massa total) | 30 t | +2 m (neutra), trilho −25 a +25 m |
+| Cargas deslocáveis: torpedos de reserva (2 × 1,6 t; 0,25 m/s) | 3,2 t | +13 m (estiva), +11 a +22 m |
+| Cargas deslocáveis: tripulantes (16 × 85 kg; 0,8 m/s) | 1,36 t | −10 m (estiva), −14 a +22 m |
+| Cargas deslocáveis: mantimentos (12 × 50 kg; 0,4 m/s) | 0,6 t | −3 m (estiva), −14 a +22 m |
+
+As cargas deslocáveis (`mass.shiftLoads`) entram na condição de projeto na posição de estiva — o peso leve automático as desconta, então massa total e centro de gravidade não mudam —; deslocadas, só criam momento de trim. Arquivos salvos antes delas continuam sem elas.
 
 ## Tanques
 
@@ -37,10 +46,31 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 |---|---|---|---|
 | TLP-1 BB / BE | 58 m³ cada | (28,0; ∓1,35; 0) | suspiro 350 cm², embornais 0,6 m², sopro 3 cm² |
 | TLP-2 BB / BE | 46 m³ cada | (−23,5; ∓1,15; 0) | suspiro 280 cm², embornais 0,5 m², sopro 2,5 cm² |
-| TC-1 / TC-2 (compensação) | 12 m³ cada | (6,0 / −1,0; 0; 2,3) | |
-| TT-AV / TT-AR (trim) | 8 m³ cada | (21,5 / −13,0; 0; 2,2) | braço de 34,5 m |
-| TB-BB / TB-BE (banda, fictícios) | 4 m³ cada | (2,0; ∓2,4; 1,0) | braço de 4,8 m |
-| Garrafas AP (2 grupos) | 4 m³ a 250 bar | | ≈ 1 188 kg de ar cada |
+| TC (compensação central) | 22 m³ (um só tanque) | (2,6; 0; 2,25) | sob o CG; seção 2,6 × 1,5 m recortada pelo casco resistente (R 2,9 m), fundo abaulado, 6,5 m de comprimento; ramal VC no coletor |
+| TT-AV / TT-AR (trim) | 12 m³ cada (iniciam com 6 m³) | (21,5 / −13,0; 0; 2,2) | braço de 34,5 m; seção 2,2 × 1,4 m com fundo abaulado (R 2,9 m) |
+| TB-BB / TB-BE (banda, fictícios) | 5 m³ cada | (2,6; ∓2,25; 1,05) | junto ao costado: seção 1,3 × 2,5 m recortada pelo casco (R 2,9 m), 2,0 m de comprimento; braço ≈ 4,1 m a meio nível (o centroide muda com o nível); ao lado do TC; também compensação (ramais VC-BB / VC-BE) |
+| Garrafas AP normais (AP1 / AP2) | 4 m³ a 250 bar cada | | ≈ 1 188 kg de ar cada; coletor normal |
+| Ampolas de emergência (AE1 / AE2) | 2 m³ a 250 bar cada | | ≈ 594 kg de ar cada; coletor independente, isoladas inicialmente |
+
+## Tubos lançadores e torpedos (`vessel.weapons`, `defaultWeapons()` em `defaultVessel.ts`)
+
+| Item | Valor | Observação |
+|---|---|---|
+| Tubos | 6 × 533 mm (furo 556 mm, parede 32 mm) | retos, paralelos ao eixo; colunas em y = ±0,7 m, fileiras em z = −0,6 / 0,2 / 1,0 m; culatra em x = 24,1 m |
+| Comprimento | 9,7 a 10,4 m | até a parede chegar a 3 cm do casco externo; portas no nariz da proa (x ≈ 33,9–34,9 m) |
+| Arma | F21 de exercício (ordem de grandeza pública): 1,6 t, 6,4 m, 1,3 m³ | velocidade baixa 25 nós / 50 km, alta 50 nós / 20 km; partida 2,5 s; guinada 12 °/s; cota 2,5 m/s |
+| Guiagem | fio de 50 km; distância de segurança 200 m | autodiretor: 1,8 km, cone ±45°; acerto de exercício a < 25 m do alvo (passa sob ele) |
+| Fim de corrida | subida a 1 m/s | flutua para ser recolhida |
+| Ejeção | 13 m/s na boca, aceleração constante no tubo (≈ 1,5 s) | reação −(m_arma + ½ m_água)·a no meio do tubo |
+| Garrafa de lançamento | 0,25 m³ a 150 bar (≈ 45 kg de ar) | mínimo 100 bar para disparar; recarga do coletor AP a 0,4 kg/s; sobram 20 bar |
+| Alagamento / drenagem | 0,02 / 0,03 m³/s | água do / para o TCA |
+| Equalização | constante de tempo 2 s | a porta só abre com Δp < 0,05 bar |
+| Porta da boca / culatra | 12 s / 6 s | hidráulicas |
+| Recarga | 300 s | da reserva (`shiftLoads.torpedos`, 2 armas) |
+| TCA-BB / TCA-BE | 5,2 m³ cada (iniciam com 3,5 m³) | (21,6; ∓1,75; 2,0), seção 1,2 × 1,0 m recortada pelo casco (R 2,9 m), x ≈ 18,7…24,5 m, sob o piso da sala de torpedos |
+| Compensação automática | até 40 kg/s | mantém W = Σ armas nos tubos + água dos tubos + TCA + reserva; corrige o binário por transferência TT-AV ↔ TT-AR quando passa de ≈ 1 t·m |
+
+As 6 armas, a água inicial dos TCA e o ar das garrafas entram na condição de projeto (o peso leve automático as desconta); com a carga útil reduzida nas mesmas 9,6 t, a massa total e o G do navio no início ficam iguais aos de antes dos tubos (teste `tests/weapons.test.ts`).
 
 ## Bombas e válvulas
 
@@ -50,7 +80,8 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Limitador de admissão de mar | 12 L/s (orifício de 25 cm²) |
 | Bomba de trim BT | 12 L/s; shutoff 5 bar; perda na linha 0,6 bar |
 | Bomba de banda BB | 6 L/s; shutoff 3 bar |
-| Curso das válvulas | suspiros 2,5 s · sopro 1,5 s · mar 5 s · tanques 3–4 s |
+| Curso das válvulas | suspiros 2,5 s · sopro normal/emergência 1,5 s · mar 5 s · tanques 3–4 s |
+| Sopro de emergência | mesmo orifício do normal em ramal dedicado; válvulas de emergência e isolamento AE independem da hidráulica |
 
 ## Superfícies de controle
 
@@ -61,6 +92,23 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Leme de direção (totalmente móvel) | −31,5 m | 21 m² | 3,0 | ±30° | 4°/s |
 | Vela (efeito hidrodinâmico) | +9 m, z = −5,7 m | 40 m² | 1,0 | — | — |
 
+### Piloto automático (`AP_GAINS` em `systems/autopilot.ts`)
+
+Os ganhos que comandam lemes (rumo, pitch e lemes de vela) são multiplicados por K = min(4, (U₀/U)²), U₀ = 4 m/s; a malha profundidade → pitch ordenado não. e_z = z − z_ref (m), ż em m/s, ângulos em graus.
+
+| Malha | Parâmetro | Valor |
+|---|---|---|
+| Rumo → leme de direção | Kp · Ki · Kd | 2,2 · 0,04 · 25 |
+| Profundidade → pitch ordenado (lemes de ré) | Kz · Ki · Kzd | 1,0 °/m · 0,01 °/(m·s) · 10 °/(m/s) |
+| | θ_max (normal / baixa velocidade) | ±10,5° / ±4° |
+| | integral de profundidade ativo | só com erro de cota < 3 m |
+| Pitch → lemes de ré | Kθ · Ki · Kq | 2,5 · 0,06 · 30 °/(°/s); autoridade ±20° |
+| Lemes de vela (ajuste fino) | Kb · Kbd | 1,0 °/m · 10 °/(m/s) |
+| | faixa fina b / transição f | 3 m / 5 m (a ação sobre ż some com erro de cota > 8 m) |
+| | ajuda na travessia a₀ | 0,7 × Kb·b (≈ 3,5° a 6 nós) |
+| | autoridade (normal / baixa velocidade) | ±10° / ±20° |
+| Alocação a baixa velocidade | U_alto → U_baixo | 2,0 → 1,6 m/s (~3,9 → 3,1 nós) |
+
 ## Hidrodinâmica
 
 | Parâmetro | Valor |
@@ -69,7 +117,7 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Acréscimo de resistência na superfície | +120 % |
 | C_dc (escoamento cruzado) | 0,8 |
 | Sustentação do casco C_Lc (base D²) | 1,2 em x_cp = −8 m |
-| Fator de Munk | 0,75 |
+| Fator de Munk | 0,75 (aplicado à força a₁×ω e ao momento a₁×v, mantendo potência nula) |
 | Massa adicional | X_u̇ = 2,5 % · Y_v̇ = Z_ẇ = 95 % de ρV · M_q̇ = N_ṙ = 0,85·ρ∫πr²x²dx |
 | Amortecimento linear | sway/heave 3×10⁴ N·s/m · roll 3×10⁶ · pitch/yaw 4×10⁷ N·m·s |
 | Radiação de ondas (superfície) | heave 1,2×10⁶ · pitch 4×10⁸ · roll 2×10⁶ |
@@ -82,10 +130,10 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Rampa de rotação | 8 rpm/s |
 | Hélice | D = 4,4 m, 7 pás; K_T0 = 0,229; K_Q0 = 0,0372; J₀ = 1,0/1,1; w = 0,25; t = 0,15 |
 | Velocidade máxima submersa (resultado do modelo) | ≈ 18 nós (limitada pela potência) |
-| Bateria | 11 000 Ah; V_oc 440–560 V; R = 4 mΩ; I_máx 7 000 A |
+| Bateria | 11 000 Ah; V_oc 440–560 V; R = 4 mΩ; I_máx 7 000 A (e ≤ V_oc/2R); recarga 3 500 A até 90 % de SoC, reduzida linearmente a 0 em 100 %; η_recarga 0,92 |
 | Diesel-geradores | 2 × 1,1 MW; partida em 30 s; consumo específico de 215 g/kWh |
 | Cargas fixas | habitabilidade 60 kW; navegação/controle 12 kW |
-| Compressor de ar | 0,12 kg/s; 80 kW |
+| Compressor de ar | 0,12 kg/s total; 80 kW; recarrega os dois circuitos até o menor limite entre banco e compressor; prioridade às ampolas durante emergência |
 | Hidráulica | 200 bar nominal; mínimo de 90 bar |
 
 ## Limites fictícios (educacionais)
@@ -104,6 +152,12 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 |---|---|
 | Salinidade | 35 PSU |
 | Temperatura | 22 °C na superfície → 12 °C abaixo da termoclina (80 m, espessura de 25 m) |
-| Fundo | 420 m na origem; declividades de +6 m/km (N) e −3 m/km (E); relevo de ±25 m |
+| Costa | Desligada por padrão (ligada nos cenários costeiros); faixa costeira de 1.000 m (Restinga: 3.000 m; Saída da base: 400 m com fundo de 30 m): fundo = profundidade de mar aberto × suavização (3x² − 2x³), x = distância à orla / faixa; em terra, altura do terreno |
+| Estaleiro (Ilha da Madeira) | Com a costa ligada: aterro, cais e shiplift a +3 m (paredes verticais); quebra-mares de enrocamento com crista a +5 m e talude 1:1,5; fora das estruturas o fundo é limitado por d/1,5 ÷ (1 − (d/300)²) (d = distância à estrutura, m) e, na área dragada, nunca menor que 16 m (estimado) |
+| Fundo | Padrão de sessões novas: **uniforme, 300 m**. Modo relevo: profundidade na origem + declividades (+6 m/km N, −3 m/km E) e ondulações de ±25 m (λ = 1.800 m). Arquivos salvos antigos e o cenário “Águas rasas” continuam em relevo (antigo padrão: 420 m na origem) |
 | Declinação magnética | −21,5° |
 | Passo de integração | 0,02 s (50 Hz) |
+
+### Transferência de banda pelo circuito de compensação
+
+BTC: 10 L/s a Δp = 0, shutoff 5 bar, eficiência 0,60, potência em vazio 2 kW, partida 3 s. VDC 4/2 (quatro vias, duas posições) e isolamentos: curso 3 s, atuação hidráulica. Posições reais da VDC: 0 direta (A→T/P→B) e 1 inversa (B→T/P→A). Não há posição central estável; o fluxo é interrompido durante a comutação. T = sucção e P = descarga da BTC. Perda da linha: 0,6 bar na vazão nominal. Rotas: BB ↔ BE, BB ↔ TC central, BE ↔ TC central. O TC usa a geometria atual do conjunto de compensação, com y = 0; os tanques de banda ficam em BB/BE, na mesma posição longitudinal. O nível de origem, a cota de descarga e a atitude do casco determinam a carga estática.

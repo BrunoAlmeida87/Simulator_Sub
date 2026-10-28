@@ -23,18 +23,23 @@ import { buildHullGeometry, type HullGeometry } from '../physics/hullGeometry';
 import { computeMassProps, resolveLightship, type MassProps, type ResolvedMass } from '../physics/massProperties';
 import { computeForces, computeWaveCache, fullAddedMass, rk4Step, type AddedMass, type BodyState, type ForceBreakdown, type ForceInputs, type WaveCache } from '../physics/dynamics';
 import { makeDepthOf, type StepContext } from './context';
-import { mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLocal, mulMat3TVec as mulMat3TVecLocal, vCross as vCrossLocal, type Mat3, type Quat, type Vec3 } from './math';
+import { clamp, mulMat3Vec, qToEuler, qToMat3, RAD, wrap360, qFromEuler as qFromEulerLocal, mulMat3TVec as mulMat3TVecLocal, vCross as vCrossLocal, type Mat3, type Quat, type Vec3 } from './math';
 import { computeHydrostatics as computeHydrostaticsLocal } from '../physics/hydrostatics';
 import type { SimState } from './state';
 import { updateBallastTank } from '../systems/ballast';
-import { bankPressure, bankTempK, drawFromManifold, updateCompressor, updateHpManifold } from '../systems/hpAir';
+import { bankPressure, bankTempK, drawFromManifold, manifoldMass, updateCompressor, updateHpManifold } from '../systems/hpAir';
 import { updateCompensation, updateTransfer } from '../systems/internalTanks';
 import { updatePropulsion } from '../systems/propulsion';
-import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updateSnorkel, updateSurfaces } from '../systems/actuation';
+import { finGeometricAngles, hydraulicFactor, updateFlooding, updateHydraulics, updatePeriscope, updateSnorkel, updateSurfaces } from '../systems/actuation';
 import { updateElectrical, updateGenerators } from '../systems/electrical';
 import { updateAutopilot, type ApReadings } from '../systems/autopilot';
 import { updateNavigation, updateSensors, type TrueValues } from '../systems/sensors';
+import { cavitationLevel } from '../systems/cavitation';
 import { evaluateAlarms } from '../systems/alarms';
+import { initWeapons, updateWeapons } from '../systems/weapons';
+
+/** rigidez hidrostática (N·m/rad) abaixo da qual o equilíbrio é tratado como instável/indiferente */
+const MIN_STIFFNESS = 1e3;
 
 export interface SimOutputs {
   mp: MassProps;
@@ -65,11 +70,20 @@ export interface SimOutputs {
   /** momento devido à separação longitudinal/transversal entre G e B (N·m) */
   weightTrimMoment: number;
   weightHeelMoment: number;
-  /** rigidez hidrostática (N·m/rad) e ângulos de equilíbrio estático previstos */
+  /**
+   * rigidez hidrostática (N·m/rad), limitada a ≥ 1 para as divisões das telas;
+   * o valor com sinal e a estabilidade estão em *StiffnessSigned / *Stable
+   */
   pitchStiffness: number;
   rollStiffness: number;
-  staticPitchEq: number; // graus
-  staticRollEq: number; // graus
+  pitchStiffnessSigned: number;
+  rollStiffnessSigned: number;
+  /** rigidez positiva: o ângulo tende a voltar; false = instável, sem previsão linear */
+  pitchStable: boolean;
+  rollStable: boolean;
+  /** ângulos de equilíbrio estático previstos (graus); instável ⇒ ângulo atual */
+  staticPitchEq: number;
+  staticRollEq: number;
   BG: number;
   airIntake: boolean;
   hpManifoldBar: number;
@@ -82,7 +96,8 @@ export type CommandSink = (text: string, group: string) => void;
 
 export class SimulationEngine {
   readonly config: SimConfig;
-  readonly env: Environment;
+  /** ambiente (reconstruído pelo comando 'environment' quando o operador altera T/S/fundo) */
+  env: Environment;
   readonly geom: HullGeometry;
   readonly light: ResolvedMass;
   readonly added: AddedMass;
@@ -96,6 +111,8 @@ export class SimulationEngine {
   private scratch2: Float64Array;
   private waveCache: WaveCache | null = null;
   private readings: ApReadings;
+  /** reação da ejeção de torpedo no passo atual (corpo); null fora do disparo */
+  private launchW: { F: Vec3; M: Vec3 } | null = null;
 
   constructor(config: SimConfig, state: SimState) {
     this.config = config;
@@ -104,6 +121,7 @@ export class SimulationEngine {
     this.light = resolveLightship(config.vessel, this.geom);
     this.added = fullAddedMass(config.vessel, this.geom, 1025);
     this.compressibleVolume = this.geom.volume - config.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
+    if (config.vessel.weapons && !state.weapons) state.weapons = initWeapons(config.vessel, this.geom.radiusAt);
     this.state = state;
     this.scratch = new Float64Array(this.geom.slices.length);
     this.scratch2 = new Float64Array(this.geom.slices.length);
@@ -119,9 +137,33 @@ export class SimulationEngine {
     return this.config.vessel;
   }
 
+  /**
+   * GANCHOS DE GRAVAÇÃO/REPRODUÇÃO (não alteram a física):
+   *  - commandGate: se definido e retornar false, o comando é recusado
+   *    (a reprodução bloqueia comandos que não sejam os gravados);
+   *  - commandTap: recebe cada comando aceito, com a origem;
+   *  - noteTap: recebe as mensagens de histórico emitidas FORA dos passos e
+   *    dos comandos (narração das automações), para serem regravadas.
+   */
+  commandGate: ((c: unknown, source: string) => boolean) | null = null;
+  commandTap: ((c: unknown, source: string) => void) | null = null;
+  noteTap: ((text: string, group: string) => void) | null = null;
+  /** > 0 enquanto um passo ou um comando está sendo aplicado */
+  busy = 0;
+
   log(text: string, group: string): void {
+    if (this.noteTap && this.busy === 0) this.noteTap(text, group);
     this.state.commands.push({ t: this.state.t, text, group });
     if (this.state.commands.length > 500) this.state.commands.splice(0, this.state.commands.length - 500);
+  }
+
+  /**
+   * Reconstrói o ambiente a partir de config.environment (após alteração de
+   * temperatura, salinidade, termoclina ou fundo). O estado físico é mantido.
+   */
+  rebuildEnvironment(): void {
+    this.env = new Environment(this.config.environment);
+    this.computeOutputs();
   }
 
   /** Leituras dos sensores usadas pelo controle automático (não o estado real). */
@@ -142,7 +184,7 @@ export class SimulationEngine {
     };
   }
 
-  private forceInputs(mp: MassProps): ForceInputs {
+  forceInputs(mp: MassProps): ForceInputs {
     const s = this.state;
     const rho = this.env.densityAt(Math.max(0, s.body.pos.z));
     const k = rho / 1025;
@@ -159,11 +201,21 @@ export class SimulationEngine {
       compressibleVolume: this.compressibleVolume,
       sliceScratch: this.scratch,
       t: s.t,
+      launch: this.launchW ?? undefined,
     };
   }
 
   /** Executa um passo fixo de simulação. */
   step(): void {
+    this.busy++;
+    try {
+      this.stepInner();
+    } finally {
+      this.busy--;
+    }
+  }
+
+  private stepInner(): void {
     const s = this.state;
     const cfg = this.vessel;
     const env = this.env;
@@ -193,26 +245,37 @@ export class SimulationEngine {
     updateAutopilot(cfg, s, this.readings, dt);
     updateSurfaces(cfg, s, ctx);
     ctx.airIntakeAvailable = updateSnorkel(cfg, s, ctx);
+    updatePeriscope(cfg, s, ctx);
 
     // 3. ar AP e lastro principal
     let strokes = updateHpManifold(cfg.hpAir, s, ctx);
     let drawn = 0;
+    let emergencyDrawn = 0;
+    const normalAvailable = manifoldMass(cfg.hpAir, s);
+    const emergencyAvailable = manifoldMass(cfg.hpAir, s, 'emergency');
     const Tb = bankTempK(cfg.hpAir);
     for (const t of cfg.ballast.tanks) {
-      const r = updateBallastTank(t, s.ballast[t.id], ctx, s.hpAir.manifoldPressure, Tb);
+      const r = updateBallastTank(t, s.ballast[t.id], ctx, s.hpAir.manifoldPressure, Tb, s.hpAir.emergencyManifoldPressure, normalAvailable - drawn, emergencyAvailable - emergencyDrawn);
       drawn += r.airDrawn;
+      emergencyDrawn += r.emergencyAirDrawn;
       s.ledger.airVented += r.airVented;
       s.ledger.airSpilled += r.airSpilled;
       strokes += r.valveStrokes;
     }
     drawFromManifold(cfg.hpAir, s, drawn);
+    drawFromManifold(cfg.hpAir, s, emergencyDrawn, 'emergency');
     const comp = updateCompressor(cfg.hpAir, s, ctx);
     s.ledger.airCompressed += comp.added;
 
+    // tubos lançadores, compensação automática das armas e torpedos em corrida
+    const wr = updateWeapons(cfg, s, { ctx, R: this.geom.radiusAt, velNED: this.outputs.velNED, heading: this.outputs.euler.heading });
+    strokes += wr.strokes;
+    this.launchW = wr.F.x !== 0 ? { F: wr.F, M: wr.M } : null;
+
     // 4. tanques internos e alagamento
-    const rc = updateCompensation(cfg.compensation, s.compensation, ctx);
     const rt = updateTransfer(cfg.trim, s.trim, ctx);
     const rh = updateTransfer(cfg.heel, s.heel, ctx);
+    const rc = updateCompensation(cfg.compensation, s.compensation, ctx, cfg.heel, s.heel);
     s.ledger.seaIn += rc.seaIn;
     s.ledger.seaOut += rc.seaOut;
     strokes += rc.strokes + rt.strokes + rh.strokes;
@@ -238,6 +301,17 @@ export class SimulationEngine {
       const dx = d.xCmd - d.x;
       const stepMax = dwc.speed * dt;
       d.x += Math.abs(dx) <= stepMax ? dx : Math.sign(dx) * stepMax;
+    }
+    // cargas deslocáveis a bordo (torpedos, tripulantes, mantimentos): andam até a posição ordenada
+    if (cfg.mass.shiftLoads && s.shiftLoads) {
+      for (const lc of cfg.mass.shiftLoads) {
+        const l = s.shiftLoads[lc.id];
+        if (!l) continue;
+        l.xCmd = Math.max(lc.xMin, Math.min(lc.xMax, l.xCmd));
+        const dx = l.xCmd - l.x;
+        const stepMax = lc.speed * dt;
+        l.x += Math.abs(dx) <= stepMax ? dx : Math.sign(dx) * stepMax;
+      }
     }
 
     // 7–8. massa e corpo rígido
@@ -279,7 +353,8 @@ export class SimulationEngine {
     const genAvail = updateGenerators(cfg.electrical, s, ctx);
     const demands: Record<string, number> = {
       MEP: s.propulsion.elecPower,
-      BC: rc.power,
+      BC: s.compensation.pump.power,
+      BTC: s.compensation.transfer?.pump.power ?? 0,
       BT: rt.power,
       BB: rh.power,
       HID: hydPower,
@@ -295,7 +370,7 @@ export class SimulationEngine {
     this.evaluateAlarms();
     // balanço de massa
     const L = s.ledger;
-    const expected = L.mass0 + (L.cargoIn ?? 0) + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
+    const expected = L.mass0 + (L.cargoIn ?? 0) - (L.weaponsOut ?? 0) + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
     o.massAudit = o.mp.internalMass - expected;
     o.energyAudit = L.batteryChemical - L.batteryOut - L.batteryLoss;
   }
@@ -327,19 +402,21 @@ export class SimulationEngine {
     const stuck: string[] = [];
     const noHyd: string[] = [];
     const hyd = hydraulicFactor(cfg, s) > 0;
-    const checkValve = (name: string, v: { cmd: number; pos: number; stuck: boolean }) => {
+    const checkValve = (name: string, v: { cmd: number; pos: number; stuck: boolean }, hydraulic = true) => {
       if (Math.abs(v.cmd - v.pos) > 0.02) {
         if (v.stuck) stuck.push(name);
-        else if (!hyd) noHyd.push(name);
+        else if (!hyd && hydraulic !== false) noHyd.push(name);
       }
     };
     for (const t of cfg.ballast.tanks) {
       checkValve(t.ventValve.name, s.ballast[t.id].vent);
       checkValve(t.blowValve.name, s.ballast[t.id].blow);
+      checkValve(t.emergencyBlowValve.name, s.ballast[t.id].emergencyBlow, t.emergencyBlowValve.hydraulic);
     }
     checkValve(cfg.compensation.inletValve.name, s.compensation.inlet);
     checkValve(cfg.compensation.dischargeValve.name, s.compensation.discharge);
     cfg.compensation.tankValves.forEach((v) => checkValve(v.name, s.compensation.tankValves[v.id]));
+    for (const b of cfg.compensation.heelBranches ?? []) if (s.compensation.tankValves[b.valve.id]) checkValve(b.valve.name, s.compensation.tankValves[b.valve.id]);
     for (const [sys, st] of [
       [cfg.trim, s.trim],
       [cfg.heel, s.heel],
@@ -348,8 +425,14 @@ export class SimulationEngine {
       checkValve(sys.valveB.name, st.valveB);
       checkValve(sys.directionValve.name, st.direction);
     }
-    for (const b of cfg.hpAir.banks) checkValve(b.valve.name, s.hpAir.banks[b.id].valve);
+    for (const b of cfg.hpAir.banks) checkValve(b.valve.name, s.hpAir.banks[b.id].valve, b.valve.hydraulic);
+    if (cfg.compensation.transfer && s.compensation.transfer) {
+      checkValve(cfg.compensation.transfer.directionValve.name, s.compensation.transfer.direction);
+      checkValve('Isolamento BTC A', s.compensation.transfer.valveA);
+      checkValve('Isolamento BTC B', s.compensation.transfer.valveB);
+    }
     const failedPumps: string[] = [];
+    if (s.compensation.transfer?.pump.failed) failedPumps.push('Bomba de transferência de compensação (BTC)');
     if (s.compensation.pump.failed) failedPumps.push(cfg.compensation.pump.name);
     if (s.trim.pump.failed) failedPumps.push(cfg.trim.pump.name);
     if (s.heel.pump.failed) failedPumps.push(cfg.heel.pump.name);
@@ -373,6 +456,7 @@ export class SimulationEngine {
         contact: s.contact,
         speed: s.body.vel.x,
         declination: this.env.cfg.magneticDeclination,
+        cavitation: cavitationLevel(cfg, s, this.env),
       },
       this.config.settings.dt,
     );
@@ -408,8 +492,13 @@ export class SimulationEngine {
     const d = 0.003;
     const mP = this.hydrostaticMoment(mp, qFromEulerLocal(e.phi, e.theta + d, e.psi));
     const mR = this.hydrostaticMoment(mp, qFromEulerLocal(e.phi + d, e.theta, e.psi));
-    const pitchStiff = Math.max(1, -(mP.y - m0.y) / d);
-    const rollStiff = Math.max(1, -(mR.x - m0.x) / d);
+    // rigidez com sinal: ≤ 0 = equilíbrio instável (ou indiferente) — sem previsão linear nesse caso
+    const pitchK = -(mP.y - m0.y) / d;
+    const rollK = -(mR.x - m0.x) / d;
+    const pitchStable = pitchK > MIN_STIFFNESS;
+    const rollStable = rollK > MIN_STIFFNESS;
+    const pitchStiff = Math.max(1, pitchK);
+    const rollStiff = Math.max(1, rollK);
     const hpBar = s.hpAir.manifoldPressure / 1e5;
     this.outputs = {
       mp,
@@ -439,8 +528,12 @@ export class SimulationEngine {
       weightHeelMoment: W * (G.y - B.y),
       pitchStiffness: pitchStiff,
       rollStiffness: rollStiff,
-      staticPitchEq: (e.theta + m0.y / pitchStiff) * RAD,
-      staticRollEq: (e.phi + m0.x / rollStiff) * RAD,
+      pitchStiffnessSigned: pitchK,
+      rollStiffnessSigned: rollK,
+      pitchStable,
+      rollStable,
+      staticPitchEq: pitchStable ? clamp((e.theta + m0.y / pitchStiff) * RAD, -90, 90) : e.theta * RAD,
+      staticRollEq: rollStable ? clamp((e.phi + m0.x / rollStiff) * RAD, -180, 180) : e.phi * RAD,
       BG: BGvert,
       airIntake: s.snorkel.headValveOpen,
       hpManifoldBar: hpBar,
@@ -482,6 +575,12 @@ export class SimulationEngine {
     return { x: mw.x + mb.x, y: mw.y + mb.y, z: mw.z + mb.z };
   }
 
+  /** Pose "anterior" da interpolação visual = pose atual (após ajustes feitos fora de step()). */
+  resetInterpolation(): void {
+    this.prevPos = { ...this.state.body.pos };
+    this.prevQuat = { ...this.state.body.quat };
+  }
+
   /** Inicializa as leituras dos sensores com os valores verdadeiros atuais. */
   primeSensors(): void {
     this.computeOutputs();
@@ -512,6 +611,7 @@ export class SimulationEngine {
     const demands: Record<string, number> = {
       MEP: s.propulsion.elecPower,
       BC: s.compensation.pump.power,
+      BTC: s.compensation.transfer?.pump.power ?? 0,
       BT: s.trim.pump.power,
       BB: s.heel.pump.power,
       HID: s.hydraulics.power,
@@ -529,4 +629,3 @@ export class SimulationEngine {
     return n;
   }
 }
-

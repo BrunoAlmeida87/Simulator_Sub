@@ -2,7 +2,10 @@
  * TANQUES INTERNOS (dentro do casco resistente, à pressão interna):
  *  - Compensação de peso: troca de água com o mar (admissão por pressão do
  *    mar através de orifício + limitador de vazão; descarga por bomba contra
- *    a pressão do mar).
+ *    a pressão do mar). Um coletor único liga o tanque central (TC, sob o CG)
+ *    e os dois tanques de banda (TB-BB e TB-BE, ao lado dele): os três servem
+ *    à compensação; a vazão divide-se pelos ramais abertos na proporção
+ *    abertura × capacidade.
  *  - Trim longitudinal (vante ↔ ré) e banda (BB ↔ BE): transferência interna
  *    por bomba com seletor de sentido de 4 vias e válvulas de isolamento.
  *
@@ -15,25 +18,25 @@
  *  Transferência: Δp = ρ·g·(z_nível_origem − z_topo_destino) + k·Q²
  */
 import type { CompensationConfig, InternalTankConfig, TransferSystemConfig } from '../config/types';
-import type { CompensationState, DosingState, InternalTankState, TransferState } from '../core/state';
+import type { CompensationState, DosingState, InternalTankState, TransferState, ValveState } from '../core/state';
 import { RHO_NOMINAL, type StepContext } from '../core/context';
 import type { Vec3 } from '../core/math';
+import { buildCompensationCircuit } from './compensationCircuit';
+import { tankFill } from './tankShape';
 import { pumpFlow, pumpFlowWithLine, pumpPower, updatePumpSpeed, updateValve } from './components';
 
 export const tankVolume = (st: InternalTankState) => st.mass / RHO_NOMINAL;
 export const tankCapacityMass = (cfg: InternalTankConfig) => cfg.capacity * RHO_NOMINAL;
 
-/** Centroide da água (corpo): o tanque enche a partir do fundo. */
+/** Centroide da água (corpo): o tanque enche a partir do fundo, com a seção que acompanha o casco (tankShape). */
 export function tankWaterCentroid(cfg: InternalTankConfig, st: InternalTankState): Vec3 {
-  const A = cfg.capacity / cfg.height;
-  const h = Math.min(cfg.height, tankVolume(st) / A);
-  return { x: cfg.center.x, y: cfg.center.y, z: cfg.center.z + cfg.height / 2 - h / 2 };
+  const f = tankFill(cfg, tankVolume(st));
+  return { x: cfg.center.x, y: f.y, z: f.z };
 }
 
 function levelDepth(cfg: InternalTankConfig, st: InternalTankState, ctx: StepContext): number {
-  const A = cfg.capacity / cfg.height;
-  const h = Math.min(cfg.height, tankVolume(st) / A);
-  return ctx.depthOf({ x: cfg.center.x, y: cfg.center.y, z: cfg.center.z + cfg.height / 2 - h });
+  const f = tankFill(cfg, tankVolume(st));
+  return ctx.depthOf({ x: cfg.center.x, y: (f.ya + f.yb) / 2, z: f.levelZ });
 }
 
 function topDepth(cfg: InternalTankConfig, ctx: StepContext): number {
@@ -53,23 +56,81 @@ export function newDosing(mode: DosingState['mode'], target: number, dir?: 'AtoB
 
 // ------------------------------------------------------------------ compensação
 
-function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, ctx: StepContext, expectedRate: number): void {
+/** Um ramal do coletor de compensação: tanque, estado da água e válvula do ramal. */
+export interface CompensationBranch {
+  /** id do tanque */
+  id: string;
+  /** id da válvula do ramal (chave em CompensationState.tankValves) */
+  valveId: string;
+  cfg: InternalTankConfig;
+  st: InternalTankState;
+  valve: ValveState;
+  /** tanque de banda ligado ao coletor ('A' = BB, 'B' = BE); ausente no tanque central */
+  heel?: 'A' | 'B';
+}
+
+/** Tanques ligados ao coletor de compensação: os próprios (TC) e, se houver, os tanques de banda. */
+export function compensationBranches(cfg: CompensationConfig, st: CompensationState, heelCfg?: TransferSystemConfig, heelSt?: TransferState): CompensationBranch[] {
+  const out: CompensationBranch[] = cfg.tanks.map((t, i) => ({ id: t.id, valveId: cfg.tankValves[i].id, cfg: t, st: st.tanks[t.id], valve: st.tankValves[cfg.tankValves[i].id] }));
+  if (heelCfg && heelSt)
+    for (const b of cfg.heelBranches ?? []) {
+      const valve = st.tankValves[b.valve.id];
+      if (!valve) continue;
+      const tc = b.tank === 'A' ? heelCfg.tankA : heelCfg.tankB;
+      out.push({ id: tc.id, valveId: b.valve.id, cfg: tc, st: b.tank === 'A' ? heelSt.tankA : heelSt.tankB, valve, heel: b.tank });
+    }
+  return out;
+}
+
+/** Massa total de água nos tanques ligados à compensação (TC + tanques de banda ligados ao coletor), kg. */
+export function compensationWater(cfg: CompensationConfig, st: CompensationState, heelCfg?: TransferSystemConfig, heelSt?: TransferState): number {
+  return compensationBranches(cfg, st, heelCfg, heelSt).reduce((a, b) => a + b.st.mass, 0);
+}
+
+/** s sem vazão na fase de escoamento antes de a sequência de compensação desistir */
+const STALL_TIMEOUT = 15;
+
+function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, ctx: StepContext, expectedRate: number, branches: CompensationBranch[]): void {
   const d = st.dosing;
   if (!d || !d.active) return;
   d.timer += ctx.dt;
-  const tankIds = cfg.tankValves.map((v) => v.id);
+  const main = branches.filter((b) => !b.heel);
+  const sides = branches.filter((b) => b.heel);
+  const allIds = branches.map((b) => b.valveId);
+  const room = (list: CompensationBranch[]) => (d.mode === 'admitir' ? list.reduce((a, b) => a + Math.max(0, tankCapacityMass(b.cfg) - b.st.mass), 0) : list.reduce((a, b) => a + b.st.mass, 0));
+  if (d.phase === 'alinhando' && d.timer <= ctx.dt + 1e-9) {
+    // antes de alinhar: o pedido cabe nos tanques ligados ao coletor?
+    const cap = room(branches);
+    if (cap < 1) {
+      d.phase = 'finalizando';
+      d.message = d.mode === 'admitir' ? 'Sem espaço: tanques de compensação cheios — nada admitido' : 'Sem água nos tanques de compensação — nada esgotado';
+    } else if (cap < d.target - d.moved) {
+      d.requested = d.target;
+      d.target = d.moved + cap;
+    }
+  }
   if (d.phase === 'alinhando') {
-    for (const id of tankIds) st.tankValves[id].cmd = 1;
+    // a sequência usa o tanque central; os ramais de banda (simétricos) só abrem se o central não comportar a quantidade
+    const remaining = d.target - d.moved;
+    const capMain = d.mode === 'admitir' ? main.reduce((a, b) => a + tankCapacityMass(b.cfg) - b.st.mass, 0) : main.reduce((a, b) => a + b.st.mass, 0);
+    const useSides = capMain < remaining;
+    for (const b of main) st.tankValves[b.valveId].cmd = 1;
+    for (const b of sides) st.tankValves[b.valveId].cmd = useSides ? 1 : 0;
+    const selected = useSides ? branches : main;
+    // ramais fora da sequência (ex.: um lateral deixado aberto) precisam fechar antes de o mar entrar ou a bomba aspirar
+    const excludedClosed = useSides ? true : sides.every((b) => st.tankValves[b.valveId].pos < 0.02);
+    const tankReady = excludedClosed && selected.every((b) => st.tankValves[b.valveId].pos > 0.98);
     if (d.mode === 'admitir') {
       st.discharge.cmd = 0;
       st.pump.cmd = false;
-      st.inlet.cmd = 1;
-      const ready = st.inlet.pos > 0.98 && tankIds.some((id) => st.tankValves[id].pos > 0.98);
-      if (ready || st.qIn > 0) d.phase = 'escoando';
+      // a admissão pode abrir junto com os ramais escolhidos, mas só depois de fechados os demais
+      if (excludedClosed) st.inlet.cmd = 1;
+      const ready = st.inlet.pos > 0.98 && tankReady;
+      if (ready || (excludedClosed && st.qIn > 0)) d.phase = 'escoando';
     } else {
       st.inlet.cmd = 0;
       st.discharge.cmd = 1;
-      const ready = st.discharge.pos > 0.98 && tankIds.some((id) => st.tankValves[id].pos > 0.98);
+      const ready = st.discharge.pos > 0.98 && tankReady;
       if (ready) {
         st.pump.cmd = true;
         d.phase = 'escoando';
@@ -88,6 +149,12 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
       d.phase = 'finalizando';
       d.message = 'Falha da bomba durante a sequência';
     }
+    // sem progresso (tanques cheios/vazios, válvula travada, bomba sem vazão, conexão emersa): encerra e informa
+    d.stall = expectedRate < 0.05 ? (d.stall ?? 0) + ctx.dt : 0;
+    if (d.phase === 'escoando' && d.stall > STALL_TIMEOUT) {
+      d.phase = 'finalizando';
+      d.message = `Sem vazão por ${STALL_TIMEOUT} s — sequência encerrada; faltaram ${Math.max(0, d.target - d.moved).toFixed(0)} kg`;
+    }
   }
   if (d.phase === 'finalizando') {
     st.inlet.cmd = 0;
@@ -95,16 +162,21 @@ function runCompensationDosing(cfg: CompensationConfig, st: CompensationState, c
     if (st.pump.speed <= 0.001) st.discharge.cmd = 0;
     const closed = st.inlet.pos < 0.001 && st.pump.speed <= 0.001;
     if (closed) {
-      for (const id of tankIds) st.tankValves[id].cmd = 0;
+      for (const id of allIds) st.tankValves[id].cmd = 0;
       d.phase = 'concluido';
       d.active = false;
-      if (!d.message) d.message = `Concluído: ${(d.moved / 1000).toFixed(2)} t movimentadas`;
+      if (!d.message) d.message = `Concluído: ${(d.moved / 1000).toFixed(2)} t movimentadas` + (d.requested ? ` (pedido ${(d.requested / 1000).toFixed(2)} t; limitado à capacidade dos tanques)` : '');
     }
   }
 }
 
-export function updateCompensation(cfg: CompensationConfig, st: CompensationState, ctx: StepContext): InternalStepResult {
+/**
+ * Compensação: admissão do mar / descarga pela bomba através do coletor único.
+ * `heelCfg`/`heelSt`: sistema de banda, cujos tanques são ramais do mesmo coletor.
+ */
+export function updateCompensation(cfg: CompensationConfig, st: CompensationState, ctx: StepContext, heelCfg?: TransferSystemConfig, heelSt?: TransferState): InternalStepResult {
   const dt = ctx.dt;
+  const branches = compensationBranches(cfg, st, heelCfg, heelSt);
   const hyd = ctx.hydraulicFactor > 0;
   const zConn = ctx.depthOf(cfg.seaConnection);
   const pSea = ctx.env.pressureAt(zConn);
@@ -112,15 +184,18 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
   const pInt = ctx.cfg.internalPressure;
   const dpSea = pSea - pInt;
 
-  runCompensationDosing(cfg, st, ctx, Math.max(st.qIn, st.qOut) * RHO_NOMINAL);
+  runCompensationDosing(cfg, st, ctx, Math.max(st.qIn, st.qOut) * RHO_NOMINAL, branches);
 
   let strokes = updateValve(cfg.inletValve, st.inlet, dt, hyd) + updateValve(cfg.dischargeValve, st.discharge, dt, hyd);
   cfg.tankValves.forEach((v) => {
     strokes += updateValve(v, st.tankValves[v.id], dt, hyd);
   });
+  for (const b of cfg.heelBranches ?? []) if (st.tankValves[b.valve.id]) strokes += updateValve(b.valve, st.tankValves[b.valve.id], dt, hyd);
   updatePumpSpeed(cfg.pump, st.pump, dt, ctx.busPowered);
 
-  const tanks = cfg.tanks.map((t, i) => ({ cfg: t, st: st.tanks[t.id], valve: st.tankValves[cfg.tankValves[i].id] }));
+  const tanks = branches;
+  // peso do ramal: abertura × capacidade (tubulação dimensionada pelo tanque)
+  const w = (t: CompensationBranch) => t.valve.pos * t.cfg.capacity;
   const fillable = tanks.filter((t) => t.valve.pos > 0.02 && t.st.mass < tankCapacityMass(t.cfg) - 0.5);
   const drainable = tanks.filter((t) => t.valve.pos > 0.02 && t.st.mass > 0.5);
 
@@ -141,29 +216,41 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
   }
 
   let net = mIn - mOut;
-  for (const t of tanks) t.st.flow = 0;
+  for (const t of tanks) { t.st.flow = 0; t.st.transferFlow = 0; }
   if (net > 0) {
-    const wsum = fillable.reduce((a, t) => a + t.valve.pos, 0);
     let placed = 0;
-    for (const t of fillable) {
-      const share = (net * t.valve.pos) / wsum;
-      const room = tankCapacityMass(t.cfg) - t.st.mass;
-      const m = Math.min(share, room);
-      t.st.mass += m;
-      t.st.flow = m / (RHO_NOMINAL * dt);
-      placed += m;
+    // redistribui o que não coube entre os ramais que ainda têm espaço
+    let open = fillable;
+    for (let pass = 0; pass < 3 && open.length > 0 && placed < net - 1e-9; pass++) {
+      const left = net - placed;
+      const wsum = open.reduce((a, t) => a + w(t), 0);
+      for (const t of open) {
+        const share = (left * w(t)) / wsum;
+        const room = tankCapacityMass(t.cfg) - t.st.mass;
+        const m = Math.min(share, room);
+        t.st.mass += m;
+        t.st.flow = (t.st.flow ?? 0) + m / (RHO_NOMINAL * dt);
+        placed += m;
+      }
+      open = open.filter((t) => tankCapacityMass(t.cfg) - t.st.mass > 1e-6);
     }
     if (placed < net) mIn -= net - placed;
     net = placed;
   } else if (net < 0) {
-    const wsum = drainable.reduce((a, t) => a + t.valve.pos, 0);
     let taken = 0;
-    for (const t of drainable) {
-      const share = (-net * t.valve.pos) / wsum;
-      const m = Math.min(share, t.st.mass);
-      t.st.mass -= m;
-      t.st.flow = -m / (RHO_NOMINAL * dt);
-      taken += m;
+    // a bomba aspira dos ramais abertos; um tanque que esvazia deixa a sucção para os outros
+    let open = drainable;
+    for (let pass = 0; pass < 3 && open.length > 0 && taken < -net - 1e-9; pass++) {
+      const left = -net - taken;
+      const wsum = open.reduce((a, t) => a + w(t), 0);
+      for (const t of open) {
+        const share = (left * w(t)) / wsum;
+        const m = Math.min(share, t.st.mass);
+        t.st.mass -= m;
+        t.st.flow = (t.st.flow ?? 0) - m / (RHO_NOMINAL * dt);
+        taken += m;
+      }
+      open = open.filter((t) => t.st.mass > 1e-6);
     }
     if (taken < -net) mOut -= -net - taken;
   }
@@ -173,7 +260,50 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
   st.pump.dp = dpOut;
   st.pump.power = pumpPower(cfg.pump, st.pump.speed, st.qOut, dpOut);
   if (st.dosing && st.dosing.active && st.dosing.phase !== 'alinhando') st.dosing.moved += Math.abs(mIn - mOut);
-  return { seaIn: mIn, seaOut: mOut, strokes, power: st.pump.power };
+  // Resolve o caminho pela VDC e pela bomba antes de movimentar qualquer massa.
+  const tr = st.transfer;
+  let transferPower = 0;
+  if (cfg.transfer && tr) {
+    // Recupera comandos de centro fechado salvos na versão anterior com VDC 4/3.
+    // A 4/2 só admite os dois fins de curso; retomar um arquivo não parte a bomba.
+    if (tr.direction.cmd !== 0 && tr.direction.cmd !== 1) {
+      tr.direction.cmd = tr.direction.pos > 0.5 ? 1 : 0;
+      tr.pump.cmd = false;
+      tr.valveA.cmd = tr.valveB.cmd = 0;
+    }
+    strokes += updateValve(cfg.transfer.isolationValve, tr.valveA, dt, hyd);
+    strokes += updateValve(cfg.transfer.isolationValve, tr.valveB, dt, hyd);
+    strokes += updateValve(cfg.transfer.directionValve, tr.direction, dt, hyd);
+    updatePumpSpeed(cfg.transfer.pump, tr.pump, dt, ctx.busPowered);
+    const endpoints = branches;
+    const circuit = buildCompensationCircuit(st, endpoints.map(t => t.cfg.id));
+    const a = endpoints.find(t => t.cfg.id === circuit.route?.source);
+    const b = endpoints.find(t => t.cfg.id === circuit.route?.destination);
+    tr.pump.deadhead = tr.pump.speed > 0.05 && (!circuit.route || !!b && b.st.mass >= tankCapacityMass(b.cfg));
+    tr.pump.noSuction = tr.pump.speed > 0.05 && !!a && a.st.mass <= 0.5;
+    let q = 0;
+    let head = 0;
+    if (a && b && circuit.route) {
+      head = RHO_NOMINAL * ctx.env.cfg.gravity * (levelDepth(a.cfg, a.st, ctx) - topDepth(b.cfg, ctx));
+      if (tr.pump.speed > 0 && !tr.pump.deadhead && !tr.pump.noSuction) {
+        q = pumpFlowWithLine(cfg.transfer.pump, tr.pump.speed, head, cfg.transfer.lineLoss) * Math.min(1, Math.min(tr.valveA.pos, tr.valveB.pos) / 0.3);
+        const m = Math.max(0, Math.min(q * RHO_NOMINAL * dt, a.st.mass, tankCapacityMass(b.cfg) - b.st.mass));
+        a.st.mass -= m;
+        b.st.mass += m;
+        q = m / (RHO_NOMINAL * dt);
+        a.st.flow = (a.st.flow ?? 0) - q;
+        a.st.transferFlow = -q;
+        b.st.flow = (b.st.flow ?? 0) + q;
+        b.st.transferFlow = q;
+      }
+    }
+    tr.flow = q === 0 ? 0 : circuit.route?.source === tr.source ? q : -q;
+    tr.pump.flow = q;
+    tr.pump.dp = Math.max(0, head) + cfg.transfer.lineLoss * (q / cfg.transfer.pump.ratedFlow) ** 2;
+    tr.pump.power = pumpPower(cfg.transfer.pump, tr.pump.speed, q, tr.pump.dp);
+    transferPower = tr.pump.power;
+  }
+  return { seaIn: mIn, seaOut: mOut, strokes, power: st.pump.power + transferPower };
 }
 
 // ------------------------------------------------------------------ transferência

@@ -41,10 +41,9 @@ export const SCENARIOS: ScenarioDef[] = [
   {
     id: 'superficie',
     name: 'Superfície — pronto para imergir',
-    description:
-      'Submarino flutuando com os tanques de lastro principal (TLP) soprados, suspiros fechados, compensação pré-calculada para ~40 m. Ponto de partida da sequência completa de mergulho.',
+    description: 'Submarino flutuando com os tanques de lastro principal (TLP) soprados, suspiros fechados, compensação pré-calculada para ~40 m. Ponto de partida da sequência completa de mergulho.',
     objectives: [
-      'Ordenar velocidade (ex.: 6 nós) e abrir os suspiros dos TLP',
+      'Ordenar velocidade (ex.: 6 nós (11.1 km/h)) e abrir os suspiros dos TLP',
       'Acompanhar o alagamento e a perda de flutuabilidade de reserva',
       'Usar lemes de vante/ré para estabelecer a profundidade e fechar os suspiros',
       'Ajustar compensação e trim até o equilíbrio hidrostático',
@@ -55,7 +54,7 @@ export const SCENARIOS: ScenarioDef[] = [
   },
   {
     id: 'superficie_avante',
-    name: 'Superfície — navegando a 8 nós',
+    name: 'Superfície — navegando a 8 nós (14.8 km/h)',
     description: 'Navegação na superfície com propulsão elétrica; resistência de ondas aumentada próxima à superfície.',
     objectives: ['Observar a velocidade máxima reduzida na superfície', 'Executar o mergulho em movimento'],
     pose: { depth: 2.2, heading: 45, speed: 8 * KNOT },
@@ -64,7 +63,7 @@ export const SCENARIOS: ScenarioDef[] = [
   },
   {
     id: 'submerso_50',
-    name: 'Submerso equilibrado a 50 m — 6 nós',
+    name: 'Submerso equilibrado a 50 m — 6 nós (11.1 km/h)',
     description: 'Condição de cruzeiro submersa com flutuabilidade neutra, trim nulo e banda nula.',
     objectives: ['Alterar rumo com o leme de direção', 'Testar trim por pesos × atitude por lemes', 'Ensaiar o piloto automático'],
     pose: { depth: 46.9, heading: 0, speed: 6 * KNOT },
@@ -74,8 +73,7 @@ export const SCENARIOS: ScenarioDef[] = [
   {
     id: 'pairando',
     name: 'Pairando a 80 m — sem seguimento',
-    description:
-      'Velocidade nula: lemes sem efetividade. A profundidade só pode ser controlada pelo equilíbrio estático (compensação) — demonstra a diferença entre controle hidrodinâmico e hidrostático.',
+    description: 'Velocidade nula: lemes sem efetividade. A profundidade só pode ser controlada pelo equilíbrio estático (compensação) — demonstra a diferença entre controle hidrodinâmico e hidrostático.',
     objectives: ['Tentar controlar a profundidade com os lemes (sem efeito)', 'Admitir/esgotar água de compensação e observar a tendência vertical'],
     pose: { depth: 76.9, heading: 180, speed: 0 },
     submerged: true,
@@ -109,8 +107,7 @@ export const SCENARIOS: ScenarioDef[] = [
   {
     id: 'termoclina',
     name: 'Termoclina acentuada — 45 m',
-    description:
-      'Camada de transição térmica a 60 m (26 °C → 8 °C). Ao atravessá-la, a densidade aumenta e o submarino ganha empuxo: o equilíbrio ajustado acima da camada deixa de valer abaixo dela.',
+    description: 'Camada de transição térmica a 60 m (26 °C → 8 °C). Ao atravessá-la, a densidade aumenta e o submarino ganha empuxo: o equilíbrio ajustado acima da camada deixa de valer abaixo dela.',
     objectives: ['Descer lentamente através da termoclina', 'Observar a variação de ρ e da flutuabilidade líquida', 'Recompensar abaixo da camada'],
     env: (c) => {
       c.environment.surfaceTemperature = 26;
@@ -128,6 +125,7 @@ export const SCENARIOS: ScenarioDef[] = [
     description: 'Operação próxima do fundo com relevo ondulado. Monitore o ecobatímetro e os alarmes de aproximação.',
     objectives: ['Manter altitude segura sobre o fundo', 'Reagir aos alarmes de proximidade'],
     env: (c) => {
+      c.environment.bottom.mode = 'relevo';
       c.environment.bottom.baseDepth = 95;
       c.environment.bottom.roughness = 12;
       c.environment.bottom.slopeNorth = 25;
@@ -149,8 +147,7 @@ export const SCENARIOS: ScenarioDef[] = [
   {
     id: 'alagamento',
     name: 'Emergência: alagamento a 120 m',
-    description:
-      'Submerso a 120 m a 6 nós. Rombo fictício de 20 cm² na praça de máquinas. Avaliar a taxa de entrada de água e executar a subida de emergência (sopro dos TLP, lemes a subir, velocidade).',
+    description: 'Submerso a 120 m a 6 nós (11.1 km/h). Rombo fictício de 20 cm² na praça de máquinas. Avaliar a taxa de entrada de água e executar a subida de emergência (sopro dos TLP, lemes a subir, velocidade).',
     objectives: ['Identificar o alarme de alagamento', 'Executar sopro de emergência e lemes a subir', 'Atingir a superfície e observar a redução da vazão com a profundidade'],
     pose: { depth: 116.9, heading: 300, speed: 6 * KNOT },
     submerged: true,
@@ -160,6 +157,84 @@ export const SCENARIOS: ScenarioDef[] = [
     },
   },
 ];
+
+/**
+ * CENÁRIOS COSTEIROS (acrescentados; usam a costa da região de Sepetiba com
+ * efeito físico e uma posição geográfica própria). Os cenários acima ficam
+ * como eram (mar aberto, sem costa), a menos que o operador ligue a costa.
+ */
+SCENARIOS.push(
+  {
+    id: 'base_itaguai',
+    name: 'Saída da base — Estaleiro e Base Naval de Itaguaí',
+    description:
+      'Na superfície, no centro da bacia do Estaleiro e Base Naval da Ilha da Madeira (Itaguaí), aproado à entrada (214°). Aterro, cais, quebra-mares e shiplift estão na física e no 3D; a bacia e a entrada são dragadas (16 m, estimado) e a baía tem fundo de 30 m. Fora da área dragada o fundo sobe junto às estruturas (encalhe).',
+    objectives: [
+      'Reconhecer no 3D e no mapa o aterro, os quebra-mares, o shiplift e os galpões',
+      'Sair da bacia com pouca velocidade pela entrada entre os quebra-mares',
+      'Acompanhar o ecobatímetro: bacia dragada, fundo subindo junto aos quebra-mares',
+    ],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -22.93041, lon: -43.85273 }, coast: true, shelfWidth: 400 };
+      c.environment.bottom = { ...c.environment.bottom, mode: 'uniforme', baseDepth: 30 };
+    },
+    pose: { depth: 2.2, heading: 214, speed: 0 },
+    submerged: false,
+    compensationDepth: 37,
+  },
+  {
+    id: 'restinga',
+    name: 'Aproximação da Restinga da Marambaia — fundo subindo',
+    description:
+      'Submerso a ~40 m, 5 nós (9.3 km/h), rumo norte, ~2,5 km ao sul da Restinga da Marambaia. A faixa costeira de 3 km faz o fundo subir da profundidade de mar aberto até a orla: o ecobatímetro e os alarmes de altitude avisam antes do encalhe.',
+    objectives: ['Acompanhar o ecobatímetro e a altitude', 'Reagir aos alarmes de proximidade do fundo (guinar ou subir)', 'Comparar o mapa tático, a costa no 3D e a profundidade do fundo'],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -23.087, lon: -43.78 }, coast: true, shelfWidth: 3000 };
+    },
+    pose: { depth: 36.9, heading: 0, speed: 5 * KNOT },
+    submerged: true,
+    compensationDepth: 36.9,
+  },
+);
+
+/**
+ * CENÁRIOS DO RIO DE JANEIRO (acrescentados): costa da Baía de Guanabara e da
+ * orla do Leme ao Pontal, com relevo e imagem de satélite no 3D.
+ */
+SCENARIOS.push(
+  {
+    id: 'baia_guanabara',
+    name: 'Baía de Guanabara — rumo à barra (Pão de Açúcar e Cristo à vista)',
+    description:
+      'Na superfície, parado no fundeadouro em frente à Ilha Fiscal e à Escola Naval, aproado à barra (160°). À frente, o Pão de Açúcar e a Fortaleza de Santa Cruz; a boreste, o Corcovado com o Cristo Redentor; a ré, a Ponte Rio–Niterói e a Base de Submarinos da Ilha de Mocanguê. Costa ligada (fundo de 25 m na baía, subindo junto à orla).',
+    objectives: [
+      'Reconhecer no 3D a orla, o Pão de Açúcar, o Corcovado com o Cristo, Niterói e a ponte',
+      'Sair pela barra entre o Pão de Açúcar e Santa Cruz acompanhando o ecobatímetro',
+      'Subir à vela ou olhar pelo periscópio e identificar os navios da baía',
+    ],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -22.905, lon: -43.152 }, coast: true, shelfWidth: 400 };
+      c.environment.bottom = { ...c.environment.bottom, mode: 'uniforme', baseDepth: 25 };
+    },
+    pose: { depth: 2.2, heading: 160, speed: 0 },
+    submerged: false,
+    compensationDepth: 20,
+  },
+  {
+    id: 'orla_copacabana',
+    name: 'Orla do Rio — cota periscópica em frente a Copacabana',
+    description:
+      'Submerso na cota periscópica (~15 m de quilha), 4 nós (7.4 km/h), rumo oeste, cerca de 2 km ao largo de Copacabana. Pelo periscópio: o Leme, Copacabana, Ipanema, o Morro Dois Irmãos e a Pedra da Gávea; ao norte, o Corcovado com o Cristo.',
+    objectives: ['Içar o periscópio e reconhecer a orla do Leme ao Pontal', 'Manter a cota periscópica com o mar da orla', 'Acompanhar o fundo subindo ao se aproximar da praia'],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -22.99, lon: -43.17 }, coast: true, shelfWidth: 1500 };
+      c.environment.bottom = { ...c.environment.bottom, mode: 'uniforme', baseDepth: 30 };
+    },
+    pose: { depth: 11.9, heading: 270, speed: 4 * KNOT },
+    submerged: true,
+    compensationDepth: 11.9,
+  },
+);
 
 export function scenarioById(id: string): ScenarioDef {
   return SCENARIOS.find((s) => s.id === id) ?? SCENARIOS[0];
@@ -203,5 +278,7 @@ export function buildScenario(id: string, baseConfig?: SimConfig, opts: Scenario
   engine.state.autopilot.depthSet = Math.max(0, Math.round(engine.outputs.depthKeel));
   engine.state.autopilot.headingSet = Math.round(engine.outputs.euler.heading);
   engine.state.trimRef = { a: engine.state.trim.tankA.mass, b: engine.state.trim.tankB.mass };
+  // a cena desenha a pose já assentada (antes do 1º passo) e não a da construção
+  engine.resetInterpolation();
   return engine;
 }

@@ -63,7 +63,7 @@ c(s) = (2/3)·(r² − s²)^{3/2} / A          (centróide ao longo de n̂)
 V = Σ A_i·Δx ;   B = Σ A_i·Δx·c_i / V
 ```
 
-O cálculo é exato para fatias normais ao eixo, em qualquer pitch, banda ou calado. Com a mesma rotina, ele cobre a flutuação na superfície (estabilidade de plano de flutuação) e a condição submersa (estabilidade por BG).
+A seção de cada fatia é calculada analiticamente (exata para fatias normais ao eixo, em qualquer pitch, banda ou calado); o casco inteiro é uma quadratura longitudinal de 100 fatias (volume com erro ≈ 0,009 % frente à integral analítica), não uma solução exata. Com a mesma rotina, ele cobre a flutuação na superfície (estabilidade de plano de flutuação) e a condição submersa (estabilidade por BG).
 
 ### 3.3 Compressibilidade do casco
 
@@ -101,11 +101,12 @@ Os itens são: peso leve, cargas variáveis, combustível compensado, ar AP, ág
 - Termos de Coriolis e centrípetos (lado direito):
 
 ```
-F = −m(ω × v) + a₁ × ω ,            a₁ = (A₁₁u, A₂₂v, A₃₃w)
+F = −m(ω × v) + k_Munk·(a₁ × ω) ,            a₁ = (A₁₁u, A₂₂v, A₃₃w)
 M = −ω × (Iω) + k_Munk·(a₁ × v) + b₁ × ω ,   b₁ = (A₄₄p, A₅₅q, A₆₆r)
 ```
 
 - O termo a₁ × v contém o **momento de Munk**, (A₃₃ − A₁₁)·u·w em pitch e (A₁₁ − A₂₂)·u·v em guinada. Ele é instabilizante; k_Munk ≈ 0,75 representa a redução viscosa.
+- k_Munk multiplica os **dois** termos do acoplamento translação–rotação (força a₁ × ω e momento a₁ × v). Assim o bloco fora da diagonal de C_A continua antissimétrico e a potência desse par é nula: v·F + ω·M = 0 para quaisquer velocidades (teste `inertialCoupling`). Aplicar o fator só ao momento criaria energia (≈ 6,7 kW com u = 4 m/s, w = 0,2 m/s, q = −0,02 rad/s).
 - Integração **RK4** com passo fixo. Massas e posições de lemes ficam congeladas dentro do passo (separação de operadores).
 
 ## 5. Forças hidrodinâmicas (`physics/hydrodynamics.ts`)
@@ -138,7 +139,8 @@ Para cada superfície, o escoamento local é v_loc = v + ω × r:
 α = δ + atan2(v_n, v_x)                       (reduzido a [−90°, 90°]; placa fina)
 C_Lα = 2π·AR / (2 + √(AR² + 4))               (Helmbold)
 C_L = C_Lα·α (|α| ≤ α_estol); transição de 8°; depois 0,9·sen 2α
-C_D = 0,008 + C_L²/(π·AR·0,85) + 1,1·sen²α
+C_D = 0,008 + C_L²/(π·AR·0,85) + 1,1·sen²α·f_sep(α)
+f_sep = 0,15 + 0,85·S(t) ,  t = clamp((|α| − 0,30)/0,10, 0, 1) ,  S(t) = 3t² − 2t³   (transição suave para o estol)
 L = ½·ρ·|V|²·A·C_L ,   D = ½·ρ·|V|²·A·C_D
 ```
 
@@ -184,7 +186,9 @@ Algumas consequências emergem do modelo: o alagamento é limitado pela saída d
 p_grupo = m·R·T_ar / V_grupo
 ```
 
-Os grupos abertos se equalizam no coletor. O compressor adiciona ṁ_c com tomada de ar disponível e consome potência.
+Os grupos abertos se equalizam somente no coletor de seu circuito (normal ou emergência). Não há equalização nem consumo cruzado entre os circuitos. Cada TLP recebe ar por válvulas independentes, com o mesmo modelo de orifício compressível; o consumo de cada circuito é limitado à massa de seus bancos abertos para conservar massa mesmo ao esgotar as reservas.
+
+O compressor adiciona no máximo ṁ_c·Δt ao conjunto de bancos por linhas com retenção, inclusive com os isolamentos de sopro fechados, sem ultrapassar a pressão máxima de cada banco ou a do compressor. A recarga é distribuída proporcionalmente à massa faltante. Durante o sopro de emergência há solicitação automática do compressor e prioridade às ampolas dedicadas; a operação exige tomada de ar disponível e energia. A massa admitida e a potência entram nos balanços do motor.
 
 ## 8. Compensação, trim e banda (`systems/internalTanks.ts`)
 
@@ -193,12 +197,16 @@ Os grupos abertos se equalizam no coletor. O compressor adiciona ṁ_c com tomad
 ```
 Admissão:     Q = min(C_d·A·a·√(2Δp/ρ), Q_reg) ,   Δp = p_mar − p_interna
 Descarga:     Q = s·Q₀·√(1 − Δp/(s²·Δp₀))           (curva da bomba, leis de afinidade)
-Transferência: Q² (1 + Q₀²k/H) = s²Q₀² (1 − Δp_est/H) ,  Δp_est = ρ·g·(z_nível,origem − z_topo,destino)
+Transferência: Q² (1 + Q₀²k/Δp₀) = s²Q₀² (1 − Δp_est/H) = Q₀² (s² − Δp_est/Δp₀) ,  Δp_est = ρ·g·(z_nível,origem − z_topo,destino)
 Potência:     P = Q·Δp/η + P₀·s
 Previsão estática:  Δθ ≈ atan(Δm·g·Δx / (W·BG)) ,  Δφ ≈ atan(Δm·g·Δy / (W·BG))
 ```
 
 Válvulas: dx/dt = sinal(x_cmd − x)/t_curso, com atuação hidráulica disponível. Bombas: rotação em rampa (t_partida).
+
+Forma dos tanques internos (`systems/tankShape.ts`): a seção é o retângulo largura × altura recortado pelo círculo do casco resistente (raio R), prismática ao longo de x com L = V_tanque / A_seção. Nível e centroide da água por faixas horizontais: A(h) = Σ w(z)·dz do fundo ao nível, ȳ = Σ w·y_m·dz / A, z̄ = Σ w·z·dz / A. Nos tanques de banda o centroide se desloca para o costado ao encher.
+
+Compensação com três tanques num coletor único (TC central + TB-BB e TB-BE, que também são os tanques de banda): a vazão líquida do coletor (admissão − descarga) divide-se pelos ramais abertos na proporção aᵢ·Vᵢ (abertura × capacidade); a parte que um tanque cheio (ou vazio) não aceita passa aos demais. Como os três tanques estão na posição longitudinal de G, a compensação não altera o trim; os ramais laterais abertos por igual não alteram a banda.
 
 ## 9. Propulsão (`systems/propulsion.ts`)
 
@@ -243,10 +251,19 @@ Navegação estimada:  ṗ_DR = R(φ_med, θ_med, ψ_med)·v_Doppler
 
 ```
 δ_r = K·[Kp·e_ψ + Ki·∫e_ψ − Kd·r]
-θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)
-δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q] ;   δ_vante = K·[Kb·e_z + Kbd·ż]
-K = min(4, (U₀/U)²)   (escalonamento pela efetividade ∝ U²);   autoridade limitada a ±20° (abaixo do estol)
+θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)          (∫e_z só com |e_z| < 3 m)
+δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q]                 (|δ_ré| ≤ 20°)
+δ_vante = K·[Kb·(1 + L)·sat(e_z, ±b)·max(w, a) + Kbd·ż·w]   (|δ_vante| ≤ 10° + L·10°)
+w = 1 para |e_z| ≤ b, → 0 linearmente até |e_z| = b + f ;   a = a₀ + L·(1 − a₀)
+θ_max = 10,5° − L·(10,5° − 4°) ;   L = sat((U_alto − U)/(U_alto − U_baixo), 0, 1)
+K = min(4, (U₀/U)²)   (escalonamento pela efetividade ∝ U²)
 ```
+
+**Divisão do trabalho entre os lemes.** A mudança de cota é feita pela cascata dos **lemes de ré**: o erro de profundidade vira um pitch ordenado (até ±10,5°) e é o ângulo — a sustentação do casco inclinado — que leva o submarino à nova cota. Os lemes de ré têm momento de caturro ~6× maior que os de vela (21 m² a 31,5 m × 11 m² a 10,5 m). Os **lemes de vela** (vante) fazem só o **ajuste fino**: perto da cota (|e_z| ≤ b = 3 m, desaparecendo até 8 m) corrigem pequenos erros e freiam a chegada com força vertical direta; na travessia ficam numa pequena ajuda constante (a₀ = 0,7 de K·Kb·b, ≈ 3,5° a 6 nós), com autoridade de ±10° acima de ~4 nós.
+
+**Baixa velocidade.** Perto da velocidade crítica dos lemes de ré (~3 nós neste modelo) a força direta do leme de ré anula a sustentação que o ângulo produz no casco, e eles deixam de mudar a cota. Entre U_alto = 2,0 m/s (~3,9 nós) e U_baixo = 1,6 m/s (~3,1 nós) a fração L passa de 0 a 1 e transfere a cota para os lemes de vela (ganho dobrado, ajuda total e autoridade de 20°), reduzindo o pitch ordenado para 4°.
+
+Por que a versão anterior usava demais os lemes de vela: o termo direto δ_vante = K·[Kb·e_z + Kbd·ż] recebia o erro de profundidade inteiro, sem limite (1°/m × K, com K ≈ 1,7–2,2 a 5–6 nós), e saturava em 20° em qualquer mudança acima de ~10 m, enquanto os lemes de ré só executavam um pitch limitado a 8°. Como os lemes de vela saturados já davam boa parte do momento de proa, a malha de pitch chegava a θ_max com os lemes de ré a 4–5° — eles só limitavam o ângulo. Além disso, o integral de profundidade acumulava durante toda a aproximação (|e_z| < 15 m), deixando um sobrepasso de ~1 m que levava mais de 5 min para sumir.
 
 Os controladores usam as leituras dos sensores. A transferência é sem salto (bumpless) e o anti-windup usa integração condicional.
 
@@ -255,18 +272,21 @@ Os controladores usam as leituras dos sensores. A transferência é sem salto (b
 Espectro de Pierson–Moskowitz (Hs, Tp do estado do mar), discretizado em N = 24 componentes de amplitude aᵢ = √(2 S(ωᵢ) Δω), direção θᵢ com espalhamento cos², fase aleatória (semente fixa). Águas profundas: kᵢ = ωᵢ²/g.
 
 ```
-η(x,t)   = Σ aᵢ cos(kᵢ·x − ωᵢ t + φᵢ)
-u(x,z,t) = Σ aᵢ ωᵢ e^(−kᵢ z) [cos(·) k̂ᵢ , sin(·)]       (z positivo para baixo)
-a = ∂u/∂t ;  p_d = ρ g Σ aᵢ e^(−kᵢ z) cos(·)
+η(x,t)   = Σ aᵢ cos(kᵢ·x − ωᵢ t + φᵢ)                      (η positivo para cima)
+u_h(x,z,t) = Σ aᵢ ωᵢ e^(−kᵢ z) cos(·) k̂ᵢ                    (horizontal)
+u_z(x,z,t) = −Σ aᵢ ωᵢ e^(−kᵢ z) sin(·)                       (NED: z positivo para baixo)
+a = ∂u/∂t ;  p̃_d = g Σ aᵢ e^(−kᵢ z) cos(·)   [m²/s²; a pressão dinâmica é ρ·p̃_d, em Pa]
 ```
 
-Em cada fatia do casco: o empuxo usa a imersão relativa à superfície local (z − η); o arrasto transversal usa a velocidade relativa à orbital; e a força de inércia é
+Em cada fatia do casco: o empuxo usa a profundidade relativa à superfície local, **z + η** (η para cima, z para baixo); o arrasto transversal usa a velocidade relativa à orbital; e a força de inércia é
 
 ```
-F = (Ca + f_FK) ρ A dx a_água ,  Ca = 1 ,  f_FK = imersão da fatia
+F = (Ca + f_FK) ρ A dx a_água ,  Ca = 1 ,  f_FK = clamp((z_fatia − r)/R, 0, 1)
 ```
 
-O campo é avaliado uma vez por passo (no meio do passo). A pressão na quilha soma ρ p_d, e o snorkel compara a cabeça com a elevação local. O oceano 3D (shader WebGL) usa exatamente as mesmas componentes e fases. Verificado no teste V13 (decaimento e^(−kz)).
+f_FK **não** é a fração imersa: é uma rampa empírica (0 com a fatia tocando a superfície, 1 a partir de um raio do casco abaixo dela), porque perto da superfície o efeito da onda já entra pela η local no empuxo.
+
+O campo é avaliado uma vez por passo (no meio do passo), na pose do início do passo; é um acoplamento aproximado, não preserva a ordem 4 do RK4. A pressão na quilha soma ρ·p̃_d (uma única multiplicação por ρ), e o snorkel compara a cabeça com a elevação local. O oceano 3D (shader WebGL) usa exatamente as mesmas componentes e fases. Verificado no teste V13 (decaimento e^(−kz)).
 
 ## 15. Balanços de verificação
 

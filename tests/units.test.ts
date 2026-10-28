@@ -11,7 +11,7 @@ import { newPump, newValve } from '../src/sim/core/state';
 import { buildHullGeometry } from '../src/sim/physics/hullGeometry';
 import { computeHydrostatics } from '../src/sim/physics/hydrostatics';
 import { defaultVessel } from '../src/sim/config/defaultVessel';
-import { liftCoefficient, liftCurveSlope, finForce } from '../src/sim/physics/hydrodynamics';
+import { dragCoefficient, liftCoefficient, liftCurveSlope, finForce, separationFactor } from '../src/sim/physics/hydrodynamics';
 
 describe('Matemática', () => {
   it('quatérnio ↔ Euler (ida e volta)', () => {
@@ -77,6 +77,39 @@ describe('Componentes de fluidos', () => {
     expect(pumpFlow(cfg, 1, cfg.shutoffPressure * 0.5)).toBeLessThan(cfg.ratedFlow);
     expect(pumpFlow(cfg, 1, cfg.shutoffPressure)).toBe(0);
     expect(pumpFlowWithLine(cfg, 1, 0, 1e5)).toBeLessThan(cfg.ratedFlow);
+  });
+  it('bomba com perda na linha: a vazão é a interseção das curvas em qualquer rotação (auditoria A07)', () => {
+    const v = defaultVessel();
+    for (const [cfg, loss] of [
+      [v.trim.pump, v.trim.lineLoss],
+      [v.compensation.transfer!.pump, v.compensation.transfer!.lineLoss],
+    ] as const) {
+      const k = loss / (cfg.ratedFlow * cfg.ratedFlow);
+      for (const s of [0.25, 0.5, 0.75, 1]) {
+        for (const dpStatic of [-0.1 * cfg.shutoffPressure, 0, 0.1 * cfg.shutoffPressure * s * s]) {
+          const q = pumpFlowWithLine(cfg, s, dpStatic, loss);
+          expect(q).toBeGreaterThan(0);
+          const pumpHead = s * s * cfg.shutoffPressure * (1 - (q / (s * cfg.ratedFlow)) ** 2);
+          if (q < 1.25 * s * cfg.ratedFlow - 1e-12) expect(pumpHead).toBeCloseTo(dpStatic + k * q * q, 3);
+        }
+        // contrapressão acima do shutoff da rotação: sem vazão
+        expect(pumpFlowWithLine(cfg, s, s * s * cfg.shutoffPressure * 1.01, loss)).toBe(0);
+      }
+    }
+  });
+  it('coeficiente de arrasto do leme é contínuo em toda a faixa de ângulo (auditoria A10)', () => {
+    for (const fin of defaultVessel().fins) {
+      let prev = dragCoefficient(0, liftCoefficient(0, fin.aspectRatio, fin.stallAngle), fin.aspectRatio);
+      for (let a = 1e-4; a <= 1.4; a += 1e-4) {
+        const cd = dragCoefficient(a, liftCoefficient(a, fin.aspectRatio, fin.stallAngle), fin.aspectRatio);
+        expect(Math.abs(cd - prev)).toBeLessThan(2e-3);
+        expect(cd).toBeGreaterThan(0);
+        prev = cd;
+      }
+    }
+    expect(separationFactor(0.2)).toBeCloseTo(0.15, 12);
+    expect(separationFactor(0.5)).toBeCloseTo(1, 12);
+    expect(separationFactor(-0.5)).toBeCloseTo(1, 12);
   });
   it('válvula percorre o curso no tempo configurado e não se move travada ou sem hidráulica', () => {
     const cfg = { id: 'x', name: 'x', strokeTime: 2, hydraulic: true };

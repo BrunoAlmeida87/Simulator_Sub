@@ -8,13 +8,13 @@ import type { Kind } from '../components/Readout';
 import { valveStatus, pumpStatus, pumpFlow, pumpPower } from '../../sim/systems/components';
 import { ballastFillStatus, gasMassFlux } from '../../sim/systems/ballast';
 import { bankPressure } from '../../sim/systems/hpAir';
-import { tankVolume } from '../../sim/systems/internalTanks';
+import { compensationBranches, compensationWater, tankVolume } from '../../sim/systems/internalTanks';
 import { SENSOR_DEFS, RHO_CAL } from '../../sim/systems/sensors';
 import { R_AIR, RHO_NOMINAL } from '../../sim/core/context';
 import { liftCurveSlope } from '../../sim/physics/hydrodynamics';
 import { RAD } from '../../sim/core/math';
-import { toKnots, KNOT } from '../../sim/units';
-import { fmt, fmtMass, fmtPower, fmtForce, fmtMoment } from '../format';
+import { KNOT } from '../../sim/units';
+import { fmt, fmtMass, fmtPower, fmtForce, fmtMoment, fmtSpeed } from '../format';
 
 export interface InspVar {
   name: string;
@@ -90,6 +90,7 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Vazão de ar (suspiro / sopro / escape)', `${st.mdotVent.toFixed(2)} / ${st.mdotBlow.toFixed(2)} / ${st.mdotSpill.toFixed(2)} kg/s`),
           V('Suspiro', `${valveStatus(st.vent)} (${(st.vent.pos * 100).toFixed(0)} %)`, 'MED'),
           V('Sopro', `${valveStatus(st.blow)} (${(st.blow.pos * 100).toFixed(0)} %)`, 'MED'),
+          V('Sopro de emergência', `${valveStatus(st.emergencyBlow)} · ${st.mdotEmergencyBlow.toFixed(2)} kg/s`, 'MED'),
         ],
         state: `${ballastFillStatus(t, st)}${st.ventLeak > 0 ? ' — VAZAMENTO NO SUSPIRO' : ''}${st.vent.stuck || st.blow.stuck ? ' — VÁLVULA TRAVADA' : ''}`,
         influence: `Cada m³ de água no TLP adiciona ${(o.rhoLocal / 1000).toFixed(3)} t ao peso; como o volume do tanque já está no envelope de deslocamento, o TLP cheio torna o submarino neutro e o TLP vazio dá flutuabilidade positiva. Posição longitudinal x = ${t.center.x} m ⇒ alagamento assimétrico gera momento de trim.`,
@@ -115,11 +116,11 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
       const pExt = e.env.pressureAt(o.depthKeel);
       const totalMbt = v.ballast.tanks.reduce((a, t) => a + t.volume, 0);
       const need = (pExt * totalMbt) / (R_AIR * T);
-      const avail = v.hpAir.banks.reduce((a, x) => a + s.hpAir.banks[x.id].mass, 0);
+      const avail = v.hpAir.banks.filter((x) => (x.purpose ?? 'normal') === (b.purpose ?? 'normal')).reduce((a, x) => a + s.hpAir.banks[x.id].mass, 0);
       return {
         title: 'Ar comprimido de alta pressão — ' + b.name,
-        func: 'Armazena ar para soprar os TLP (e, em fases futuras, outros consumidores). Recarregado pelo compressor apenas com tomada de ar disponível.',
-        vars: [V('Pressão', `${(p / 1e5).toFixed(1)} bar`, 'MED'), V('Massa de ar', `${st.mass.toFixed(0)} kg`), V('Volume hidráulico', `${b.volume} m³`), V('Válvula de isolamento', valveStatus(st.valve), 'MED'), V('Pressão do coletor', `${o.hpManifoldBar.toFixed(1)} bar`, 'MED')],
+        func: b.purpose === 'emergency' ? 'Ampolas exclusivas do sopro de emergência, na mesma pressão e com menor volume que os bancos normais. Circuito independente; compressor automático durante a emergência com tomada de ar e energia.' : 'Armazena ar para o sopro normal dos TLP em circuito independente da reserva de emergência. Recarregado pelo compressor com tomada de ar e energia.',
+        vars: [V('Pressão', `${(p / 1e5).toFixed(1)} bar`, 'MED'), V('Massa de ar', `${st.mass.toFixed(0)} kg`), V('Volume hidráulico', `${b.volume} m³`), V('Válvula de isolamento', valveStatus(st.valve), 'MED'), V('Pressão do coletor', `${(b.purpose === 'emergency' ? s.hpAir.emergencyManifoldPressure / 1e5 : o.hpManifoldBar).toFixed(1)} bar`, 'MED')],
         state: st.valve.pos > 0.5 ? 'Conectado ao coletor' : 'Isolado',
         influence: 'A vazão de sopro é proporcional à pressão do coletor (escoamento crítico); quanto mais fundo, maior a massa de ar necessária para expulsar o mesmo volume de água.',
         equations: ['p = m·R·T / V', 'ṁ (crítico) = C_d·A·p₀·√(γ/(R·T))·(2/(γ+1))^((γ+1)/(2(γ−1)))'],
@@ -134,14 +135,15 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
       const dp = Math.max(0, e.env.pressureAt(zc) - v.internalPressure);
       const qp = pumpFlow(c.pump, 1, dp);
       const pp = pumpPower(c.pump, 1, qp, dp);
-      const total = Object.values(st.tanks).reduce((a, t) => a + t.mass, 0);
+      const total = compensationWater(c, st, v.heel, s.heel);
+      const brs = compensationBranches(c, st, v.heel, s.heel);
       const vt = terminalVz(e, 500);
       return {
         title: sub === 'pump' ? c.pump.name : sub === 'inlet' ? c.inletValve.name : sub === 'discharge' ? c.dischargeValve.name : 'Sistema de compensação de peso',
-        func: 'Ajusta a MASSA total do submarino submerso trocando água com o mar, para obter equilíbrio hidrostático (flutuabilidade neutra). Diferente do controle de profundidade pelos lemes, atua mesmo sem velocidade.',
+        func: 'Ajusta a MASSA total do submarino submerso trocando água com o mar, para obter equilíbrio hidrostático (flutuabilidade neutra). Diferente do controle de profundidade pelos lemes, atua mesmo sem velocidade. Conjunto de três tanques num coletor único: o central (TC, sob o centro de gravidade) e os dois de banda (TB-BB e TB-BE, ao lado dele), que também recebem e devolvem água do mar pelos ramais VC-BB e VC-BE.',
         vars: [
-          V('Água de compensação', `${(total / 1000).toFixed(3)} t`, 'MED'),
-          ...c.tanks.map((t) => V(t.name, `${tankVolume(st.tanks[t.id]).toFixed(3)} / ${t.capacity} m³`, 'MED')),
+          V('Água de compensação (TC + TB)', `${(total / 1000).toFixed(3)} t`, 'MED'),
+          ...brs.map((b) => V(b.cfg.name, `${tankVolume(b.st).toFixed(3)} / ${b.cfg.capacity} m³ — ${b.valveId} ${valveStatus(b.valve)}`, 'MED')),
           V('Admissão', `${(st.qIn * 1000).toFixed(2)} L/s — ${valveStatus(st.inlet)}`, 'MED'),
           V('Descarga', `${(st.qOut * 1000).toFixed(2)} L/s — ${valveStatus(st.discharge)}`, 'MED'),
           V('Bomba', `${pumpStatus(st.pump, s.electrical.energized)} · ${(st.pump.speed * 100).toFixed(0)} % · ${fmtPower(st.pump.power)}`, 'MED'),
@@ -149,7 +151,8 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Flutuabilidade líquida', fmtMass(o.netBuoyancyKg)),
         ],
         state: st.dosing?.active ? `Sequência ${st.dosing.mode}: ${st.dosing.phase}` : 'Manual',
-        influence: 'Admitir água aumenta o peso (tendência de descer); esgotar reduz (tendência de subir). Os tanques ficam perto de G para alterar pouco o trim.',
+        influence:
+          'Admitir água aumenta o peso (tendência de descer); esgotar reduz (tendência de subir). Os três tanques ficam na posição longitudinal de G, logo não alteram o trim. Com os dois ramais laterais abertos por igual a banda não muda; abrindo um só bordo a compensação também corrige banda. A sequência automática usa o TC e só abre os ramais laterais (juntos) quando ele não comporta a quantidade.',
         equations: ['Q_adm = min(C_d·A·a·√(2Δp/ρ), Q_reg)', 'Q_bomba = Q₀·√(1 − Δp/Δp₀)', 'P = Q·Δp/η + P₀', 'F_líquida = (ρ·V_desl − m)·g'],
         predictions: [
           `Admitir 500 kg ⇒ flutuabilidade −0,5 t ⇒ velocidade vertical terminal parado ≈ ${fmt(vt, 2)} m/s (descendo).`,
@@ -174,13 +177,13 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Bomba', `${pumpStatus(st.pump, s.electrical.energized)} · ${fmtPower(st.pump.power)} · Δp ${(st.pump.dp / 1e5).toFixed(2)} bar`, 'MED'),
           V('x_G − x_B', `${((o.mp.cg.x - o.forces.hs.center.x) * 1000).toFixed(1)} mm`),
           V('Momento dos pesos', fmtMoment(o.weightTrimMoment)),
-          V('Rigidez W·BG', `${fmt(o.pitchStiffness / 1e6, 2)} MN·m/rad`),
+          V('Rigidez W·BG', `${fmt(o.pitchStiffnessSigned / 1e6, 2)} MN·m/rad${o.pitchStable ? '' : ' (instável)'}`),
           V('θ medido / θ estático', `${fmt(o.euler.pitch, 2)}° / ${fmt(o.staticPitchEq, 2)}°`),
         ],
         state: st.dosing?.active ? `Transferindo (${st.dosing.phase})` : 'Parado',
         influence: 'Momento dos pesos M = −W·(x_G − x_B): peso a ré de B levanta a proa. Submerso, o momento restaurador é W·BG·sen θ (sem plano de flutuação). Os lemes produzem atitude DINÂMICA (dependente de U²); o trim muda o EQUILÍBRIO ESTÁTICO.',
         equations: ['Δx_G = Δm·(x_AR − x_AV)/m', 'θ_eq ≈ atan(Δm·g·Δx / (W·BG))', 'Δp_bomba = ρ·g·(z_origem − z_destino) + k·Q²'],
-        predictions: [`Transferir 500 kg AV→AR ⇒ Δθ ≈ +${fmt(d500, 2)}° (proa para cima); AR→AV ⇒ ${fmt(-d500, 2)}°.`, `Período natural de pitch submerso ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.y + e.added.M) / o.pitchStiffness), 0)} s.`],
+        predictions: o.pitchStable ? [`Transferir 500 kg AV→AR ⇒ Δθ ≈ +${fmt(d500, 2)}° (proa para cima); AR→AV ⇒ ${fmt(-d500, 2)}°.`, `Período natural de pitch submerso ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.y + e.added.M) / o.pitchStiffness), 0)} s.`] : ['Rigidez longitudinal negativa: equilíbrio instável, sem previsão linear.'],
         channels: ['pitch', 'pitchEq', 'trimA', 'trimB'],
       };
     }
@@ -191,20 +194,20 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
       const d = Math.atan((500 * g * arm) / o.rollStiffness) * RAD;
       return {
         title: 'Sistema de banda (arquitetura fictícia)',
-        func: 'Tanques laterais com bomba de transferência para provocar e corrigir pequenas bandas (arquitetura conceitual, identificada como fictícia).',
+        func: 'Tanques laterais (TB-BB e TB-BE), ao lado do tanque central de compensação e na mesma posição longitudinal, com bomba de transferência para provocar e corrigir pequenas bandas. Também fazem parte da compensação: ligam-se ao coletor do tanque central pelos ramais VC-BB e VC-BE (arquitetura conceitual, identificada como fictícia).',
         vars: [
           V('TB-BB', `${tankVolume(st.tankA).toFixed(3)} m³`, 'MED'),
           V('TB-BE', `${tankVolume(st.tankB).toFixed(3)} m³`, 'MED'),
           V('y_G', `${(o.mp.cg.y * 1000).toFixed(1)} mm`),
           V('Momento transversal', fmtMoment(o.weightHeelMoment)),
-          V('Rigidez transversal', `${fmt(o.rollStiffness / 1e6, 2)} MN·m/rad`),
+          V('Rigidez transversal', `${fmt(o.rollStiffnessSigned / 1e6, 2)} MN·m/rad${o.rollStable ? '' : ' (instável)'}`),
           V('φ medido / φ estático', `${fmt(o.euler.roll, 2)}° / ${fmt(o.staticRollEq, 2)}°`),
           V('Reação do torque do eixo', fmtMoment(o.forces.propeller.M.x)),
         ],
         state: st.dosing?.active ? `Transferindo (${st.dosing.phase})` : 'Parado',
         influence: 'Banda de equilíbrio: tan φ = W·y_G / (W·BG) + efeitos dinâmicos (vela em guinada, torque do hélice). A banda responde progressivamente pela inércia de roll e amortecimento.',
         equations: ['M_banda = W·(y_G − y_B)', 'φ_eq ≈ atan(Δm·g·Δy / (W·BG))', 'I_xx·ṗ = M_hidrostático + M_amortec. + M_vela + M_hélice'],
-        predictions: [`Transferir 500 kg BB→BE ⇒ Δφ ≈ +${fmt(d, 2)}° (adernar a BE).`, `Período natural de roll ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.x + e.added.K) / o.rollStiffness), 1)} s.`],
+        predictions: o.rollStable ? [`Transferir 500 kg BB→BE ⇒ Δφ ≈ +${fmt(d, 2)}° (adernar a BE).`, `Período natural de roll ≈ ${fmt(2 * Math.PI * Math.sqrt((o.mp.inertia.x + e.added.K) / o.rollStiffness), 1)} s.`] : ['Rigidez transversal negativa: equilíbrio instável, sem previsão linear.'],
         channels: ['roll', 'heelA', 'heelB'],
       };
     }
@@ -235,11 +238,11 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Área / alongamento', `${f.area} m² / ${f.aspectRatio}`),
         ],
         state: st.jammed ? 'TRAVADO' : Math.abs(st.actual - st.cmd) > 0.05 ? 'Em movimento' : 'Em posição',
-        influence: `Força ∝ U²: a ${fmt(toKnots(U), 1)} nós, 10° produzem ≈ ${fmtForce(L10)} (${fmtMoment(L10 * arm)} de momento). Com velocidade praticamente nula, a efetividade desaparece.`,
+        influence: `Força ∝ U²: a ${fmtSpeed(U, 1)}, 10° produzem ≈ ${fmtForce(L10)} (${fmtMoment(L10 * arm)} de momento). Com velocidade praticamente nula, a efetividade desaparece.`,
         equations: ['α = δ + atan2(v_n, u_local)', 'L = ½·ρ·U²·A·C_L(α),  C_Lα = 2π·AR/(2 + √(AR² + 4))', `C_Lα = ${cla.toFixed(2)} /rad; estol em ${f.stallAngle}°`, 'M = r × F'],
         predictions: [
           `Dobrar a velocidade multiplica a força por 4 (${fmtForce(4 * L10)} a 10°).`,
-          `A 6 nós, 10° gerariam ${fmtForce(0.5 * o.rhoLocal * (6 * KNOT) ** 2 * f.area * cla * 10 * (Math.PI / 180))}; a 1 nó: ${fmtForce(0.5 * o.rhoLocal * KNOT ** 2 * f.area * cla * 10 * (Math.PI / 180))}.`,
+          `A 6 nós (11.1 km/h), 10° gerariam ${fmtForce(0.5 * o.rhoLocal * (6 * KNOT) ** 2 * f.area * cla * 10 * (Math.PI / 180))}; a 1 nó (1.9 km/h): ${fmtForce(0.5 * o.rhoLocal * KNOT ** 2 * f.area * cla * 10 * (Math.PI / 180))}.`,
           'Acima do ângulo de estol, a sustentação cai e o arrasto cresce.',
         ],
         channels: isR ? ['rudder', 'rudderCmd', 'heading'] : [f.id, f.id + 'Cmd', 'pitch', 'depth'],
@@ -260,7 +263,7 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           V('Resistência', fmtForce(-o.forces.resistance.F.x)),
           V('J', fmt(p.advance, 3)),
           V('Potência eixo / elétrica', `${fmtPower(p.shaftPower)} / ${fmtPower(p.elecPower)}`),
-          V('Velocidade', `${fmt(toKnots(s.body.vel.x), 2)} nós`, 'MED'),
+          V('Velocidade', fmtSpeed(s.body.vel.x, 2), 'MED'),
         ],
         state: p.failed ? 'FALHA' : p.powerLimited ? 'Limitado em potência' : 'Normal',
         influence: 'Empuxo − resistência = (m + m_a)·u̇: a velocidade muda lentamente pela grande inércia. A velocidade também define a efetividade dos lemes (∝ U²).',
@@ -271,7 +274,7 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
           'R = ½·ρ·S·C_t·(1 + k·f_sup)·u|u|',
           `|Q_motor| ≤ min(${fmt(m.maxTorque / 1e3, 0)} kN·m, P_disp/|ω|)`,
         ],
-        predictions: [60, 100, 140, m.ratedRpm].map((r) => `${r} rpm ⇒ velocidade de regime submersa estimada ≈ ${fmt(toKnots(speedForRpm(e, r)), 1)} nós (sem limite de potência).`).concat([`Hélice: D = ${pr.diameter} m, ${pr.blades} pás, esteira w = ${pr.wakeFraction}, dedução t = ${pr.thrustDeduction}.`]),
+        predictions: [60, 100, 140, m.ratedRpm].map((r) => `${r} rpm ⇒ velocidade de regime submersa estimada ≈ ${fmtSpeed(speedForRpm(e, r), 1)} (sem limite de potência).`).concat([`Hélice: D = ${pr.diameter} m, ${pr.blades} pás, esteira w = ${pr.wakeFraction}, dedução t = ${pr.thrustDeduction}.`]),
         channels: ['speed', 'rpm', 'rpmCmd', 'power'],
       };
     }
@@ -340,8 +343,18 @@ export function inspectorContent(e: SimulationEngine, id: string): InspectorCont
         ],
         state: ap.tPitch.lowEffectiveness || ap.tHeading.lowEffectiveness ? 'BAIXA EFETIVIDADE (velocidade insuficiente)' : 'Normal',
         influence: 'Em baixa velocidade os lemes saturam sem efeito; a profundidade passa a depender do equilíbrio estático — use a compensação.',
-        equations: ['δ_r = K·[Kp·e_ψ + Ki·∫e_ψ − Kd·r]', 'θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż)', 'δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q];  δ_vante = K·[Kb·e_z + Kbd·ż]', 'K = min(4, (U₀/U)²)'],
-        predictions: ['Comutar para AUTO inicializa o integrador com a posição atual (sem salto).', 'Mover manualmente um leme desengaja o canal.'],
+        equations: [
+          'δ_r = K·[Kp·e_ψ + Ki·∫e_ψ − Kd·r]',
+          'θ_cmd = sat(Kz·e_z + Ki·∫e_z + Kzd·ż, ±θ_max)  — lemes de ré fazem a mudança de cota',
+          'δ_ré = K·[Kθ·(θ_cmd − θ) + Ki·∫ − Kq·q]',
+          'δ_vante = K·[Kb·sat(e_z, ±3 m)·max(w, a) + Kbd·ż·w], ±10°  — só ajuste fino perto da cota',
+          'K = min(4, (U₀/U)²); abaixo de ~4 nós (7.4 km/h) a cota passa aos lemes de vela',
+        ],
+        predictions: [
+          'Comutar para AUTO inicializa o integrador com a posição atual (sem salto).',
+          'Mover manualmente um leme desengaja o canal.',
+          'Numa mudança de cota acima de ~4 nós (7.4 km/h), os lemes de ré dão o ângulo; os de vela ficam em poucos graus e só trabalham perto da cota.',
+        ],
         channels: ['depth', 'depthSet', 'heading', 'headingSet', 'stern', 'bow', 'rudder'],
       };
     }

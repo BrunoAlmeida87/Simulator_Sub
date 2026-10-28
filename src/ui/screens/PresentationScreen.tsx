@@ -6,51 +6,72 @@
  */
 import { useEffect, useReducer, useState } from 'react';
 import { cmd, runner, useSim } from '../store';
-import { Scene3D, defaultQuality, saveQuality } from '../components/Scene3D';
-import { SeaControls } from '../components/SeaControls';
+import { Scene3D } from '../components/Scene3D';
+import { useQuality } from '../graphics';
+import { seaSections } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
 import { Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
+import { CargoPanel } from '../components/CargoPanel';
 import { TrimDemoPanel } from '../components/TrimDemo';
-import { TankSelector } from '../components/TankSelector';
-import { VectorSelector } from '../components/VectorSelector';
 import { TourCard, TourList } from '../components/TourCard';
 import { tours } from '../tours';
-import type { OceanQuality } from '../../render3d/Ocean';
 import type { ViewMode } from '../../render3d/SubmarineScene';
-import { FORCE_STYLE, TANK_STYLE, type SceneLayers, type TankCategory } from '../../render3d/layers';
+import { FORCE_STYLE, TANK_STYLE, type TankCategory } from '../../render3d/layers';
 import { pres, PRESETS, METRICS, takeMetrics, mbtGroup } from '../presentation';
 import { maneuver } from '../maneuvers';
 import { verticalBalance, toTf } from '../../sim/forceVectors';
 import { tankVolume } from '../../sim/systems/internalTanks';
 import type { SimulationEngine } from '../../sim/core/engine';
-import { fmt, fmtTime } from '../format';
-import { toKnots } from '../../sim/units';
+import { fmt, fmtTime, fmtSpeed, fmtKnots } from '../format';
+import { OverlayCtl } from '../components/OverlayCtl';
+import { useUi } from '../uiContext';
+import type { LayerKey } from '../components/LayerPanel';
+import { SceneLayerPanel } from '../components/SceneLayerPanel';
 
-const FRAMES: [ViewMode, string, string][] = [
+export const FRAMES: [ViewMode, string, string][] = [
   ['superficie', 'Superfície', 'Navegação na superfície: esteira, proa e hélice'],
+  ['perspectiva', 'Perspectiva', 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa'],
   ['submerso', 'Submerso', 'Operação submersa, ao nível do casco'],
   ['tanques', 'Tanques', 'Inspeção dos tanques e circuitos no corte'],
   ['forcas', 'Forças', 'Vista lateral para os vetores de peso, empuxo e resultante'],
+  ['calado', 'Calado', 'Lateral rente à água: calados a vante e a ré e linha d’água (trim na superfície)'],
+  ['navio', 'Navio', 'Mira o navio (contato da mesa tática) mais próximo'],
+  ['torpedo', 'Torpedo', 'Acompanha o último torpedo lançado (atrás e acima da arma)'],
   ['piloto', 'Seguir', 'Câmera lateral que acompanha o submarino'],
   ['perseguicao', 'Perseguição', 'Câmera atrás do submarino'],
+  ['cinematografica', 'Cinematográfica', 'Acompanhamento suave com leves oscilações de filmagem'],
   ['fixa', 'Fixa', 'Câmera parada no cenário: o submarino atravessa o quadro'],
+  ['passadico', 'Passadiço', 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50'],
+  ['drone', 'Drone', 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade'],
   ['livre', 'Livre', 'Arraste para girar, roda/pinça para aproximar'],
 ];
 
-const LAYER_LIST: [keyof SceneLayers, string][] = [
-  ['vectors', 'Peso/empuxo'],
-  ['hydroVectors', 'Hélice/lemes/resist.'],
-  ['trimVectors', 'Vetores de trim'],
-  ['tanks', 'Tanques'],
-  ['pipes', 'Tubulações'],
-  ['flows', 'Escoamentos'],
-  ['labels', 'Identificações'],
-  ['wake', 'Esteira'],
-  ['markers', 'Boias/marcos'],
-  ['trail', 'Trajetória'],
-  ['presLight', 'Iluminação'],
-  ['noWater', 'Sem água'],
+/** camadas da apresentação (nomes no catálogo LAYER_INFO) */
+export const LAYER_LIST: LayerKey[] = [
+  'vectors',
+  'hydroVectors',
+  'trimVectors',
+  'tanks',
+  'pipes',
+  'flows',
+  'halfCut',
+  'labels',
+  'batteryInfo',
+  'airInfo',
+  'wake',
+  'wind',
+  'pennant',
+  'flag',
+  'markers',
+  'trail',
+  'presLight',
+  'noWater',
+  'trimRef',
+  'pitchAngle',
+  'depthLines',
+  'ships',
+  'torpedoes',
 ];
 
 function usePres() {
@@ -83,7 +104,7 @@ function ForceHud({ e, gain }: { e: SimulationEngine; gain: string }) {
         V = {fmt(vb.displacedM3, 1)} m³ · {fmt(vb.immersedFraction * 100, 1)} % imerso · m = {fmt(vb.massKg / 1000, 1)} t
       </div>
       <div className="subtle">
-        {fmt(e.outputs.depthKeel, 1)} m · {e.outputs.verticalSpeed >= 0 ? 'desce' : 'sobe'} {fmt(Math.abs(e.outputs.verticalSpeed), 2)} m/s · {fmt(toKnots(e.state.body.vel.x), 1)} nós · θ {fmt(e.outputs.euler.pitch, 1)}°
+        {fmt(e.outputs.depthKeel, 1)} m · {e.outputs.verticalSpeed >= 0 ? 'desce' : 'sobe'} {fmt(Math.abs(e.outputs.verticalSpeed), 2)} m/s · {fmtSpeed(e.state.body.vel.x, 1)} · θ {fmt(e.outputs.euler.pitch, 1)}°
       </div>
       <div className="subtle">Escala: peso inicial = 14 m · resultante: {gain}</div>
     </div>
@@ -107,8 +128,8 @@ function tankRows(e: SimulationEngine): TankRow[] {
   for (const t of v.compensation.tanks) rows.push({ id: t.id, cat: 'compensacao', name: t.name, vol: tankVolume(s.compensation.tanks[t.id]), cap: t.capacity, flow: s.compensation.tanks[t.id].flow ?? 0 });
   rows.push({ id: v.trim.tankA.id, cat: 'trim', name: v.trim.tankA.name, vol: tankVolume(s.trim.tankA), cap: v.trim.tankA.capacity, flow: -s.trim.flow });
   rows.push({ id: v.trim.tankB.id, cat: 'trim', name: v.trim.tankB.name, vol: tankVolume(s.trim.tankB), cap: v.trim.tankB.capacity, flow: s.trim.flow });
-  rows.push({ id: v.heel.tankA.id, cat: 'banda', name: v.heel.tankA.name, vol: tankVolume(s.heel.tankA), cap: v.heel.tankA.capacity, flow: -s.heel.flow });
-  rows.push({ id: v.heel.tankB.id, cat: 'banda', name: v.heel.tankB.name, vol: tankVolume(s.heel.tankB), cap: v.heel.tankB.capacity, flow: s.heel.flow });
+  rows.push({ id: v.heel.tankA.id, cat: 'banda', name: v.heel.tankA.name, vol: tankVolume(s.heel.tankA), cap: v.heel.tankA.capacity, flow: (s.heel.tankA.flow ?? 0) - s.heel.flow });
+  rows.push({ id: v.heel.tankB.id, cat: 'banda', name: v.heel.tankB.name, vol: tankVolume(s.heel.tankB), cap: v.heel.tankB.capacity, flow: (s.heel.tankB.flow ?? 0) + s.heel.flow });
   return rows;
 }
 
@@ -174,12 +195,12 @@ function Compare({ e }: { e: SimulationEngine }) {
             <tr key={m.id} className={sig ? 'chg' : ''}>
               <td>{m.label}</td>
               <td className="mono">
-                {fmt(b.metrics[m.id], m.dec)} {m.unit}
+                {m.unit === 'nós' ? fmtKnots(b.metrics[m.id], m.dec) : `${fmt(b.metrics[m.id], m.dec)} ${m.unit}`}
               </td>
               <td className="mono">
-                {fmt(now[m.id], m.dec)} {m.unit}
+                {m.unit === 'nós' ? fmtKnots(now[m.id], m.dec) : `${fmt(now[m.id], m.dec)} ${m.unit}`}
               </td>
-              <td className="mono">{sig ? `${d > 0 ? '+' : ''}${fmt(d, m.dec)}` : '—'}</td>
+              <td className="mono">{sig ? `${d > 0 ? '+' : ''}${m.unit === 'nós' ? fmtKnots(d, m.dec) : fmt(d, m.dec)}` : '—'}</td>
             </tr>
           );
         })}
@@ -191,15 +212,11 @@ function Compare({ e }: { e: SimulationEngine }) {
 export function PresentationScreen() {
   const e = useSim(8);
   const p = usePres();
-  const [quality, setQualityS] = useState<OceanQuality>(defaultQuality);
+  const ui = useUi();
+  const [quality, setQuality] = useQuality();
   const [presetSel, setPresetSel] = useState(PRESETS.some((x) => x.id === p.presetId) ? p.presetId! : PRESETS[0].id);
-  const setQuality = (q: OceanQuality) => {
-    saveQuality(q);
-    setQualityS(q);
-  };
   useEffect(() => pres.ensureInitial(runner), []);
   const L = p.layers;
-  const setL = (k: keyof SceneLayers, v: unknown) => pres.setLayers({ [k]: v } as Partial<SceneLayers>);
   const pick = (id: string | null) => pres.setLayers({ highlight: id, ...(id ? { tanks: true } : {}) });
   const preset = PRESETS.find((x) => x.id === presetSel) ?? PRESETS[0];
   const vb = verticalBalance(e);
@@ -214,9 +231,7 @@ export function PresentationScreen() {
               <ForceHud e={e} gain={gainTxt} />
             </div>
           )}
-          <div className="overlay-ctl">
-            <SeaControls quality={quality} setQuality={setQuality} />
-          </div>
+          <OverlayCtl persistKey="pres" sections={seaSections(quality, setQuality)} />
           <div className="pres-bottom only-wide">{tours.active || tours.finished ? <TourCard /> : <ManeuverStatus />}</div>
         </Scene3D>
         <div className="only-narrow pres-under">
@@ -225,13 +240,20 @@ export function PresentationScreen() {
         </div>
       </div>
       <div className="pres-side">
-        <Panel title="Cenários guiados (automáticos)">
+        <Panel title="Roteiros automáticos">
           <TourList />
         </Panel>
 
-        <Panel title="Condução da apresentação">
+        <Panel
+          title="Situações de aula e condução"
+          right={
+            <button className="btn sm" onClick={() => ui.setScreen('cenarios')} title="Abre a biblioteca: condições iniciais, situações de aula e roteiros automáticos">
+              📚 Biblioteca
+            </button>
+          }
+        >
           <div className="row">
-            <select value={presetSel} onChange={(ev) => setPresetSel(ev.target.value)} style={{ flex: 1, minWidth: 0 }} aria-label="Situação pronta">
+            <select value={presetSel} onChange={(ev) => setPresetSel(ev.target.value)} style={{ flex: 1, minWidth: 0 }} aria-label="Situação de aula">
               {PRESETS.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
@@ -279,7 +301,7 @@ export function PresentationScreen() {
           </div>
         </Panel>
 
-        <Panel title="Enquadramento">
+        <Panel title="Enquadramento" fold="pres.frames" tag={<span className="subtle panel-val">{FRAMES.find(([v]) => v === p.view)?.[1] ?? ''}</span>}>
           <div className="btngroup">
             {FRAMES.map(([v, l, tip]) => (
               <button key={v} className={`btn sm ${p.view === v ? 'on' : ''}`} onClick={() => pres.setView(v, true)} title={tip}>
@@ -289,42 +311,9 @@ export function PresentationScreen() {
           </div>
         </Panel>
 
-        <Panel title="Camadas">
-          <div className="btngroup">
-            {LAYER_LIST.map(([k, l]) => (
-              <button key={k} className={`btn sm ${L[k] ? 'on' : ''}`} onClick={() => setL(k, !L[k])}>
-                {L[k] ? '☑' : '☐'} {l}
-              </button>
-            ))}
-          </div>
-          {(L.vectors || L.hydroVectors || L.trimVectors) && (
-            <div className="mt8">
-              <div className="subtle mb4">Vetores visíveis</div>
-              <VectorSelector value={L} onChange={(v) => pres.setLayers(v)} />
-            </div>
-          )}
-          {L.tanks && (
-            <div className="mt8">
-              <div className="subtle mb4">Tanques visíveis no corte</div>
-              <TankSelector e={e} value={L.tankFilter} onChange={(v) => setL('tankFilter', v)} />
-            </div>
-          )}
-          <div className="row mt8">
-            <label className="subtle">Ampliação da resultante</label>
-            <select value={String(L.resultantGain)} onChange={(ev) => setL('resultantGain', ev.target.value === 'auto' ? 'auto' : Number(ev.target.value))}>
-              <option value="auto">automática</option>
-              {[1, 10, 100, 1000].map((g) => (
-                <option key={g} value={g}>
-                  ×{g}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="row mt8">
-            <label className="subtle">Transparência do casco</label>
-            <input type="range" min={0.04} max={0.8} step={0.02} value={L.hullOpacity} onChange={(ev) => setL('hullOpacity', Number(ev.target.value))} style={{ flex: 1 }} aria-label="Opacidade do casco" />
-          </div>
-          <div className="note">Peso e empuxo estão na mesma escala (14 m = peso inicial). A resultante pode ser ampliada; o fator aparece no rótulo. Clique num tanque (aqui ou no corte) para destacá-lo.</div>
+        <Panel title="Camadas" fold="pres.layers" foldOpen={false} tag={<span className="subtle panel-val">{LAYER_LIST.filter((k) => !!L[k]).length} ligadas</span>}>
+          <SceneLayerPanel e={e} keys={LAYER_LIST} value={L} onChange={(p) => pres.setLayers(p)} hullControl />
+          <div className="note mt8">Clique num tanque na lista ou no corte para destacá-lo. Cada grupo reúne a visibilidade e os ajustes dos seus itens.</div>
         </Panel>
 
         <Panel title="Forças e equilíbrio vertical">
@@ -371,41 +360,54 @@ export function PresentationScreen() {
           </table>
         </Panel>
 
+        <Panel title="Cargas a bordo — trim e banda">
+          <CargoPanel e={e} />
+        </Panel>
+
         <Panel title="Trim — peso deslocável">
           <TrimDemoPanel e={e} compact />
         </Panel>
 
-        <Panel title="Tanques" right={L.highlight ? <button className="btn sm" onClick={() => pick(null)}>Limpar destaque</button> : undefined}>
+        <Panel
+          title="Tanques"
+          right={
+            L.highlight ? (
+              <button className="btn sm" onClick={() => pick(null)}>
+                Limpar destaque
+              </button>
+            ) : undefined
+          }
+        >
           <TankList e={e} highlight={L.highlight} onPick={pick} />
         </Panel>
 
         <Panel title="Comandos">
           <div className="subtle mb4">Lastro principal (TLP)</div>
           <div className="btngroup">
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'vent', true, cmd)}>
               Abrir suspiros
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'vent', false), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'vent', false, cmd)}>
               Fechar suspiros
             </button>
-            <button className="btn sm ok" onClick={() => (mbtGroup(e, 'todos', 'blow', true), runner.notify())}>
+            <button className="btn sm ok" onClick={() => mbtGroup(e, 'todos', 'blow', true, cmd)}>
               Soprar TLP
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'todos', 'blow', false), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'todos', 'blow', false, cmd)}>
               Fechar sopro
             </button>
           </div>
           <div className="btngroup mt4">
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'vante', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'vante', 'vent', true, cmd)}>
               Suspiros vante
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 're', 'vent', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 're', 'vent', true, cmd)}>
               Suspiros ré
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 'vante', 'blow', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 'vante', 'blow', true, cmd)}>
               Soprar vante
             </button>
-            <button className="btn sm" onClick={() => (mbtGroup(e, 're', 'blow', true), runner.notify())}>
+            <button className="btn sm" onClick={() => mbtGroup(e, 're', 'blow', true, cmd)}>
               Soprar ré
             </button>
           </div>
