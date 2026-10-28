@@ -15,6 +15,7 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 /** preferências adicionais desta tela (preserva as chaves já salvas) */
 const V3D_LAYER_DEFAULTS = {
   pipes: true,
+  torpedoes: true,
   flows: true,
   halfCut: false,
   labels: true,
@@ -51,6 +52,7 @@ const V3D_LAYER_KEYS: LayerKey[] = [
   'pitchAngle',
   'depthLines',
   'ships',
+  'torpedoes',
   'noWater',
   'presLight',
 ];
@@ -69,6 +71,7 @@ const VIEWS: ViewOption[] = [
   { id: 'forcas', label: 'Vista forças' },
   { id: 'calado', label: 'Calado' },
   { id: 'navio', label: 'Navio próximo' },
+  { id: 'torpedo', label: 'Torpedo (acompanhar)' },
   { id: 'passadico', label: 'Passadiço (vela)', tip: 'Passadiço: em pé no alto da vela, olhando em volta (arraste); roda do mouse ou B = binóculo 7×50' },
   { id: 'drone', label: 'Drone (câmera livre)', tip: 'Drone: câmera livre no cenário (mar, orla, cidade). WASD mover · Q/E subir/descer · arrastar olhar · Shift rápido · roda = velocidade' },
   { id: 'livre', label: 'Livre' },

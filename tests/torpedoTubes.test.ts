@@ -4,11 +4,14 @@
  * neles. Só desenho: a física não muda.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import * as THREE from 'three';
+import { tankSection } from '../src/sim/systems/tankShape';
 import { buildScenario } from '../src/sim/scenarios';
 import { SystemsVis } from '../src/render3d/Systems';
 import { PRESSURE_HULL, pressureHullInner } from '../src/render3d/pressureHull';
-import { TORPEDO_ROOM, TORPEDO_TUBES, TUBES, breechCenter, doorCenter, domeCrossing, forwardDomeX, hullClearance, muzzleCenter, tubeAxis, tubeLength, type Vec3 } from '../src/render3d/torpedoTubes';
+import { TORPEDO_ROOM, TORPEDO_TUBES, TUBES, WEAPONS, breechCenter, doorCenter, doorOutline, domeCrossing, forwardDomeX, hullClearance, muzzleCenter, tubeAxis, tubeLength, type Vec3 } from '../src/render3d/torpedoTubes';
 
 const e = buildScenario('superficie');
 const R = e.geom.radiusAt;
@@ -50,6 +53,39 @@ describe('tubos lançadores de torpedo', () => {
     expect(TUBES.filter((t) => t.side === 'BE').map((t) => t.n)).toEqual([1, 3, 5]);
     expect(T.boreRadius * 2).toBeGreaterThan(T.caliber);
     for (const t of TUBES) expect(tubeLength(t, R), `tubo ${t.n}`).toBeGreaterThan(7.0);
+  });
+
+  it('os tubos são retos e paralelos ao eixo do casco (culatra e boca na mesma linha)', () => {
+    for (const t of TUBES) {
+      expect(tubeAxis(t, R)).toEqual({ x: 1, y: 0, z: 0 });
+      const b = breechCenter(t);
+      const m = muzzleCenter(t, R);
+      expect(m.y).toBe(b.y);
+      expect(m.z).toBe(b.z);
+    }
+  });
+
+  it('as portas das bocas ficam no nariz da proa, sobre o casco, sem se encostar', () => {
+    const outlines = TUBES.map((t) => doorOutline(t, R, 32));
+    for (const [k, o] of outlines.entries()) {
+      for (const p of o) {
+        expect(Math.hypot(p.y, p.z), `porta ${TUBES[k].n}`).toBeCloseTo(R(p.x), 3);
+        expect(p.x).toBeGreaterThan(e.vessel.hull.length / 2 - e.vessel.hull.bowLength);
+      }
+    }
+    for (let a = 0; a < TUBES.length; a++)
+      for (let b = a + 1; b < TUBES.length; b++) {
+        const d = Math.hypot(TUBES[a].y - TUBES[b].y, TUBES[a].z - TUBES[b].z);
+        expect(d, `portas ${TUBES[a].n} × ${TUBES[b].n}`).toBeGreaterThan(2 * TORPEDO_TUBES.doorRadius + 0.1);
+      }
+  });
+
+  it('o casco externo do Blender (build_sx1.py) usa as mesmas posições dos tubos e o mesmo raio de porta', () => {
+    const py = readFileSync(join(__dirname, '..', 'scripts', 'blender', 'build_sx1.py'), 'utf-8');
+    const list = py.match(/TUBES_TT = \[(.*)\]/)![1];
+    const tubes = [...list.matchAll(/\((\d+), (-?[\d.]+), (-?[\d.]+)\)/g)].map((m) => ({ n: Number(m[1]), y: Number(m[2]), z: Number(m[3]) }));
+    expect(tubes).toEqual(TUBES.map((t) => ({ n: t.n, y: t.y, z: t.z })));
+    expect(Number(py.match(/TUBE_DOOR_R = ([\d.]+)/)![1])).toBeCloseTo(TORPEDO_TUBES.doorRadius, 6);
   });
 
   it('a boca fica logo atrás da porta do casco externo e a parede não sai do casco', () => {
@@ -135,6 +171,30 @@ describe('sala de torpedos', () => {
     expect(S.flask.x0).toBeGreaterThan(S.racks.x1);
     expect(S.ejector.y - S.ejector.radius).toBeGreaterThan(T.breechY + T.outerRadius + 0.1);
     expect(S.ejector.x1).toBeLessThan(forwardDomeX(S.ejector.y));
+  });
+
+  it('os tanques de compensação das armas (TCA) ficam sob o piso, entre o costado e o TT-AV, sem nada do corte dentro', () => {
+    const bad: string[] = [];
+    for (const t of WEAPONS.tca) {
+      const sec = tankSection(t);
+      const x0 = t.center.x - sec.length / 2;
+      const x1 = t.center.x + sec.length / 2;
+      expect(sec.zTop, t.id).toBeGreaterThanOrEqual(S.deck.z + S.deck.thickness);
+      expect(x1, t.id).toBeLessThan(PRESSURE_HULL.fwd.base);
+      // ao lado do TT-AV, sem sobrepor
+      expect(Math.min(Math.abs(sec.y0), Math.abs(sec.y1)), t.id).toBeGreaterThan(ttav.width! / 2);
+      const inside = (p: Vec3, m: number) => p.x > x0 - m && p.x < x1 + m && p.y > sec.y0 - m && p.y < sec.y1 + m && p.z > sec.zTop - m && p.z < sec.zBot + m;
+      pipeSamples.forEach((pts, i) => pts.some((p) => inside(p, 0.08)) && bad.push(`${t.id} × tubulação ${i + 1}`));
+      for (const v of sys.valves) if (inside(body(v.mesh.position), 0.2)) bad.push(`${t.id} × ${v.name}`);
+      for (const p of sys.pumps) if (inside(body(p.pos), 0.4)) bad.push(`${t.id} × ${p.name}`);
+      // tanques internos do corte (fora os próprios TCA)
+      for (const k of sys.tanks.filter((x) => !x.id.startsWith('TLP') && !x.id.startsWith('TCA'))) {
+        const box = new THREE.Box3().setFromObject(k.pick);
+        const mine = new THREE.Box3(new THREE.Vector3(Math.min(sec.y0, sec.y1), -sec.zBot, -x1), new THREE.Vector3(Math.max(sec.y0, sec.y1), -sec.zTop, -x0));
+        if (box.intersectsBox(mine.expandByScalar(-0.01))) bad.push(`${t.id} × tanque ${k.id}`);
+      }
+    }
+    expect(bad).toEqual([]);
   });
 
   it('nada do corte encosta nas garrafas, nos cilindros de ejeção e nas estantes', () => {

@@ -41,6 +41,11 @@ SNORKEL = dict(x=8.0, extension=4.5)
 PERISCOPE = dict(x=12.0, extension=5.0)
 # tanques de lastro (TLP): x do centro e meia-boca do embornal (Systems.ts: yF = rr·0,5)
 TLP_X = [28.0, -23.5]
+# tubos lançadores: retos, paralelos ao eixo; (número, y boreste, z para baixo) do corpo — mesmos de
+# defaultVessel.ts (weapons.tubes); a porta da boca é o recorte do tubo (raio TUBE_DOOR_R) no nariz da proa.
+# O teste tests/torpedoTubes.test.ts confere estes valores.
+TUBES_TT = [(1, 0.7, -0.6), (2, -0.7, -0.6), (3, 0.7, 0.2), (4, -0.7, 0.2), (5, 0.7, 1.0), (6, -0.7, 1.0)]
+TUBE_DOOR_R = 0.298
 
 TEX_DIR = os.path.join(os.environ.get('TEMP', '/tmp'), 'sx1_texturas')  # main() troca para build/modelo/texturas
 
@@ -330,6 +335,7 @@ def build_materials(cfg):
     hook_textures(m, b, None, img['grate_n'], None, 0.35)
     M['sonar'] = m
     M['porta'] = principled('SX1_Porta', (0.016, 0.016, 0.017), 0.45, 0.2)[0]
+    M['boca'] = principled('SX1_BocaTubo', (0.004, 0.005, 0.006), 0.9, 0.0)[0]  # interior escuro do tubo, visto com a porta aberta
     M['helice'] = principled('SX1_Helice', (0.42, 0.31, 0.19), 0.32, 0.9)[0]
     M['mastro'] = principled('SX1_Mastro', (0.07, 0.075, 0.08), 0.45, 0.5)[0]
     M['vidro'] = principled('SX1_Vidro', (0.01, 0.02, 0.03), 0.05, 0.9)[0]
@@ -469,16 +475,82 @@ def build_hull_details(cfg, M):
     v, f, u = merge_parts(parts)
     objs.append(add_object('SX1_Casco_Embornais', make_mesh('SX1_Casco_Embornais', v, f, u, M['grade'], smooth=False, outward=radial_out)))
 
-    # portas dos tubos (3 por bordo) na proa
+    # bocas e portas dos tubos lançadores (6) no nariz da proa: a boca escura fica sempre no casco;
+    # a porta é peça móvel (pivô na dobradiça, do lado de fora de cada coluna) e abre no disparo
+    nth = 28 if cfg['slots'] else 16
     parts = []
-    for s in (1, -1):
-        for a in (104, 124, 144):
-            ph = s * math.radians(a)
-            p0, p1 = sorted((ph - s * math.radians(8.5), ph + s * math.radians(8.5)))
-            parts.append(conformal_patch('porta', 32.55, 33.35, p0, p1, 0.006, None, nu=3, nv=3, border=(0.06, 0.012)))
+    for n, ty, tz in TUBES_TT:
+        v, f = tube_door_patch(ty, tz, TUBE_DOOR_R + 0.01, 0.002, nth, 2, None)
+        parts.append((v, f, [tuple((0.0, 0.0) for _ in ff) for ff in f]))
     v, f, u = merge_parts(parts)
-    objs.append(add_object('SX1_Casco_PortasTubos', make_mesh('SX1_Casco_PortasTubos', v, f, u, M['porta'], sharp_deg=40, outward=radial_out)))
+    objs.append(add_object('SX1_Casco_BocasTubos', make_mesh('SX1_Casco_BocasTubos', v, f, u, M['boca'], smooth=False, outward=lambda c: hull_normal(*c))))
+    for n, ty, tz in TUBES_TT:
+        side = 1 if ty > 0 else -1
+        th_h = side * math.pi / 2  # dobradiça do lado de fora da coluna
+        pv = door_point(ty, tz, 1.0, th_h, TUBE_DOOR_R, 0.006)
+        v, f = tube_door_patch(ty, tz, TUBE_DOOR_R, 0.006, nth, 3, (0.05, 0.012))
+        v = [(a[0] - pv[0], a[1] - pv[1], a[2] - pv[2]) for a in v]
+        uv = [tuple((0.0, 0.0) for _ in ff) for ff in f]
+        me = make_mesh(f'SX1_PortaTubo_{n}', v, f, uv, M['porta'], sharp_deg=40, outward=lambda c, pv=pv: hull_normal(c[0] + pv[0], c[1] + pv[1], c[2] + pv[2]))
+        objs.append(moving_part(f'SX1_PortaTubo_{n}', pv, me))
     return objs
+
+
+def bow_y_at(rho):
+    """y (Blender, para a proa) em que o raio do casco vale rho, na proa elíptica."""
+    lo, hi = XB0, L / 2
+    if radius_at(lo) <= rho:
+        return lo
+    for _ in range(50):
+        mid = (lo + hi) / 2
+        if radius_at(mid) > rho:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def hull_normal(x, y, z):
+    """Normal para fora do casco no ponto (Blender) junto à superfície."""
+    rho = max(1e-6, math.hypot(x, z))
+    e = 1e-4
+    yy = min(max(y, -L / 2 + 2 * e), L / 2 - 2 * e)
+    dr = (radius_at(yy + e) - radius_at(yy - e)) / (2 * e)
+    n = (x / rho, -dr, z / rho)
+    k = math.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+    return (n[0] / k, n[1] / k, n[2] / k)
+
+
+def door_point(ty, tz, u, th, r, off):
+    """Ponto da porta (Blender): círculo do tubo (centro y, z do corpo) projetado ao longo do eixo até o casco."""
+    y = ty + u * r * math.sin(th)
+    z = tz - u * r * math.cos(th)
+    rho = math.hypot(y, z)
+    p = (y, bow_y_at(rho), -z)
+    nn = hull_normal(*p)
+    return (p[0] + nn[0] * off, p[1] + nn[1] * off, p[2] + nn[2] * off)
+
+
+def tube_door_patch(ty, tz, r, off, nth, nr, border):
+    """Retalho oval colado à proa no recorte do tubo: anéis (u) × ângulo; border=(largura, altura) faz o ressalto."""
+    verts = [door_point(ty, tz, 0.0, 0.0, r, off + (border[1] if border else 0.0))]
+    for i in range(1, nr + 1):
+        u = i / nr
+        for j in range(nth):
+            th = 2 * math.pi * j / nth
+            o = off
+            if border:
+                bw, bh = border
+                o = off + bh * min(1.0, (1 - u) * r / bw)
+            verts.append(door_point(ty, tz, u, th, r, o))
+    faces = [(0, 1 + j, 1 + (j + 1) % nth) for j in range(nth)]
+    for i in range(nr - 1):
+        a0 = 1 + i * nth
+        a1 = 1 + (i + 1) * nth
+        for j in range(nth):
+            j1 = (j + 1) % nth
+            faces.append((a0 + j, a1 + j, a1 + j1, a0 + j1))
+    return verts, faces
 
 
 def disc(x, y, z_top, r, h, n):

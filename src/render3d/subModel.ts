@@ -25,6 +25,8 @@ import * as THREE from 'three';
 import type { VesselConfig } from '../sim/config/types';
 import type { SimState } from '../sim/core/state';
 import { periscopeHeadZ } from '../sim/systems/actuation';
+import { buildHullGeometry } from '../sim/physics/hullGeometry';
+import { doorCenter, hullXAtRadius } from '../sim/systems/torpedoTubes';
 
 /** Nomes fixos das peças no .glb (sem espaços nem acentos: o GLTFLoader preserva estes nomes). */
 export const SUB_PARTS = {
@@ -48,6 +50,11 @@ export const SUB_PARTS = {
   periscopeMast: 'SX1_Mastro_Periscopio',
   periscopeHead: 'SX1_Periscopio_Cabeca',
 } as const;
+
+/** Prefixo das portas das bocas dos tubos lançadores (SX1_PortaTubo_1…6; pivô na dobradiça). Opcionais. */
+export const TUBE_DOOR_PREFIX = 'SX1_PortaTubo_';
+/** abertura máxima da porta da boca (graus) */
+export const TUBE_DOOR_OPEN_DEG = 100;
 
 /** Prefixo comum dos lemes de popa (a mistura usa a posição de cada um: serve para cruz e, se um dia mudar, para X). */
 export const STERN_PREFIX = 'SX1_LemePopa_';
@@ -158,12 +165,14 @@ export class SubModelRig {
   private periMast: Moving;
   private periHead: Moving | null;
   /** pistões hidráulicos: cilindro e haste ligados ao leme que os move */
+  /** portas das bocas dos tubos: giram para fora em torno da dobradiça (lado de fora de cada coluna) */
+  private tubeDoors: { tube: number; m: Moving; sign: number }[] = [];
   private actuators: { fin: Moving; cyl: THREE.Object3D; rod: THREE.Object3D; cylRest: THREE.Quaternion; rodRest: THREE.Quaternion; anchor: THREE.Vector3; pin: THREE.Vector3 }[] = [];
   /** avanço atual de cada haste (m), pelo nome do leme — para conferência */
   readonly strokes: Record<string, number> = {};
   private q = new THREE.Quaternion();
 
-  constructor(source: THREE.Object3D) {
+  constructor(source: THREE.Object3D, vessel?: VesselConfig) {
     this.root = source.clone(true);
     this.root.name = 'SX1_Modelo';
     const find = (n: string) => this.root.getObjectByName(n) ?? null;
@@ -267,6 +276,35 @@ export class SubModelRig {
         this.pickables.push(x);
       }
     });
+    // portas das bocas dos tubos: eixo = tangente ao contorno oval na dobradiça; abre para fora do casco
+    const w = vessel?.weapons;
+    if (w && vessel) {
+      const R = buildHullGeometry(vessel.hull).radiusAt;
+      const b2l = (x: number, y: number, z: number) => new THREE.Vector3(y, -z, -x);
+      const r = w.boreRadius + 0.02;
+      for (const tc of w.tubes) {
+        const o = find(TUBE_DOOR_PREFIX + tc.n);
+        if (!o) continue;
+        const side = tc.y >= 0 ? 1 : -1;
+        const at = (th: number) => {
+          const y = tc.y + r * Math.sin(th);
+          const z = tc.z - r * Math.cos(th);
+          return b2l(hullXAtRadius(R, Math.hypot(y, z), w.breechX), y, z);
+        };
+        const th = (side * Math.PI) / 2;
+        const axis = at(th + 0.05)
+          .sub(at(th - 0.05))
+          .normalize();
+        const hinge = at(th);
+        const dc = doorCenter(w, tc, R);
+        const arm = b2l(dc.x, dc.y, dc.z).sub(hinge);
+        const outside = (sg: number) => {
+          const p = arm.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(axis, sg)).add(hinge);
+          return Math.hypot(p.x, p.y) - R(-p.z);
+        };
+        this.tubeDoors.push({ tube: tc.n, m: mk(o, axisInParent(o, axis)), sign: outside(1) > outside(-1) ? 1 : -1 });
+      }
+    }
     // casco externo = tudo que não é peça móvel nem marca de calado
     const moving = new Set<THREE.Object3D>([...this.sailPlanes, ...this.sternFins, this.prop, this.snorkel, this.periMast, ...this.actuators.flatMap((a) => [a.cyl, a.rod])].map((m) => ('obj' in m ? m.obj : m)));
     const under = (o: THREE.Object3D, set: Set<THREE.Object3D>) => {
@@ -333,6 +371,11 @@ export class SubModelRig {
     this.periMast.obj.position.copy(this.periMast.restPos).addScaledVector(this.periMast.axis, lift.periscope);
     this.periMast.obj.visible = periVisible;
     if (this.periHead) this.turn(this.periHead, (-periBearingDeg * Math.PI) / 180);
+    // portas das bocas dos tubos lançadores
+    for (const d of this.tubeDoors) {
+      const t = s.weapons?.tubes.find((x) => x.n === d.tube);
+      this.turn(d.m, d.sign * (t?.door.pos ?? 0) * ((TUBE_DOOR_OPEN_DEG * Math.PI) / 180));
+    }
     // pistões: seguem o leme (giro do leme sobre o repouso)
     for (const a of this.actuators) {
       const delta = a.fin.obj.quaternion.clone().multiply(a.fin.rest.clone().invert());

@@ -75,6 +75,8 @@ export interface ForceInputs {
   tStage?: number;
   /** cinemática das ondas pré-calculada para o passo (undefined = calcular aqui) */
   waveCache?: WaveCache | null;
+  /** reação do lançamento de torpedo (corpo; ausente fora da ejeção) */
+  launch?: Wrench;
 }
 
 export interface WaveCache {
@@ -127,6 +129,8 @@ export interface ForceBreakdown {
   coriolis: Wrench; // inclui Munk
   munk: Vec3; // momento de Munk isolado
   waves: Wrench; // forças de inércia das ondas (Froude–Krylov + difração simplificada)
+  /** reação da ejeção de torpedo (zero fora do disparo) */
+  launch: Wrench;
   total: Wrench;
   hs: HydrostaticResult;
   rho: number;
@@ -275,8 +279,9 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
     M: { x: -wxIw.x + munk.x + b1xw.x, y: -wxIw.y + munk.y + b1xw.y, z: -wxIw.z + munk.z + b1xw.z },
   };
 
+  const launch = fi.launch ?? zeroWrench();
   const total = zeroWrench();
-  for (const c of [weight, buoyancy, hf.resistance, hf.crossflow, hf.lift, hf.damping, finsTotal, propeller, contact, coriolis, waves]) addWrench(total, c);
+  for (const c of [weight, buoyancy, hf.resistance, hf.crossflow, hf.lift, hf.damping, finsTotal, propeller, contact, coriolis, waves, launch]) addWrench(total, c);
 
   return {
     weight,
@@ -291,6 +296,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
     coriolis,
     munk,
     waves,
+    launch,
     total,
     hs,
     rho,

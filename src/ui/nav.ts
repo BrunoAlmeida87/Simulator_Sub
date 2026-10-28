@@ -15,6 +15,7 @@ export const SCREEN_IDS = [
   'governo',
   'mapa',
   'sonar',
+  'armas',
   'sistemas',
   'lastro',
   'trim',
@@ -66,6 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'governo', label: 'Governo', hint: 'Painel de governo: manche, alavancas, telégrafo e piloto' },
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
       { id: 'sonar', label: 'Sonar', hint: 'Demonstração visual de pulso ativo, ecos e escuta passiva' },
+      { id: 'armas', label: 'Armas', hint: 'Tubos lançadores: sequência de lançamento, dados de tiro, compensação e torpedos em corrida (tiro de exercício)' },
     ],
   },
   {

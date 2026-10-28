@@ -281,6 +281,17 @@ export function TacticalMapScreen() {
         .bindTooltip(`${c.id}`, { permanent: true, direction: 'top', className: 'tm-tip' })
         .addTo(g);
     }
+    // torpedos lançados (tiro de exercício): derrota, posição e fio de guiagem
+    for (const r of st.weapons?.runs ?? []) {
+      const ro = r.origin ?? origin;
+      const pts = [...r.track, r].map((p) => ll(nedToLatLon(ro, p.n, p.e)));
+      const col = r.hit ? '#3ddc84' : '#36c5f0';
+      L.polyline(pts, { color: col, weight: 2, dashArray: r.wire ? undefined : '5 5' }).addTo(g);
+      const tip = `${r.id} · ${r.phase === 'recolher' ? 'flutuando (recolher)' : `${(r.speed / 0.5144).toFixed(0)} nós · ${r.d.toFixed(0)} m`}${r.hit ? ' · ACERTO' : ''}`;
+      L.circleMarker(pts[pts.length - 1], { radius: 5, color: col, weight: 2, fillOpacity: 0.9 })
+        .bindTooltip(tip, { permanent: true, direction: 'right', className: 'tm-tip' })
+        .addTo(g);
+    }
     // rota
     if (route.points.length) {
       L.polyline([ll(pos), ...route.points.slice(route.active ? route.idx : 0).map(ll)], { color: '#ffe14d', weight: 1.8, dashArray: route.active ? undefined : '6 5' }).addTo(g);

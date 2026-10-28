@@ -69,7 +69,7 @@ export const STATIONS: StationDef[] = [
   {
     id: 'combate',
     name: 'Console tático',
-    info: 'Quadro tático do sistema de combate (fictício, sem armamento): próprio navio, derrota, contatos com vetores de 6 minutos, ponto de maior aproximação (PMA) e escalas.',
+    info: 'Quadro tático do sistema de combate (fictício): próprio navio, derrota, contatos com vetores de 6 minutos, ponto de maior aproximação (PMA) e escalas. Na tela de baixo, o lançamento de armas: seis tubos, alvo, velocidade, preparar e disparar (tiro de exercício) e os torpedos em corrida.',
     view: { pos: [-1.45, 1.5, -1.75], look: [-2.3, 1.32, -1.75] },
   },
   {

@@ -151,9 +151,11 @@ export function trimBalance(e: SimulationEngine): TrimBalance {
   const demo = dwc && d ? { mass: demoMovedMass(dwc, d), x: d.x, xCmd: d.xCmd, xNeutral: dwc.xNeutral, z: dwc.z, momentTm: (-demoMovedMass(dwc, d) * (d.x - dwc.xNeutral)) / 1000 } : null;
   const loads = (v.mass.shiftLoads ?? []).map((l) => {
     const st = s.shiftLoads?.[l.id];
-    const mass = l.quantity * l.unitMass;
+    // armas de reserva: diminuem a cada recarga de tubo
+    const quantity = s.weapons && v.weapons?.reserveLoad === l.id ? s.weapons.reserve : l.quantity;
+    const mass = quantity * l.unitMass;
     const x = st?.x ?? l.home.x;
-    return { id: l.id, name: l.name, category: l.category, quantity: l.quantity, mass, x, xCmd: st?.xCmd ?? l.home.x, xHome: l.home.x, y: l.home.y, z: l.home.z, momentTm: (-mass * (x - l.home.x)) / 1000 };
+    return { id: l.id, name: l.name, category: l.category, quantity, mass, x, xCmd: st?.xCmd ?? l.home.x, xHome: l.home.x, y: l.home.y, z: l.home.z, momentTm: (-mass * (x - l.home.x)) / 1000 };
   });
   const loadsTm = loads.reduce((a, l) => a + l.momentTm, 0);
   const ref = s.trimRef ?? { a: s.trim.tankA.mass, b: s.trim.tankB.mass };

@@ -11,6 +11,11 @@ import { bumplessInit } from './systems/autopilot';
 import { emergencyBlowActive } from './systems/hpAir';
 import { sensorDef } from './systems/sensors';
 import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
+import { seaPressureAtTube, torpedoCommand, tubeCommand, weaponTargets, type TorpedoAction, type TubeAction, type TubeCmdCtx } from './systems/weapons';
+import type { TubePresets } from './core/state';
+import { makeDepthOf } from './core/context';
+import { qToMat3 } from './core/math';
+import { DEFAULT_ORIGIN, type LatLon } from './geo';
 
 /** Alterações de ambiente aplicáveis durante a simulação (o estado é mantido). */
 export type EnvironmentPatch = Partial<Pick<EnvironmentConfig, 'salinity' | 'deepSalinity' | 'surfaceTemperature' | 'deepTemperature' | 'thermoclineDepth' | 'thermoclineThickness' | 'magneticDeclination'>> & {
@@ -73,7 +78,11 @@ export type Command =
   | { type: 'shiftLoad'; id: string; x?: number; home?: boolean }
   /** referência dos vetores de trim (variação de água nos tanques de trim) = condição atual */
   | { type: 'trimReference' }
-  | { type: 'failure'; target: string; active: boolean; param?: number | string };
+  | { type: 'failure'; target: string; active: boolean; param?: number | string }
+  /** ordem a um tubo lançador (sequência automática ou passo a passo); origin/traffic: onde achar o alvo */
+  | { type: 'tube'; tube: number; action: TubeAction; presets?: Partial<TubePresets>; origin?: LatLon; traffic?: number }
+  /** ordem a um torpedo em corrida pelo fio (alvo, rumo, cota, cortar o fio) ou recolher a arma de exercício */
+  | { type: 'torpedo'; id: string; action: TorpedoAction; target?: string | null; course?: number; depth?: number };
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
 
@@ -472,7 +481,33 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     case 'failure':
       applyFailure(e, c.target, c.active, c.param);
       break;
+    case 'tube':
+      if (v.weapons) tubeCommand(weaponCtx(e, c.origin, c.traffic), c.tube, c.action, c.presets);
+      break;
+    case 'torpedo': {
+      const r = s.weapons?.runs.find((x) => x.id === c.id);
+      if (r) torpedoCommand(weaponCtx(e, r.origin, r.traffic), c.id, c.action, { target: c.target, course: c.course, depth: c.depth });
+      break;
+    }
   }
+}
+
+/** Contexto das ordens aos tubos: pressão do mar em cada boca e nome dos alvos. */
+function weaponCtx(e: SimulationEngine, origin?: LatLon, traffic?: number): TubeCmdCtx {
+  const s = e.state;
+  const R = qToMat3(s.body.quat);
+  const sc = { env: e.env, depthOf: makeDepthOf(s.body.pos, R), rhoLocal: e.env.densityAt(Math.max(0, s.body.pos.z)) };
+  const o = origin ?? e.env.cfg.geo?.origin ?? DEFAULT_ORIGIN;
+  return {
+    v: e.vessel,
+    s,
+    R: e.geom.radiusAt,
+    sea: (i) => seaPressureAtTube(sc, e.vessel.weapons!, e.vessel.weapons!.tubes[i], e.geom.radiusAt),
+    log: (text, group) => e.log(text, group),
+    origin: o,
+    traffic: traffic ?? 0,
+    targetName: (id) => weaponTargets(e.env, o, s.t, traffic ?? 0).find((x) => x.id === id)?.name,
+  };
 }
 
 /** Catálogo de falhas injetáveis (ambiente controlado de treinamento). */

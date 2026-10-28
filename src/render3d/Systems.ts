@@ -321,6 +321,10 @@ export class SystemsVis {
     shaped(v.trim.tankB, 'TT-AR', 'trim', 2.2, (en) => tankVolume(en.state.trim.tankB), (en) => en.state.trim.flow);
     shaped(v.heel.tankA, 'TB-BB', 'banda', 1.0, (en) => tankVolume(en.state.heel.tankA), (en) => (en.state.heel.tankA.flow ?? 0) - en.state.heel.flow);
     shaped(v.heel.tankB, 'TB-BE', 'banda', 1.0, (en) => tankVolume(en.state.heel.tankB), (en) => (en.state.heel.tankB.flow ?? 0) + en.state.heel.flow);
+    // tanques de compensação das armas (sob o piso da sala de torpedos): água para alagar os tubos e compensação automática
+    (v.weapons?.tca ?? []).forEach((t, k) =>
+      shaped(t, t.id.replace(/^TCA(\w\w)$/, 'TCA-$1'), 'compensacao', 1.1, (en) => tankVolume(en.state.weapons?.tca[k] ?? { mass: 0 }), (en) => en.state.weapons?.tca[k].flow ?? 0),
+    );
   }
 
   // ------------------------------------------------------- energia (corte)

@@ -1,5 +1,5 @@
 /**
- * CONSOLES MULTIFUNÇÃO DO SISTEMA DE COMBATE (fictício, sem armamento):
+ * CONSOLES MULTIFUNÇÃO DO SISTEMA DE COMBATE (fictício; o lançamento de armas fica em panelsWeapons.ts):
  * sonar passivo (cascata), interceptação de radar (MAGE/ESM, só com mastro
  * fora d'água), quadro tático com tabela de contatos e NAVEGAÇÃO (INS, GPS,
  * ecobatímetro, rota). E a MESA TÁTICA (carta horizontal no centro da sala).
@@ -252,6 +252,26 @@ function plot(c: DrawCtx, act: RoomActions, x: number, y: number, w: number, h: 
     g.lineTo(cx, cy);
     g.stroke();
   }
+  // torpedos lançados (tiro de exercício): derrota e posição
+  for (const r of s.weapons?.runs ?? []) {
+    g.strokeStyle = r.hit ? C.real : C.cmd;
+    g.lineWidth = 2.5;
+    g.setLineDash(r.wire ? [] : [7, 5]);
+    g.beginPath();
+    [...r.track, r].forEach((p, i) => {
+      const [px, py] = P(p.n, p.e);
+      if (i) g.lineTo(px, py);
+      else g.moveTo(px, py);
+    });
+    g.stroke();
+    g.setLineDash([]);
+    const [px, py] = P(r.n, r.e);
+    g.fillStyle = r.hit ? C.real : C.cmd;
+    g.beginPath();
+    g.arc(px, py, 6, 0, Math.PI * 2);
+    g.fill();
+    text(g, r.id, px + 9, py - 10, opts.table ? 20 : 18, r.hit ? C.real : C.cmd, 'left', 'bold');
+  }
   // rota planejada
   const rt = act.route();
   if (rt.points.length) {
@@ -398,7 +418,7 @@ function drawLand(c: DrawCtx, x: number, y: number, w: number, h: number, own: {
 export function drawTacticalConsole(act: RoomActions) {
   return (c: DrawCtx) => {
     const { g, e, W, H } = c;
-    const y0 = screenBg(c, 'QUADRO TÁTICO', 'fictício · sem armamento');
+    const y0 = screenBg(c, 'QUADRO TÁTICO', 'fictício');
     const si = c.ui.page.tacScale ?? 2;
     const scale = SCALES_KM[si];
     const ph = H - y0 - 10;

@@ -37,6 +37,8 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
   physics/            hidrostática, hidrodinâmica (finForce), dinâmica (computeForces), massas
   systems/            lastro, tanques internos, ar AP, elétrica, propulsão, piloto, alarmes, sensores
                       compensationNetwork.ts (vazão por trecho do circuito), exhaust.ts (descarga dos geradores)
+                      weapons.ts (tubos lançadores: sequência, compensação das armas, corrida do torpedo, alvos;
+                      comandos 'tube'/'torpedo'); torpedoTubes.ts (geometria dos tubos retos e das portas da boca)
   environment/        água do mar, ondas
   commands.ts         ÚNICA via para alterar a simulação (tipo Command + applyCommand)
   scenarios.ts        cenários iniciais (SCENARIOS)
@@ -50,6 +52,9 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   subModel.ts         modelo .glb do SX-1 (public/models/sx1-leve|alta.glb): nomes fixos das peças (SUB_PARTS),
                       SubModelRig liga lemes/hélice/mastros ao estado; sem o arquivo fica o casco gerado (reserva);
                       pistões hidráulicos dos lemes (SX1_Atuador_*, actuatorPose) seguem o ângulo de cada par
+  torpedoTubes.ts     tubos lançadores e sala de torpedos (desenho; geometria de sim/systems/torpedoTubes.ts)
+  TorpedoVis.ts       torpedos na cena: armas nos tubos, saída pela boca, corrida (esteira, fio), vista 'torpedo';
+                      modelo public/models/sx1-f21.glb (scripts/blender/build_f21.py, do .blend da pasta kimi)
   pressureHull.ts     casco resistente (raio interno 2,9 m, anteparas antes dos TLP): o corte (Systems.ts) e o interior do Blender
                       ficam dentro dele; teste tests/systemsLayout.test.ts
   shaftLine.ts        linha de eixo (motor principal, mancal de escora, eixo até o hélice): posições do interior do Blender;
@@ -85,6 +90,7 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       panel.ts (canvas + regiões clicáveis), panels*.ts (telas/faces por posto), furniture/textures,
                       stations.ts (postos e enquadramentos), actions.ts (RoomActions: a cena só monta Commands),
                       periscope.ts (óptica do periscópio: horizonte, contatos à vista, estadímetro)
+                      panelsWeapons.ts (painel de lançamento de armas no console tático)
 src/ui/               INTERFACE (React)
   App.tsx             barra superior, telas (screens) e atalhos de teclado
   nav.ts              NAVEGAÇÃO: SCREEN_IDS/ScreenId, grupos NAV_GROUPS (grupo → telas, teclas 0–8), marcas de alarme
@@ -96,6 +102,7 @@ src/ui/               INTERFACE (React)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
                       SystemsOverview (Sistemas › Visão geral: cartões por sistema)
                       sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
+  screens/WeaponsScreen.tsx  tela Armas (tubos, dados de tiro, compensação, torpedos em corrida, plotagem, 3D)
   ops/                central de operação da tela Operação (id 'pilotagem'): OpsConsole (console inferior, dono do canal,
                       aviso de troca de comando, sopro de emergência com tampa), grupos expansíveis (OpsGroups), opsBus
                       (até 2 fixados + 1 livre; 'nav' = console), faixa de indicadores (OpsStrip)

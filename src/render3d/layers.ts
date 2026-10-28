@@ -56,6 +56,8 @@ export interface SceneLayers {
   depthLines: boolean;
   /** ângulo de pitch: linha horizontal × eixo do casco, arco graduado e valor de θ */
   pitchAngle: boolean;
+  /** torpedos: armas nos tubos (no corte), disparo, corrida com esteira e fio de guiagem */
+  torpedoes: boolean;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -87,6 +89,7 @@ export const defaultLayers = (): SceneLayers => ({
   hull: true,
   depthLines: true,
   pitchAngle: false,
+  torpedoes: true,
 });
 
 /** camadas liga/desliga (as demais chaves de SceneLayers são ajustes, não camadas) */
@@ -118,6 +121,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   depthLines: { label: 'Linhas de profundidade', title: 'Linha leve a cada 25 m, com a profundidade, da superfície até o fundo' },
   pitchAngle: { label: 'Ângulo de pitch', title: 'Linha horizontal, eixo do casco e o ângulo θ entre eles (arco graduado a cada grau)' },
   ships: { label: 'Navios', title: 'Contatos da mesa tática como navios no mar' },
+  torpedoes: { label: 'Torpedos', title: 'Armas nos tubos (no corte), disparo, corrida com esteira de bolhas e fio de guiagem' },
   presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
   noWater: { label: 'Sem água', title: 'Esconde o mar para ver o submarino isolado', mode: true },
 };
@@ -135,6 +139,7 @@ export const fullExternalLayers = (): SceneLayers => ({
   wake: true,
   wind: true,
   ships: true,
+  torpedoes: true,
   markers: true,
   trail: true,
   labels: true,
@@ -153,7 +158,7 @@ export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exc
     title: 'Nomes, bateria, ar comprimido, referências de calado/trim, ângulo de pitch e linhas de profundidade',
     keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef', 'pitchAngle', 'depthLines'],
   },
-  { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'flag', 'ships', 'markers', 'trail'] },
+  { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, torpedos, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'flag', 'ships', 'torpedoes', 'markers', 'trail'] },
   { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['noWater', 'presLight'] },
 ];
 

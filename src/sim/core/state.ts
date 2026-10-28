@@ -241,6 +241,8 @@ export interface Ledger {
   mass0: number; // massa interna inicial (referência)
   /** massa de carga embarcada (+) ou desembarcada (−) pelo operador (cargas e peso deslocável) */
   cargoIn?: number;
+  /** massa das armas lançadas (kg) */
+  weaponsOut?: number;
   /** energia pedida pelas cargas e a parte não atendida pelo barramento (J); ausentes em salvamentos antigos */
   loadRequested?: number;
   loadUnserved?: number;
@@ -299,6 +301,107 @@ export interface SimState {
   shiftLoads?: Record<string, { x: number; xCmd: number }>;
   /** massas de referência dos tanques de trim (condição inicial do cenário) para os vetores de trim */
   trimRef?: { a: number; b: number };
+  /** tubos lançadores, compensação das armas e torpedos lançados (ausente em salvamentos antigos) */
+  weapons?: WeaponsState;
+}
+
+/** Sequência automática em curso num tubo. */
+export type TubeAuto = 'preparar' | 'disparar' | 'recarregar' | 'fechar' | null;
+
+/** Dados de tiro (ajustados antes do disparo; o alvo e o rumo podem mudar pelo fio). */
+export interface TubePresets {
+  /** id do contato escolhido como alvo (null = corrida no rumo ajustado) */
+  target: string | null;
+  speed: 'baixa' | 'alta';
+  /** cota de corrida (m) */
+  depth: number;
+  /** rumo inicial (°; null = o rumo do submarino) — com alvo, a guiagem pelo fio corrige */
+  course: number | null;
+}
+
+export interface TubeState {
+  n: number;
+  /** arma no tubo */
+  weapon: boolean;
+  /** arma alimentada e com os dados de tiro */
+  energized: boolean;
+  /** água no tubo (kg) */
+  water: number;
+  /** pressão dentro do tubo (Pa, absoluta) */
+  pressure: number;
+  /** válvulas: alagamento (do TCA), suspiro (para dentro do casco), equalização (com o mar), drenagem (para o TCA) */
+  flood: ValveState;
+  vent: ValveState;
+  equalize: ValveState;
+  drain: ValveState;
+  /** porta da boca (casco externo) e culatra (porta interna): 0 fechada … 1 aberta */
+  door: ValveState;
+  breech: ValveState;
+  /** ar na garrafa de lançamento (kg) */
+  flask: number;
+  presets: TubePresets;
+  auto: TubeAuto;
+  /** percurso da arma no tubo durante a ejeção (m) e a sua velocidade (m/s); null fora do disparo */
+  eject: number | null;
+  ejectV: number;
+  /** tempo decorrido da recarga (s); null sem recarga */
+  reload: number | null;
+  /** origem geográfica e tráfego adicional vistos pelo operador ao passar os dados (para achar o alvo) */
+  origin?: { lat: number; lon: number };
+  traffic?: number;
+}
+
+export type TorpedoPhase = 'afastamento' | 'guiado' | 'busca' | 'ataque' | 'flutuando' | 'recolher';
+
+export interface TorpedoRun {
+  id: string;
+  tube: number;
+  tFire: number;
+  /** posição NED (m) e cota (m, + para baixo), rumo (°), velocidade (m/s) */
+  n: number;
+  e: number;
+  d: number;
+  heading: number;
+  speed: number;
+  phase: TorpedoPhase;
+  /** fio de guiagem ligado ao submarino */
+  wire: boolean;
+  target: string | null;
+  /** quantidade de navios do tráfego adicional no disparo (para achar o alvo) */
+  traffic: number;
+  presets: TubePresets;
+  /** distância percorrida (m), ponto de lançamento */
+  run: number;
+  launch: { n: number; e: number };
+  /** rumo ordenado (°) */
+  cmdHeading: number;
+  /** último dado do alvo (pelo fio ou pelo autodiretor) */
+  tgt: { n: number; e: number; course: number; speed: number; name: string; range: number; bearing: number } | null;
+  /** menor distância horizontal ao alvo (m) */
+  closest: number;
+  hit: { t: number; dist: number; depth: number; target: string; name: string } | null;
+  endReason: string | null;
+  track: { n: number; e: number; d: number }[];
+  trackTimer: number;
+  guideTimer: number;
+  origin?: { lat: number; lon: number };
+}
+
+export interface WeaponsState {
+  tubes: TubeState[];
+  runs: TorpedoRun[];
+  /** água nos tanques de compensação das armas (kg), mesma ordem de cfg.weapons.tca */
+  tca: { mass: number; flow: number }[];
+  /** peso de referência das armas + água dos tubos + TCA + reserva (kg): a compensação automática o mantém */
+  awcRef: number;
+  /** vazão da compensação automática (kg/s, + admitindo do mar) */
+  awcFlow: number;
+  /** momento longitudinal de referência das armas (kg·m) e o já corrigido por transferências de trim (kg·m) */
+  awcMomentRef?: number;
+  awcTrim?: number;
+  /** armas de reserva a bordo */
+  reserve: number;
+  fired: number;
 }
 
 export const newValve = (open = false): ValveState => ({ cmd: open ? 1 : 0, pos: open ? 1 : 0, stuck: false });

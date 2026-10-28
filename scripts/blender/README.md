@@ -94,8 +94,8 @@ de escoamento e volantes pela posição (`build/modelo/fluidos/`); o terceiro co
   cubo do hélice. `SX1I_Eixo` e `SX1I_Motor_Rotor` giram em torno do eixo do casco (`eixo_giro` em extras).
   `--propulsao` renderiza a prévia da vista focada (só a propulsão dentro do submarino translúcido) em
   `build/modelo/propulsao/`.
-- **Tubos lançadores e sala de torpedos** (`src/render3d/torpedoTubes.ts`): seis tubos de 533 mm (`SX1I_TuboTorpedo_1…6`,
-  ímpares a boreste) da culatra, dentro do casco resistente, até a boca atrás de cada porta do casco externo,
+- **Tubos lançadores e sala de torpedos** (`src/render3d/torpedoTubes.ts`): seis tubos de 533 mm RETOS, paralelos ao eixo (`SX1I_TuboTorpedo_1…6`,
+  ímpares a boreste) da culatra, dentro do casco resistente, até a boca junto ao nariz da proa,
   atravessando o TLP-1 e a antepara de vante (anel de passagem). Cada tubo tem porta interna e porta externa
   (origem na dobradiça, `eixo_giro` e `abre_graus` em extras, para animar no disparo), trilho-guia, válvulas de
   alagamento e suspiro e a ejeção por ar comprimido: garrafa de lançamento → válvula de disparo → cilindro de
@@ -120,3 +120,19 @@ de escoamento e volantes pela posição (`build/modelo/fluidos/`); o terceiro co
 
 As fotos usadas como referência ficam em `referencias/` (fora do git, por direitos autorais), com a
 fonte de cada uma em `referencias/FONTES.txt`.
+
+## Portas das bocas (casco externo) e torpedo F21
+
+- `build_sx1.py` desenha no nariz da proa as seis **bocas** (`SX1_Casco_BocasTubos`, escuras) e as **portas** móveis
+  `SX1_PortaTubo_1…6` (pivô na dobradiça, do lado de fora de cada coluna; `subModel.ts` gira 100° para fora pela
+  abertura da porta na física). As posições (`TUBES_TT`, `TUBE_DOOR_R`) repetem `defaultVessel.ts` → `weapons`;
+  o teste `tests/torpedoTubes.test.ts` confere.
+- **F21 de exercício**: `build_f21.py` abre o estudo `torpedo_f21.blend` (pasta kimi), tira a inscrição do fabricante
+  (ficam "F21" e "EXERCISE"), junta as peças em `F21_Corpo`, `F21_Helice_Vante` e `F21_Helice_Re` (eixo da arma = +Y,
+  origem no meio dos 6,4 m) e exporta `build/modelo/sx1-f21.raw.glb`; `npm run modelo:otimizar` grava
+  `public/models/sx1-f21.glb` (limite 1 MB). O arquivo de origem não é alterado.
+
+```bash
+"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b C:/Users/Bruno/Documents/kimi/workspace/torpedo_f21.blend -P scripts/blender/build_f21.py
+npm run modelo:otimizar
+```

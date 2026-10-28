@@ -46,6 +46,7 @@ import { drawAnnunciator, drawConningOfficer, drawDivingGauges, drawHelmsman, dr
 import { MANIFOLD_VALVES, drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, manifoldToggle, manifoldValveCmd, manifoldValveOrder } from './panelsBallast';
 import { drawEnergy, drawInstructorFailures, drawInstructorSim, drawPropulsion } from './panelsPlatform';
 import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, drawTacticalConsole } from './panelsCombat';
+import { drawLaunchPanel } from './panelsWeapons';
 import { disposeRoomTextures, labelTexture } from './textures';
 import { TELEGRAPH, nearestOrder } from '../../sim/telegraph';
 import { ALARM_DEFS } from '../../sim/systems/alarms';
@@ -540,7 +541,7 @@ export class ControlRoomScene {
     // ---------- CONSOLES MULTIFUNÇÃO (bombordo)
     const portConsoles: [number, string, ConstructorParameters<typeof CanvasPanel>[0]['draw'], ConstructorParameters<typeof CanvasPanel>[0]['draw'], string, string][] = [
       [-3.0, 'sonar', drawSonarWaterfall(this.act), drawSonarContacts(this.act), 'Sonar — cascata', 'Sonar — contatos'],
-      [-1.75, 'combate', drawTacticalConsole(this.act), drawSonarContacts(this.act), 'Quadro tático', 'Contatos'],
+      [-1.75, 'combate', drawTacticalConsole(this.act), drawLaunchPanel(this.act), 'Quadro tático', 'Lançamento de armas'],
       [-0.5, 'navegacao', drawNavigation(this.act), drawTacticalConsole(this.act), 'Navegação', 'Quadro tático'],
     ];
     for (const [z, st, top, bot, n1, n2] of portConsoles) {

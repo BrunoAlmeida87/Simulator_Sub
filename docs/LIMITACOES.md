@@ -102,8 +102,16 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Escotilhas (torre, vante e ré) não são modeladas: o indicador de aberturas do casco as mostra sempre fechadas.
 - A exposição do periscópio, do GPS e do MAGE usa a posição de cada cabeça de mastro com o caturro e o balanço, sobre o nível médio da água; a onda entra só no efeito de água na ocular.
 - Sonar passivo e MAGE são **modelos ilustrativos** (perdas esféricas, ruído próprio crescendo com a velocidade, zona cega a ré, emissores por tipo de navio); não há propagação acústica real, camadas de sombra nem classificação por assinatura.
-- O sistema de combate é fictício e não tem armamento.
+- O sistema de combate é fictício. O lançamento de armas é um **tiro de exercício** ilustrativo (seção *Torpedos*).
 - A inclinação da sala (opção) gira a vista de quem anda em torno da cabeça, mantida na vertical; não há equilíbrio, deslizamento nem objetos soltos. Sentado num posto, a câmera é solidária ao navio; a atitude aparece nos instrumentos, na bolha e no pêndulo.
+
+## Torpedos (tiro de exercício)
+- A arma é um F21 **de exercício** com valores de ordem de grandeza pública; não representa o desempenho real de nenhum torpedo, nem procedimentos de nenhuma marinha.
+- A corrida é **cinemática**: velocidade com partida de 1ª ordem, guinada e variação de cota limitadas, sem hidrodinâmica da arma, correntes, ondas, ruído próprio, cavitação ou consumo variável da bateria. O autodiretor é um cone com alcance fixo (sem acústica, reverberação, despistadores ou perda de contato por ruído); a guiagem pelo fio vai ao ponto de interceptação com o rumo e a velocidade verdadeiros do alvo.
+- O alvo não reage (não manobra nem sofre dano): é tiro de exercício, a arma passa sob ele e flutua.
+- A ejeção usa aceleração constante no tubo e não modela o pulso de pressão, a bolha de ar nem a água empurrada para fora do tubo; o ar da garrafa vai para dentro do casco sem alterar a pressão interna (constante no simulador).
+- A compensação automática é ideal (sem atraso de válvulas nem bomba própria); a correção do binário usa a transferência automática do sistema de trim.
+- A partir da antepara de vante os tubos passam dentro do TLP-1; o volume do TLP-1 na física não desconta os tubos.
 
 ## Rio de Janeiro, sol e luzes (só visual)
 

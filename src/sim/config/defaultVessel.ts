@@ -50,7 +50,8 @@ export function defaultVessel(): VesselConfig {
       gyration: { kxx: 2.4, kyy: 17.0, kzz: 17.0 },
       variableLoads: [
         { id: 'trip', name: 'Tripulação e mantimentos', mass: 9000, position: { x: 4, y: 0, z: 0.5 } },
-        { id: 'arm', name: 'Carga útil / armamento (fictício)', mass: 14000, position: { x: 19, y: 0, z: 0.8 } },
+        // as 6 armas nos tubos (weapons, 6 × 1,6 t) saíram desta parcela: a massa total do navio não muda
+        { id: 'arm', name: 'Carga útil / armamento sem os torpedos (fictício)', mass: 4400, position: { x: 19, y: 0, z: 0.8 } },
         { id: 'agua', name: 'Água doce e lubrificantes', mass: 6000, position: { x: -6, y: 0, z: 2.0 } },
       ],
       loadOffset: 0,
@@ -318,6 +319,60 @@ export function defaultVessel(): VesselConfig {
     },
     contact: { stiffness: 2.0e6, damping: 1.5e6, friction: 0.35 },
     internalPressure: 101325,
+    weapons: defaultWeapons(),
+  };
+}
+
+/**
+ * Seis tubos de 533 mm na proa, retos e paralelos ao eixo (duas colunas de 3, uma por bordo), com
+ * ejeção por ar comprimido e torpedo pesado de EXERCÍCIO (F21, valores de ordem de grandeza pública;
+ * nada aqui é dado de projeto real). Tanques de compensação das armas (TCA) sob o piso da sala de
+ * torpedos, ao lado do TT-AV: fornecem a água para alagar os tubos e recebem a compensação automática.
+ */
+export function defaultWeapons(): NonNullable<VesselConfig['weapons']> {
+  const KT = 1852 / 3600;
+  const rows = [-0.6, 0.2, 1.0];
+  // TCA: 2 × 5,2 m³ (x ≈ 18,7…24,5 m, entre o costado e o TT-AV); começam com água para alagar os seis tubos e folga para as recargas
+  const tca = (id: string, name: string, y: number) => ({ id, name, capacity: 5.2, height: 1.0, width: 1.2, hullRadius: 2.9, center: { x: 21.6, y, z: 2.0 }, initialVolume: 3.5 });
+  return {
+    breechX: 24.1,
+    boreRadius: 0.278,
+    outerRadius: 0.31,
+    muzzleClearance: 0.03,
+    tubes: rows.flatMap((z, row) => [
+      { n: row * 2 + 1, side: 'BE' as const, row, y: 0.7, z },
+      { n: row * 2 + 2, side: 'BB' as const, row, y: -0.7, z },
+    ]),
+    weapon: {
+      name: 'F21 (exercício)',
+      mass: 1600,
+      length: 6.4,
+      diameter: 0.533,
+      volume: 1.3,
+      speeds: { baixa: 25 * KT, alta: 50 * KT },
+      range: { baixa: 50000, alta: 20000 },
+      spinUp: 2.5,
+      turnRate: 12,
+      depthRate: 2.5,
+      safeDistance: 200,
+      acquisitionRange: 1800,
+      seekerHalfAngle: 45,
+      wireLength: 50000,
+      hitRadius: 25,
+      floatRate: 1.0,
+    },
+    initialLoaded: 6,
+    reserveLoad: 'torpedos',
+    tca: [tca('TCABB', 'TCA-BB Compensação das armas bombordo', -1.75), tca('TCABE', 'TCA-BE Compensação das armas boreste', 1.75)],
+    floodRate: 0.02,
+    drainRate: 0.03,
+    awcRate: 40,
+    equalizeTau: 2.0,
+    doorTime: 12,
+    breechTime: 6,
+    reloadTime: 300,
+    flask: { volume: 0.25, pressure: 150 * BAR, minPressure: 100 * BAR, rechargeFlow: 0.4 },
+    ejectSpeed: 13,
   };
 }
 

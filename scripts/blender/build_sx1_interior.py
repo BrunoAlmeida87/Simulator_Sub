@@ -1007,9 +1007,9 @@ def build_torpedoes(D, M, parent):
                 room.append(box(v3((yc, xx, zc + 0.02)), (0.56, 0.1, 0.07)))
                 for dy in (-0.25, 0.25):
                     room.append(box(v3((yc + dy, xx, zc + 0.12)), (0.06, 0.1, 0.18)))
-        # colunas da estante, do fundo do casco resistente até acima do nível de cima
+        # colunas da estante, do piso (sobre os TCA) até acima do nível de cima
         yo = sd * (rk['y'] + 0.36)
-        zbot = -math.sqrt(max(0.0, D['casco']['raioResistente'] ** 2 - yo ** 2)) + 0.05
+        zbot = -dk['z']
         ztop = -min(rk['tiers']) + 0.35
         for k in range(3):
             xx = rk['x0'] + 0.05 + k * (rl - 0.1) / 2

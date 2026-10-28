@@ -1,0 +1,526 @@
+/**
+ * Tela ARMAS — tubos lançadores e torpedos (tiro de exercício).
+ *
+ * Seis tubos com o estado de cada um, a sequência de lançamento (automática ou passo a passo), os
+ * dados de tiro (alvo entre os contatos do quadro tático, velocidade, cota, rumo), a compensação
+ * automática das armas, os torpedos em corrida (guiagem pelo fio) com a plotagem tática e uma vista
+ * 3D que acompanha o torpedo. Tudo passa por comandos ('tube' e 'torpedo'); a física fica em
+ * src/sim/systems/weapons.ts.
+ */
+import { useMemo, useState } from 'react';
+import { cmd, useSim } from '../store';
+import { Panel } from '../components/Panel';
+import { Readout } from '../components/Readout';
+import { Scene3D } from '../components/Scene3D';
+import { usePersisted } from '../persist';
+import { graphics } from '../graphics';
+import { geoOriginOf } from '../routeNav';
+import { fmt } from '../format';
+import { makeDepthOf } from '../../sim/core/context';
+import { qToMat3 } from '../../sim/core/math';
+import { RHO_NOMINAL } from '../../sim/core/context';
+import { tubeLength, stowedWeaponX } from '../../sim/systems/torpedoTubes';
+import { DEFAULT_PRESETS, tubeView, weaponTargets, type TubeAction, type TubeView } from '../../sim/systems/weapons';
+import type { TorpedoRun, TubePresets, TubeState } from '../../sim/core/state';
+import type { SimulationEngine } from '../../sim/core/engine';
+import type { ViewMode } from '../../render3d/SubmarineScene';
+import { defaultLayers, type SceneLayers } from '../../render3d/layers';
+
+const KT = 1852 / 3600;
+const TONE_BADGE: Record<TubeView['tone'], string> = { off: 'off', busy: 'info', ready: 'ok', warn: 'warn' };
+const PHASE: Record<TorpedoRun['phase'], [string, string]> = {
+  afastamento: ['AFASTAMENTO', 'info'],
+  guiado: ['GUIADO PELO FIO', 'info'],
+  busca: ['CORRIDA', 'info'],
+  ataque: ['ATAQUE', 'warn'],
+  flutuando: ['FIM DE CORRIDA', 'off'],
+  recolher: ['FLUTUANDO', 'ok'],
+};
+
+/** contexto de leitura da pressão do mar na boca de cada tubo */
+function seaCtx(e: SimulationEngine) {
+  const s = e.state;
+  return { env: e.env, depthOf: makeDepthOf(s.body.pos, qToMat3(s.body.quat)), rhoLocal: e.env.densityAt(Math.max(0, s.body.pos.z)) };
+}
+
+interface Target {
+  id: string;
+  name: string;
+  n: number;
+  e: number;
+  course: number;
+  speed: number;
+  range: number;
+  bearing: number;
+}
+
+function useTargets(e: SimulationEngine): Target[] {
+  const s = e.state;
+  const origin = geoOriginOf(e);
+  const traffic = graphics.get().traffic;
+  return weaponTargets(e.env, origin, s.t, traffic)
+    .map((c) => {
+      const dn = c.n - s.body.pos.x;
+      const de = c.e - s.body.pos.y;
+      return { id: c.id, name: c.name, n: c.n, e: c.e, course: c.course, speed: c.speed, range: Math.hypot(dn, de), bearing: ((Math.atan2(de, dn) * 180) / Math.PI + 360) % 360 };
+    })
+    .sort((a, b) => a.range - b.range);
+}
+
+const km = (m: number) => (m >= 1000 ? `${fmt(m / 1000, 1)} km` : `${fmt(m, 0)} m`);
+const deg3 = (x: number) =>
+  Math.round(((x % 360) + 360) % 360)
+    .toString()
+    .padStart(3, '0') + '°';
+
+export function WeaponsScreen() {
+  const e = useSim(10);
+  const s = e.state;
+  const v = e.vessel;
+  const w = v.weapons;
+  const ws = s.weapons;
+  const [sel, setSel] = usePersisted('armas.tubo', 1);
+  const [draft, setDraft] = useState<Record<number, TubePresets>>({});
+  const [view, setView] = usePersisted<ViewMode>('armas.vista', 'torpedo');
+  const [cut, setCut] = usePersisted('armas.corte', false);
+  const targets = useTargets(e);
+  const ctx = useMemo(() => seaCtx(e), [e, s.t]);
+  if (!w || !ws) return <div className="note">Este navio não tem tubos lançadores na configuração.</div>;
+  const views = w.tubes.map((_, i) => tubeView(v, s, ctx, e.geom.radiusAt, i));
+  const i = Math.max(
+    0,
+    w.tubes.findIndex((t) => t.n === sel),
+  );
+  const tc = w.tubes[i];
+  const t = ws.tubes[i];
+  const tv = views[i];
+  const pr = draft[tc.n] ?? t.presets;
+  const setPr = (p: Partial<TubePresets>) => setDraft({ ...draft, [tc.n]: { ...pr, ...p } });
+  const origin = geoOriginOf(e);
+  const traffic = graphics.get().traffic;
+  const order = (action: TubeAction, n = tc.n) => cmd({ type: 'tube', tube: n, action, presets: n === tc.n ? pr : undefined, origin, traffic });
+  const target = pr.target ? targets.find((x) => x.id === pr.target) : undefined;
+  const busy = t.auto !== null || t.eject !== null || t.reload !== null;
+  const layers: Partial<SceneLayers> = { ...defaultLayers(), torpedoes: true, tanks: cut, pipes: cut, flows: cut, labels: !cut, ships: true, wake: true, trail: true };
+
+  return (
+    <div className="grid weapons-screen">
+      <Panel
+        title="Tubos lançadores — tiro de exercício (F21)"
+        className="span-all"
+        right={
+          <span className="subtle">
+            Reserva: {ws.reserve} · lançados: {ws.fired}
+          </span>
+        }
+      >
+        <div className="tube-grid">
+          {/* como visto de ré para vante: bombordo à esquerda, boreste à direita */}
+          {[...w.tubes]
+            .sort((a, b) => a.row - b.row || (a.side === 'BB' ? -1 : 1))
+            .map((x) => {
+              const k = w.tubes.indexOf(x);
+              const st = ws.tubes[k];
+              const vw = views[k];
+              return (
+                <button key={x.n} className={`tube-card ${x.side === 'BE' ? 'be' : 'bb'} ${x.n === tc.n ? 'on' : ''}`} onClick={() => setSel(x.n)} title={`Tubo ${x.n} (${x.side === 'BE' ? 'boreste' : 'bombordo'})`}>
+                  <div className="tube-head">
+                    <b>Tubo {x.n}</b> <span className="subtle">{x.side}</span>
+                    <span className={`badge ${TONE_BADGE[vw.tone]}`}>{vw.status}</span>
+                  </div>
+                  <TubeMini st={st} full={vw.fullWater} />
+                  <div className="subtle mono">
+                    {st.weapon ? 'F21' : 'vazio'} · água {fmt(st.water / RHO_NOMINAL, 2)} m³ · porta {fmt(st.door.pos * 100, 0)} % · garrafa {fmt(vw.flaskBar, 0)} bar
+                  </div>
+                </button>
+              );
+            })}
+        </div>
+      </Panel>
+
+      <Panel title={`Tubo ${tc.n} (${tc.side === 'BE' ? 'boreste' : 'bombordo'}) — sequência de lançamento`} right={<span className={`badge ${TONE_BADGE[tv.tone]}`}>{tv.status}</span>}>
+        <TubeDiagram e={e} i={i} tv={tv} />
+        <div className="readouts mt8">
+          <Readout label="Água no tubo" value={t.water / RHO_NOMINAL} unit="m³" digits={2} kind="CALC" title={`Cheio com a arma: ${fmt(tv.fullWater / RHO_NOMINAL, 2)} m³`} />
+          <Readout label="Pressão no tubo" value={t.pressure / 1e5} unit="bar" digits={2} kind="CALC" />
+          <Readout label="Mar na boca" value={tv.seaPressure / 1e5} unit="bar" digits={2} kind="CALC" />
+          <Readout label="Garrafa de lançamento" value={tv.flaskBar} unit="bar" digits={0} kind="CALC" title={`Mínimo para disparar: ${fmt(w.flask.minPressure / 1e5, 0)} bar`} />
+        </div>
+        <h4 className="mt8">Dados de tiro</h4>
+        <div className="row">
+          <label className="subtle">
+            Alvo{' '}
+            <select value={pr.target ?? ''} onChange={(ev) => setPr({ target: ev.target.value || null })}>
+              <option value="">— sem alvo (corrida no rumo) —</option>
+              {targets.slice(0, 30).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} — {km(c.range)}, marcação {deg3(c.bearing)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="seg" title="Velocidade de corrida">
+            {(['baixa', 'alta'] as const).map((sp) => (
+              <button key={sp} className={pr.speed === sp ? 'on' : ''} onClick={() => setPr({ speed: sp })}>
+                {sp} ({fmt(w.weapon.speeds[sp] / KT, 0)} nós)
+              </button>
+            ))}
+          </div>
+          <label className="subtle">
+            Cota <input className="num" type="number" min={3} max={300} step={5} value={pr.depth} onChange={(ev) => setPr({ depth: Number(ev.target.value) || DEFAULT_PRESETS.depth })} style={{ width: 64 }} /> m
+          </label>
+          <label className="subtle" title="Sem alvo: rumo da corrida. Com alvo, a guiagem pelo fio leva a arma ao ponto de interceptação.">
+            Rumo{' '}
+            <input
+              className="num"
+              type="number"
+              min={0}
+              max={359}
+              placeholder="auto"
+              value={pr.course ?? ''}
+              onChange={(ev) => setPr({ course: ev.target.value === '' ? null : Number(ev.target.value) })}
+              style={{ width: 64 }}
+            />
+            °
+          </label>
+        </div>
+        {target && (
+          <div className="note">
+            {target.name}: {km(target.range)} na marcação {deg3(target.bearing)}, rumo {deg3(target.course)}, {fmt(target.speed / KT, 1)} nós. Tempo de corrida estimado ≈{' '}
+            {fmt(target.range / w.weapon.speeds[pr.speed] / 60, 1)} min. Arma de exercício: passa sob o alvo na cota ajustada.
+          </div>
+        )}
+        <div className="row mt8">
+          <button className="btn" disabled={!t.weapon || busy || tv.ready} onClick={() => order('preparar')} title="Alimentar a arma, alagar com a água do TCA, equalizar com o mar e abrir a porta da boca">
+            Preparar
+          </button>
+          <button
+            className="btn danger"
+            disabled={!t.weapon || t.eject !== null || t.reload !== null}
+            onClick={() => order('disparar')}
+            title={tv.ready ? 'Disparar agora (ejeção por ar comprimido)' : 'Preparar e disparar quando o tubo estiver pronto'}
+          >
+            {tv.ready ? 'Disparar' : 'Preparar e disparar'}
+          </button>
+          <button className="btn" disabled={busy || t.door.pos <= 0.001} onClick={() => order('fechar')} title="Fechar a porta da boca e isolar o tubo do mar">
+            Fechar porta
+          </button>
+          <button className="btn" disabled={busy || t.weapon || ws.reserve <= 0} onClick={() => order('recarregar')} title="Fechar a porta, drenar para o TCA, abrir a culatra e puxar uma arma da reserva">
+            Recarregar ({ws.reserve})
+          </button>
+          <button className="btn warn" disabled={!t.auto} onClick={() => order('cancelar')}>
+            Cancelar
+          </button>
+          <button className="btn sm" onClick={() => order('dados')} title="Passar os dados de tiro à arma (registrados no histórico)">
+            Passar dados
+          </button>
+        </div>
+        {t.auto && <div className="note">Sequência automática em curso: {t.auto}.</div>}
+        <Panel title="Passo a passo (manual)" fold="armas.manual" foldOpen={false}>
+          <div className="btngroup">
+            {(
+              [
+                ['alimentar', t.energized ? 'Desligar arma' : 'Alimentar arma'],
+                ['alagar', 'Alagar'],
+                ['equalizar', 'Equalizar'],
+                ['abrirPorta', 'Abrir porta da boca'],
+                ['fecharPorta', 'Fechar porta da boca'],
+                ['drenar', 'Drenar'],
+                ['abrirCulatra', 'Abrir culatra'],
+                ['carregar', 'Carregar da reserva'],
+                ['fecharCulatra', 'Fechar culatra'],
+              ] as [TubeAction, string][]
+            ).map(([a, label]) => (
+              <button key={a} className="btn sm" disabled={busy && a !== 'fecharPorta'} onClick={() => order(a)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="subtle">Cada ordem confere os intertravamentos (porta só abre com o tubo equalizado; culatra só abre com o tubo seco e a porta fechada) e fica no histórico com o motivo de uma recusa.</p>
+        </Panel>
+      </Panel>
+
+      <Panel title="Vista 3D" className="weapons-3d">
+        <div className="row" style={{ marginBottom: 6 }}>
+          <div className="seg">
+            {(
+              [
+                ['torpedo', 'Torpedo'],
+                ['perseguicao', 'Perseguição'],
+                ['perspectiva', 'Proa ¾'],
+                ['frente', 'Frente'],
+                ['perfil', 'Perfil'],
+                ['livre', 'Livre'],
+              ] as [ViewMode, string][]
+            ).map(([id, label]) => (
+              <button key={id} className={view === id ? 'on' : ''} onClick={() => setView(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="subtle">
+            <input type="checkbox" checked={cut} onChange={(ev) => setCut(ev.target.checked)} /> corte (armas nos tubos)
+          </label>
+        </div>
+        <Scene3D view={view} layers={layers} cutaway={cut} persistKey="armas" syncVisual={false} style={{ height: 460, position: 'relative' }} />
+      </Panel>
+
+      <Panel title="Compensação automática das armas">
+        <div className="readouts">
+          {w.tca.map((k, j) => (
+            <Readout key={k.id} label={k.name.split(' ')[0]} value={ws.tca[j].mass / RHO_NOMINAL} unit="m³" digits={2} kind="CALC" title={`${k.name} — capacidade ${fmt(k.capacity, 1)} m³`} />
+          ))}
+          <Readout label="Admissão / descarga" value={ws.awcFlow} unit="kg/s" digits={1} kind="CALC" title="+ admitindo do mar, − descarregando" />
+          <Readout label="Desvio de peso" value={weightError(e)} unit="kg" digits={0} kind="CALC" title="Peso de referência − peso atual (armas, água dos tubos, TCA e reserva)" />
+          <Readout label="Trim corrigido" value={-(ws.awcTrim ?? 0) / 1000} unit="t·m" digits={1} kind="CALC" title="Momento já corrigido por transferências TT-AV ↔ TT-AR" />
+        </div>
+        <p className="subtle">
+          Ao alagar, a água sai do TCA para o tubo (peso igual, mais a vante). No disparo sai a arma ({fmt(w.weapon.mass, 0)} kg) e entra no tubo o mar no lugar dela ({fmt(w.weapon.volume, 2)} m³): a compensação admite a
+          diferença no TCA e, com os tubos parados, transfere água entre os tanques de trim para anular o binário.
+        </p>
+      </Panel>
+
+      <Panel title="Torpedos em corrida">
+        {ws.runs.length === 0 ? (
+          <p className="subtle">Nenhum torpedo lançado.</p>
+        ) : (
+          <div className="scroll">
+            <table className="t">
+              <thead>
+                <tr>
+                  <th>Torpedo</th>
+                  <th>Fase</th>
+                  <th>Vel.</th>
+                  <th>Cota</th>
+                  <th>Percorrido</th>
+                  <th>Alvo</th>
+                  <th>Fio</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {ws.runs.map((r) => (
+                  <RunRow key={r.id} r={r} targets={targets} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <TacticalPlot e={e} targets={targets} sel={pr.target} />
+      </Panel>
+    </div>
+  );
+}
+
+function weightError(e: SimulationEngine): number {
+  const w = e.vessel.weapons!;
+  const ws = e.state.weapons!;
+  let m = ws.reserve * w.weapon.mass;
+  for (const t of ws.tubes) m += (t.weapon ? w.weapon.mass : 0) + t.water;
+  for (const k of ws.tca) m += k.mass;
+  return ws.awcRef - m;
+}
+
+function RunRow({ r, targets }: { r: TorpedoRun; targets: Target[] }) {
+  const [ph, tone] = PHASE[r.phase];
+  const done = r.phase === 'flutuando' || r.phase === 'recolher';
+  return (
+    <tr>
+      <td>
+        <b>{r.id}</b> <span className="subtle">tubo {r.tube}</span>
+      </td>
+      <td>
+        <span className={`badge ${tone}`}>{ph}</span> {r.hit && <span className="badge ok">ACERTO</span>}
+      </td>
+      <td className="mono">{fmt(r.speed / KT, 0)} nós</td>
+      <td className="mono">{fmt(r.d, 0)} m</td>
+      <td className="mono">{km(r.run)}</td>
+      <td>
+        {r.tgt ? `${r.tgt.name} — ${km(r.tgt.range)}` : r.target ? r.target : '—'}
+        {r.hit && (
+          <div className="subtle">
+            passou a {fmt(r.hit.dist, 0)} m, cota {fmt(r.hit.depth, 0)} m
+          </div>
+        )}
+        {!r.hit && done && r.target && Number.isFinite(r.closest) && <div className="subtle">menor distância {km(r.closest)}</div>}
+      </td>
+      <td>{r.wire ? <span className="badge info">LIGADO</span> : <span className="badge off">—</span>}</td>
+      <td>
+        <div className="btngroup">
+          {!done && r.wire && (
+            <select value={r.target ?? ''} onChange={(ev) => cmd({ type: 'torpedo', id: r.id, action: 'alvo', target: ev.target.value || null })} title="Novo alvo pelo fio">
+              <option value="">sem alvo</option>
+              {targets.slice(0, 30).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {!done && r.wire && (
+            <button className="btn sm" onClick={() => cmd({ type: 'torpedo', id: r.id, action: 'cortarFio' })}>
+              Cortar fio
+            </button>
+          )}
+          {r.phase === 'recolher' && (
+            <button className="btn sm ok" onClick={() => cmd({ type: 'torpedo', id: r.id, action: 'recolher' })}>
+              Recolher
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+/** miniatura do tubo no cartão: água, arma e porta */
+function TubeMini({ st, full }: { st: TubeState; full: number }) {
+  const f = Math.max(0, Math.min(1, full > 0 ? st.water / (full + (st.weapon ? 0 : 0)) : 0));
+  return (
+    <svg viewBox="0 0 200 22" className="tube-mini" aria-hidden>
+      <rect x="4" y="3" width="180" height="16" rx="3" fill="#0d1824" stroke="#2c4260" />
+      <rect x="5" y={4 + 14 * (1 - Math.min(1, f))} width="178" height={14 * Math.min(1, f)} fill="#2a7fd4" opacity="0.7" />
+      {st.weapon && <rect x={10 + (st.eject ?? 0) * 12} y="7" width="120" height="8" rx="4" fill="#e8622b" stroke="#1a1a1a" />}
+      <line x1="185" y1="3" x2={185 + st.door.pos * 10} y2={st.door.pos > 0.5 ? 0 : 19} stroke={st.door.pos > 0.999 ? '#3ddc84' : st.door.pos > 0.001 ? '#f5b041' : '#8399b1'} strokeWidth="3" />
+      <line x1="4" y1="3" x2="4" y2="19" stroke={st.breech.pos > 0.001 ? '#f5b041' : '#8399b1'} strokeWidth="3" />
+    </svg>
+  );
+}
+
+/** corte esquemático do tubo selecionado: culatra, água, arma, válvulas, porta da boca e casco */
+function TubeDiagram({ e, i, tv }: { e: SimulationEngine; i: number; tv: TubeView }) {
+  const w = e.vessel.weapons!;
+  const tc = w.tubes[i];
+  const t = e.state.weapons!.tubes[i];
+  const L = tubeLength(w, tc, e.geom.radiusAt);
+  const X0 = 40;
+  const X1 = 560;
+  const k = (X1 - X0) / L;
+  const yT = 40;
+  const H = 46;
+  const fill = Math.max(0, Math.min(1, t.water / Math.max(1, tv.fullWater)));
+  const wx = X0 + (stowedWeaponX(w) - w.weapon.length / 2 - w.breechX + (t.eject ?? 0)) * k;
+  const valve = (x: number, y: number, st: { pos: number; cmd: number }, label: string) => (
+    <g>
+      <circle cx={x} cy={y} r="7" fill={st.pos > 0.999 ? '#3ddc84' : st.pos > 0.001 || st.cmd > 0.5 ? '#f5b041' : '#5a6f86'} stroke="#0a1017" />
+      <text x={x} y={y + (y < yT ? -11 : 19)} textAnchor="middle" fontSize="10" fill="#8399b1">
+        {label}
+      </text>
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 640 150" className="svgbox" style={{ width: '100%', maxHeight: 170 }}>
+      {/* casco externo na boca */}
+      <path d={`M ${X1 + 22} 10 Q ${X1 + 48} 63 ${X1 + 22} 116`} fill="none" stroke="#5a6f86" strokeWidth="3" />
+      <text x={X1 + 50} y="20" fontSize="10" fill="#5a6f86">
+        casco
+      </text>
+      {/* tubo */}
+      <rect x={X0} y={yT} width={X1 - X0} height={H} fill="#0d1824" stroke="#8fa3b8" strokeWidth="2" />
+      <rect x={X0 + 1} y={yT + H * (1 - fill)} width={X1 - X0 - 2} height={H * fill} fill="#2a7fd4" opacity="0.65" />
+      {/* arma */}
+      {t.weapon && (
+        <g>
+          <rect x={wx} y={yT + 9} width={w.weapon.length * k} height={H - 18} rx={(H - 18) / 2} fill="#1d262c" stroke="#c9d6e3" />
+          <rect x={wx + w.weapon.length * k * 0.35} y={yT + 9} width={w.weapon.length * k * 0.34} height={H - 18} fill="#e8622b" />
+          <text x={wx + (w.weapon.length * k) / 2} y={yT + H / 2 + 4} textAnchor="middle" fontSize="11" fill="#fff">
+            F21
+          </text>
+        </g>
+      )}
+      {/* culatra e porta da boca */}
+      <line x1={X0} y1={yT - 4} x2={X0 - 26 * t.breech.pos} y2={yT + H + 4 - 40 * t.breech.pos} stroke={t.breech.pos > 0.001 ? '#f5b041' : '#c9d6e3'} strokeWidth="5" />
+      <line x1={X1} y1={yT - 4} x2={X1 + 26 * t.door.pos} y2={yT + H + 4 - 40 * t.door.pos} stroke={t.door.pos > 0.999 ? '#3ddc84' : t.door.pos > 0.001 ? '#f5b041' : '#c9d6e3'} strokeWidth="5" />
+      <text x={X0} y={yT + H + 30} fontSize="10" fill="#8399b1" textAnchor="middle">
+        culatra
+      </text>
+      <text x={X1} y={yT + H + 30} fontSize="10" fill="#8399b1" textAnchor="middle">
+        porta da boca
+      </text>
+      {/* válvulas */}
+      {valve(X0 + 70, yT + H + 16, t.flood, 'alagamento (TCA)')}
+      {valve(X0 + 70, yT - 16, t.vent, 'suspiro')}
+      {valve(X0 + 230, yT - 16, t.equalize, 'equalização (mar)')}
+      {valve(X0 + 230, yT + H + 16, t.drain, 'drenagem (TCA)')}
+      <text x={X0 + 380} y={yT - 12} fontSize="10" fill="#c9a227">
+        garrafa {fmt(tv.flaskBar, 0)} bar {t.energized ? '· arma alimentada' : ''}
+      </text>
+      <text x="8" y="146" fontSize="10" fill="#5a6f86">
+        {fmt(L, 2)} m da culatra à boca · água {fmt((fill * 100) as number, 0)} % · Δp tubo − mar {fmt((t.pressure - tv.seaPressure) / 1e5, 2)} bar
+      </text>
+    </svg>
+  );
+}
+
+/** plotagem tática (norte para cima): próprio navio, contatos, alvo, derrotas e posição dos torpedos */
+function TacticalPlot({ e, targets, sel }: { e: SimulationEngine; targets: Target[]; sel: string | null }) {
+  const s = e.state;
+  const runs = s.weapons?.runs ?? [];
+  const own = { n: s.body.pos.x, e: s.body.pos.y };
+  const focus = targets.filter((c) => c.id === sel || runs.some((r) => r.target === c.id));
+  let span = 2000;
+  for (const r of runs) for (const p of [r, ...r.track]) span = Math.max(span, Math.abs(p.n - own.n), Math.abs(p.e - own.e));
+  for (const c of focus) span = Math.max(span, Math.abs(c.n - own.n), Math.abs(c.e - own.e));
+  span *= 1.15;
+  const S = 360;
+  const k = S / 2 / span;
+  const xy = (n: number, ee: number) => [S / 2 + (ee - own.e) * k, S / 2 - (n - own.n) * k] as const;
+  const hdg = (e.outputs.euler.heading * Math.PI) / 180;
+  const ring = Math.pow(10, Math.floor(Math.log10(span / 2)));
+  const step = span / ring > 6 ? ring * 2 : ring;
+  const rings = [1, 2, 3].map((j) => j * step).filter((r) => r < span);
+  return (
+    <div className="mt8">
+      <svg viewBox={`0 0 ${S} ${S}`} className="svgbox" style={{ width: '100%', maxWidth: 420, display: 'block', margin: '0 auto', background: '#08111a' }}>
+        {rings.map((r) => (
+          <g key={r}>
+            <circle cx={S / 2} cy={S / 2} r={r * k} fill="none" stroke="#1d2e42" />
+            <text x={S / 2 + 3} y={S / 2 - r * k - 2} fontSize="9" fill="#5a6f86">
+              {km(r)}
+            </text>
+          </g>
+        ))}
+        <text x={S / 2} y="12" fontSize="10" fill="#5a6f86" textAnchor="middle">
+          N
+        </text>
+        {targets
+          .filter((c) => Math.abs(c.n - own.n) < span && Math.abs(c.e - own.e) < span)
+          .map((c) => {
+            const [x, y] = xy(c.n, c.e);
+            const ch = (c.course * Math.PI) / 180;
+            const hot = c.id === sel || runs.some((r) => r.target === c.id);
+            const vl = Math.min(40, c.speed * 360 * k);
+            return (
+              <g key={c.id}>
+                <line x1={x} y1={y} x2={x + Math.sin(ch) * vl} y2={y - Math.cos(ch) * vl} stroke={hot ? '#ffb347' : '#5a6f86'} />
+                <rect x={x - 4} y={y - 4} width="8" height="8" fill={hot ? '#ffb347' : '#8399b1'} />
+                <text x={x + 7} y={y + 3} fontSize="9" fill={hot ? '#ffd9a0' : '#8399b1'}>
+                  {c.name.replace(' (fictício)', '')}
+                </text>
+              </g>
+            );
+          })}
+        {runs.map((r) => {
+          const pts = [...r.track, r].map((p) => xy(p.n, p.e).join(',')).join(' ');
+          const [x, y] = xy(r.n, r.e);
+          return (
+            <g key={r.id}>
+              <polyline points={pts} fill="none" stroke={r.hit ? '#3ddc84' : '#36c5f0'} strokeWidth="1.5" strokeDasharray={r.wire ? undefined : '4 3'} />
+              <circle cx={x} cy={y} r="3.5" fill={r.hit ? '#3ddc84' : '#36c5f0'} />
+              <text x={x + 6} y={y - 5} fontSize="10" fill="#d8e4f0">
+                {r.id}
+              </text>
+            </g>
+          );
+        })}
+        <polygon
+          points={`${S / 2 + Math.sin(hdg) * 9},${S / 2 - Math.cos(hdg) * 9} ${S / 2 + Math.sin(hdg + 2.5) * 6},${S / 2 - Math.cos(hdg + 2.5) * 6} ${S / 2 + Math.sin(hdg - 2.5) * 6},${S / 2 - Math.cos(hdg - 2.5) * 6}`}
+          fill="#3ddc84"
+        />
+      </svg>
+      <p className="subtle" style={{ textAlign: 'center' }}>
+        Norte para cima. Verde: SX-1 · azul: torpedos (tracejado = sem fio) · laranja: alvo e contatos atacados (vetor de 6 min).
+      </p>
+    </div>
+  );
+}

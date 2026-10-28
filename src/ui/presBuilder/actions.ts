@@ -18,6 +18,8 @@ import type { ViewMode } from '../../render3d/SubmarineScene';
 import { maneuver } from '../maneuvers';
 import { graphics } from '../graphics';
 import { DEEP_FOVS, DEEP_LABELS, type DeepLevel } from '../../render3d/deepPerspective';
+import { weaponTargets } from '../../sim/systems/weapons';
+import { geoOriginOf } from '../routeNav';
 
 export type ParamValue = string | number | boolean;
 export type Params = Record<string, ParamValue>;
@@ -109,6 +111,7 @@ export const VIEW_OPTIONS: [ViewMode, string][] = [
   ['forcas', 'Forças'],
   ['calado', 'Calado'],
   ['navio', 'Navio próximo'],
+  ['torpedo', 'Torpedo (acompanhar)'],
   ['piloto', 'Seguir (lateral)'],
   ['perseguicao', 'Perseguição'],
   ['fixa', 'Fixa'],
@@ -142,6 +145,45 @@ const ALL_TANKS = (e: SimulationEngine): [string, string][] => [
 ];
 
 const SHIFT_LOADS = (e: SimulationEngine): [string, string][] => (e.vessel.mass.shiftLoads ?? []).map((l) => [l.id, `${l.name} (${l.quantity} × ${l.unitMass} kg)`] as [string, string]);
+
+const TUBES = (e: SimulationEngine): [string, string][] => (e.vessel.weapons?.tubes ?? []).map((t) => [String(t.n), `Tubo ${t.n} (${t.side === 'BE' ? 'boreste' : 'bombordo'})`] as [string, string]);
+/** alvo: nenhum, o contato mais próximo no momento da ação ou um contato fixo */
+const TORP_TARGETS = (e: SimulationEngine): [string, string][] => [
+  ['', 'sem alvo (corrida no rumo)'],
+  ['proximo', 'contato mais próximo (na hora da ação)'],
+  ...weaponTargets(e.env, geoOriginOf(e), e.state.t, graphics.get().traffic).map((c) => [c.id, c.name] as [string, string]),
+];
+const TORP_FIELDS: FieldDef[] = [
+  { key: 'tubo', label: 'Tubo', type: 'select', options: TUBES },
+  { key: 'alvo', label: 'Alvo', type: 'select', options: TORP_TARGETS },
+  {
+    key: 'vel',
+    label: 'Velocidade',
+    type: 'select',
+    options: () => [
+      ['alta', 'alta (50 nós)'],
+      ['baixa', 'baixa (25 nós)'],
+    ],
+  },
+  { key: 'cota', label: 'Cota de corrida', type: 'number', unit: 'm', min: 3, max: 300, step: 5 },
+];
+/** comando de um tubo com os dados de tiro da ação ('proximo' = contato mais próximo agora) */
+function tubeOrder(p: Params, c: ActionCtx, action: 'preparar' | 'disparar'): void {
+  const e = c.r.engine;
+  const origin = geoOriginOf(e);
+  const traffic = graphics.get().traffic;
+  let target: string | null = str(p, 'alvo') || null;
+  if (target === 'proximo') {
+    const s = e.state;
+    target = weaponTargets(e.env, origin, s.t, traffic).sort((a, b) => Math.hypot(a.n - s.body.pos.x, a.e - s.body.pos.y) - Math.hypot(b.n - s.body.pos.x, b.e - s.body.pos.y))[0]?.id ?? null;
+  }
+  c.send({ type: 'tube', tube: num(p, 'tubo', 1), action, presets: { target, speed: str(p, 'vel', 'alta') === 'baixa' ? 'baixa' : 'alta', depth: num(p, 'cota', 30) }, origin, traffic });
+}
+const torpText = (p: Params, e?: SimulationEngine) => {
+  const a = str(p, 'alvo');
+  const alvo = a === '' ? 'sem alvo' : a === 'proximo' ? 'contato mais próximo' : `alvo ${optLabel(TORP_FIELDS[1], a, e)}`;
+  return `tubo ${num(p, 'tubo', 1)}, ${alvo}, velocidade ${str(p, 'vel', 'alta')}, cota ${f(num(p, 'cota', 30))} m`;
+};
 
 const SENSOR_MODES: [string, string][] = [
   ['congelado', 'congelado'],
@@ -508,6 +550,58 @@ export const ACTION_TYPES: ActionType[] = [
     describe: (p) => `Disjuntor da bateria: ${bool(p, 'fechar') ? 'fechar' : 'abrir'}`,
     run: (p, c) => c.send({ type: 'breaker', closed: bool(p, 'fechar') }),
   },
+  // ---------------- armas (tiro de exercício)
+  {
+    id: 'tuboPreparar',
+    group: 'Armas (torpedos)',
+    label: 'Tubo: preparar para disparo',
+    hint: 'Alimentar a arma, alagar com a água do TCA, equalizar com o mar e abrir a porta da boca (≈ 1 min e meio).',
+    fields: TORP_FIELDS,
+    defaults: { tubo: '1', alvo: 'proximo', vel: 'alta', cota: 30 },
+    describe: (p, e) => `Preparar ${torpText(p, e)}`,
+    run: (p, c) => tubeOrder(p, c, 'preparar'),
+  },
+  {
+    id: 'tuboDisparar',
+    group: 'Armas (torpedos)',
+    label: 'Tubo: preparar e disparar',
+    hint: 'Faz a sequência que faltar e dispara (ejeção por ar comprimido). Com alvo, a arma é guiada pelo fio até ele.',
+    fields: TORP_FIELDS,
+    defaults: { tubo: '1', alvo: 'proximo', vel: 'alta', cota: 30 },
+    describe: (p, e) => `DISPARAR ${torpText(p, e)}`,
+    run: (p, c) => tubeOrder(p, c, 'disparar'),
+  },
+  {
+    id: 'tuboFechar',
+    group: 'Armas (torpedos)',
+    label: 'Tubo: fechar a porta da boca',
+    fields: [{ key: 'tubo', label: 'Tubo', type: 'select', options: TUBES }],
+    defaults: { tubo: '1' },
+    describe: (p) => `Tubo ${num(p, 'tubo', 1)}: fechar a porta da boca`,
+    run: (p, c) => c.send({ type: 'tube', tube: num(p, 'tubo', 1), action: 'fechar' }),
+  },
+  {
+    id: 'tuboRecarregar',
+    group: 'Armas (torpedos)',
+    label: 'Tubo: recarregar da reserva',
+    hint: 'Fecha a porta, drena para o TCA, abre a culatra e puxa uma arma da reserva (≈ 5 min).',
+    fields: [{ key: 'tubo', label: 'Tubo', type: 'select', options: TUBES }],
+    defaults: { tubo: '1' },
+    describe: (p) => `Tubo ${num(p, 'tubo', 1)}: recarregar da reserva`,
+    run: (p, c) => c.send({ type: 'tube', tube: num(p, 'tubo', 1), action: 'recarregar' }),
+  },
+  {
+    id: 'torpedoFio',
+    group: 'Armas (torpedos)',
+    label: 'Torpedo: cortar o fio de guiagem (último lançado)',
+    fields: [],
+    defaults: {},
+    describe: () => 'Cortar o fio do último torpedo lançado',
+    run: (_p, c) => {
+      const r = [...(c.r.engine.state.weapons?.runs ?? [])].reverse().find((x) => x.wire);
+      if (r) c.send({ type: 'torpedo', id: r.id, action: 'cortarFio' });
+    },
+  },
   // ---------------- manobras automáticas
   {
     id: 'imergir',
@@ -783,6 +877,8 @@ const COMMAND_FIELDS: Record<string, Record<string, FieldCheck>> = {
   shiftLoad: { id: isStr, x: opt(isNum), home: opt(isBool) },
   trimReference: {},
   failure: { target: isStr, active: isBool, param: opt((v) => isNum(v) || isStr(v)) },
+  tube: { tube: isNum, action: isStr, presets: opt(isObj) },
+  torpedo: { id: isStr, action: oneOf('cortarFio', 'alvo', 'rumo', 'cota', 'recolher') },
 };
 
 /** tipos de comando aceitos no modo avançado */

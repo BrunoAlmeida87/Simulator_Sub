@@ -36,6 +36,7 @@ import { updateAutopilot, type ApReadings } from '../systems/autopilot';
 import { updateNavigation, updateSensors, type TrueValues } from '../systems/sensors';
 import { cavitationLevel } from '../systems/cavitation';
 import { evaluateAlarms } from '../systems/alarms';
+import { initWeapons, updateWeapons } from '../systems/weapons';
 
 /** rigidez hidrostática (N·m/rad) abaixo da qual o equilíbrio é tratado como instável/indiferente */
 const MIN_STIFFNESS = 1e3;
@@ -110,6 +111,8 @@ export class SimulationEngine {
   private scratch2: Float64Array;
   private waveCache: WaveCache | null = null;
   private readings: ApReadings;
+  /** reação da ejeção de torpedo no passo atual (corpo); null fora do disparo */
+  private launchW: { F: Vec3; M: Vec3 } | null = null;
 
   constructor(config: SimConfig, state: SimState) {
     this.config = config;
@@ -118,6 +121,7 @@ export class SimulationEngine {
     this.light = resolveLightship(config.vessel, this.geom);
     this.added = fullAddedMass(config.vessel, this.geom, 1025);
     this.compressibleVolume = this.geom.volume - config.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
+    if (config.vessel.weapons && !state.weapons) state.weapons = initWeapons(config.vessel, this.geom.radiusAt);
     this.state = state;
     this.scratch = new Float64Array(this.geom.slices.length);
     this.scratch2 = new Float64Array(this.geom.slices.length);
@@ -197,6 +201,7 @@ export class SimulationEngine {
       compressibleVolume: this.compressibleVolume,
       sliceScratch: this.scratch,
       t: s.t,
+      launch: this.launchW ?? undefined,
     };
   }
 
@@ -261,6 +266,11 @@ export class SimulationEngine {
     drawFromManifold(cfg.hpAir, s, emergencyDrawn, 'emergency');
     const comp = updateCompressor(cfg.hpAir, s, ctx);
     s.ledger.airCompressed += comp.added;
+
+    // tubos lançadores, compensação automática das armas e torpedos em corrida
+    const wr = updateWeapons(cfg, s, { ctx, R: this.geom.radiusAt, velNED: this.outputs.velNED, heading: this.outputs.euler.heading });
+    strokes += wr.strokes;
+    this.launchW = wr.F.x !== 0 ? { F: wr.F, M: wr.M } : null;
 
     // 4. tanques internos e alagamento
     const rt = updateTransfer(cfg.trim, s.trim, ctx);
@@ -360,7 +370,7 @@ export class SimulationEngine {
     this.evaluateAlarms();
     // balanço de massa
     const L = s.ledger;
-    const expected = L.mass0 + (L.cargoIn ?? 0) + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
+    const expected = L.mass0 + (L.cargoIn ?? 0) - (L.weaponsOut ?? 0) + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
     o.massAudit = o.mp.internalMass - expected;
     o.energyAudit = L.batteryChemical - L.batteryOut - L.batteryLoss;
   }
@@ -619,4 +629,3 @@ export class SimulationEngine {
     return n;
   }
 }
-
