@@ -1,5 +1,7 @@
 /** Componente React que hospeda a cena Three.js (lida do estado da simulação). */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { mapOrigin } from '../routeNav';
+import { link } from '../link';
 import { runner } from '../store';
 import type { Label3D, SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
 import type { OceanQuality } from '../../render3d/Ocean';
@@ -78,7 +80,8 @@ export function Scene3D(props: Scene3DProps) {
         if (disposed || !box.current) return;
         const create = () => {
           try {
-            const sc = new SubmarineScene(box.current!, runner, opts.current.view, opts.current.quality ?? defaultQuality());
+            setErr(null);
+            const sc = new SubmarineScene(box.current!, runner, opts.current.view, opts.current.quality ?? defaultQuality(), setErr);
             sc.layers = mergedLayers(opts.current);
             sc.realisticFog = opts.current.fog ?? true;
             const k = opts.current.persistKey;
@@ -115,6 +118,7 @@ export function Scene3D(props: Scene3DProps) {
               visualOut.view = opts.current.view;
             }
             sc.realisticFog = opts.current.fog ?? true;
+            sc.geographicOrigin = isVisualWindow ? (link.viewer?.origin ?? mapOrigin.get()) : mapOrigin.get();
             drawLabels(sc.render());
           }
           raf = requestAnimationFrame(loop);

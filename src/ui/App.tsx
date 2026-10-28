@@ -18,6 +18,7 @@ import { BallastScreen } from './screens/BallastScreen';
 import { TrimHeelScreen } from './screens/TrimHeelScreen';
 import { PropulsionScreen } from './screens/PropulsionScreen';
 import { SafetyScreen } from './screens/SafetyScreen';
+import { ModelsScreen } from './screens/ModelsScreen';
 import { View3DScreen } from './screens/View3DScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { ScenarioScreen } from './screens/ScenarioScreen';
@@ -44,6 +45,7 @@ const TABS: { id: ScreenId; n?: string; label: string }[] = [
   { id: 'trim', n: '3', label: 'Trim e banda' },
   { id: 'propulsao', n: '4', label: 'Propulsão e energia' },
   { id: 'seguranca', n: '5', label: 'Segurança' },
+  { id: 'modelos', label: 'Modelos 3D' },
   { id: 'v3d', n: '6', label: 'Visualização 3D' },
   { id: 'historico', n: '7', label: 'Histórico' },
   { id: 'cenarios', label: 'Cenários e configuração' },
@@ -254,6 +256,7 @@ export function App() {
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       const t = ev.target as HTMLElement;
+      if (screen === 'modelos' || (t && t.closest('button'))) return;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
       const s = runner.engine.state;
       const k = ev.key.toLowerCase();
@@ -284,6 +287,7 @@ export function App() {
     propulsao: <PropulsionScreen />,
     seguranca: <SafetyScreen />,
     v3d: <View3DScreen />,
+    modelos: <ModelsScreen />,
     historico: <HistoryScreen />,
     cenarios: <ScenarioScreen />,
     auxiliares: <AuxSystemsScreen />,

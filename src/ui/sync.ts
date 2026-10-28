@@ -5,6 +5,8 @@
  * mesma cena. Cliques em objetos na visualização abrem os controles na janela
  * de controle. Não há segundo motor físico: o estado é um só.
  */
+import { mapOrigin } from './routeNav';
+import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 import type { SimRunner } from '../sim/core/runner';
 import { deserializeEngine, serializeEngine, type SaveFile } from '../sim/persistence';
 import type { SimState } from '../sim/core/state';
@@ -26,7 +28,7 @@ export interface OverlayData {
 type Msg =
   | { type: 'hello'; id: number }
   | { type: 'engine'; id: number; file: SaveFile }
-  | { type: 'state'; id: number; state: SimState; waves: unknown; running: boolean; timeScale: number; layers: SceneLayers | null; view: ViewMode | null; overlay: OverlayData; sent: number }
+  | { type: 'state'; origin: LatLon; id: number; state: SimState; waves: unknown; running: boolean; timeScale: number; layers: SceneLayers | null; view: ViewMode | null; overlay: OverlayData; sent: number }
   | { type: 'pick'; target: PickTarget | null }
   | { type: 'toggleRun' }
   | { type: 'bye' };
@@ -120,6 +122,7 @@ export class SyncMaster {
     const lite = { ...s, nav: { ...s.nav, trail }, commands: s.commands.slice(-12), alarms: { runtime: s.alarms.runtime, log: [] } } as SimState;
     this.ch.postMessage({
       type: 'state',
+      origin: mapOrigin.get(),
       id: this.engineId,
       state: lite,
       waves: e.config.environment.waves,
@@ -142,6 +145,7 @@ export class SyncViewer {
   private lastAsk = 0;
   layers: SceneLayers | null = null;
   view: ViewMode | null = null;
+  origin: LatLon = DEFAULT_ORIGIN;
   overlay: OverlayData = { tour: null, maneuver: null, alarm: null };
   private listeners = new Set<() => void>();
 
@@ -207,6 +211,7 @@ export class SyncViewer {
       r.running = m.running;
       r.timeScale = m.timeScale;
       r.alphaOverride = 0;
+      this.origin = m.origin ?? DEFAULT_ORIGIN;
       this.layers = m.layers;
       this.view = m.view;
       this.overlay = m.overlay;

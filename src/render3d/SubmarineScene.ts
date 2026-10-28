@@ -17,6 +17,8 @@ import { SystemsVis } from './Systems';
 import { ForceArrows } from './ForceArrows';
 import { SurfaceFx } from './SurfaceFx';
 import { Markers } from './Markers';
+import { SurfaceTraffic } from './SurfaceTraffic';
+import { DEFAULT_ORIGIN, type LatLon } from '../sim/geo';
 import { TrimVis } from './TrimVis';
 import { defaultLayers, type SceneLayers } from './layers';
 import type { PickTarget } from '../ui/ops/opsBus';
@@ -122,8 +124,10 @@ export class SubmarineScene {
   private clock = new THREE.Clock();
   private dot = dotTexture();
   private env: () => SimulationEngine;
+  private traffic: SurfaceTraffic;
+  geographicOrigin: LatLon = DEFAULT_ORIGIN;
 
-  constructor(private container: HTMLElement, runner: SimRunner, initialView: ViewMode = 'perspectiva', quality: OceanQuality = 'alta') {
+  constructor(private container: HTMLElement, runner: SimRunner, initialView: ViewMode = 'perspectiva', quality: OceanQuality = 'alta', onAssetError: (message: string) => void = console.warn) {
     this.quality = quality;
     this.runner = runner;
     this.env = () => this.runner.engine;
@@ -171,6 +175,8 @@ export class SubmarineScene {
     this.sailMat = this.hullMat;
     this.buildSubmarine();
     this.scene.add(this.sub);
+    this.traffic = new SurfaceTraffic(onAssetError);
+    this.scene.add(this.traffic.group);
     this.forces = new ForceArrows(this.env());
     this.scene.add(this.forces.group);
     this.trimVis = new TrimVis(this.env());
@@ -615,6 +621,7 @@ export class SubmarineScene {
     const pn = e.prevPos.x + (s.body.pos.x - e.prevPos.x) * a;
     const pe = e.prevPos.y + (s.body.pos.y - e.prevPos.y) * a;
     const pd = e.prevPos.z + (s.body.pos.z - e.prevPos.z) * a;
+    this.traffic.update(tWave, this.geographicOrigin, { n: pn, e: pe }, !this.layers.noWater);
     const subPos = P(0, 0, pd);
     const q0 = new THREE.Quaternion(e.prevQuat.x, e.prevQuat.y, e.prevQuat.z, e.prevQuat.w);
     const q1 = new THREE.Quaternion(s.body.quat.x, s.body.quat.y, s.body.quat.z, s.body.quat.w);
@@ -822,6 +829,7 @@ export class SubmarineScene {
   }
 
   dispose(): void {
+    this.traffic.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.scene.traverse((o) => {

@@ -211,3 +211,12 @@ Resumo (lista completa em [docs/LIMITACOES.md](docs/LIMITACOES.md)):
 - **Fase 2:** navegação inercial com deriva, distribuição elétrica com disjuntores e rejeição de cargas, soprador de baixa pressão, mais sensores redundantes e cenários de falhas combinadas.
 - **Fase 3:** ondas e correntes, sucção de superfície, superfície livre nos tanques, atmosfera interna (O₂/CO₂), refrigeração, esgoto, controle de avarias, hidrodinâmica refinada e WebAssembly, se houver ganho comprovado.
 
+
+### Galeria de modelos
+
+A aba **Modelos 3D** reúne os oito modelos Blender fornecidos: graneleiro,
+cargueiro, rebocador, convencional, ASD, trator Voith, frota e torpedo F21.
+Oferece câmera orbital, zoom, deslocamento, vistas predefinidas, tela cheia,
+grade e malha, além da abertura temporária de GLBs locais.
+Os seis navios individuais também aparecem na cena operacional nas posições
+dos contatos do mapa tático. Veja [os detalhes dos assets](public/models/README.md).
