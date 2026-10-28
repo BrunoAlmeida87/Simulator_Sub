@@ -255,7 +255,7 @@ const POSITIONS: CardPosition[] = ['baixo', 'topo', 'esquerda', 'direita', 'cent
 const SIZES: CardSize[] = ['P', 'M', 'G', 'GG'];
 const RUNS: RunMode[] = ['manter', 'executar', 'pausar'];
 const MODES: AdvanceMode[] = ['manual', 'tempo', 'condicao'];
-const VIEWS: ViewMode[] = ['piloto', 'perseguicao', 'perspectiva', 'superficie', 'submerso', 'tanques', 'forcas', 'calado', 'navio', 'fixa', 'passadico', 'drone', 'livre'];
+const VIEWS: ViewMode[] = ['piloto', 'perseguicao', 'cinematografica', 'perspectiva', 'superficie', 'submerso', 'tanques', 'forcas', 'calado', 'navio', 'fixa', 'passadico', 'drone', 'livre'];
 const LOADS: LoadCondition[] = ['leve', 'normal', 'pesada'];
 
 const obj = (x: unknown): Record<string, unknown> => (x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : {});

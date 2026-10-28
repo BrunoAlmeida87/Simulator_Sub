@@ -29,6 +29,7 @@ const HELM_LAYER_DEFAULTS: Partial<SceneLayers> = { markers: true, wake: true, w
 const HELM_LAYER_KEYS: LayerKey[] = ['labels', 'wake', 'wind', 'pennant', 'flag', 'trail', 'markers', 'trimRef', 'pitchAngle', 'depthLines', 'ships', 'noWater'];
 const HELM_VIEWS: ViewOption[] = [
   { id: 'perseguicao', label: 'Perseguição' },
+  { id: 'cinematografica', label: 'Cinematográfica' },
   { id: 'piloto', label: 'Lateral' },
   { id: 'topo', label: 'Topo' },
   { id: 'livre', label: 'Livre' },

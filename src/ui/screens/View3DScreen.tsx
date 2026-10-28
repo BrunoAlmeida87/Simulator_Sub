@@ -58,6 +58,7 @@ const V3D_LAYER_KEYS: LayerKey[] = [
 const VIEWS: ViewOption[] = [
   { id: 'piloto', label: 'Lateral' },
   { id: 'perseguicao', label: 'Perseguição' },
+  { id: 'cinematografica', label: 'Cinematográfica' },
   { id: 'perspectiva', label: 'Perspectiva', tip: 'Grande-angular de perto, 3/4 pela proa: a proa (mais perto) aparece bem maior que a popa' },
   { id: 'perfil', label: 'Perfil' },
   { id: 'frente', label: 'Frente' },
