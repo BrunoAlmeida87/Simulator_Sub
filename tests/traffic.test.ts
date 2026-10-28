@@ -70,6 +70,9 @@ describe('Tráfego adicional', () => {
       expect(Math.abs(s.lon - b[i].lon) * 111_000).toBeLessThan(1);
       expect(s.course).toBeCloseTo(b[i].course, 6);
     });
-    expect(contactsAt(0).map((c) => c.id)).toEqual(['M1', 'M2', 'P1', 'R1', 'N1']);
+    const ids = contactsAt(0).map((c) => c.id);
+    expect(ids.filter((id) => !['RCON', 'RASD', 'RVOI'].includes(id))).toEqual(['M1', 'M2', 'P1', 'R1', 'N1']);
+    expect(ids).toEqual(expect.arrayContaining(['RCON', 'RASD', 'RVOI']));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
