@@ -59,8 +59,6 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       ficam dentro dele; teste tests/systemsLayout.test.ts
   shaftLine.ts        linha de eixo (motor principal, mancal de escora, eixo até o hélice): posições do interior do Blender;
                       teste tests/systemsLayout.test.ts (nada do corte encosta nela)
-  torpedoTubes.ts     6 tubos lançadores de 533 mm (boca atrás das portas do casco, culatra na sala de torpedos) e a sala
-                      (piso, estantes, ejeção por ar comprimido): posições do interior do Blender; teste tests/torpedoTubes.test.ts
   interiorModel.ts    corte com o interior do Blender (qualidade média/alta): raio-X por padrão, meio casco aberto com a camada
                       halfCut (InteriorRig.setMode; lado de dentro do casco claro em SubmarineScene.clipMat); InteriorRig liga válvulas,
                       bombas, eixo e tanques ao estado; Systems.ts fica com água, partículas, setas e rótulos (setInteriorMode)
