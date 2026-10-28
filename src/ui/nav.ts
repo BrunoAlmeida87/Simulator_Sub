@@ -26,6 +26,7 @@ export const SCREEN_IDS = [
   'apresentacao',
   'estudio',
   'v3d',
+  'modelos',
   'cenarios',
   'historico',
   'validacao',
@@ -93,6 +94,7 @@ export const NAV_GROUPS: NavGroup[] = [
     screens: [
       { id: 'apresentacao', label: 'Apresentação', hint: 'Cena, tanques, forças e indicadores juntos, com situações de aula e câmera lenta' },
       { id: 'estudio', label: 'Estúdio', hint: 'Criar e apresentar as suas apresentações, etapa por etapa: texto, visualização, ações e gatilhos para avançar' },
+      { id: 'modelos', label: 'Modelos 3D', hint: 'Galeria dos modelos Blender: frota completa ou rebocadores separados' },
       { id: 'v3d', key: '6', label: 'Visualização 3D', hint: 'Câmeras, corte com os tanques, vetores de força e camadas' },
       { id: 'cenarios', label: 'Cenários', hint: 'Biblioteca: condições iniciais, situações de aula e roteiros automáticos' },
     ],

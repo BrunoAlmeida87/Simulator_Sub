@@ -1927,6 +1927,7 @@ export class SubmarineScene {
   }
 
   dispose(): void {
+    this.ships.dispose();
     this.disposed = true;
     this.subEnv.dispose();
     this.navLights.dispose();

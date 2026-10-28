@@ -21,6 +21,7 @@ import { BallastScreen } from './screens/BallastScreen';
 import { TrimHeelScreen } from './screens/TrimHeelScreen';
 import { PropulsionScreen } from './screens/PropulsionScreen';
 import { SafetyScreen } from './screens/SafetyScreen';
+import { ModelsScreen } from './screens/ModelsScreen';
 import { View3DScreen } from './screens/View3DScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { ScenarioScreen } from './screens/ScenarioScreen';
@@ -342,6 +343,7 @@ export function App() {
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       const t = ev.target as HTMLElement;
+      if (screen === 'modelos' || (t && t.closest('button'))) return;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
       const s = runner.engine.state;
       const k = ev.key.toLowerCase();
@@ -403,6 +405,7 @@ export function App() {
     propulsao: <PropulsionScreen />,
     seguranca: <SafetyScreen />,
     v3d: <View3DScreen />,
+    modelos: <ModelsScreen />,
     historico: <HistoryScreen />,
     cenarios: <ScenarioScreen />,
     config: <SettingsScreen />,

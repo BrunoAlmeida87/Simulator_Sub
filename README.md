@@ -270,6 +270,14 @@ Resumo (lista completa em [docs/LIMITACOES.md](docs/LIMITACOES.md)):
 - **Fase 3:** ondas e correntes, sucção de superfície, superfície livre nos tanques, atmosfera interna (O₂/CO₂), refrigeração, esgoto, controle de avarias, hidrodinâmica refinada e WebAssembly, se houver ganho comprovado.
 
 
+### Galeria de modelos
+
+A aba **Modelos 3D** reúne os oito modelos Blender fornecidos: graneleiro,
+cargueiro, rebocador, convencional, ASD, trator Voith, frota e torpedo F21.
+Oferece câmera orbital, zoom, deslocamento, vistas predefinidas, tela cheia,
+grade e malha, além da abertura temporária de GLBs locais.
+Os seis navios individuais também aparecem na cena operacional nas posições
+dos contatos do mapa tático. Veja [os detalhes dos assets](public/models/README.md).
 ### Cargas a bordo: trim e banda
 
 Na tela **Trim e banda** e na apresentação, use **Cargas a bordo** para embarcar vários itens (pessoas, carga, torpedos fictícios e equipamentos). Escolha um **modelo pronto** (tripulante, equipe, torpedo, mantimentos, lastro sólido…), que já recebe um **nome automático** numerado, e **clique no mapa de bordo** (perfil e planta, com os compartimentos) para posicioná-lo; arraste as cargas embarcadas para movê-las e passe o mouse sobre elas para ver o nome. O painel mostra o efeito estimado em trim, banda e flutuabilidade e pode **compensar o peso automaticamente** pela compensação. Na tabela é possível renomear, duplicar, mudar a quantidade e desembarcar. X cresce para vante, Y para boreste e Z para baixo; as posições ficam sempre dentro do casco. As cargas de projeto e o peso móvel de demonstração são contabilizados separadamente.

@@ -491,6 +491,32 @@ Na tela **Segurança**, injete:
 
 Ative ⓘ e clique em qualquer tanque, válvula, bomba, leme ou instrumento. O painel mostra função, variáveis ao vivo (MED/CALC/CMD/VERD), equações, consequências previstas, gráfico antes × depois e a decomposição de forças e momentos (por que sobe, por que muda o pitch, por que guina, por que aderna).
 
+## Galeria de modelos 3D
+
+Em **Apresentação → Modelos 3D**, a galeria reúne oito modelos: graneleiro, cargueiro, rebocador,
+rebocador convencional, ASD, trator Voith, frota de rebocadores e torpedo F21.
+No controle **Frota de rebocadores**, **Ver juntos** exibe os três modelos
+especializados lado a lado. **Ver separados** permite escolher convencional,
+ASD ou trator Voith para inspecionar individualmente. Ao voltar para a vista
+separada, o último rebocador selecionado é retomado. O torpedo é um
+modelo de exposição, sem função de lançamento.
+
+Arraste para orbitar, use a roda do mouse para zoom e o botão direito para
+transladar. No celular, use um dedo para girar e dois para zoom e translação.
+Há botões de aproximação, afastamento, reenquadramento, tela cheia e vistas de
+frente, lado, topo e perspectiva; também há grade, rotação automática e malha.
+As dimensões exibidas são as do arquivo original, antes do enquadramento.
+
+**Abrir GLB** aceita vários arquivos com texturas incorporadas. Essa prévia é
+temporária até sair da aba e não substitui os modelos instalados no simulador.
+Para atualização permanente, consulte `public/models/README.md`.
+
+Na cena operacional, M1 usa o graneleiro, M2 o cargueiro e R1 o rebocador.
+RCON, RASD e RVOI representam, respectivamente, convencional, ASD e trator Voith.
+As posições e rumos seguem o mapa tático, inclusive quando a origem geográfica
+é alterada; a segunda janela recebe a mesma origem. Eles podem estar distantes
+do submarino e fora do campo de visão. A galeria permite inspecioná-los de perto.
+A opção **Sem água** também oculta o tráfego para manter a vista técnica limpa.
 ## Celular
 
 A página se adapta à tela do celular, em pé ou deitado (telas de toque pequenas). No PC nada muda, em nenhum tamanho de janela.

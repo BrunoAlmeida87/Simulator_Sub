@@ -78,6 +78,9 @@ const CONTACTS: ContactDef[] = [
   { id: 'M2', name: 'Porta-contêineres (fictício)', kind: 'mercante', a: { n: -58000, e: 40000 }, b: { n: -58000, e: -40000 }, speed: 7.5, phase: 0.6 },
   { id: 'P1', name: 'Pesqueiro (fictício)', kind: 'pesqueiro', a: { n: -26000, e: -9000 }, b: { n: -29000, e: 2000 }, speed: 2.0, phase: 0.3 },
   { id: 'R1', name: 'Rebocador (fictício)', kind: 'rebocador', a: { n: -3000, e: 2000 }, b: { n: -7000, e: 8000 }, speed: 3.0, phase: 0.5 },
+  { id: 'RCON', name: 'Rebocador convencional (fictício)', kind: 'rebocador', a: { n: -2800, e: 2300 }, b: { n: -6800, e: 8300 }, speed: 3.0, phase: 0.5 },
+  { id: 'RASD', name: 'Rebocador ASD (fictício)', kind: 'rebocador', a: { n: -3200, e: 1700 }, b: { n: -7200, e: 7700 }, speed: 3.0, phase: 0.5 },
+  { id: 'RVOI', name: 'Rebocador trator Voith (fictício)', kind: 'rebocador', a: { n: -3400, e: 1400 }, b: { n: -7400, e: 7400 }, speed: 3.0, phase: 0.5 },
   { id: 'N1', name: 'Navio-patrulha (fictício)', kind: 'patrulha', a: { n: -40000, e: -14000 }, b: { n: -40000, e: 14000 }, speed: 6.0, phase: 0.8 },
 ];
 

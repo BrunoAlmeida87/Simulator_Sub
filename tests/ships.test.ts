@@ -31,7 +31,7 @@ describe('Navios da mesa tática no cenário 3D', () => {
   }
   it('cada tipo de contato tem um modelo 3D', () => {
     const models = contactsAt(0).map((c) => modelFor(c));
-    expect(models).toEqual(['graneleiro', 'conteineiro', 'pesqueiro', 'rebocador', 'patrulha']);
+    expect(models).toEqual(['graneleiro', 'conteineiro', 'pesqueiro', 'rebocador', 'rebocador', 'rebocador', 'rebocador', 'patrulha']);
   });
   it('o mesmo id que passa a ser outro tipo de navio troca o modelo 3D (tráfego sorteado de novo)', () => {
     const e = buildScenario('superficie');

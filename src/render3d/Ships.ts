@@ -12,6 +12,8 @@ import * as THREE from 'three';
 import type { SimulationEngine } from '../sim/core/engine';
 import { contactsLocal, NM, type Contact, type LatLon } from '../sim/geo';
 import type { Label3D } from './SubmarineScene';
+import { ImportedShips, assetForContact } from './ImportedShips';
+import type { ModelId } from './modelAssets';
 import { NavLights, shipNavLights } from './NavLights';
 
 export type ShipModel = 'graneleiro' | 'conteineiro' | 'pesqueiro' | 'rebocador' | 'patrulha';
@@ -178,6 +180,8 @@ function wakeTexture(): THREE.Texture | null {
 interface ShipObj {
   id: string;
   model: ShipModel;
+  asset: ModelId | null;
+  placeholder: THREE.Group;
   group: THREE.Group;
   wake: THREE.Mesh;
   nav: NavLights;
@@ -195,6 +199,8 @@ export interface NearestShip {
 export class ShipsLayer {
   readonly group = new THREE.Group();
   private ships = new Map<string, ShipObj>();
+  private imported = new ImportedShips();
+  private disposed = false;
   private wakeMat: THREE.MeshBasicMaterial;
   /** luzes de navegação (à noite ou ligadas): câmera para os setores e relógio */
   lights: { on: boolean; cam: THREE.Vector3; time: number } = { on: false, cam: new THREE.Vector3(), time: 0 };
@@ -210,16 +216,19 @@ export class ShipsLayer {
     let s = this.ships.get(c.id);
     // o mesmo id pode passar a ser outro tipo de navio (tráfego adicional sorteado de novo ao mudar a
     // origem ou o fundo): refaz o modelo; materiais são compartilhados, só as geometrias são descartadas
-    if (s && s.model !== modelFor(c)) {
+    if (s && (s.model !== modelFor(c) || s.asset !== assetForContact(c))) {
       s.group.removeFromParent();
-      s.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      s.placeholder.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      s.wake.geometry.dispose();
       s.nav.dispose();
       this.ships.delete(c.id);
       s = undefined;
     }
     if (!s) {
       const model = modelFor(c);
-      const group = buildShip(model);
+      const placeholder = buildShip(model);
+      const group = new THREE.Group();
+      group.add(placeholder);
       const sp = SHIP_SPECS[model];
       const wake = new THREE.Mesh(new THREE.PlaneGeometry(sp.B * 1.4, sp.L * 1.6), this.wakeMat);
       wake.rotation.x = -Math.PI / 2;
@@ -230,8 +239,22 @@ export class ShipsLayer {
       const nav = new NavLights(shipNavLights(sp.L, sp.B, sp.free), sp.L > 100 ? 0.016 : 0.013, sp.L > 100 ? 0.6 : 0.3);
       group.add(nav.group);
       this.group.add(group);
-      s = { id: c.id, model, group, wake, nav };
+      const asset = assetForContact(c);
+      s = { id: c.id, model, asset, placeholder, group, wake, nav };
       this.ships.set(c.id, s);
+      const entry = s;
+      if (asset) void this.imported.instance(asset).then((mesh) => {
+        if (!mesh || this.disposed || this.ships.get(c.id) !== entry) return;
+        // Mantém o comprimento configurado para o contato e a linha d'água em y=0.
+        const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
+        if (!(size.z > 0)) return;
+        mesh.scale.multiplyScalar(sp.L / size.z);
+        mesh.userData.modelAsset = asset;
+        entry.placeholder.removeFromParent();
+        entry.placeholder.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+        entry.placeholder.clear();
+        group.add(mesh);
+      });
     }
     return s;
   }
@@ -296,4 +319,20 @@ export class ShipsLayer {
     }
     this.nearest = best;
   }
+
+  dispose(): void {
+    this.disposed = true;
+    this.group.removeFromParent();
+    for (const ship of this.ships.values()) {
+      ship.placeholder.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      ship.wake.geometry.dispose();
+      ship.nav.dispose();
+    }
+    this.ships.clear();
+    this.group.clear();
+    this.imported.dispose();
+    this.wakeMat.map?.dispose();
+    this.wakeMat.dispose();
+  }
+
 }
