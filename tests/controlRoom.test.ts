@@ -18,6 +18,7 @@ import { drawBallastPanel, drawCompensation, drawManifold, drawTrimHeel, greenBo
 import { drawEnergy, drawInstructorFailures, drawInstructorSim, drawPropulsion } from '../src/render3d/controlRoom/panelsPlatform';
 import { drawNavigation, drawPlotTable, drawSonarContacts, drawSonarWaterfall, drawTacticalConsole, mastOut, roomContacts, signalExcess } from '../src/render3d/controlRoom/panelsCombat';
 import { STATIONS } from '../src/render3d/controlRoom/stations';
+import { drawLaunchPanel } from '../src/render3d/controlRoom/panelsWeapons';
 import { roomEvents, roomSnapshot, sayOrder } from '../src/ui/screens/roomAudio';
 import { TARGET_HEIGHT, horizonRange, periHeadAbove, periHeadClearance, periVisible, stadimeter } from '../src/render3d/controlRoom/periscope';
 import { qFromEuler } from '../src/sim/core/math';
@@ -173,6 +174,7 @@ describe('Painéis da sala de comando', () => {
     ['sonar', drawSonarWaterfall, [960, 640]],
     ['contatos', drawSonarContacts, [960, 640]],
     ['tático', drawTacticalConsole, [960, 640]],
+    ['lançamento', drawLaunchPanel, [960, 640]],
     ['navegação', drawNavigation, [960, 640]],
     ['mesa', drawPlotTable, [1024, 640]],
   ];
@@ -234,6 +236,7 @@ describe('Painéis da sala de comando', () => {
       'seaState',
       'failure',
       'demoWeight',
+      'tube',
     ]) {
       expect(types.has(t), `nenhum botão envia '${t}'`).toBe(true);
     }

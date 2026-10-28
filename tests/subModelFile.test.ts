@@ -17,6 +17,7 @@ import { defaultVessel } from '../src/sim/config/defaultVessel';
 import { buildHullGeometry } from '../src/sim/physics/hullGeometry';
 import { periscopeHeadZ, periscopeCfg } from '../src/sim/systems/actuation';
 import { buildScenario } from '../src/sim/scenarios';
+import { doorCenter, hullXAtRadius } from '../src/sim/systems/torpedoTubes';
 
 const v = defaultVessel();
 const geom = buildHullGeometry(v.hull);
@@ -176,6 +177,45 @@ describe.each(['alta', 'leve'])('modelo 3D sx1-%s.glb', (nivel) => {
     for (const n of ['SX1_LemeVela_BE', 'SX1_LemePopa_BE', 'SX1_LemePopa_Sup']) {
       expect(Math.abs(rig.strokes[n]), n).toBeGreaterThan(0.1);
       expect(Math.abs(rig.strokes[n]), n).toBeLessThan(0.35);
+    }
+  });
+
+  it('portas das bocas dos tubos: pivô na dobradiça (lado de fora da coluna) e abrem para fora do casco', () => {
+    const w = v.weapons!;
+    const rr = w.boreRadius + 0.02;
+    const b2l = (x: number, y: number, z: number) => new THREE.Vector3(y, -z, -x);
+    const root = new THREE.Group();
+    const build = (gn: GNode, parent: THREE.Object3D) => {
+      const o = gn.getMesh() ? new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshStandardMaterial()) : new THREE.Object3D();
+      o.name = gn.getName();
+      o.position.fromArray(gn.getTranslation());
+      o.quaternion.fromArray(gn.getRotation());
+      o.scale.fromArray(gn.getScale());
+      parent.add(o);
+      for (const c of gn.listChildren()) build(c, o);
+    };
+    for (const gn of docs[nivel].getRoot().listScenes()[0].listChildren()) build(gn, root);
+    const rig = new SubModelRig(root, v);
+    const e = buildScenario('superficie');
+    for (const t of e.state.weapons!.tubes) t.door.pos = 1;
+    const rest = new Map(w.tubes.map((t) => [t.n, rig.root.getObjectByName(`SX1_PortaTubo_${t.n}`)!.quaternion.clone()]));
+    rig.update(v, e.state, 0, 0, 0, 0.4, 0, false);
+    for (const t of w.tubes) {
+      const n = nodeByName(docs[nivel], `SX1_PortaTubo_${t.n}`);
+      expect(n, `porta ${t.n}`).toBeTruthy();
+      const pv = new THREE.Vector3().setFromMatrixPosition(world(n!));
+      const th = ((t.y >= 0 ? 1 : -1) * Math.PI) / 2;
+      const y = t.y + rr * Math.sin(th);
+      const z = t.z - rr * Math.cos(th);
+      const hinge = b2l(hullXAtRadius(geom.radiusAt, Math.hypot(y, z), w.breechX), y, z);
+      expect(pv.distanceTo(hinge), `dobradiça da porta ${t.n}`).toBeLessThan(0.03);
+      // aberta (100°): o centro da porta sai do casco
+      const o = rig.root.getObjectByName(`SX1_PortaTubo_${t.n}`)!;
+      const delta = o.quaternion.clone().multiply(rest.get(t.n)!.clone().invert());
+      expect(2 * Math.acos(Math.min(1, Math.abs(delta.w))), `abertura da porta ${t.n}`).toBeCloseTo((100 * Math.PI) / 180, 2);
+      const dc = doorCenter(w, t, geom.radiusAt);
+      const p = b2l(dc.x, dc.y, dc.z).sub(pv).applyQuaternion(delta).add(pv);
+      expect(Math.hypot(p.x, p.y) - geom.radiusAt(-p.z), `porta ${t.n} abre para fora`).toBeGreaterThan(0.1);
     }
   });
 });

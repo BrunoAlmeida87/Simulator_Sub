@@ -32,6 +32,7 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 /** preferências adicionais da Operação (preserva as chaves já salvas da Pilotagem) */
 const PILOT_LAYER_DEFAULTS = {
   pipes: true,
+  torpedoes: true,
   flows: true,
   halfCut: false,
   labels: true,
@@ -69,6 +70,7 @@ const PILOT_LAYER_KEYS: LayerKey[] = [
   'pitchAngle',
   'depthLines',
   'ships',
+  'torpedoes',
   'noWater',
   'presLight',
 ];

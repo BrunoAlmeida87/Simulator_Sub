@@ -60,7 +60,7 @@ function torpedoProfile(L: number, r: number): THREE.Vector2[] {
 }
 
 /** torpedo de 533 mm × 6,4 m (eixo em z local; a ponta aponta para −z = vante) */
-function torpedo(): THREE.Group {
+export function torpedo(): THREE.Group {
   const g = new THREE.Group();
   const L = 6.4;
   const r = 0.267;
@@ -151,6 +151,7 @@ function buildLoad(category: string, quantity: number, limbs: LoadMesh['limbs'])
     for (let i = 0; i < quantity; i++) {
       const t = torpedo();
       t.position.x = (i - (quantity - 1) / 2) * 0.64;
+      t.userData.reserveIndex = i;
       g.add(t);
     }
     const steel = std(0x6b737c, { metalness: 0.5, roughness: 0.45 });
@@ -244,6 +245,8 @@ export class CargoVis {
       const l = tb.loads.find((x) => x.id === m.id);
       if (!l) continue;
       m.group.position.copy(b2l(l.x, l.y, l.z));
+      // armas de reserva puxadas para os tubos saem do carrinho
+      if (l.category === 'torpedos') for (const c of m.group.children) if (typeof c.userData.reserveIndex === 'number') c.visible = c.userData.reserveIndex < l.quantity;
       const shifted = Math.abs(l.x - l.xHome) > 0.3;
       const moving = Math.abs(l.xCmd - l.x) > 0.05;
       // tripulantes andando: pernas e braços balançam (fase pelo tempo de simulação)
@@ -274,7 +277,7 @@ export class CargoVis {
       }
       if (!layers.labels) continue;
       const anchor = sub.localToWorld(b2l(l.x, l.y, l.z - m.top - 0.6));
-      const qty = `${l.quantity} × ${fmtT(l.mass / l.quantity).replace(' t', '')} t`;
+      const qty = `${l.quantity} × ${fmtT(l.quantity > 0 ? l.mass / l.quantity : 0).replace(' t', '')} t`;
       labels.push({
         id: 'cg_' + l.id,
         callout: !vec,

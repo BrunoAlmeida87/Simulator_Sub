@@ -28,7 +28,8 @@ Todos os valores são **fictícios**, escolhidos com ordem de grandeza pública 
 | Item | Massa | Posição x |
 |---|---|---|
 | Tripulação e mantimentos | 9 t | +4 m |
-| Carga útil (fictícia) | 14 t | +19 m |
+| Carga útil (fictícia), sem os torpedos | 4,4 t | +19 m |
+| Torpedos nos tubos (6 × 1,6 t) | 9,6 t | +27,5 m (estivados nos tubos) |
 | Água doce e lubrificantes | 6 t | −6 m |
 | Combustível (100 m³, tanque compensado de 120 m³) | 84 t + 20,5 t de água | −2 m |
 | Condição de carga leve / pesada | −6 t / +6 t | +3 m |
@@ -50,6 +51,26 @@ As cargas deslocáveis (`mass.shiftLoads`) entram na condição de projeto na po
 | TB-BB / TB-BE (banda, fictícios) | 5 m³ cada | (2,6; ∓2,25; 1,05) | junto ao costado: seção 1,3 × 2,5 m recortada pelo casco (R 2,9 m), 2,0 m de comprimento; braço ≈ 4,1 m a meio nível (o centroide muda com o nível); ao lado do TC; também compensação (ramais VC-BB / VC-BE) |
 | Garrafas AP normais (AP1 / AP2) | 4 m³ a 250 bar cada | | ≈ 1 188 kg de ar cada; coletor normal |
 | Ampolas de emergência (AE1 / AE2) | 2 m³ a 250 bar cada | | ≈ 594 kg de ar cada; coletor independente, isoladas inicialmente |
+
+## Tubos lançadores e torpedos (`vessel.weapons`, `defaultWeapons()` em `defaultVessel.ts`)
+
+| Item | Valor | Observação |
+|---|---|---|
+| Tubos | 6 × 533 mm (furo 556 mm, parede 32 mm) | retos, paralelos ao eixo; colunas em y = ±0,7 m, fileiras em z = −0,6 / 0,2 / 1,0 m; culatra em x = 24,1 m |
+| Comprimento | 9,7 a 10,4 m | até a parede chegar a 3 cm do casco externo; portas no nariz da proa (x ≈ 33,9–34,9 m) |
+| Arma | F21 de exercício (ordem de grandeza pública): 1,6 t, 6,4 m, 1,3 m³ | velocidade baixa 25 nós / 50 km, alta 50 nós / 20 km; partida 2,5 s; guinada 12 °/s; cota 2,5 m/s |
+| Guiagem | fio de 50 km; distância de segurança 200 m | autodiretor: 1,8 km, cone ±45°; acerto de exercício a < 25 m do alvo (passa sob ele) |
+| Fim de corrida | subida a 1 m/s | flutua para ser recolhida |
+| Ejeção | 13 m/s na boca, aceleração constante no tubo (≈ 1,5 s) | reação −(m_arma + ½ m_água)·a no meio do tubo |
+| Garrafa de lançamento | 0,25 m³ a 150 bar (≈ 45 kg de ar) | mínimo 100 bar para disparar; recarga do coletor AP a 0,4 kg/s; sobram 20 bar |
+| Alagamento / drenagem | 0,02 / 0,03 m³/s | água do / para o TCA |
+| Equalização | constante de tempo 2 s | a porta só abre com Δp < 0,05 bar |
+| Porta da boca / culatra | 12 s / 6 s | hidráulicas |
+| Recarga | 300 s | da reserva (`shiftLoads.torpedos`, 2 armas) |
+| TCA-BB / TCA-BE | 5,2 m³ cada (iniciam com 3,5 m³) | (21,6; ∓1,75; 2,0), seção 1,2 × 1,0 m recortada pelo casco (R 2,9 m), x ≈ 18,7…24,5 m, sob o piso da sala de torpedos |
+| Compensação automática | até 40 kg/s | mantém W = Σ armas nos tubos + água dos tubos + TCA + reserva; corrige o binário por transferência TT-AV ↔ TT-AR quando passa de ≈ 1 t·m |
+
+As 6 armas, a água inicial dos TCA e o ar das garrafas entram na condição de projeto (o peso leve automático as desconta); com a carga útil reduzida nas mesmas 9,6 t, a massa total e o G do navio no início ficam iguais aos de antes dos tubos (teste `tests/weapons.test.ts`).
 
 ## Bombas e válvulas
 

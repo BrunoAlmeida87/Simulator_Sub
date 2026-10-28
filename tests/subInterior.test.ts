@@ -13,6 +13,7 @@ import { MeshoptDecoder } from 'meshoptimizer';
 import { buildScenario } from '../src/sim/scenarios';
 import { SystemsVis } from '../src/render3d/Systems';
 import { SHAFT_LINE } from '../src/render3d/shaftLine';
+import { TUBES, breechCenter, muzzleCenter } from '../src/render3d/torpedoTubes';
 
 const file = join(__dirname, '..', 'public', 'models', 'sx1-interior.glb');
 let doc: Document;
@@ -140,5 +141,43 @@ describe('linha de eixo no sx1-interior.glb (motor, mancal de escora, eixo)', ()
       expect((node(n)!.getExtras() as { eixo_giro: number[] }).eixo_giro, n).toEqual([0, 1, 0]);
     }
     expect((node('SX1I_Motor')!.getExtras() as { rpm_nominal: number }).rpm_nominal).toBe(e.vessel.propulsion.motor.ratedRpm);
+  });
+});
+
+describe('tubos lançadores e sala de torpedos no sx1-interior.glb', () => {
+  const node = (n: string) =>
+    doc
+      .getRoot()
+      .listNodes()
+      .find((x) => x.getName() === n);
+  /** posição no corpo (x vante, y boreste, z para baixo) de um nó do glTF (Y para cima, Z para a popa) */
+  const bodyPos = (n: string) => {
+    const p = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(node(n)!.getWorldMatrix()));
+    return { x: -p.z, y: p.x, z: -p.y };
+  };
+
+  it('seis tubos com culatra na posição do torpedoTubes.ts, portas que abrem e o sistema de ejeção', () => {
+    for (const t of TUBES) {
+      const name = `SX1I_TuboTorpedo_${t.n}`;
+      expect(node(name), name).toBeDefined();
+      const ex = node(name)!.getExtras() as { tipo: string; numero: number; bordo: string; calibre: number; boca: number[] };
+      expect(ex.tipo).toBe('tubo_torpedo');
+      expect(ex.numero).toBe(t.n);
+      expect(ex.bordo).toBe(t.side);
+      expect(ex.calibre).toBeCloseTo(0.533, 6);
+      const b = bodyPos(name);
+      const c = breechCenter(t);
+      expect(Math.hypot(b.x - c.x, b.y - c.y, b.z - c.z), name).toBeLessThan(0.002);
+      // boca gravada em coordenadas do Blender (X boreste, Y proa, Z cima)
+      const m = muzzleCenter(t, e.geom.radiusAt);
+      expect(Math.hypot(ex.boca[0] - m.y, ex.boca[1] - m.x, ex.boca[2] + m.z), name).toBeLessThan(0.002);
+      for (const k of ['_PortaInterna', '_PortaExterna']) {
+        const d = node(name + k)!.getExtras() as { eixo_giro: number[]; abre_graus: number };
+        expect(d.eixo_giro, name + k).toHaveLength(3);
+        expect(d.abre_graus).toBeGreaterThan(80);
+      }
+      for (const k of ['_Ejetor', '_Garrafa', '_ValvulaDisparo', '_ValvulaAlagamento', '_ValvulaSuspiro', '_Passagem']) expect(node(name + k), name + k).toBeDefined();
+    }
+    expect((node('SX1I_SalaTorpedos')!.getExtras() as { tipo: string }).tipo).toBe('sala_torpedos');
   });
 });

@@ -18,11 +18,12 @@ import { R_AIR } from '../core/context';
 import { seawaterDensity } from '../environment/seawater';
 import { buildHullGeometry, type HullGeometry } from './hullGeometry';
 import { tankWaterCentroid } from '../systems/internalTanks';
+import { weaponDesignItems, weaponMassItems } from '../systems/weapons';
 
 export interface MassItem {
   id: string;
   name: string;
-  group: 'leve' | 'cargas' | 'combustivel' | 'ar' | 'lastro' | 'compensacao' | 'trim' | 'banda' | 'alagamento';
+  group: 'leve' | 'cargas' | 'combustivel' | 'ar' | 'lastro' | 'compensacao' | 'trim' | 'banda' | 'alagamento' | 'armas';
   mass: number;
   pos: Vec3;
 }
@@ -39,6 +40,14 @@ export interface MassProps {
 export interface ResolvedMass {
   lightshipMass: number;
   lightshipCG: Vec3;
+}
+
+/** raio do casco externo para a posição dos tubos lançadores (geometria guardada por configuração de casco) */
+const hullCache = new WeakMap<VesselConfig['hull'], HullGeometry>();
+function hullRadiusAt(cfg: VesselConfig): (x: number) => number {
+  let g = hullCache.get(cfg.hull);
+  if (!g) hullCache.set(cfg.hull, (g = buildHullGeometry(cfg.hull)));
+  return g.radiusAt;
 }
 
 const HP_AIR_POS: Vec3 = { x: -8, y: 0, z: 1.2 };
@@ -73,6 +82,7 @@ export function resolveLightship(cfg: VesselConfig, geom?: HullGeometry): Resolv
   const dw = cfg.mass.demoWeight;
   if (dw) others.push({ m: dw.mass, p: { x: dw.xNeutral, y: dw.y, z: dw.z } });
   for (const l of cfg.mass.shiftLoads ?? []) others.push({ m: l.quantity * l.unitMass, p: l.home });
+  others.push(...weaponDesignItems(cfg, g.radiusAt));
   const fuel = fuelTankMass(cfg, cfg.electrical.fuel.initialFuel);
   others.push({ m: fuel.mass, p: cfg.electrical.fuel.position });
   const Tb = cfg.hpAir.temperature + 273.15;
@@ -122,7 +132,9 @@ export function computeMassProps(cfg: VesselConfig, s: SimState, light: Resolved
   }
   for (const l of cfg.mass.shiftLoads ?? []) {
     // carga já a bordo: na estiva faz parte da condição de projeto; deslocada, leva o seu peso para a nova posição
-    const mass = l.quantity * l.unitMass;
+    // armas de reserva: a quantidade a bordo diminui a cada recarga de tubo
+    const qty = s.weapons && cfg.weapons?.reserveLoad === l.id ? s.weapons.reserve : l.quantity;
+    const mass = qty * l.unitMass;
     const x = s.shiftLoads?.[l.id]?.x ?? l.home.x;
     items.push({ id: 'desl_' + l.id, name: l.name, group: 'cargas', mass, pos: { x, y: l.home.y, z: l.home.z } });
     internalMass += mass;
@@ -156,6 +168,11 @@ export function computeMassProps(cfg: VesselConfig, s: SimState, light: Resolved
     items.push({ id: sys.tankB.id, name: sys.tankB.name, group, mass: st.tankB.mass, pos: tankWaterCentroid(sys.tankB, st.tankB) });
     internalMass += st.tankA.mass + st.tankB.mass;
   }
+  if (cfg.weapons && s.weapons)
+    for (const it of weaponMassItems(cfg, s, hullRadiusAt(cfg))) {
+      items.push(it);
+      internalMass += it.mass;
+    }
   for (const c of cfg.compartments) {
     const f = s.flooding[c.id];
     if (f && f.water > 0) {

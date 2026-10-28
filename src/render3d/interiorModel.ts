@@ -103,6 +103,8 @@ export type CutMode = 'raiox' | 'meio';
 export function structureOpacity(tipo: string, mode: CutMode): number | null {
   if (tipo === 'casco_resistente' || tipo === 'antepara') return mode === 'raiox' ? 0.1 : 0.85;
   if (tipo === 'cavernas') return mode === 'raiox' ? 0 : 0.3;
+  // tubos lançadores translúcidos: a arma carregada aparece dentro
+  if (tipo === 'tubo_torpedo') return mode === 'raiox' ? 0.4 : 0.55;
   return null;
 }
 
@@ -124,6 +126,8 @@ export class InteriorRig {
   }[] = [];
   private pumps: { rotor: THREE.Object3D; rest: THREE.Quaternion; axis: THREE.Vector3; angle: number; get: (e: SimulationEngine) => { speed: number; failed: boolean } }[] = [];
   private spinners: { obj: THREE.Object3D; rest: THREE.Quaternion; axis: THREE.Vector3 }[] = [];
+  /** tubos lançadores: portas (culatra e boca) e volantes das válvulas de alagamento e suspiro, pelo estado do tubo */
+  private tubeParts: { tube: number; key: 'breech' | 'door' | 'flood' | 'vent'; obj: THREE.Object3D; rest: THREE.Quaternion; axis: THREE.Vector3; max: number }[] = [];
   private clip: THREE.Plane[] | null = null;
   private q = new THREE.Quaternion();
 
@@ -231,6 +235,21 @@ export class InteriorRig {
       } else if (tipo === 'gerador') {
         part.owners = ['__energia'];
         pick({ kind: 'generator', id: node.userData.id });
+      } else if (tipo === 'tubo_torpedo') {
+        const n = Number(node.userData.numero);
+        const sg = node.userData.bordo === 'BB' ? -1 : 1;
+        for (const [suf, key] of [
+          ['_PortaInterna', 'breech'],
+          ['_PortaExterna', 'door'],
+          ['_ValvulaAlagamento_Volante', 'flood'],
+          ['_ValvulaSuspiro_Volante', 'vent'],
+        ] as const) {
+          const o = node.getObjectByName(node.name + suf);
+          if (!o || !Array.isArray(o.userData.eixo_giro)) continue;
+          const door = key === 'breech' || key === 'door';
+          const max = door ? (sg * Number(o.userData.abre_graus ?? 90) * Math.PI) / 180 : 1;
+          this.tubeParts.push({ tube: n, key, obj: o, rest: o.quaternion.clone(), axis: blenderAxis(o.userData.eixo_giro as number[]), max });
+        }
       } else if (['motor', 'eixo', 'mancal_escora', 'mancal_apoio', 'bucim', 'tubo_telescopico'].includes(tipo)) {
         pick({ kind: 'prop', id: 'prop' });
         for (const o of [node, ...node.children]) if (Array.isArray(o.userData?.eixo_giro)) this.spinners.push({ obj: o, rest: o.quaternion.clone(), axis: blenderAxis(o.userData.eixo_giro as number[]) });
@@ -306,6 +325,14 @@ export class InteriorRig {
       p.angle += step * st.speed * 25;
       this.q.setFromAxisAngle(p.axis, p.angle);
       p.rotor.quaternion.copy(p.rest).premultiply(this.q);
+    }
+    // tubos lançadores: portas abrem pela posição; volantes giram como as válvulas
+    const tubes = e.state.weapons?.tubes;
+    for (const p of this.tubeParts) {
+      const st = tubes?.find((t) => t.n === p.tube);
+      const pos = st ? st[p.key].pos : 0;
+      this.q.setFromAxisAngle(p.axis, p.key === 'breech' || p.key === 'door' ? p.max * pos : wheelAngle(pos));
+      p.obj.quaternion.copy(p.rest).premultiply(this.q);
     }
     // eixo e rotor do motor: mesmo ângulo do hélice (giro em torno do eixo do casco)
     const a = e.state.propulsion.shaftAngle;

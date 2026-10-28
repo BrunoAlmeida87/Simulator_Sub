@@ -310,6 +310,78 @@ export interface VesselConfig {
   sensors: SensorNoiseConfig;
   contact: { stiffness: number; damping: number; friction: number };
   internalPressure: number; // Pa (atmosfera interna)
+  /** tubos lançadores e armas (opcional: configurações antigas não têm) */
+  weapons?: WeaponsConfig;
+}
+
+/** Um tubo lançador: reto, paralelo ao eixo do casco, com o centro em (y, z) do corpo. */
+export interface TorpedoTubeConfig {
+  /** número do tubo: ímpares a boreste, pares a bombordo; 1–2 em cima, 5–6 embaixo */
+  n: number;
+  side: 'BE' | 'BB';
+  /** fileira: 0 = de cima, 1 = do meio, 2 = de baixo */
+  row: number;
+  y: number;
+  z: number;
+}
+
+/** Arma (torpedo pesado de exercício, valores de ordem de grandeza pública). */
+export interface WeaponSpec {
+  name: string;
+  mass: number; // kg
+  length: number; // m
+  diameter: number; // m
+  /** volume deslocado (m³): a água que entra no tubo no lugar da arma */
+  volume: number;
+  /** velocidades de corrida (m/s) e alcance em cada uma (m) */
+  speeds: { baixa: number; alta: number };
+  range: { baixa: number; alta: number };
+  /** constante de tempo da partida do motor (s) */
+  spinUp: number;
+  /** razão de guinada (°/s) e de variação de cota (m/s) */
+  turnRate: number;
+  depthRate: number;
+  /** distância de segurança antes de guinar para o rumo de lançamento (m) */
+  safeDistance: number;
+  /** alcance de aquisição do autodiretor (m) e meia-abertura do cone (°) */
+  acquisitionRange: number;
+  seekerHalfAngle: number;
+  /** comprimento do fio de guiagem (m) */
+  wireLength: number;
+  /** distância horizontal ao alvo que conta como acerto no tiro de exercício (m) */
+  hitRadius: number;
+  /** velocidade de subida ao fim da corrida (arma de exercício flutua para ser recolhida, m/s) */
+  floatRate: number;
+}
+
+export interface WeaponsConfig {
+  /** face da culatra (x, m), raio do furo e raio externo do tubo (m), folga mínima da parede ao casco externo (m) */
+  breechX: number;
+  boreRadius: number;
+  outerRadius: number;
+  muzzleClearance: number;
+  tubes: TorpedoTubeConfig[];
+  weapon: WeaponSpec;
+  /** armas carregadas nos tubos no início (os primeiros n tubos) */
+  initialLoaded: number;
+  /** carga deslocável (mass.shiftLoads) que guarda as armas de reserva */
+  reserveLoad: string;
+  /** tanques de compensação das armas (água em volta das armas e compensação automática), bombordo e boreste */
+  tca: InternalTankConfig[];
+  /** vazões de alagamento e drenagem do tubo (m³/s) e da compensação automática (kg/s) */
+  floodRate: number;
+  drainRate: number;
+  awcRate: number;
+  /** constante de tempo da equalização (s), curso da porta externa e da culatra (s) */
+  equalizeTau: number;
+  doorTime: number;
+  breechTime: number;
+  /** recarga de um tubo a partir da reserva (s) */
+  reloadTime: number;
+  /** garrafa de lançamento (ar AP): volume (m³), pressão de carga e mínima para disparar (Pa), vazão de recarga (kg/s) */
+  flask: { volume: number; pressure: number; minPressure: number; rechargeFlow: number };
+  /** velocidade da arma na boca do tubo (m/s, ejeção por ar comprimido) */
+  ejectSpeed: number;
 }
 
 export interface SimSettings {

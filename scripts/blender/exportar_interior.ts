@@ -16,6 +16,7 @@ import { SystemsVis } from '../../src/render3d/Systems';
 import { TANK_STYLE } from '../../src/render3d/layers';
 import { PRESSURE_HULL } from '../../src/render3d/pressureHull';
 import { SHAFT_LINE } from '../../src/render3d/shaftLine';
+import { torpedoLayout } from '../../src/render3d/torpedoTubes';
 
 const out = process.argv[2] ?? join('build', 'modelo', 'interior.json');
 const e = buildScenario('superficie');
@@ -119,9 +120,11 @@ const doc = {
   garrafas: bottles,
   bateria: battery,
   geradores: generators,
+  // tubos lançadores e sala de torpedos (coordenadas do CORPO: x vante, y boreste, z para baixo)
+  torpedos: torpedoLayout(e.geom.radiusAt),
 };
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(doc));
 console.log(
-  `interior: ${tanks.length} tanques, ${pipes.length} tubos, ${valves.length} válvulas, ${pumps.length} bombas, ${ports.length} aberturas, ${bottles.length} garrafas, ${battery.length} bateria, ${generators.length} geradores → ${out}`,
+  `interior: ${tanks.length} tanques, ${pipes.length} tubos, ${valves.length} válvulas, ${pumps.length} bombas, ${ports.length} aberturas, ${bottles.length} garrafas, ${battery.length} bateria, ${generators.length} geradores, ${doc.torpedos.tubos.length} tubos de torpedo → ${out}`,
 );
