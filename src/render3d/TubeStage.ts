@@ -204,7 +204,25 @@ export class TubeStage {
     this.controls.update();
   }
 
+  /** libera geometrias e materiais próprios das peças (não os materiais fixos da classe nem o modelo do torpedo, compartilhado) */
+  private disposeParts(): void {
+    const shared = new Set<THREE.Material>([this.shellMat, this.innerMat, this.waterMat, this.cutWaterMat, this.surfMat, this.hullMat]);
+    const skip = new Set<THREE.Object3D>([this.weapon, this.exitTorp].filter((x): x is THREE.Group => !!x));
+    const visit = (o: THREE.Object3D) => {
+      if (skip.has(o)) return;
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+      for (const x of mats) if (!shared.has(x)) x.dispose();
+      for (const c of o.children) visit(c);
+    };
+    for (const c of this.root.children) visit(c);
+  }
+
   dispose(): void {
+    this.disposeParts();
+    for (const m of [this.shellMat, this.innerMat, this.waterMat, this.cutWaterMat, this.surfMat, this.hullMat]) m.dispose();
+    this.dot.dispose();
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
@@ -289,6 +307,7 @@ export class TubeStage {
     this.rBore = w.boreRadius;
     const rO = this.rOut;
     const rB = this.rBore;
+    this.disposeParts();
     this.root.clear();
     this.weapon = null;
     this.exitTorp = null;

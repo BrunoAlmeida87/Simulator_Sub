@@ -286,6 +286,12 @@ describe('submarino inimigo e torpedo de combate', () => {
     expect(e.state.weapons!.enemies!.length).toBe(2);
     applyCommand(e, { type: 'enemy', action: 'remove', id: 'INI1' });
     expect(e.state.weapons!.enemies!.map((k) => k.id)).toEqual(['INI2']);
+    // id escolhido de fora: recebe o prefixo e continua sendo alvo da arma de combate
+    applyCommand(e, { type: 'enemy', action: 'add', id: 'alvo-1' });
+    const x = e.state.weapons!.enemies!.at(-1)!;
+    expect(x.id).toBe('INI-alvo-1');
+    applyCommand(e, { type: 'tube', tube: 1, action: 'preparar', presets: { target: x.id, warhead: 'combate' } });
+    expect(last(e)).not.toMatch(/recusado/);
     applyCommand(e, { type: 'enemy', action: 'clear' });
     expect(e.state.weapons!.enemies!.length).toBe(0);
     expect(last(e)).toMatch(/inimigos removidos/);

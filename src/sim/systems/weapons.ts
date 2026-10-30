@@ -832,7 +832,9 @@ export function enemyCommand(c: EnemyCmdCtx, action: EnemyAction, p: EnemyParams
   const course = wrap360(p.course ?? brg + 90);
   const speed = Math.max(0, Math.min(10, p.speed ?? 5 * KN));
   ws.enemyCount = (ws.enemyCount ?? 0) + 1;
-  const id = p.id ?? `INI${ws.enemyCount}`;
+  // o prefixo INI identifica o inimigo como alvo (isEnemyId); um id escolhido de fora também o recebe
+  let id = p.id ? (isEnemyId(p.id) ? p.id : `INI-${p.id}`) : `INI${ws.enemyCount}`;
+  while (list.some((k) => k.id === id)) id = `${id}'`;
   const name = p.name ?? `Submarino inimigo ${ws.enemyCount}`;
   list.push({ id, name, n, e, d: depth, course, speed, cmdCourse: course, cmdSpeed: speed, cmdDepth: depth, evading: false, sunk: null, pitch: 0, hits: 0 });
   c.log(
