@@ -248,3 +248,18 @@ Modelo, equações, aproximações e roteiro: [SONAR.md](SONAR.md).
 - Capturas em `docs/img/sonar-visual/`: estação com uma hipótese manual sobre dados
   adquiridos do motor, pulso/retorno e celular. As imagens são do aplicativo;
   o conceito gerado anteriormente é apenas referência visual.
+
+### Display multitrilha
+
+Testes específicos cobrem orientação dos eixos, cruzamentos 359°/0° e 179°/181°,
+corte do intervalo temporal, interrupção de perda de contato, suavização circular
+sem alterar medições e cores estáveis para 48 IDs. A suíte direcionada de sonar
+integração/TMA/display contém 31 testes. A alteração é de apresentação; não muda
+sensores, parâmetros acústicos ou dinâmica do submarino.
+
+Build TypeScript/Vite aprovado (aviso de chunk principal permanece). Chromium
+validou seis trilhas controladas, seleção por mouse/Enter/Espaço, sincronização
+do instante com TMA, filtro, eixo alternativo, suavização, comando da janela
+espelhada e layout de 390 px sem overflow. As capturas estão em
+`docs/img/sonar-visual/trilhas*.png`; nenhum contato de demonstração é inserido
+pelo código da aplicação.

@@ -572,39 +572,124 @@
   padding: 16px;
   color: #8bafc1;
 }
-.sonar-station.focus-pulse .pulse-card {
-  grid-column: 1 / -1;
-  grid-row: 1;
+.sonar-workspace {
+  grid-template-areas: 'trails pulse' 'tma contact' 'bearing contact' 'waterfall listening';
+}
+.trails-card {
+  grid-area: trails;
+}
+.tma-card {
+  grid-area: tma;
+}
+.pulse-card {
+  grid-area: pulse;
+}
+.bearing-card {
+  grid-area: bearing;
+}
+.contact-card {
+  grid-area: contact;
+}
+.waterfall-card {
+  grid-area: waterfall;
+}
+.listening-card {
+  grid-area: listening;
+}
+.sonar-station.focus-tma .sonar-workspace {
+  grid-template-areas: 'tma pulse' 'bearing contact' 'trails contact' 'waterfall listening';
+}
+.sonar-station.focus-listen .sonar-workspace {
+  grid-template-areas: 'waterfall listening' 'trails contact' 'tma pulse' 'bearing .';
+}
+.sonar-station.focus-pulse .sonar-workspace {
+  grid-template-areas: 'pulse pulse' 'trails contact' 'tma listening' 'bearing listening' 'waterfall waterfall';
 }
 .sonar-station.focus-pulse .sonar-pulse-stage {
   height: 560px;
 }
-.sonar-station.focus-pulse .tma-card {
-  grid-row: 2 / 4;
+.bearing-trace-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
 }
-.sonar-station.focus-listen .waterfall-card {
-  grid-column: 1;
-  grid-row: 1 / 3;
+.bearing-trace-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #8aa9b8;
+  font-size: 11px;
 }
-.sonar-station.focus-listen .listening-card {
-  grid-column: 2;
-  grid-row: 1;
+.bearing-trace-controls select {
+  padding: 6px 8px;
 }
-.sonar-station.focus-listen .contact-card {
-  grid-column: 2;
-  grid-row: 2;
+.bearing-trace-controls label.bearing-trace-check {
+  flex-direction: row;
+  align-items: center;
+  align-self: center;
+  padding-top: 16px;
 }
-.sonar-station.focus-listen .tma-card {
-  grid-column: 1;
-  grid-row: 3;
+.bearing-trace-check input {
+  accent-color: #efb77b;
 }
-.sonar-station.focus-listen .pulse-card {
-  grid-column: 2;
-  grid-row: 3;
+.bearing-traces {
+  width: 100%;
+  display: block;
+  height: auto;
 }
-.sonar-station.focus-listen .bearing-card {
-  grid-column: 1;
-  grid-row: 4;
+.bearing-trace-line {
+  cursor: crosshair;
+  outline: none;
+}
+.bearing-trace-line:focus-visible .bearing-trace-hit {
+  stroke: #fff9;
+  stroke-width: 5px;
+}
+.bearing-trace-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  max-height: 115px;
+  overflow: auto;
+}
+.bearing-trace-legend button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  padding: 6px 9px;
+}
+.bearing-trace-legend button.active {
+  border-color: var(--track-color);
+  box-shadow: inset 0 -2px var(--track-color);
+}
+.track-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  background: var(--track-color);
+}
+.bearing-trace-legend small {
+  color: #8ca7b6;
+  font-size: 10px;
+}
+.bearing-trace-readout {
+  padding: 6px 16px 13px;
+  color: #8fa9b4;
+  font-size: 11px;
+  min-height: 37px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.bearing-trace-readout button {
+  font-size: 10px;
+  padding: 5px 8px;
 }
 @media (min-width: 1600px) {
   .sonar-pulse-stage {
@@ -652,6 +737,12 @@
   .sonar-topline h2 span {
     font-size: 17px;
   }
+  .trails-card {
+    order: 0;
+  }
+  .focus-tma .tma-card {
+    order: -1;
+  }
   .tma-card {
     order: 1;
   }
@@ -671,13 +762,13 @@
     order: 6;
   }
   .focus-pulse .pulse-card {
-    order: 0;
+    order: -1;
   }
   .focus-listen .waterfall-card {
-    order: 0;
+    order: -2;
   }
   .focus-listen .listening-card {
-    order: 1;
+    order: -1;
   }
   .focus-listen .tma-card {
     order: 5;
@@ -764,5 +855,36 @@
   }
   .sonar-topline {
     gap: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bearing-minor-tick {
+    display: none;
+  }
+  .bearing-trace-controls {
+    gap: 8px;
+    padding: 10px;
+  }
+  .bearing-trace-legend {
+    padding: 10px;
+  }
+  .bearing-trace-readout {
+    padding: 6px 10px 12px;
+  }
+  .bearing-traces {
+    min-height: 230px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bearing-traces text {
+    font-size: 22px;
+  }
+  .bearing-traces > text:first-of-type {
+    display: none;
+  }
+  .bearing-trace-legend button {
+    min-height: 34px;
   }
 }
