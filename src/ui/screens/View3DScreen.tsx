@@ -14,6 +14,17 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 
 /** preferências adicionais desta tela (preserva as chaves já salvas) */
 const V3D_LAYER_DEFAULTS = {
+  sonarRays: false,
+  sonarWave: false,
+  sonarThermocline: false,
+  sonarProfile: false,
+  sonarCoverage: false,
+  sonarHeatmap: false,
+  sonarSurface: false,
+  sonarBottom: false,
+  sonarEchoes: false,
+  sonarBearings: false,
+  sonarRulers: false,
   pipes: true,
   torpedoes: true,
   flows: true,
@@ -32,6 +43,17 @@ const V3D_LAYER_DEFAULTS = {
   resultantGain: 'auto' as const,
 };
 const V3D_LAYER_KEYS: LayerKey[] = [
+  'sonarRays',
+  'sonarWave',
+  'sonarThermocline',
+  'sonarProfile',
+  'sonarCoverage',
+  'sonarHeatmap',
+  'sonarSurface',
+  'sonarBottom',
+  'sonarEchoes',
+  'sonarBearings',
+  'sonarRulers',
   'vectors',
   'hydroVectors',
   'trimVectors',

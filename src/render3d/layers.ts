@@ -1,5 +1,19 @@
 /** Camadas visuais da cena 3D (todas ligadas ao estado físico). */
 export interface SceneLayers {
+  sonarRays: boolean;
+  sonarWave: boolean;
+  sonarThermocline: boolean;
+  sonarProfile: boolean;
+  sonarCoverage: boolean;
+  sonarHeatmap: boolean;
+  sonarSurface: boolean;
+  sonarBottom: boolean;
+  sonarEchoes: boolean;
+  sonarBearings: boolean;
+  sonarRulers: boolean;
+  sonarOpacity: number;
+  sonarReplayTime: number;
+
   /** peso, empuxo e resultante vertical */
   vectors: boolean;
   /** hélice, resistência e lemes */
@@ -61,6 +75,19 @@ export interface SceneLayers {
 }
 
 export const defaultLayers = (): SceneLayers => ({
+  sonarRays: false,
+  sonarWave: false,
+  sonarThermocline: false,
+  sonarProfile: false,
+  sonarCoverage: false,
+  sonarHeatmap: false,
+  sonarSurface: false,
+  sonarBottom: false,
+  sonarEchoes: false,
+  sonarBearings: false,
+  sonarRulers: false,
+  sonarOpacity: 0.6,
+  sonarReplayTime: -1,
   vectors: false,
   hydroVectors: false,
   trimVectors: false,
@@ -101,6 +128,17 @@ export type BoolLayer = { [K in keyof SceneLayers]: SceneLayers[K] extends boole
  * entram em “Marcar todas”; “Desmarcar todas” desliga tudo, inclusive elas.
  */
 export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; title: string; mode?: boolean }> = {
+  sonarRays: { label: 'Raios acústicos', title: 'Diagnóstico acústico 2D projetado em 3D: raios acústicos' },
+  sonarWave: { label: 'Frente de onda', title: 'Diagnóstico acústico 2D projetado em 3D: frente de onda' },
+  sonarThermocline: { label: 'Termoclina', title: 'Diagnóstico acústico 2D projetado em 3D: termoclina' },
+  sonarProfile: { label: 'Perfil do som', title: 'Diagnóstico acústico 2D projetado em 3D: perfil do som' },
+  sonarCoverage: { label: 'Baixa cobertura amostrada', title: 'Diagnóstico acústico 2D projetado em 3D: baixa cobertura amostrada' },
+  sonarHeatmap: { label: 'Densidade de raios', title: 'Diagnóstico acústico 2D projetado em 3D: densidade de raios' },
+  sonarSurface: { label: 'Reflexões na superfície', title: 'Diagnóstico acústico 2D projetado em 3D: reflexões na superfície' },
+  sonarBottom: { label: 'Reflexões no fundo', title: 'Diagnóstico acústico 2D projetado em 3D: reflexões no fundo' },
+  sonarEchoes: { label: 'Ecos medidos', title: 'Diagnóstico acústico 2D projetado em 3D: ecos medidos' },
+  sonarBearings: { label: 'Marcações sonar', title: 'Diagnóstico acústico 2D projetado em 3D: marcações sonar' },
+  sonarRulers: { label: 'Réguas acústicas', title: 'Diagnóstico acústico 2D projetado em 3D: réguas acústicas' },
   vectors: { label: 'Peso/empuxo', title: 'Peso, empuxo e resultante vertical' },
   hydroVectors: { label: 'Hélice/lemes/resist.', title: 'Empuxo do hélice, resistência e forças dos lemes' },
   trimVectors: { label: 'Vetores de trim', title: 'Peso deslocável, tanques de trim e momento líquido' },
@@ -150,6 +188,7 @@ export const fullExternalLayers = (): SceneLayers => ({
 
 /** Grupos das camadas nos painéis (ordem de exibição). */
 export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exclude<BoolLayer, 'hull'>[] }[] = [
+  { id: 'sonar', label: 'Acústica (diagnóstico)', title: 'Corte 2D; cobertura amostrada não prova sombra absoluta', keys: ['sonarRays', 'sonarWave', 'sonarThermocline', 'sonarProfile', 'sonarCoverage', 'sonarHeatmap', 'sonarSurface', 'sonarBottom', 'sonarEchoes', 'sonarBearings', 'sonarRulers'] },
   { id: 'interior', label: 'Tanques e sistemas', title: 'Casco em corte: tanques, circuitos e componentes', keys: ['tanks', 'pipes', 'flows', 'halfCut'] },
   { id: 'vetores', label: 'Forças e vetores', title: 'Forças sobre o submarino', keys: ['vectors', 'hydroVectors', 'trimVectors'] },
   {

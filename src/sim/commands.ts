@@ -1,3 +1,4 @@
+import { sonarCommand, type SonarCommand } from '../sonar/integration/commands';
 /**
  * COMANDOS — única via pela qual a interface (ou um script de cenário) altera
  * a simulação. Cada comando é aplicado entre passos de integração e é
@@ -46,6 +47,7 @@ const ENV_LABEL: Record<string, [string, string]> = {
 export type FluidSystem = 'compensation' | 'trim' | 'heel';
 
 export type Command =
+  | SonarCommand
   | { type: 'compensationRoute'; source: string; destination: string }
   | { type: 'compensationTransferPump'; run: boolean }
   | { type: 'compensationDirection'; reverse?: boolean; position?: 'direta' | 'inversa' }
@@ -126,6 +128,9 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
   const v = e.vessel;
   const log = (text: string, group: string) => e.log(text, group);
   switch (c.type) {
+    case 'sonar':
+      sonarCommand(e, c);
+      break;
     case 'compensationRoute': {
       const tr = s.compensation.transfer;
       const valid = [v.heel.tankA.id, v.heel.tankB.id, ...v.compensation.tanks.map(t => t.id)];

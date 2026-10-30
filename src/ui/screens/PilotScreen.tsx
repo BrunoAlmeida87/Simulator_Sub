@@ -31,6 +31,17 @@ import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 
 /** preferências adicionais da Operação (preserva as chaves já salvas da Pilotagem) */
 const PILOT_LAYER_DEFAULTS = {
+  sonarRays: false,
+  sonarWave: false,
+  sonarThermocline: false,
+  sonarProfile: false,
+  sonarCoverage: false,
+  sonarHeatmap: false,
+  sonarSurface: false,
+  sonarBottom: false,
+  sonarEchoes: false,
+  sonarBearings: false,
+  sonarRulers: false,
   pipes: true,
   torpedoes: true,
   flows: true,
@@ -50,6 +61,17 @@ const PILOT_LAYER_DEFAULTS = {
   resultantGain: 'auto' as const,
 };
 const PILOT_LAYER_KEYS: LayerKey[] = [
+  'sonarRays',
+  'sonarWave',
+  'sonarThermocline',
+  'sonarProfile',
+  'sonarCoverage',
+  'sonarHeatmap',
+  'sonarSurface',
+  'sonarBottom',
+  'sonarEchoes',
+  'sonarBearings',
+  'sonarRulers',
   'vectors',
   'hydroVectors',
   'trimVectors',

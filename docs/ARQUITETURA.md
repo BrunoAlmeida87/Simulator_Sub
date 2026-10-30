@@ -75,3 +75,13 @@ Disponibilidade de energia e hidráulica: os consumidores usam o estado do barra
 ## Desempenho
 
 Um passo custa cerca de 7 avaliações hidrostáticas (RK4 + saídas + rigidezes) de 100 fatias e 4 resoluções implícitas dos TLP. No Node, o motor roda a cerca de 7 000 passos/s, o que permite aceleração de ×20 (1 000 passos/s) com folga. Se a CPU não acompanhar, o executor descarta o excesso de tempo e sinaliza "tempo reduzido", sem perder estabilidade.
+
+## Subsistema acústico integrado
+
+`src/sonar/` separa ambiente/propagação, assinaturas, sensores, DSP, associação,
+classificação, TMA, displays e visualização. `SimulationEngine.step()` chama a
+integração após os sistemas físicos; `SimState.sonar` guarda medições, históricos,
+cache, RNG independente e ecos pendentes. Comandos `sonar` usam a via registrada
+existente e o sincronismo envia deltas. O motor não depende de React/Three.js.
+O console lê somente medições; dados verdadeiros ficam no adaptador do mundo e
+no diagnóstico opt-in. Veja [arquitetura e limites do sonar](SONAR.md).

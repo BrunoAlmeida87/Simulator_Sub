@@ -161,3 +161,14 @@ Os ganhos que comandam lemes (rumo, pitch e lemes de vela) são multiplicados po
 ### Transferência de banda pelo circuito de compensação
 
 BTC: 10 L/s a Δp = 0, shutoff 5 bar, eficiência 0,60, potência em vazio 2 kW, partida 3 s. VDC 4/2 (quatro vias, duas posições) e isolamentos: curso 3 s, atuação hidráulica. Posições reais da VDC: 0 direta (A→T/P→B) e 1 inversa (B→T/P→A). Não há posição central estável; o fluxo é interrompido durante a comutação. T = sucção e P = descarga da BTC. Perda da linha: 0,6 bar na vazão nominal. Rotas: BB ↔ BE, BB ↔ TC central, BE ↔ TC central. O TC usa a geometria atual do conjunto de compensação, com y = 0; os tanques de banda ficam em BB/BE, na mesma posição longitudinal. O nível de origem, a cota de descarga e a atitude do casco determinam a carga estática.
+
+## Acústica sintética
+
+Valores educacionais, não assinaturas reais: `src/sonar/sources/signatures.ts`
+(biblioteca e ruído próprio), `acoustics/environment.ts` (SVP/absorção/presets),
+`sensors/active.ts` (nível ativo 210 dB, margem de reverberação 10 dB),
+`acoustics/propagation.ts` (reflexões: superfície 1 dB, fundo 5 dB).
+Aquisição 1 Hz, atualização de eco 0,02 s, FFT 4.096 amostras/2.048 Hz,
+64 raios visuais por padrão, faixa 8–512, memória 30–900 s (240 padrão).
+Não foram recalibrados casco, propulsão ou balanços existentes para o sonar.
+Veja [SONAR.md](SONAR.md) para equações, observabilidade e limitações.

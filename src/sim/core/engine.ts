@@ -1,3 +1,5 @@
+import { initialSonar } from '../../sonar/types';
+import { updateSonar } from '../../sonar/integration/system';
 /**
  * MOTOR DE SIMULAÇÃO — independente da interface (sem DOM, React ou Three.js).
  *
@@ -123,6 +125,7 @@ export class SimulationEngine {
     this.compressibleVolume = this.geom.volume - config.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
     if (config.vessel.weapons && !state.weapons) state.weapons = initWeapons(config.vessel, this.geom.radiusAt);
     this.state = state;
+    this.state.sonar ??= initialSonar();
     this.scratch = new Float64Array(this.geom.slices.length);
     this.scratch2 = new Float64Array(this.geom.slices.length);
     this.prevPos = { ...state.body.pos };
@@ -373,6 +376,7 @@ export class SimulationEngine {
     const expected = L.mass0 + (L.cargoIn ?? 0) - (L.weaponsOut ?? 0) + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
     o.massAudit = o.mp.internalMass - expected;
     o.energyAudit = L.batteryChemical - L.batteryOut - L.batteryLoss;
+    updateSonar(this);
   }
 
   private trueValues(): TrueValues {
