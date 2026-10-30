@@ -1,5 +1,87 @@
 # Sonar integrado — arquitetura, operação e limites
 
+## Estação visual: TMA, cascata e pulso
+
+A tela principal foi reorganizada para operação simples, com três disposições:
+**TMA**, **Escuta** e **Sonar 3D**. São os mesmos instrumentos e o mesmo motor;
+as abas dão destaque à área escolhida. A versão completa anterior continua no
+botão **Avançado**. Seu guia original foi preservado integralmente em
+[SONAR_AVANCADO_REFERENCIA.md](SONAR_AVANCADO_REFERENCIA.md), com commit, imagens
+e instrução para abrir uma cópia histórica separada.
+
+### TMA gráfico
+
+1. Inicie a escuta, selecione um contato Snnn ou marque uma direção na cascata.
+2. A plotagem mostra trajetória própria, marcações históricas, ecos recebidos e
+   faixa angular quando a distância é desconhecida. Grade em km e anéis em MN.
+   Arraste para deslocar; use roda/+/− para zoom; ⌖ enquadra o contato.
+3. A régua ↔ mede distância e direção entre dois cliques. Clicar numa observação
+   ou no gráfico **Marcação × tempo** destaca o mesmo instante na plotagem.
+   **Ao vivo** retorna ao presente; a seleção histórica não rebobina a simulação.
+4. **Estimar solução** retira a hipótese manual e tenta obter movimento dos dados:
+   TMA passivo requer manobra e observabilidade; dois ecos de pings separados por
+   pelo menos 10 s permitem uma estimativa por posições medidas. Ecos de um mesmo
+   ping separados por menos de 3 s não são tratados como posições independentes.
+   Um eco isolado só fornece uma posição medida, nunca velocidade.
+5. **Ajustar solução** cria uma hipótese explicitamente manual. Sem solução prévia,
+   começa no último eco ou a 2,5 km na direção medida, com 3 m/s para tornar o vetor
+   manipulável. Isso é um chute inicial do operador, não uma detecção. Arraste o
+   círculo âmbar (posição) e a ponta do vetor de 2 min (rumo/velocidade); os campos
+   numéricos também permitem ajuste. O resíduo angular e a curva de previsão
+   mostram a compatibilidade com as observações. **Concluir ajuste** mantém a
+   hipótese; **Estimar solução** volta ao automático.
+6. A região de incerteza das soluções automáticas é indicativa, não calibrada
+   estatisticamente; a hipótese manual não recebe uma confiança inventada. Os
+   limites do estimador e as ambiguidades de associação continuam valendo.
+
+A plotagem recebe somente `Track.history`, observações próprias e hipóteses.
+Não consulta `worldSources`, ecos futuros ou coordenadas reais de alvos. Posições
+estimadas são extrapoladas por até 30 s após a última observação; a idade fica
+visível no cartão. A solução manual é registrada por comando, salva na sessão
+e replicada para **＋ Tela**. A trajetória própria é guardada nos quadros acústicos;
+saves antigos sem esse campo continuam aceitos.
+
+### Cascata, espectros e áudio
+
+A **Cascata acústica** permanece na tela principal. Banda larga, LOFAR e DEMON
+continuam processando os mesmos sinais. Ganho, contraste, janela de histórico,
+zoom de frequência, espectro instantâneo, cursor e marcação manual permanecem
+acessíveis. **Escutar feixe** mantém volume e filtros; a identificação conserva
+classe sugerida, confiança e registro manual. Biblioteca e parâmetros de ambiente,
+fontes, integração e memória estão em **Avançado**.
+
+### Pulso visível e replay
+
+**EMITIR PING** dispara o sonar existente e inicia o relógio caso esteja pausado.
+O painel 3D abre automaticamente sua animação em ×0,25: envelope ciano expansivo,
+reflexões e retornos em âmbar. **Pulso / Linhas** alterna casca transparente e
+contornos. Arrastar orbita a câmera; a roda aproxima; ⌖ restaura o enquadramento.
+A aba **Sonar 3D** amplia o painel. Há pausa, reinício, passo de 0,05 s, cursor
+temporal e velocidades ×0,1/×0,25/×0,5/×1. O replay é local e não altera a física.
+
+O fundo vem da batimetria do motor no instante da emissão; o submarino usa o
+modelo leve existente, com reserva geométrica se o arquivo não carregar. O
+painel amplia profundidade e símbolos e usa um **envelope esférico ilustrativo**,
+não uma solução 3D de refração. Não use a casca como medida de alcance/detecção.
+As reflexões mostradas vêm de `ping.echoPaths`; o arco de retorno alcança o
+observador no horário de chegada armazenado. Até 12 caminhos são desenhados para
+limitar custo visual. O diagnóstico avançado mantém os raios/corte físicos.
+A camada **Pulso expansivo** da cena principal também usa uma casca com linhas,
+com corte na superfície e limite de profundidade do snapshot.
+
+A escuta e as distâncias no TMA acompanham o tempo real **do simulador**, enquanto
+as imagens podem estar atrasadas pela câmera lenta ou em replay. O botão
+**Som de ping** habilita sinais sonoros de emissão/eco por gesto do usuário;
+esses sons seguem eventos operacionais recebidos, nunca o cursor de replay.
+A **＋ Tela** recebe medições e comandos do mesmo motor e permite operar TMA;
+cada janela tem seu próprio enquadramento e replay. A janela **⧉ 2ª janela**
+recebe vista acústica, camada de pulso/eco e instante de replay do controle
+(selecione **Camadas do controle**), em escala física na cena original.
+
+Novos módulos: `display/TmaPlot.tsx`, `display/PingAudio.tsx`, `display/console.css`,
+`tma/plotModel.ts`, `visualization/PulseView.tsx` e `PulseShell.ts`. O console
+anterior está em `ui/screens/AdvancedSonarScreen.tsx`. Sem novas dependências.
+
 ## Diagnóstico do projeto e decisão de integração
 
 Base examinada: `main` em `13e5080`, após atualizar a cópia inicial. React 18.3,
@@ -53,7 +135,7 @@ não é usado como instrumento de detecção acústica. Não há conexão nova c
 
 ## Como operar
 
-1. Abra **Operação → Sonar**. O sonar nasce ligado, mas requer barramento
+1. Abra **Operação → Sonar → Avançado** para os controles descritos nesta seção. O sonar nasce ligado, mas requer barramento
    energizado e avanço do relógio. Execute a simulação ou use **+1 s**.
 2. Ajuste máquinas/velocidade nas telas existentes e observe o ruído próprio.
    O efeito é gradual pelo SNR, sem um limite de velocidade que apague contatos.
@@ -213,3 +295,9 @@ cota de armazenamento local do navegador pode limitar salvamentos maiores.
   emergência, navegação, sala de comando, persistência de camadas e física.
 - Chromium/Playwright: desktop, 390 px sem overflow, seleção, modos, pulso,
   diagnóstico, replay, áudio e janelas espelhadas. Capturas em `docs/img/sonar/`.
+
+## Capturas da estação visual
+
+- [Estação TMA, cascata e escuta](img/sonar-visual/estacao.png).
+- [Pulso e retorno em 3D](img/sonar-visual/pulso.png).
+- [Tela estreita](img/sonar-visual/celular.png).

@@ -54,7 +54,7 @@ export function updateSonar(e: SimulationEngine): void {
     dem = demon(signal, SAMPLE_RATE);
   // Bin-reduce only for history/display; classification retains measured FFT peaks.
   const reduce = (bins: number[], size: number) => Array.from({ length: size }, (_, i) => Math.max(...bins.slice((i * bins.length) / size, ((i + 1) * bins.length) / size)));
-  const frame = { t, broadband: rx.broadband, lofar: reduce(lofar.bins, 256), demon: dem.bins, beam: rx.beam, snr: rx.snr, peaks: lofar.peaks, modulation: dem.peaks };
+  const frame = { t, observer: own, broadband: rx.broadband, lofar: reduce(lofar.bins, 256), demon: dem.bins, beam: rx.beam, snr: rx.snr, peaks: lofar.peaks, modulation: dem.peaks };
   // Temporal integration in linear power; no integration across different beams.
   const alpha = 1 - Math.exp(-1 / s.settings.integration),
     prev = s.frame;

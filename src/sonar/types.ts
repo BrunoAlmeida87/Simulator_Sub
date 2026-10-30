@@ -18,6 +18,8 @@ export interface Measurement {
   rangeSigma?: number;
 }
 export interface Track {
+  /** Operator hypothesis, never copied from world truth. */
+  tma?: TmaMotion;
   id: string;
   bearing: number;
   snr: number;
@@ -33,6 +35,13 @@ export interface Track {
   manual?: string;
   peaks: number[];
   modulation: number[];
+}
+export interface TmaMotion {
+  t: number;
+  n: number;
+  e: number;
+  vn: number;
+  ve: number;
 }
 export interface Ring<T> {
   data: T[];
@@ -57,6 +66,7 @@ export interface Spectrum {
   peaks: number[];
 }
 export interface AcousticFrame {
+  observer?: Observer;
   t: number;
   broadband: number[];
   lofar: number[];

@@ -303,3 +303,7 @@ O circuito de compensação permite transferir água entre os tanques de banda B
   em Configurações → Vida marinha e ambiente submarino; respeita pausa e segunda janela.
 
 A visão **Cinematográfica** acompanha o submarino com oscilações discretas de filmagem e amortecimento suave, como opção independente da câmera **Perseguição**.
+
+O sonar oferece **TMA gráfico interativo**, cascata (banda larga, LOFAR e DEMON),
+áudio e pulso 3D com replay. A interface científica permanece em **Avançado**.
+[Guia atual](docs/SONAR.md) · [Sonar avançado original preservado](docs/SONAR_AVANCADO_REFERENCIA.md).

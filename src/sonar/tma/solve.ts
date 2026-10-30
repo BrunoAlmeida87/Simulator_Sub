@@ -1,4 +1,4 @@
-import { angleDiff, type Measurement, wrap } from '../types';
+import { angleDiff, type Measurement, type TmaMotion, wrap } from '../types';
 export interface Solution {
   observable: boolean;
   reason: string;
@@ -7,6 +7,7 @@ export interface Solution {
   speed?: number;
   uncertainty?: number;
   residual?: number;
+  motion?: TmaMotion;
 }
 /** Weighted bearing-only least squares: cross(LOS, target0 + velocity*t - own)=0.
  * Column-normalized normal matrix with pivot conditioning; own maneuver required. */
@@ -70,6 +71,7 @@ export function solveTma(history: Measurement[]): Solution {
   if (uncertainty > range * 0.75) return no('Incerteza de distância elevada; amplie a manobra.');
   return {
     observable: true,
+    motion: { t: last.t, n: first.observer.n + n + vnSpan, e: first.observer.e + e + veSpan, vn: vnSpan / span, ve: veSpan / span },
     reason: 'Estimativa LS; velocidade constante, associação e erros correlacionados limitam a confiança.',
     range,
     course: wrap((Math.atan2(veSpan, vnSpan) * 180) / Math.PI),

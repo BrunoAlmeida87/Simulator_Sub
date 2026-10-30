@@ -1,9 +1,10 @@
 import type { SimulationEngine } from '../../sim/core/engine';
-import { clamp, initialSonar, wrap, ring, values, push, type SourceOverride, type SonarSettings } from '../types';
+import { clamp, initialSonar, wrap, ring, values, push, type SourceOverride, type SonarSettings, type TmaMotion } from '../types';
 import { emitPing } from '../sensors/active';
 import { associate } from '../contacts/tracker';
 import { observer, worldSources } from './world';
 export type SonarCommand =
+  | { type: 'sonar'; action: 'tma'; id: string; motion: TmaMotion | null }
   | { type: 'sonar'; action: 'source'; id: string; patch: SourceOverride | null }
   | { type: 'sonar'; action: 'settings'; patch: Partial<SonarSettings> }
   | { type: 'sonar'; action: 'ping' }
@@ -44,6 +45,16 @@ export function sonarCommand(e: SimulationEngine, c: SonarCommand): void {
     s.settings.rayCount = Math.round(s.settings.rayCount);
     s.settings.traffic = Math.round(s.settings.traffic);
     e.log('Sonar: ajustes ' + Object.keys(c.patch).join(', '), 'Sonar');
+  } else if (c.action === 'tma') {
+    const track = s.tracks.find((x) => x.id === c.id);
+    if (!track) return;
+    if (c.motion === null) delete track.tma;
+    else {
+      const m = c.motion;
+      if (![m.t, m.n, m.e, m.vn, m.ve].every(Number.isFinite) || Math.abs(m.t - e.state.t) > 900 || Math.hypot(m.n - e.state.body.pos.x, m.e - e.state.body.pos.y) > 100000 || Math.hypot(m.vn, m.ve) > 25) return;
+      track.tma = { t: m.t, n: m.n, e: m.e, vn: m.vn, ve: m.ve };
+    }
+    e.log(c.motion ? 'Sonar: hipótese TMA do operador ' + c.id : 'Sonar: TMA automático ' + c.id, 'Sonar');
   } else if (c.action === 'source') {
     if (!worldSources(e).some((source) => source.id === c.id)) return;
     if (c.patch === null) delete s.settings.sourceOverrides[c.id];

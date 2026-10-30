@@ -129,7 +129,7 @@ export type BoolLayer = { [K in keyof SceneLayers]: SceneLayers[K] extends boole
  */
 export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; title: string; mode?: boolean }> = {
   sonarRays: { label: 'Raios acústicos', title: 'Diagnóstico acústico 2D projetado em 3D: raios acústicos' },
-  sonarWave: { label: 'Frente de onda', title: 'Diagnóstico acústico 2D projetado em 3D: frente de onda' },
+  sonarWave: { label: 'Pulso expansivo', title: 'Envelope esférico ilustrativo do ping; não representa alcance de detecção nem solução 3D de ondas' },
   sonarThermocline: { label: 'Termoclina', title: 'Diagnóstico acústico 2D projetado em 3D: termoclina' },
   sonarProfile: { label: 'Perfil do som', title: 'Diagnóstico acústico 2D projetado em 3D: perfil do som' },
   sonarCoverage: { label: 'Baixa cobertura amostrada', title: 'Diagnóstico acústico 2D projetado em 3D: baixa cobertura amostrada' },
