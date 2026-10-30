@@ -130,3 +130,13 @@ permanecer ambíguo; classificação e número de pás são hipóteses. Reflexã
 ruído, largura de feixe e incertezas são aproximações educacionais. Não existe
 integração nova com armas. O [guia do sonar](SONAR.md) especifica o modelo,
 resoluções, tempo, memória, offline e limites da validação de desempenho.
+
+### Apresentação visual do sonar
+
+O pulso expansivo é um envelope esférico ilustrativo. No painel Sonar 3D,
+profundidade e símbolos são ampliados; os raios físicos permanecem no diagnóstico
+avançado. A casca não delimita a região detectável e não modela refração 3D.
+O replay visual pode atrasar-se em relação aos ecos já recebidos pelo TMA.
+No TMA, a hipótese manual não tem confiança estatística atribuída; a incerteza
+automática é indicativa. Duas posições ativas espaçadas permitem ajuste de
+velocidade constante, mas não resolvem troca de trilhas ou manobras do alvo.

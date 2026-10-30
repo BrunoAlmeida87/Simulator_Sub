@@ -649,3 +649,13 @@ estimar distância/movimento. O posto de sonar da sala lê as mesmas medições.
 Use **Camadas do controle** na 2ª janela para espelhar a seleção e o replay.
 Perfis ambientais, memória, funcionamento offline e todas as aproximações estão
 no [guia completo do sonar](SONAR.md).
+
+### Estação visual de sonar
+
+Em **Operação → Sonar**, use **TMA** para plotagem interativa, **Escuta** para
+cascata/LOFAR/DEMON e **Sonar 3D** para ampliar o pulso. Selecione um contato,
+marque observações e use **Estimar solução** ou **Ajustar solução** (arrastar
+posição e vetor). **EMITIR PING** inicia a simulação se pausada; o replay em
+câmera lenta altera somente a visualização. Áudio de feixe e som de ping são
+habilitados separadamente. Os controles científicos permanecem em **Avançado**.
+Consulte [SONAR.md](SONAR.md) e a [referência anterior](SONAR_AVANCADO_REFERENCIA.md).

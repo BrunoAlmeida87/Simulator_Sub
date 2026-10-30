@@ -85,3 +85,15 @@ cache, RNG independente e ecos pendentes. Comandos `sonar` usam a via registrada
 existente e o sincronismo envia deltas. O motor não depende de React/Three.js.
 O console lê somente medições; dados verdadeiros ficam no adaptador do mundo e
 no diagnóstico opt-in. Veja [arquitetura e limites do sonar](SONAR.md).
+
+### Estação visual de sonar e TMA
+
+`SonarScreen` organiza plotagem, histórico, cascata e replay; o console original
+foi preservado em `AdvancedSonarScreen`. `tma/plotModel` trabalha exclusivamente
+com medições já recebidas, calcula posições estimadas e mantém a distinção entre
+solução automática e hipótese manual. Hipóteses passam por `sonar/action:tma`,
+ficam no `Track` e seguem a gravação, a sessão e o transporte incremental existente.
+`PulseView` é somente um renderizador do snapshot do ping, com batimetria e modelo
+leve do submarino; `PulseShell` desenha o envelope ilustrativo compartilhado com
+a cena principal. Não há outro motor de simulação no painel. O replay local não
+altera o agendamento de ecos, as medições ou o tempo físico.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PulseShell } from './PulseShell';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { SceneLayers } from '../../render3d/layers';
 import { diagnostic } from './diagnostic';
@@ -8,7 +9,7 @@ export const SONAR_LAYERS = ['sonarRays', 'sonarWave', 'sonarThermocline', 'sona
 export class SonarVis {
   private group = new THREE.Group();
   private lines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x65e5be, transparent: true, fog: false, depthTest: false }));
-  private wave = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xffdb79, size: 5, sizeAttenuation: false, fog: false, depthTest: false }));
+  private wave = new PulseShell(0x46deef);
   private surface = this.points(0x80ceff);
   private bottom = this.points(0xffb46d);
   private coverage = this.points(0x917baf);
@@ -22,13 +23,11 @@ export class SonarVis {
   private times: number[] = [];
   private surfaceTimes: number[] = [];
   private bottomTimes: number[] = [];
-  private front = new Float32Array(512 * 3);
   private marks = new Float32Array(512 * 3);
   private bearingBuffer = new Float32Array(48 * 6);
   constructor(scene: THREE.Scene) {
     this.group.add(this.lines, this.wave, this.surface, this.bottom, this.coverage, this.heat, this.echoes, this.bearings, this.thermo, this.profile, this.rulers);
     scene.add(this.group);
-    this.wave.geometry.setAttribute('position', new THREE.BufferAttribute(this.front, 3).setUsage(THREE.DynamicDrawUsage));
     this.echoes.geometry.setAttribute('position', new THREE.BufferAttribute(this.marks, 3).setUsage(THREE.DynamicDrawUsage));
     this.bearings.geometry.setAttribute('position', new THREE.BufferAttribute(this.bearingBuffer, 3).setUsage(THREE.DynamicDrawUsage));
     for (const o of [this.lines, this.wave, this.echoes, this.bearings]) o.frustumCulled = false;
@@ -129,22 +128,9 @@ export class SonarVis {
     this.lines.geometry.setDrawRange(0, count * 2);
     this.surface.geometry.setDrawRange(0, age === null ? this.surfaceTimes.length : this.surfaceTimes.filter((t) => t <= age).length);
     this.bottom.geometry.setDrawRange(0, age === null ? this.bottomTimes.length : this.bottomTimes.filter((t) => t <= age).length);
-    const a = (d.bearing * Math.PI) / 180;
-    let n = 0;
-    if (age !== null)
-      for (const ray of d.rays) {
-        const i = ray.points.findIndex((p) => p.t > age);
-        if (i < 1) continue;
-        const p = ray.points[i - 1],
-          q = ray.points[i],
-          f = (age - p.t) / Math.max(1e-6, q.t - p.t),
-          r = p.r + (q.r - p.r) * f;
-        this.front[n++] = Math.sin(a) * r;
-        this.front[n++] = -(p.z + (q.z - p.z) * f);
-        this.front[n++] = -Math.cos(a) * r;
-      }
-    this.wave.geometry.attributes.position.needsUpdate = true;
-    this.wave.geometry.setDrawRange(0, n / 3);
+    this.wave.position.set(0, -d.origin.depth, 0);
+    const radius = ping && age !== null ? age * ping.speed : 0;
+    this.wave.setPulse(radius, l.sonarOpacity * clamp(1.2 - radius / d.range, 0, 1), 0, -Math.max(...d.bottom.map((p) => p.z)));
     let b = 0,
       m = 0;
     for (const track of l.sonarReplayTime >= 0 ? [] : s.tracks) {
@@ -181,7 +167,7 @@ export class SonarVis {
     this.echoes.geometry.setDrawRange(0, m / 3);
     for (const [object, visible] of [
       [this.lines, l.sonarRays],
-      [this.wave, l.sonarWave],
+      [this.wave, l.sonarWave && this.wave.visible],
       [this.thermo, l.sonarThermocline],
       [this.profile, l.sonarProfile],
       [this.coverage, l.sonarCoverage],

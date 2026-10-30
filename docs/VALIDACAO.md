@@ -230,3 +230,21 @@ Superfície → mergulho → 50 m → equilíbrio → mudança de rumo → ajust
 - O instalador Windows/Electron não foi executado nativamente neste ambiente.
 
 Modelo, equações, aproximações e roteiro: [SONAR.md](SONAR.md).
+
+### Reformulação visual do sonar
+
+- Suíte local: **60 arquivos, 468 testes aprovados**, incluindo cinco novos casos
+  para posição TMA passiva, movimento por ecos espaçados, ambiguidade com uma
+  observação, continuidade de marcações ao cruzar o norte e comando/sessão/espelho
+  da hipótese manual.
+- Build TypeScript/Vite aprovado. Permanece o aviso de tamanho do chunk principal.
+- Guia da versão anterior arquivado em `SONAR_AVANCADO_REFERENCIA.md`; código
+  completo recuperável no commit `6533827b1854c344b79efa0a212cac6ebc73d599`.
+- Chromium/Playwright: arraste da posição e do vetor TMA; rumo/velocidade numéricos;
+  seleção histórica; replay sem alteração da pose física; alternância Pulso/Linhas;
+  banda larga, LOFAR e DEMON; dois contextos Web Audio ativos; comando TMA enviado
+  pela janela espelhada; retorno do Avançado; 390 px sem overflow; carregamento
+  com recursos externos bloqueados. Nenhum erro JavaScript ou de shader detectado.
+- Capturas em `docs/img/sonar-visual/`: estação com uma hipótese manual sobre dados
+  adquiridos do motor, pulso/retorno e celular. As imagens são do aplicativo;
+  o conceito gerado anteriormente é apenas referência visual.
