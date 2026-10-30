@@ -9,7 +9,7 @@ import { applyCommand } from '../src/sim/commands';
 import { SimulationEngine } from '../src/sim/core/engine';
 import { createState } from '../src/sim/core/initialState';
 import { defaultSimConfig } from '../src/sim/config/defaultVessel';
-import { tubeView, weaponsWeight, weaponTargets, interceptCourse } from '../src/sim/systems/weapons';
+import { tubeView, tubeSteps, weaponsWeight, weaponTargets, interceptCourse } from '../src/sim/systems/weapons';
 import { makeDepthOf } from '../src/sim/core/context';
 import { qToMat3 } from '../src/sim/core/math';
 import { DEFAULT_ORIGIN } from '../src/sim/geo';
@@ -198,5 +198,96 @@ describe('recarga a partir da reserva', () => {
     // a reserva sai do peso deslocável (carrinho) e entra no tubo
     const reserve = e.outputs.mp.items.find((it) => it.id === 'desl_torpedos')!;
     expect(reserve.mass).toBe(1600);
+  });
+});
+
+describe('lançamento manual em ordem (etapas com cor)', () => {
+  const steps = (e: SimulationEngine) =>
+    tubeSteps(e.vessel, e.state, { env: e.env, depthOf: makeDepthOf(e.state.body.pos, qToMat3(e.state.body.quat)), rhoLocal: e.env.densityAt(e.state.body.pos.z) }, e.geom.radiusAt, 0);
+  const st = (e: SimulationEngine, a: string) => steps(e).find((x) => x.action === a)!;
+
+  it('só a próxima etapa fica liberada; cada botão verde é aceito pela física e o ciclo completo funciona', () => {
+    const e = buildScenario('submerso_50');
+    const order = ['alimentar', 'alagar', 'equalizar', 'abrirPorta', 'fogo', 'fecharPorta', 'drenar', 'abrirCulatra', 'carregar', 'fecharCulatra'] as const;
+    for (const a of order) {
+      // espera a etapa ficar liberada (as anteriores terminam)
+      for (let k = 0; k < 400 && st(e, a).state !== 'liberado'; k++) run(e, 1);
+      const all = steps(e);
+      expect(st(e, a).state, `${a}: ${st(e, a).why ?? ''}`).toBe('liberado');
+      // nenhuma outra etapa do mesmo grupo está verde ao mesmo tempo
+      expect(all.filter((x) => x.state === 'liberado').map((x) => x.action)).toEqual([a]);
+      const n0 = e.state.commands.length;
+      applyCommand(e, { type: 'tube', tube: 1, action: a });
+      expect(e.state.commands.slice(n0).some((c) => /recusad/.test(c.text))).toBe(false);
+      run(e, 1);
+    }
+    for (let k = 0; k < 30 && e.state.weapons!.tubes[0].breech.pos > 0; k++) run(e, 1);
+    const t = e.state.weapons!.tubes[0];
+    expect(t.weapon).toBe(true);
+    expect(e.state.weapons!.fired).toBe(1);
+    expect(st(e, 'alimentar').state).toBe('liberado');
+  });
+
+  it('etapa fora de ordem fica vermelha com o motivo; FOGO recusa com o tubo fechado', () => {
+    const e = buildScenario('submerso_50');
+    expect(st(e, 'equalizar').state).toBe('bloqueado');
+    expect(st(e, 'equalizar').why).toMatch(/antes: Alimentar/);
+    applyCommand(e, { type: 'tube', tube: 1, action: 'fogo' });
+    expect(last(e)).toMatch(/recusado — arma não alimentada/);
+  });
+
+  it('no passo a passo, as válvulas fecham sozinhas no fim do alagamento', () => {
+    const e = buildScenario('submerso_50');
+    applyCommand(e, { type: 'tube', tube: 1, action: 'alagar' });
+    run(e, 80);
+    const t = e.state.weapons!.tubes[0];
+    expect(view(e, 0).flooded).toBe(true);
+    expect(t.flood.cmd).toBe(0);
+    expect(t.vent.cmd).toBe(0);
+  });
+});
+
+describe('submarino inimigo e torpedo de combate', () => {
+  it('acrescenta o inimigo como alvo; a arma de combate desce à cota dele, explode e ele afunda', () => {
+    const e = buildScenario('submerso_50');
+    applyCommand(e, { type: 'enemy', action: 'add', range: 2500, bearing: 0, depth: 70, speed: 2 });
+    const x = e.state.weapons!.enemies![0];
+    expect(x).toBeTruthy();
+    const targets = weaponTargets(e.env, e.env.cfg.geo?.origin ?? DEFAULT_ORIGIN, e.state.t, 0, e.state.weapons);
+    expect(targets[0].id).toBe(x.id);
+    applyCommand(e, { type: 'tube', tube: 1, action: 'disparar', presets: { target: x.id, speed: 'alta', depth: 30, warhead: 'combate' } });
+    let boom = false;
+    let dAtHit = 0;
+    run(e, 400, () => {
+      if (!boom && (e.state.weapons!.explosions ?? []).length > 0) [boom, dAtHit] = [true, x.d];
+    });
+    expect(boom).toBe(true);
+    const r = e.state.weapons!.runs[0];
+    expect(r.phase).toBe('explodiu');
+    expect(r.hit?.target).toBe(x.id);
+    expect(Math.abs(r.hit!.depth - dAtHit)).toBeLessThan(13);
+    expect(x.sunk).not.toBeNull();
+    expect(x.d).toBeGreaterThan(dAtHit + 50);
+    // afundado: deixa de ser alvo
+    expect(weaponTargets(e.env, DEFAULT_ORIGIN, e.state.t, 0, e.state.weapons).some((c) => c.id === x.id)).toBe(false);
+  });
+
+  it('arma de combate recusada contra um contato que não é inimigo', () => {
+    const e = buildScenario('submerso_50');
+    const c = nearest(e);
+    applyCommand(e, { type: 'tube', tube: 1, action: 'disparar', presets: { target: c.id, warhead: 'combate' } });
+    expect(last(e)).toMatch(/recusado — arma de combate só contra um submarino inimigo/);
+  });
+
+  it('remover e limpar os inimigos ficam no histórico', () => {
+    const e = buildScenario('submerso_50');
+    applyCommand(e, { type: 'enemy', action: 'add' });
+    applyCommand(e, { type: 'enemy', action: 'add', range: 4000, bearing: -40 });
+    expect(e.state.weapons!.enemies!.length).toBe(2);
+    applyCommand(e, { type: 'enemy', action: 'remove', id: 'INI1' });
+    expect(e.state.weapons!.enemies!.map((k) => k.id)).toEqual(['INI2']);
+    applyCommand(e, { type: 'enemy', action: 'clear' });
+    expect(e.state.weapons!.enemies!.length).toBe(0);
+    expect(last(e)).toMatch(/inimigos removidos/);
   });
 });

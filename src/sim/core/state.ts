@@ -320,7 +320,11 @@ export interface TubePresets {
   depth: number;
   /** rumo inicial (°; null = o rumo do submarino) — com alvo, a guiagem pelo fio corrige */
   course: number | null;
+  /** cabeça da arma: exercício (passa sob o alvo e flutua) ou combate (explode no alvo). Ausente = exercício */
+  warhead?: Warhead;
 }
+
+export type Warhead = 'exercicio' | 'combate';
 
 export interface TubeState {
   n: number;
@@ -354,7 +358,7 @@ export interface TubeState {
   traffic?: number;
 }
 
-export type TorpedoPhase = 'afastamento' | 'guiado' | 'busca' | 'ataque' | 'flutuando' | 'recolher';
+export type TorpedoPhase = 'afastamento' | 'guiado' | 'busca' | 'ataque' | 'flutuando' | 'recolher' | 'explodiu' | 'perdido';
 
 export interface TorpedoRun {
   id: string;
@@ -379,7 +383,7 @@ export interface TorpedoRun {
   /** rumo ordenado (°) */
   cmdHeading: number;
   /** último dado do alvo (pelo fio ou pelo autodiretor) */
-  tgt: { n: number; e: number; course: number; speed: number; name: string; range: number; bearing: number } | null;
+  tgt: { n: number; e: number; course: number; speed: number; name: string; range: number; bearing: number; d?: number } | null;
   /** menor distância horizontal ao alvo (m) */
   closest: number;
   hit: { t: number; dist: number; depth: number; target: string; name: string } | null;
@@ -405,6 +409,47 @@ export interface WeaponsState {
   /** armas de reserva a bordo */
   reserve: number;
   fired: number;
+  /** submarinos inimigos (alvos fictícios acrescentados pelo operador) */
+  enemies?: EnemySub[];
+  /** explosões de torpedos de combate (as mais recentes) */
+  explosions?: Explosion[];
+  /** contador para os nomes dos inimigos */
+  enemyCount?: number;
+}
+
+/** Submarino inimigo fictício (cinemática simples): rumo e velocidade constantes, foge quando atacado, afunda quando atingido. */
+export interface EnemySub {
+  id: string;
+  name: string;
+  /** posição NED (m), cota (m, + para baixo), rumo (°), velocidade (m/s) */
+  n: number;
+  e: number;
+  d: number;
+  course: number;
+  speed: number;
+  /** rumo, velocidade e cota ordenados */
+  cmdCourse: number;
+  cmdSpeed: number;
+  cmdDepth: number;
+  /** manobra evasiva em curso (torpedo em ataque contra ele) */
+  evading: boolean;
+  /** destruído: instante (s), afundando até o fundo */
+  sunk: number | null;
+  /** inclinação de proa ao afundar (°, + proa para baixo) */
+  pitch: number;
+  /** torpedo de exercício que passou sob ele */
+  hits: number;
+}
+
+export interface Explosion {
+  id: string;
+  /** instante (s de simulação) e ponto NED (m) */
+  t: number;
+  n: number;
+  e: number;
+  d: number;
+  /** alvo atingido (id) ou null (fim de corrida) */
+  target: string | null;
 }
 
 export const newValve = (open = false): ValveState => ({ cmd: open ? 1 : 0, pos: open ? 1 : 0, stuck: false });

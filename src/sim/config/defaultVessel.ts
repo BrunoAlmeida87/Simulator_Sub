@@ -360,6 +360,7 @@ export function defaultWeapons(): NonNullable<VesselConfig['weapons']> {
       wireLength: 50000,
       hitRadius: 25,
       floatRate: 1.0,
+      fuzeRadius: 12,
     },
     initialLoaded: 6,
     reserveLoad: 'torpedos',
@@ -373,6 +374,7 @@ export function defaultWeapons(): NonNullable<VesselConfig['weapons']> {
     reloadTime: 300,
     flask: { volume: 0.25, pressure: 150 * BAR, minPressure: 100 * BAR, rechargeFlow: 0.4 },
     ejectSpeed: 13,
+    enemy: { evadeSpeed: 9 * KT, turnRate: 1.5, depthRate: 0.5, accel: 0.06, sinkRate: 1.2, alertRange: 2500 },
   };
 }
 

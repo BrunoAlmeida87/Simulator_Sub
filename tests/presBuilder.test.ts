@@ -167,6 +167,7 @@ describe('Catálogo de ações', () => {
       failure: { target: 'pump:trim', active: true },
       tube: { tube: 1, action: 'preparar', presets: { speed: 'baixa', depth: 40 } },
       torpedo: { id: 'T1', action: 'cortarFio' },
+      enemy: { action: 'add', range: 3000 },
     };
     expect(Object.keys(good).sort()).toEqual([...ADVANCED_COMMAND_TYPES].sort());
     const r = new SimRunner(buildScenario('submerso_50'));

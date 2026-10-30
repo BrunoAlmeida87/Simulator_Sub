@@ -112,6 +112,7 @@ export const VIEW_OPTIONS: [ViewMode, string][] = [
   ['calado', 'Calado'],
   ['navio', 'Navio próximo'],
   ['torpedo', 'Torpedo (acompanhar)'],
+  ['alvo', 'Alvo (submarino inimigo)'],
   ['piloto', 'Seguir (lateral)'],
   ['perseguicao', 'Perseguição'],
   ['cinematografica', 'Cinematográfica'],
@@ -152,6 +153,7 @@ const TUBES = (e: SimulationEngine): [string, string][] => (e.vessel.weapons?.tu
 const TORP_TARGETS = (e: SimulationEngine): [string, string][] => [
   ['', 'sem alvo (corrida no rumo)'],
   ['proximo', 'contato mais próximo (na hora da ação)'],
+  ['inimigo', 'submarino inimigo mais próximo (na hora da ação)'],
   ...weaponTargets(e.env, geoOriginOf(e), e.state.t, graphics.get().traffic).map((c) => [c.id, c.name] as [string, string]),
 ];
 const TORP_FIELDS: FieldDef[] = [
@@ -167,6 +169,15 @@ const TORP_FIELDS: FieldDef[] = [
     ],
   },
   { key: 'cota', label: 'Cota de corrida', type: 'number', unit: 'm', min: 3, max: 300, step: 5 },
+  {
+    key: 'arma',
+    label: 'Arma',
+    type: 'select',
+    options: () => [
+      ['exercicio', 'exercício (passa sob o alvo e flutua)'],
+      ['combate', 'combate (explode no submarino inimigo)'],
+    ],
+  },
 ];
 /** comando de um tubo com os dados de tiro da ação ('proximo' = contato mais próximo agora) */
 function tubeOrder(p: Params, c: ActionCtx, action: 'preparar' | 'disparar'): void {
@@ -174,16 +185,18 @@ function tubeOrder(p: Params, c: ActionCtx, action: 'preparar' | 'disparar'): vo
   const origin = geoOriginOf(e);
   const traffic = graphics.get().traffic;
   let target: string | null = str(p, 'alvo') || null;
-  if (target === 'proximo') {
+  if (target === 'proximo' || target === 'inimigo') {
     const s = e.state;
-    target = weaponTargets(e.env, origin, s.t, traffic).sort((a, b) => Math.hypot(a.n - s.body.pos.x, a.e - s.body.pos.y) - Math.hypot(b.n - s.body.pos.x, b.e - s.body.pos.y))[0]?.id ?? null;
+    const all = weaponTargets(e.env, origin, s.t, traffic, s.weapons).filter((x) => target !== 'inimigo' || x.enemy);
+    target = all.sort((a, b) => Math.hypot(a.n - s.body.pos.x, a.e - s.body.pos.y) - Math.hypot(b.n - s.body.pos.x, b.e - s.body.pos.y))[0]?.id ?? null;
   }
-  c.send({ type: 'tube', tube: num(p, 'tubo', 1), action, presets: { target, speed: str(p, 'vel', 'alta') === 'baixa' ? 'baixa' : 'alta', depth: num(p, 'cota', 30) }, origin, traffic });
+  const warhead = str(p, 'arma', 'exercicio') === 'combate' ? 'combate' : 'exercicio';
+  c.send({ type: 'tube', tube: num(p, 'tubo', 1), action, presets: { target, speed: str(p, 'vel', 'alta') === 'baixa' ? 'baixa' : 'alta', depth: num(p, 'cota', 30), warhead }, origin, traffic });
 }
 const torpText = (p: Params, e?: SimulationEngine) => {
   const a = str(p, 'alvo');
-  const alvo = a === '' ? 'sem alvo' : a === 'proximo' ? 'contato mais próximo' : `alvo ${optLabel(TORP_FIELDS[1], a, e)}`;
-  return `tubo ${num(p, 'tubo', 1)}, ${alvo}, velocidade ${str(p, 'vel', 'alta')}, cota ${f(num(p, 'cota', 30))} m`;
+  const alvo = a === '' ? 'sem alvo' : a === 'proximo' ? 'contato mais próximo' : a === 'inimigo' ? 'submarino inimigo mais próximo' : `alvo ${optLabel(TORP_FIELDS[1], a, e)}`;
+  return `tubo ${num(p, 'tubo', 1)}, ${alvo}, velocidade ${str(p, 'vel', 'alta')}, cota ${f(num(p, 'cota', 30))} m${str(p, 'arma', 'exercicio') === 'combate' ? ', arma de COMBATE' : ''}`;
 };
 
 const SENSOR_MODES: [string, string][] = [
@@ -558,7 +571,7 @@ export const ACTION_TYPES: ActionType[] = [
     label: 'Tubo: preparar para disparo',
     hint: 'Alimentar a arma, alagar com a água do TCA, equalizar com o mar e abrir a porta da boca (≈ 1 min e meio).',
     fields: TORP_FIELDS,
-    defaults: { tubo: '1', alvo: 'proximo', vel: 'alta', cota: 30 },
+    defaults: { tubo: '1', alvo: 'proximo', vel: 'alta', cota: 30, arma: 'exercicio' },
     describe: (p, e) => `Preparar ${torpText(p, e)}`,
     run: (p, c) => tubeOrder(p, c, 'preparar'),
   },
@@ -568,7 +581,7 @@ export const ACTION_TYPES: ActionType[] = [
     label: 'Tubo: preparar e disparar',
     hint: 'Faz a sequência que faltar e dispara (ejeção por ar comprimido). Com alvo, a arma é guiada pelo fio até ele.',
     fields: TORP_FIELDS,
-    defaults: { tubo: '1', alvo: 'proximo', vel: 'alta', cota: 30 },
+    defaults: { tubo: '1', alvo: 'proximo', vel: 'alta', cota: 30, arma: 'exercicio' },
     describe: (p, e) => `DISPARAR ${torpText(p, e)}`,
     run: (p, c) => tubeOrder(p, c, 'disparar'),
   },
@@ -602,6 +615,30 @@ export const ACTION_TYPES: ActionType[] = [
       const r = [...(c.r.engine.state.weapons?.runs ?? [])].reverse().find((x) => x.wire);
       if (r) c.send({ type: 'torpedo', id: r.id, action: 'cortarFio' });
     },
+  },
+  {
+    id: 'inimigoAdicionar',
+    group: 'Armas (torpedos)',
+    label: 'Submarino inimigo: acrescentar',
+    hint: 'Alvo fictício na distância e marcação (relativa à proa) escolhidas. A arma de combate explode nele e ele afunda.',
+    fields: [
+      { key: 'dist', label: 'Distância', type: 'number', unit: 'm', min: 500, max: 20000, step: 250 },
+      { key: 'marc', label: 'Marcação relativa', type: 'number', unit: '°', min: -180, max: 180, step: 5 },
+      { key: 'cota', label: 'Cota', type: 'number', unit: 'm', min: 15, max: 300, step: 5 },
+      { key: 'vel', label: 'Velocidade', type: 'number', unit: 'nós', min: 0, max: 15, step: 1 },
+    ],
+    defaults: { dist: 3000, marc: 20, cota: 60, vel: 5 },
+    describe: (p) => `Submarino inimigo a ${f(num(p, 'dist', 3000))} m, marcação ${f(num(p, 'marc', 20))}°, cota ${f(num(p, 'cota', 60))} m`,
+    run: (p, c) => c.send({ type: 'enemy', action: 'add', range: num(p, 'dist', 3000), bearing: num(p, 'marc', 20), depth: num(p, 'cota', 60), speed: (num(p, 'vel', 5) * 1852) / 3600 }),
+  },
+  {
+    id: 'inimigoLimpar',
+    group: 'Armas (torpedos)',
+    label: 'Submarino inimigo: remover todos',
+    fields: [],
+    defaults: {},
+    describe: () => 'Remover os submarinos inimigos',
+    run: (_p, c) => c.send({ type: 'enemy', action: 'clear' }),
   },
   // ---------------- manobras automáticas
   {
@@ -880,6 +917,7 @@ const COMMAND_FIELDS: Record<string, Record<string, FieldCheck>> = {
   failure: { target: isStr, active: isBool, param: opt((v) => isNum(v) || isStr(v)) },
   tube: { tube: isNum, action: isStr, presets: opt(isObj) },
   torpedo: { id: isStr, action: oneOf('cortarFio', 'alvo', 'rumo', 'cota', 'recolher') },
+  enemy: { action: oneOf('add', 'remove', 'clear'), range: opt(isNum), bearing: opt(isNum), depth: opt(isNum), course: opt(isNum), speed: opt(isNum), id: opt(isStr) },
 };
 
 /** tipos de comando aceitos no modo avançado */
