@@ -659,3 +659,11 @@ posição e vetor). **EMITIR PING** inicia a simulação se pausada; o replay em
 câmera lenta altera somente a visualização. Áudio de feixe e som de ping são
 habilitados separadamente. Os controles científicos permanecem em **Avançado**.
 Consulte [SONAR.md](SONAR.md) e a [referência anterior](SONAR_AVANCADO_REFERENCIA.md).
+
+### Trilhas coloridas do sonar
+
+Abra **Operação → Sonar → Trilhas**: direção na horizontal, tempo na vertical,
+norte no centro e uma linha colorida por contato. Clique numa linha para selecionar
+contato e observação no TMA; a cascata usa as mesmas cores. **Voltar ao vivo** limpa
+a seleção temporal. Janela, eixo angular, suavização visual e filtro de contato
+ficam acima do gráfico. TMA, cascata, espectros e pulso continuam nas outras áreas.

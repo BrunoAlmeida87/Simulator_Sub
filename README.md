@@ -307,3 +307,6 @@ A visão **Cinematográfica** acompanha o submarino com oscilações discretas d
 O sonar oferece **TMA gráfico interativo**, cascata (banda larga, LOFAR e DEMON),
 áudio e pulso 3D com replay. A interface científica permanece em **Avançado**.
 [Guia atual](docs/SONAR.md) · [Sonar avançado original preservado](docs/SONAR_AVANCADO_REFERENCIA.md).
+
+A área **Trilhas** mostra vários contatos simultaneamente em linhas coloridas,
+com marcação horizontal e tempo vertical, selecionáveis em conjunto com o TMA.
