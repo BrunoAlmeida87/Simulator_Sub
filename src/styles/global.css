@@ -1301,3 +1301,36 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .weapons-screen select { max-width: 100%; background: #142133; border: 1px solid var(--line2); border-radius: 4px; padding: 3px 4px; }
 .weapons-screen input.num { background: #142133; border: 1px solid var(--line2); border-radius: 4px; padding: 3px 4px; }
 @media (max-width: 640px) { .tube-grid { grid-template-columns: 1fr; } }
+
+/* Integrated acoustic station: measurements first, scientific diagnostics opt-in. */
+.acoustic-console { padding: 16px; max-width: 1720px; margin: auto; }
+.acoustic-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+.acoustic-heading h2 { font-size: 26px; margin: 5px 0; }
+.acoustic-kicker { color: #79c6b4; letter-spacing: .16em; font-size: 10px; }
+.acoustic-stats { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid #2b414a; border-radius: 6px; margin-bottom: 16px; background: #0b1921; }
+.acoustic-stats > div { display: flex; flex-direction: column; padding: 14px 18px; gap: 8px; border-right: 1px solid #2b414a; }
+.acoustic-stats small { font-size: 10px; color: #9ab2c1; letter-spacing: .06em; }
+.acoustic-stats b { font: 24px ui-monospace, monospace; color: #b5efdb; }
+.acoustic-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; }
+.acoustic-grid > *, .acoustic-grid .panel { min-width: 0; }
+.acoustic-grid .panel { margin-bottom: 14px; }
+.acoustic-display-caption { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 11px; color: #9bb7c5; padding-bottom: 10px; }
+.acoustic-waterfall, .acoustic-spectrum, .acoustic-section, .acoustic-profile { width: 100%; height: auto; display: block; background: #020d12; border-radius: 4px; }
+.acoustic-waterfall { cursor: crosshair; touch-action: manipulation; }
+.acoustic-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0; }
+.acoustic-controls label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: #a5beca; max-width: 100%; }
+.acoustic-controls label:has(input[type=checkbox]) { flex-direction: row; align-items: center; }
+.acoustic-controls input[type=number] { width: 108px; }
+.acoustic-controls input[type=range] { width: 132px; }
+.acoustic-controls.vertical { flex-direction: column; align-items: stretch; }
+.acoustic-controls.vertical input[type=range] { width: 100%; }
+.acoustic-track-list { max-height: 320px; overflow: auto; }
+.acoustic-track { display: grid; grid-template-columns: auto 1fr; gap: 8px; width: 100%; padding: 12px; border: 1px solid #29414b; background: #0b1921; color: #c4d9df; text-align: left; margin-bottom: 6px; border-radius: 4px; cursor: pointer; }
+.acoustic-track span { text-align: right; font-family: monospace; }
+.acoustic-track small { grid-column: 1 / -1; color: #8fa8b9; }
+.acoustic-track.selected { border-color: #91d6ba; background: #142d30; }
+.acoustic-science-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(200px, 1fr); gap: 12px; margin: 15px 0; }
+.acoustic-scene { position: relative; height: 460px; margin: 12px 0; }
+.acoustic-scene > div { height: 100%; }
+@media (max-width: 1000px) { .acoustic-grid { grid-template-columns: minmax(0, 1fr); } .acoustic-grid aside { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } }
+@media (max-width: 600px) { .acoustic-console { padding: 8px; } .acoustic-heading { flex-wrap: wrap; } .acoustic-stats { grid-template-columns: 1fr 1fr; } .acoustic-stats > div { padding: 10px; } .acoustic-grid aside, .acoustic-science-grid { display: block; } .acoustic-console .panel > header { flex-wrap: wrap; gap: 8px; } .acoustic-scene { height: 320px; } }

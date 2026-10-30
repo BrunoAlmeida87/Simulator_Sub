@@ -25,8 +25,32 @@ import { LayerPanel, type LayerKey } from '../components/LayerPanel';
 import type { SceneLayers } from '../../render3d/layers';
 
 /** camadas da cena do Governo (padrão = como era: boias, esteira e identificações; sem corte, logo sem rótulos internos) */
-const HELM_LAYER_DEFAULTS: Partial<SceneLayers> = { markers: true, wake: true, wind: true, labels: true, trail: true, ships: true, noWater: false, trimRef: false, depthLines: true };
-const HELM_LAYER_KEYS: LayerKey[] = ['labels', 'wake', 'wind', 'pennant', 'flag', 'trail', 'markers', 'trimRef', 'pitchAngle', 'depthLines', 'ships', 'torpedoes', 'noWater'];
+const HELM_LAYER_DEFAULTS: Partial<SceneLayers> = {
+  sonarRays: false,
+  sonarWave: false,
+  sonarThermocline: false,
+  sonarProfile: false,
+  sonarCoverage: false,
+  sonarHeatmap: false,
+  sonarSurface: false,
+  sonarBottom: false,
+  sonarEchoes: false,
+  sonarBearings: false,
+  sonarRulers: false,
+ markers: true, wake: true, wind: true, labels: true, trail: true, ships: true, noWater: false, trimRef: false, depthLines: true };
+const HELM_LAYER_KEYS: LayerKey[] = [
+  'sonarRays',
+  'sonarWave',
+  'sonarThermocline',
+  'sonarProfile',
+  'sonarCoverage',
+  'sonarHeatmap',
+  'sonarSurface',
+  'sonarBottom',
+  'sonarEchoes',
+  'sonarBearings',
+  'sonarRulers',
+'labels', 'wake', 'wind', 'pennant', 'flag', 'trail', 'markers', 'trimRef', 'pitchAngle', 'depthLines', 'ships', 'torpedoes', 'noWater'];
 const HELM_VIEWS: ViewOption[] = [
   { id: 'perseguicao', label: 'Perseguição' },
   { id: 'cinematografica', label: 'Cinematográfica' },

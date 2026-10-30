@@ -1,3 +1,4 @@
+import { SonarVis } from '../sonar/visualization/SonarVis';
 /**
  * VISUALIZAÇÃO 3D (Three.js). Apenas LÊ o estado da simulação: nenhuma
  * animação do submarino é independente da física — posição, atitude, deflexão dos lemes,
@@ -71,7 +72,7 @@ import { readRenderStats, type RenderStats } from './renderPerf';
  * periscópio) e 'passadico' (no alto da vela, olho nu ou binóculo). 'drone' é
  * uma câmera livre no MUNDO (não acompanha o submarino): voa pelo mar, orla e cidade.
  */
-export type ViewMode =
+export type ViewMode = 'sonar' | 'ping'
   | 'piloto'
   | 'perseguicao'
   | 'cinematografica'
@@ -156,6 +157,7 @@ export class SubmarineScene {
   labelBounds: LabelRect | null = null;
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
+  private sonarVis = new SonarVis(this.scene);
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
   private runner: SimRunner;
@@ -1629,6 +1631,27 @@ export class SubmarineScene {
       this.controls.target.copy(torpPose.pos).addScaledVector(torpPose.dir, 5);
       this.viewFrom.copy(this.camera.position);
       this.viewBlend = 1;
+    } else if ((this.view === 'sonar' || this.view === 'ping') && e.state.sonar) {
+      const ss = e.state.sonar, d = ss.ping?.propagation;
+      const bearing = (d?.bearing ?? ss.settings.section) * Math.PI / 180;
+      const range = d?.range ?? ss.settings.range;
+      const x = (d?.origin.e ?? pe) - pe, z = -((d?.origin.n ?? pn) - pn);
+      this.controls.maxDistance = 30000;
+      if (this.view === 'ping' && d && ss.ping) {
+        const age = this.layers.sonarReplayTime >= 0 ? this.layers.sonarReplayTime : s.t - ss.ping.start;
+        const ray = d.rays[Math.floor(d.rays.length / 2)].points;
+        const idx = ray.findIndex(p => p.t > age);
+        const p = ray[idx < 0 ? ray.length - 1 : Math.max(0, idx - 1)];
+        const q = ray[idx < 0 ? ray.length - 1 : idx];
+        const f = Math.max(0, Math.min(1, (age - p.t) / Math.max(1e-6, q.t - p.t)));
+        const r = p.r + (q.r - p.r) * f, depth = p.z + (q.z - p.z) * f;
+        this.controls.target.set(x + Math.sin(bearing) * r, -depth, z - Math.cos(bearing) * r);
+        this.camera.position.copy(this.controls.target).add(new THREE.Vector3(Math.cos(bearing) * 100, 35, Math.sin(bearing) * 100));
+      } else {
+        this.controls.target.set(x + Math.sin(bearing) * range / 2, -150, z - Math.cos(bearing) * range / 2);
+        this.camera.position.copy(this.controls.target).add(new THREE.Vector3(Math.cos(bearing) * range * 0.75, range * 0.35, Math.sin(bearing) * range * 0.75));
+      }
+      this.viewBlend = 1; this.viewFrom.copy(this.camera.position);
     } else if (this.view === 'livre') {
       this.camera.position.add(delta);
       this.controls.target.add(delta);
@@ -1853,6 +1876,7 @@ export class SubmarineScene {
       if (this.layers.labels && !under) this.rio.label(origin, pn, pe, this.camera.position, lbl, proj);
     }
     if (this.shipyard && this.layers.labels && !dry && coastOn) this.shipyard.label(lbl, proj, this.shipyardDist);
+    this.sonarVis.update(e, pn, pe, this.layers);
     this.renderer.render(this.scene, this.camera);
 
     // rótulos básicos (superfície, cota/velocidade, fundo): também seguem a camada "Identificações"

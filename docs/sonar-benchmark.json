@@ -1,0 +1,24 @@
+{
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "runtime": "v24.19.0",
+  "samples": 60,
+  "stepMs": {
+    "p95": 2.487497000000076,
+    "max": 13.59321100000011
+  },
+  "additionalTraffic": 20,
+  "acquisitionMs": {
+    "median": 5.742389000000003,
+    "p95": 8.516802999999982,
+    "max": 12.903433000000177
+  },
+  "traceMs": {
+    "8": 2.9,
+    "64": 14.62,
+    "128": 23.49,
+    "512": 96.05
+  },
+  "historyFrames": 60,
+  "stateJsonBytes": 432856,
+  "deltaJsonBytes": 103409
+}

@@ -121,3 +121,12 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Luzes da cidade à noite: estimadas pela cor da imagem (áreas cinzentas = urbanas), não por dados reais de iluminação.
 - Luzes de navegação e faróis não interferem na física nem nos sensores; os faróis não espalham luz fora dos feixes desenhados.
 - Submarinos atracados no estaleiro: decorativos (sem colisão).
+
+## Sonar
+
+O sonar integrado usa assinaturas genéricas sintéticas e raios em corte 2D,
+projetados em 3D. Cobertura amostrada não demonstra sombra absoluta. TMA pode
+permanecer ambíguo; classificação e número de pás são hipóteses. Reflexão,
+ruído, largura de feixe e incertezas são aproximações educacionais. Não existe
+integração nova com armas. O [guia do sonar](SONAR.md) especifica o modelo,
+resoluções, tempo, memória, offline e limites da validação de desempenho.

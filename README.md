@@ -4,6 +4,8 @@ Plataforma de **simulação de engenharia e treinamento conceitual** de um subma
 
 Não é um jogo: as respostas do submarino vêm de um **motor físico independente** com estado central compartilhado. Abrir um suspiro libera ar por um orifício compressível, a água entra pelos embornais, a massa aumenta, o empuxo líquido muda e o casco 6-GL responde.
 
+**Sonar integrado:** Operação → Sonar acompanha os navios existentes com banda larga, LOFAR/FFT, DEMON, áudio sintético, ecos temporizados, classificação e TMA. O diagnóstico mostra SVP, raios/reflexões na cena 3D e replay acústico. [Operação, arquitetura e limitações](docs/SONAR.md).
+
 **Vida marinha decorativa:** peixes de aparência e movimento variados e cardumes de peixes pequenos nadam na água e perto do fundo, com saltos ocasionais na superfície. Em **Configurações → Vida marinha**, escolha a quantidade (discreta por padrão, moderada ou abundante) e habilite saltos e peixes submersos separadamente. As opções ficam salvas e acompanham a segunda janela; os peixes seguem o relógio da simulação sem alterar a física.
 
 **▶ Simulador publicado:** https://brunoalmeida87.github.io/Simulator_Sub/

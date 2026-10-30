@@ -21,6 +21,17 @@ import { PresCardView, PresHudView, hudSide } from './components/PresCard';
 
 /** camadas desta janela (o casco tem botão próprio) */
 const LAYER_KEYS: LayerKey[] = [
+  'sonarRays',
+  'sonarWave',
+  'sonarThermocline',
+  'sonarProfile',
+  'sonarCoverage',
+  'sonarHeatmap',
+  'sonarSurface',
+  'sonarBottom',
+  'sonarEchoes',
+  'sonarBearings',
+  'sonarRulers',
   'vectors',
   'hydroVectors',
   'trimVectors',

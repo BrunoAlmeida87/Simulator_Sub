@@ -1,3 +1,4 @@
+import type { SonarState } from '../../sonar/types';
 /**
  * ESTADO FÍSICO CENTRAL da simulação.
  *
@@ -249,6 +250,8 @@ export interface Ledger {
 }
 
 export interface SimState {
+  /** Acoustic acquisition, measurements and bounded histories (old saves migrate lazily). */
+  sonar?: SonarState;
   version: number;
   scenarioId: string;
   t: number;

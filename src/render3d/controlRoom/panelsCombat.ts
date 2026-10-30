@@ -1,13 +1,14 @@
+import { toKnots } from '../../sim/units';
+import { values, clamp } from '../../sonar/types';
 /**
  * CONSOLES MULTIFUNÇÃO DO SISTEMA DE COMBATE (fictício; o lançamento de armas fica em panelsWeapons.ts):
  * sonar passivo (cascata), interceptação de radar (MAGE/ESM, só com mastro
  * fora d'água), quadro tático com tabela de contatos e NAVEGAÇÃO (INS, GPS,
  * ecobatímetro, rota). E a MESA TÁTICA (carta horizontal no centro da sala).
- * Os contatos são os mesmos do mapa tático e da cena 3D. O modelo acústico é
- * ilustrativo (perdas esféricas, ruído próprio crescendo com a velocidade e
- * zona cega a ré) — não representa nenhum sonar real.
+ * Os contatos são os mesmos do mapa tático e da cena 3D. O sonar lê medições do subsistema acústico integrado
+ * (sem identidade ou posição verdadeira no posto de sonar) — não representa nenhum sonar real.
  */
-import { fmtSpeed, fmtKnots } from '../../ui/format';
+import { fmtSpeed } from '../../ui/format';
 import type { DrawCtx } from './panel';
 import type { RoomActions } from './actions';
 import type { SimulationEngine } from '../../sim/core/engine';
@@ -16,8 +17,6 @@ import { bearingRange, contactsLocal, cpa, fmtLat, fmtLon, nedToLatLon, EXERCISE
 import { trafficAt, trafficForEnv } from '../../sim/traffic';
 import { periscopeCfg, periscopeHeadZ } from '../../sim/systems/actuation';
 import { pointHeightAboveWater } from './mastHeight';
-import { toKnots } from '../../sim/units';
-import { rng } from './textures';
 
 export interface RoomContact extends Contact {
   brg: number;
@@ -54,6 +53,7 @@ export function mastOut(e: SimulationEngine): boolean {
   return heads.some((h) => h > 0.2);
 }
 
+/** @deprecated Compatibility helper for the legacy geometric demonstration; not used by operational displays. */
 const SL: Record<Contact['kind'], number> = { mercante: 152, pesqueiro: 136, rebocador: 142, patrulha: 146 };
 
 /** excesso de sinal (dB, ilustrativo) de um contato no sonar passivo */
@@ -66,75 +66,23 @@ export function signalExcess(e: SimulationEngine, c: RoomContact): number {
   return SL[c.kind] - tl - own + 18 - baffle;
 }
 
-/** sonar passivo: cascata (marcação relativa × tempo) */
-export function drawSonarWaterfall(act: RoomActions) {
-  let wf: HTMLCanvasElement | null = null;
-  let lastT = -1;
-  const rnd = rng(77);
+/** Uses exactly the acquired operational history shown in the integrated sonar tab. */
+export function drawSonarWaterfall(_act: RoomActions) {
   return (c: DrawCtx) => {
     const { g, e, W, H } = c;
-    const y0 = screenBg(c, 'SONAR PASSIVO — CASCATA', 'marcação relativa à proa');
-    const x0 = 40;
-    const ww = W - 80;
-    const hh = H - y0 - 54;
-    if (!wf || wf.width !== ww || wf.height !== hh) {
-      wf = document.createElement('canvas');
-      wf.width = ww;
-      wf.height = hh;
-      const w0 = wf.getContext('2d')!;
-      w0.fillStyle = '#000';
-      w0.fillRect(0, 0, ww, hh);
-      lastT = e.state.t;
-    }
-    const wg = wf.getContext('2d')!;
-    const t = e.state.t;
-    if (t < lastT) lastT = t;
-    let rows = Math.min(40, Math.floor((t - lastT) / 0.5));
-    if (rows > 0) {
-      lastT += rows * 0.5;
-      const cts = roomContacts(e, act);
-      const step = 2;
-      wg.drawImage(wf, 0, rows * step);
-      while (rows-- > 0) {
-        const img = wg.createImageData(ww, step);
-        for (let x = 0; x < ww; x++) {
-          const rel = (x / ww) * 360 - 180;
-          let v = 0.12 + rnd() * 0.22;
-          for (const ct of cts) {
-            const se = signalExcess(e, ct);
-            if (se < -12) continue;
-            const d = wrap180(rel - ct.rel);
-            v += Math.max(0, Math.min(1, (se + 12) / 26)) * Math.exp(-(d * d) / 5) * (0.75 + rnd() * 0.25);
-          }
-          if (Math.abs(rel) > 150) v *= 0.45;
-          const k = Math.max(0, Math.min(1, v));
-          for (let yy = 0; yy < step; yy++) {
-            const i = (yy * ww + x) * 4;
-            img.data[i] = 20 * k;
-            img.data[i + 1] = 255 * k;
-            img.data[i + 2] = 90 * k;
-            img.data[i + 3] = 255;
-          }
-        }
-        wg.putImageData(img, 0, rows * step);
+    const top = screenBg(c, 'SONAR PASSIVO — CASCATA', 'marcação verdadeira · medições acústicas');
+    const s = e.state.sonar, x0 = 40, ww = W - 80, hh = H - top - 54;
+    g.fillStyle = '#020d12'; g.fillRect(x0, top, ww, hh);
+    if (s) for (const frame of values(s.history)) {
+      const age = (s.frame?.t ?? 0) - frame.t; if (age > 120) continue;
+      for (let i = 0; i < frame.broadband.length; i++) {
+        const k = clamp(frame.broadband[i] / 28, 0, 1);
+        g.fillStyle = `rgb(${Math.round(10 + 100 * k * k)},${Math.round(20 + 230 * k)},${Math.round(25 + 100 * k)})`;
+        g.fillRect(x0 + i / 180 * ww, top + age / 120 * hh, ww / 180 + 1, hh / 120 + 1);
       }
     }
-    g.drawImage(wf, x0, y0);
-    g.strokeStyle = C.line;
-    g.lineWidth = 2;
-    g.strokeRect(x0, y0, ww, hh);
-    for (let a = -180; a <= 180; a += 30) {
-      const x = x0 + ((a + 180) / 360) * ww;
-      g.fillStyle = '#6f8da5';
-      g.fillRect(x - 1, y0 + hh, 2, 10);
-      text(g, a === 0 ? 'PROA' : a === 180 || a === -180 ? 'POPA' : `${a > 0 ? 'BE' : 'BB'} ${Math.abs(a)}`, x, y0 + hh + 26, 19, a === 0 ? C.warn : '#a9c3d6', 'center', 'bold');
-    }
-    g.fillStyle = 'rgba(255,80,60,0.12)';
-    g.fillRect(x0, y0, (30 / 360) * ww, hh);
-    g.fillRect(x0 + ww - (30 / 360) * ww, y0, (30 / 360) * ww, hh);
-    text(g, 'zona cega', x0 + 8, y0 + 18, 18, '#ff9c8c', 'left', 'bold');
-    const kn = toKnots(Math.abs(e.outputs.speed));
-    text(g, `ruído próprio ${(58 + 0.22 * kn * kn).toFixed(0)} dB · ${fmtKnots(kn, 1)}`, W - 46, y0 + 18, 19, kn > 10 ? C.warn : '#cfe6f5', 'right', 'bold');
+    for (let a = 0; a <= 360; a += 60) text(g, `${a}°`, x0 + a / 360 * ww, top + hh + 24, 19, '#a9c3d6', 'center', 'bold');
+    text(g, `ruído próprio ${(s?.noise.own ?? 0).toFixed(1)} dB · 120 s`, W - 46, top + 18, 19, '#cfe6f5', 'right', 'bold');
   };
 }
 
@@ -143,11 +91,7 @@ export function drawSonarContacts(act: RoomActions) {
   return (c: DrawCtx) => {
     const { g, e, W, H } = c;
     const y0 = screenBg(c, 'CONTATOS E MAGE');
-    const cts = roomContacts(e, act)
-      .map((ct) => ({ ct, se: signalExcess(e, ct) }))
-      .filter((x) => x.se > -4)
-      .sort((a, b) => b.se - a.se)
-      .slice(0, 6);
+    const cts = (e.state.sonar?.tracks ?? []).filter(ct => e.state.t - ct.lastSeen < 30).slice(0, 6);
     box(g, 12, y0, W - 24, 312, 'SONAR PASSIVO');
     const hy = y0 + 54;
     text(g, 'TRILHA', 26, hy, 18, '#a9c3d6', 'left', 'bold');
@@ -156,12 +100,13 @@ export function drawSonarContacts(act: RoomActions) {
     text(g, 'CLASSE', 500, hy, 18, '#a9c3d6', 'left', 'bold');
     text(g, 'SINAL', W - 30, hy, 18, '#a9c3d6', 'right', 'bold');
     if (!cts.length) text(g, 'nenhum contato acima do ruído', W / 2, y0 + 170, 24, '#a9c3d6', 'center', 'bold');
-    cts.forEach(({ ct, se }, i) => {
+    cts.forEach((ct, i) => {
+      const se = ct.snr, rel = wrap180(ct.bearing - e.outputs.euler.heading);
       const y = hy + 40 + i * 40;
-      text(g, `S${i + 1}`, 26, y, 26, C.real, 'left', 'bold', true);
-      text(g, `${String(Math.round(ct.brg)).padStart(3, '0')}°`, 140, y, 26, C.text, 'left', 'bold', true);
-      text(g, `${ct.rel >= 0 ? 'BE' : 'BB'} ${Math.abs(ct.rel).toFixed(0)}°`, 310, y, 24, C.text, 'left', 'bold', true);
-      text(g, se > 8 ? ct.kind.toUpperCase() : 'em análise', 500, y, 22, se > 8 ? C.text : '#a9c3d6', 'left', 'bold', false, 230);
+      text(g, ct.id, 26, y, 26, C.real, 'left', 'bold', true);
+      text(g, `${String(Math.round(ct.bearing)).padStart(3, '0')}°`, 140, y, 26, C.text, 'left', 'bold', true);
+      text(g, `${rel >= 0 ? 'BE' : 'BB'} ${Math.abs(rel).toFixed(0)}°`, 310, y, 24, C.text, 'left', 'bold', true);
+      text(g, ct.manual || ct.classification, 500, y, 22, se > 8 ? C.text : '#a9c3d6', 'left', 'bold', false, 230);
       g.fillStyle = C.real;
       g.fillRect(W - 170, y - 9, Math.max(6, Math.min(140, (se + 4) * 5)), 18);
     });

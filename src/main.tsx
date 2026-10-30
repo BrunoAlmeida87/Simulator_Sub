@@ -1,3 +1,4 @@
+import { graphics } from './ui/graphics';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/global.css';
@@ -23,6 +24,19 @@ if (isVisualWindow || isPanelWindow) {
   };
   requestAnimationFrame(loop);
 } else {
+  const syncAcousticTraffic = () => {
+    const traffic = graphics.get().traffic;
+    if (runner.engine.state.sonar?.settings.traffic !== traffic) runner.command({ type: 'sonar', action: 'settings', patch: { traffic } });
+  };
+  syncAcousticTraffic();
+  graphics.subscribe(syncAcousticTraffic);
+  runner.subscribe(() => graphics.set({ traffic: runner.engine.state.sonar?.settings.traffic ?? 0 }));
+  runner.onEngineReplaced(() => {
+    const sonar = runner.engine.state.sonar;
+    // New scenarios retain the existing traffic preference; saved acoustic sessions restore theirs.
+    if (sonar?.version === 0) syncAcousticTraffic();
+    else graphics.set({ traffic: sonar?.settings.traffic ?? 0 });
+  });
   link.master = new SyncMaster(runner);
   // laço principal: a física avança em passos fixos a partir do tempo real decorrido
   let last = performance.now();

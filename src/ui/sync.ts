@@ -1,3 +1,5 @@
+import { sonarDelta, applySonarDelta, type SonarDelta } from '../sonar/integration/sync';
+import { initialSonar } from '../sonar/types';
 /**
  * VÁRIAS JANELAS (vários monitores): a janela de CONTROLE roda a física; as
  * outras recebem o estado pelo BroadcastChannel do navegador. Não há segundo
@@ -47,6 +49,7 @@ type Msg =
   | { type: 'history'; id: number; h: HistorySnapshot }
   | {
       type: 'state';
+      sonar?: SonarDelta;
       id: number;
       state: SimState;
       waves: unknown;
@@ -118,6 +121,9 @@ export function openPanelWindow(): number {
 
 // ------------------------------------------------------------------ controle
 export class SyncMaster {
+  private sonarVersion = -1;
+  private sonarTime = -1;
+  private sonarPing: number | null = null;
   private ch = chan();
   private lastHello = -1e9;
   private engineId = 0;
@@ -185,6 +191,7 @@ export class SyncMaster {
     if (this.lastEngine !== this.runner.engine) {
       this.lastEngine = this.runner.engine;
       this.engineId++;
+      this.sonarVersion = -1; this.sonarTime = -1; this.sonarPing = null;
     }
     this.ch.postMessage({ type: 'engine', id: this.engineId, file: serializeEngine(this.runner.engine, 'sincronismo') } satisfies Msg);
     // janela de tela: gráficos e histórico desde o início
@@ -249,8 +256,18 @@ export class SyncMaster {
         env = j;
       }
     }
+    // Acoustic data changes at acquisition/echo cadence, never ship its full history at 30 Hz.
+    let sonar: SonarDelta | undefined;
+    if (s.sonar && s.sonar.version !== this.sonarVersion) {
+      sonar = sonarDelta(s.sonar, this.sonarTime, this.sonarPing);
+      this.sonarVersion = s.sonar.version;
+      this.sonarTime = s.sonar.frame?.t ?? -1;
+      this.sonarPing = s.sonar.ping?.start ?? null;
+    }
+    delete lite.sonar;
     this.ch.postMessage({
       type: 'state',
+      sonar,
       env,
       id: this.engineId,
       state: lite,
@@ -412,7 +429,9 @@ export class SyncViewer {
       const trail = m.state.nav.trail.length ? m.state.nav.trail : e.state.nav.trail;
       // janela de tela: entre os envios completos, mantém os registros já recebidos
       const keepLogs = this.remote && !m.full;
+      const acousticState = m.sonar ? applySonarDelta(e.state.sonar ?? initialSonar(), m.sonar) : e.state.sonar;
       e.state = keepLogs ? { ...m.state, nav: { ...m.state.nav, trail }, commands: e.state.commands, alarms: { ...m.state.alarms, log: e.state.alarms.log } } : { ...m.state, nav: { ...m.state.nav, trail } };
+      e.state.sonar = acousticState;
       if (JSON.stringify(e.config.environment.waves) !== JSON.stringify(m.waves) && m.waves) {
         const w = m.waves as { seaState: number; direction: number };
         e.env.setSeaState(w.seaState, w.direction);

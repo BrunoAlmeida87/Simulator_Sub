@@ -635,3 +635,17 @@ resultado em `docs/img/ambiente-vivo/`; reprodução visual com Vite na porta 51
 ### Visão Cinematográfica
 
 Escolha **Cinematográfica** no seletor de câmeras para acompanhar o submarino por trás com pequenas oscilações laterais, verticais e de inclinação, como numa filmagem. O acompanhamento é amortecido e o movimento visual continua com a simulação pausada. Disponível também na segunda janela, na miniatura da sala de comando e no Estúdio de apresentações. A visão **Perseguição** mantém seu comportamento original.
+
+## Sonar integrado
+
+Em **Operação → Sonar**, execute a simulação para adquirir marcações dos mesmos
+navios presentes no mapa/3D. Selecione uma trilha Snnn para LOFAR, DEMON e escuta
+sintética. O ruído próprio depende da velocidade, propulsão, diesel e bombas.
+O passivo não revela posição, nome ou distância verdadeira. **Emitir pulso** só
+entrega distância após a chegada do eco; o TMA pede histórico e manobra antes de
+estimar distância/movimento. O posto de sonar da sala lê as mesmas medições.
+
+**Diagnóstico científico** abre SVP, corte, camadas Three.js e replay do ping.
+Use **Camadas do controle** na 2ª janela para espelhar a seleção e o replay.
+Perfis ambientais, memória, funcionamento offline e todas as aproximações estão
+no [guia completo do sonar](SONAR.md).

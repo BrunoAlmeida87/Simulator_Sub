@@ -213,3 +213,20 @@ Superfície → mergulho → 50 m → equilíbrio → mudança de rumo → ajust
 | Emergir: subir a cota periscópica e soprar TLP | 352.0000 | s | quilha < 8 m (superfície) | ✓ |
 
 > O mesmo roteiro está disponível na interface como "Demonstração automática". (tempo de execução: 1257 ms)
+
+## Sonar integrado — verificação em 29/10/2026
+
+- Suíte completa: **59 arquivos e 463 testes aprovados**.
+- Build de produção com TypeScript/Vite aprovado; permanece o aviso de tamanho
+  do bundle principal, sem impedir o build.
+- Chromium/Playwright: console, LOFAR, diagnóstico, replay, Ping Cam,
+  configuração individual de fontes e largura de 390 px sem overflow.
+- Web Audio reproduziu o sinal reamostrado; janelas espelhadas receberam
+  histórico, seleção, controles e camadas. Acesso externo bloqueado durante
+  a verificação de funcionamento offline do sonar.
+- Troca de cenário preservou o tráfego existente; carregar sessão restaurou
+  a mesma quantidade no sonar e nos gráficos.
+- Benchmark de CPU: [resultado JSON](sonar-benchmark.json). Não mede FPS de GPU.
+- O instalador Windows/Electron não foi executado nativamente neste ambiente.
+
+Modelo, equações, aproximações e roteiro: [SONAR.md](SONAR.md).

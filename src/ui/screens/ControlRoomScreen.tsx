@@ -191,7 +191,7 @@ function StationBody({ id, e, acts, onPeri }: { id: string; e: SimulationEngine;
     ),
     sonar: (
       <>
-        <ContactsTable e={e} acts={acts} />
+        <table className="t"><thead><tr><th>Trilha</th><th>Marcação medida</th><th>SNR</th><th>Classe estimada</th></tr></thead><tbody>{(e.state.sonar?.tracks ?? []).filter(c => e.state.t - c.lastSeen < 30).map(c => <tr key={c.id}><td>{c.id}</td><td>{c.bearing.toFixed(1)}° ±{c.sigma.toFixed(1)}°</td><td>{c.snr.toFixed(1)} dB</td><td>{c.manual || c.classification}</td></tr>)}</tbody></table>
         <div className="subtle">O ruído próprio cresce com a velocidade: a baixa velocidade o sonar ouve mais longe. A zona cega fica a ré (hélice).</div>
       </>
     ),

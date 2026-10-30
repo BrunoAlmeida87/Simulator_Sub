@@ -67,7 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'comando', key: '1', label: 'Central de comando', hint: 'Instrumentos: profundidade, rumo, atitude, velocidade, lemes, telégrafo e piloto automático' },
       { id: 'governo', label: 'Governo', hint: 'Painel de governo: manche, alavancas, telégrafo e piloto' },
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
-      { id: 'sonar', label: 'Sonar', hint: 'Demonstração visual de pulso ativo, ecos e escuta passiva' },
+      { id: 'sonar', label: 'Sonar', hint: 'Sonar integrado: escuta passiva, FFT, ecos temporizados e diagnóstico acústico' },
       { id: 'armas', label: 'Armas', hint: 'Tubos lançadores: sequência de lançamento, dados de tiro, compensação e torpedos em corrida (tiro de exercício)' },
     ],
   },

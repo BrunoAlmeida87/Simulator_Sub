@@ -49,6 +49,17 @@ export const FRAMES: [ViewMode, string, string][] = [
 
 /** camadas da apresentação (nomes no catálogo LAYER_INFO) */
 export const LAYER_LIST: LayerKey[] = [
+  'sonarRays',
+  'sonarWave',
+  'sonarThermocline',
+  'sonarProfile',
+  'sonarCoverage',
+  'sonarHeatmap',
+  'sonarSurface',
+  'sonarBottom',
+  'sonarEchoes',
+  'sonarBearings',
+  'sonarRulers',
   'vectors',
   'hydroVectors',
   'trimVectors',
@@ -194,12 +205,8 @@ function Compare({ e }: { e: SimulationEngine }) {
           return (
             <tr key={m.id} className={sig ? 'chg' : ''}>
               <td>{m.label}</td>
-              <td className="mono">
-                {m.unit === 'nós' ? fmtKnots(b.metrics[m.id], m.dec) : `${fmt(b.metrics[m.id], m.dec)} ${m.unit}`}
-              </td>
-              <td className="mono">
-                {m.unit === 'nós' ? fmtKnots(now[m.id], m.dec) : `${fmt(now[m.id], m.dec)} ${m.unit}`}
-              </td>
+              <td className="mono">{m.unit === 'nós' ? fmtKnots(b.metrics[m.id], m.dec) : `${fmt(b.metrics[m.id], m.dec)} ${m.unit}`}</td>
+              <td className="mono">{m.unit === 'nós' ? fmtKnots(now[m.id], m.dec) : `${fmt(now[m.id], m.dec)} ${m.unit}`}</td>
               <td className="mono">{sig ? `${d > 0 ? '+' : ''}${m.unit === 'nós' ? fmtKnots(d, m.dec) : fmt(d, m.dec)}` : '—'}</td>
             </tr>
           );
