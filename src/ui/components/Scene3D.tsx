@@ -30,6 +30,8 @@ export function saveQuality(q: OceanQuality): void {
 
 export interface Scene3DProps {
   view: ViewMode;
+  /** muda a cada clique no botão da vista: volta ao enquadramento padrão (mesmo sem trocar de vista) */
+  viewKey?: number;
   cutaway?: boolean;
   trail?: boolean;
   fog?: boolean;
@@ -295,7 +297,7 @@ export function Scene3D(props: Scene3DProps) {
 
   useEffect(() => {
     sceneRef.current?.setView(props.view);
-  }, [props.view]);
+  }, [props.view, props.viewKey]);
 
   // clique (sem arrastar) sobre um tanque
   const down = useRef<{ x: number; y: number } | null>(null);

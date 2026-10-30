@@ -42,12 +42,14 @@ const PHASE_TXT: Record<TorpedoRun['phase'], string> = {
   ataque: 'ATAQUE',
   flutuando: 'fim de corrida',
   recolher: 'flutuando (recolher)',
+  explodiu: 'EXPLODIU',
+  perdido: 'afundou',
 };
 
 const WAKE_N = 420;
 const BURST_N = 260;
 
-class Bubbles {
+export class Bubbles {
   readonly points: THREE.Points;
   private pos: Float32Array;
   private col: Float32Array;
@@ -306,6 +308,8 @@ export class TorpedoVis {
       v.pitch += (pitchTarget - v.pitch) * Math.min(1, (floating ? 0.8 : 3) * Math.max(step, 1 / 60));
       if (floating) pos.y = surf - 2.2 + 0.15 * Math.sin(s.t * 1.3 + r.tube);
       const root = v.inst.root;
+      // arma de combate que explodiu: some (a explosão fica com EnemyVis)
+      root.visible = r.phase !== 'explodiu';
       root.position.copy(pos);
       root.rotation.set(0, 0, 0);
       root.rotateY(-hd);
@@ -313,7 +317,7 @@ export class TorpedoVis {
       // hélices contrarrotativas
       for (const p of v.inst.props) p.obj.rotation.z += p.dir * r.speed * 1.6 * Math.min(step, 0.1);
       // esteira de bolhas atrás da cauda (mais densa com a velocidade)
-      if (step > 0 && r.speed > 0.5 && !floating) {
+      if (step > 0 && r.speed > 0.5 && !floating && r.phase !== 'explodiu') {
         v.emitAcc += step * Math.min(40, 4 + r.speed * 1.6);
         const tail = pos.clone().addScaledVector(fwd, -3.4);
         while (v.emitAcc >= 1) {
@@ -337,7 +341,7 @@ export class TorpedoVis {
         v.wire.geometry.setDrawRange(0, k);
         v.wireAttr.needsUpdate = true;
       }
-      if (labels) {
+      if (labels && r.phase !== 'explodiu') {
         const pp = proj(pos.clone().add(new THREE.Vector3(0, 2.2, 0)));
         const rng = r.tgt ? ` · alvo ${(r.tgt.range / 1000).toFixed(1)} km` : '';
         labels.push({

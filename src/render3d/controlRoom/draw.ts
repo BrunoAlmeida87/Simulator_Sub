@@ -114,6 +114,10 @@ export interface BtnOpts {
   action?: () => void;
   disabled?: boolean;
   size?: number;
+  /** cores próprias (etapas do lançamento: verde liberada, vermelha bloqueada…) e sem ação (só mostra o estado) */
+  fill?: string;
+  fg?: string;
+  locked?: boolean;
 }
 
 /** botão de tela de toque */
@@ -122,18 +126,18 @@ export function button(c: DrawCtx, b: BtnOpts): void {
   const col = TONE[b.tone ?? 'cmd'];
   const hov = c.hover === b.id && !b.disabled;
   rrect(g, b.x, b.y, b.w, b.h, Math.min(8, b.h / 4));
-  g.fillStyle = b.disabled ? '#0c1620' : b.on ? col : hov ? '#1b3a52' : '#10283a';
+  g.fillStyle = b.fill ?? (b.disabled ? '#0c1620' : b.on ? col : hov ? '#1b3a52' : '#10283a');
   g.fill();
-  g.lineWidth = hov ? 3 : 2;
-  g.strokeStyle = b.disabled ? '#22333f' : hov ? '#ffffff' : col;
+  g.lineWidth = hov && !b.locked ? 3 : 2;
+  g.strokeStyle = b.disabled ? '#22333f' : hov && !b.locked ? '#ffffff' : col;
   g.stroke();
   const fs = b.size ?? Math.min(b.h * 0.44, 26);
-  const fg = b.disabled ? '#3d5262' : b.on ? '#03121c' : '#e6f4ff';
+  const fg = b.fg ?? (b.disabled ? '#3d5262' : b.on ? '#03121c' : '#e6f4ff');
   if (b.sub) {
     text(g, b.label, b.x + b.w / 2, b.y + b.h * 0.36, fs, fg, 'center', 'bold', false, b.w - 6);
-    text(g, b.sub, b.x + b.w / 2, b.y + b.h * 0.73, Math.max(14, fs * 0.68), b.on ? '#06212f' : '#a9c3d6', 'center', 'normal', false, b.w - 6);
+    text(g, b.sub, b.x + b.w / 2, b.y + b.h * 0.73, Math.max(14, fs * 0.68), b.fg ?? (b.on ? '#06212f' : '#a9c3d6'), 'center', 'normal', false, b.w - 6);
   } else text(g, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, fs, fg, 'center', 'bold', false, b.w - 6);
-  c.hit({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h, label: b.tip, action: b.disabled ? undefined : b.action, disabled: b.disabled });
+  c.hit({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h, label: b.tip, action: b.disabled || b.locked ? undefined : b.action, disabled: b.disabled || b.locked });
 }
 
 export type LampColor = 'red' | 'green' | 'amber' | 'white' | 'blue';

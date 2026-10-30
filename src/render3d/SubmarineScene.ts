@@ -37,6 +37,7 @@ import { Markers } from './Markers';
 import { TrimVis } from './TrimVis';
 import { CargoVis } from './CargoVis';
 import { TorpedoVis, torpedoPose } from './TorpedoVis';
+import { EnemyVis, enemyScenePos, focusEnemy } from './EnemyVis';
 import { PitchAngle } from './PitchAngle';
 import { Ensign } from './Ensign';
 import { defaultLayers, type SceneLayers } from './layers';
@@ -91,7 +92,8 @@ export type ViewMode = 'sonar' | 'ping'
   | 'periscopio'
   | 'passadico'
   | 'drone'
-  | 'torpedo';
+  | 'torpedo'
+  | 'alvo';
 
 /** Linha de visada do periscópio: marcação relativa à proa (°), elevação (°) e campo de visão vertical (°). */
 export interface PeriscopeSight {
@@ -237,6 +239,12 @@ export class SubmarineScene {
   private trimVis!: TrimVis;
   private cargoVis!: CargoVis;
   private torpedoVis!: TorpedoVis;
+  private enemyVis!: EnemyVis;
+  /** vistas que acompanham um objeto em movimento (torpedo, alvo): o operador gira/aproxima e a câmera continua acompanhando */
+  private followUser = false;
+  private followPrev: THREE.Vector3 | null = null;
+  /** deslocamento do tremor da explosão no quadro anterior (retirado antes de posicionar a câmera) */
+  private shakeOff = new THREE.Vector3();
   private pitchAngle = new PitchAngle();
   private ensign!: Ensign;
   private keyLight = new THREE.DirectionalLight(0xffffff, 0);
@@ -336,9 +344,14 @@ export class SubmarineScene {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.12;
-    this.controls.minDistance = 12;
-    this.controls.maxDistance = 3000;
+    this.controls.minDistance = 4;
+    this.controls.maxDistance = 6000;
     this.controls.addEventListener('start', () => {
+      // torpedo e alvo: arrastar gira em volta do objeto sem deixar de acompanhá-lo
+      if (this.view === 'torpedo' || this.view === 'alvo') {
+        this.followUser = true;
+        return;
+      }
       if (this.view !== 'livre') {
         this.freeFov = Math.max(35, Math.min(75, this.camera.fov));
         this.view = 'livre';
@@ -400,6 +413,8 @@ export class SubmarineScene {
     this.torpedoVis = new TorpedoVis(this.dot, this.renderer);
     this.sub.add(this.torpedoVis.local);
     this.scene.add(this.torpedoVis.world);
+    this.enemyVis = new EnemyVis(this.dot);
+    this.scene.add(this.enemyVis.group);
     this.scene.add(this.pitchAngle.group);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
@@ -850,6 +865,8 @@ export class SubmarineScene {
     // das vistas em primeira pessoa a câmera não "voa" de dentro do mastro: começa já no novo enquadramento
     const fromEye = this.view === 'periscopio' || this.view === 'passadico' || this.view === 'drone';
     this.view = v;
+    this.followUser = false;
+    this.followPrev = null;
     this.viewBlend = v === 'livre' || fromEye ? 1 : 0;
     if (fromEye && v !== 'livre') {
       this.viewFrom.copy(this.cameraTarget(v));
@@ -1146,6 +1163,15 @@ export class SubmarineScene {
             .add(new THREE.Vector3(0, 3.5, 0));
         return this.baseCameraTarget('perseguicao');
       }
+      case 'alvo': {
+        const x = focusEnemy(this.env());
+        if (x) {
+          const p = enemyScenePos(x, this.env().state.body.pos.x, this.env().state.body.pos.y);
+          const fwd2 = new THREE.Vector3(Math.sin((x.course * Math.PI) / 180), 0, -Math.cos((x.course * Math.PI) / 180));
+          return p.addScaledVector(fwd2, -85).add(new THREE.Vector3(0, 16, 0));
+        }
+        return this.baseCameraTarget('perseguicao');
+      }
       case 'cinematografica': {
         // Oscilações contínuas em tempo real: câmera operada à mão, sem saltos aleatórios.
         const t = this.wallTime;
@@ -1362,7 +1388,7 @@ export class SubmarineScene {
     const coastOn = !!e.env.cfg.geo?.coast;
     const terrain = this.ensureTerrain();
     // no drone os níveis de detalhe do terreno se centram na câmera (o grupo é deslocado para a origem flutuante)
-    const tf = this.view === 'torpedo' ? this.torpedoVis.focus : null;
+    const tf = this.view === 'torpedo' ? this.torpedoVis.focus : this.view === 'alvo' ? focusEnemy(e) : null;
     const tc = this.view === 'drone' && this.drone ? { n: this.drone.n, e: this.drone.e } : tf ? { n: tf.n, e: tf.e } : { n: pn, e: pe };
     terrain.update(e.env, tc.n, tc.e, coastOn);
     terrain.group.position.set(tc.e - pe, 0, -(tc.n - pn));
@@ -1525,6 +1551,8 @@ export class SubmarineScene {
     const sh = this.view === 'navio' ? this.ships.nearest : null;
     const delta = subPos.clone().sub(this.lastSubPos);
     this.lastSubPos.copy(subPos);
+    this.camera.position.sub(this.shakeOff);
+    this.shakeOff.set(0, 0, 0);
     const eyeView = this.view === 'periscopio' || this.view === 'passadico';
     const droneView = this.view === 'drone';
     if (this.deepFov !== this.lastDeepFov) {
@@ -1560,8 +1588,13 @@ export class SubmarineScene {
     }
     // vista "Torpedo": câmera atrás e acima da arma, pela pose deste passo (a arma anda até 26 m/s)
     const torpPose = this.view === 'torpedo' ? torpedoPose(e, pn, pe, a) : null;
-    if (eyeView || droneView || torpPose) this.controls.enabled = false;
+    const foe = this.view === 'alvo' ? focusEnemy(e) : null;
+    const followPose = torpPose ?? (foe ? { pos: enemyScenePos(foe, pn, pe), dir: new THREE.Vector3(Math.sin((foe.course * Math.PI) / 180), 0, -Math.cos((foe.course * Math.PI) / 180)) } : null);
+    const following = !!followPose;
+    if (eyeView || droneView) this.controls.enabled = false;
     else if (!this.controls.enabled) this.controls.enabled = true;
+    this.controls.minDistance = following ? 1.5 : 4;
+    this.controls.maxDistance = following ? 20000 : 6000;
     let rollUp: THREE.Vector3 | null = null;
     if (droneView) {
       // DRONE: pose no mundo (N/E/altura), convertida para a origem flutuante; voa também com a simulação pausada
@@ -1620,15 +1653,18 @@ export class SubmarineScene {
       this.camera.position.copy(head);
       this.controls.target.copy(head).add(dir.multiplyScalar(100));
       this.viewFrom.copy(head);
-    } else if (torpPose) {
-      const { stbd } = this.headingVectors();
-      const side = stbd.set(-torpPose.dir.z, 0, torpPose.dir.x);
-      this.camera.position
-        .copy(torpPose.pos)
-        .addScaledVector(torpPose.dir, -13)
-        .addScaledVector(side, 2.5)
-        .add(new THREE.Vector3(0, 2.8, 0));
-      this.controls.target.copy(torpPose.pos).addScaledVector(torpPose.dir, 5);
+    } else if (followPose) {
+      // TORPEDO / ALVO: câmera atrás e acima do objeto; depois que o operador gira ou aproxima, a câmera
+      // mantém a posição relativa escolhida e continua acompanhando (sem voltar sozinha)
+      const fp = followPose;
+      const look = fp.pos.clone().addScaledVector(fp.dir, torpPose ? 5 : 0);
+      if (!this.followUser || !this.followPrev) {
+        const side = new THREE.Vector3(-fp.dir.z, 0, fp.dir.x);
+        const [back, sideOff, up] = torpPose ? [13, 2.5, 2.8] : [85, 30, 16];
+        this.camera.position.copy(fp.pos).addScaledVector(fp.dir, -back).addScaledVector(side, sideOff).add(new THREE.Vector3(0, up, 0));
+      } else this.camera.position.add(look.clone().sub(this.followPrev));
+      this.followPrev = look.clone();
+      this.controls.target.copy(look);
       this.viewFrom.copy(this.camera.position);
       this.viewBlend = 1;
     } else if ((this.view === 'sonar' || this.view === 'ping') && e.state.sonar) {
@@ -1670,8 +1706,6 @@ export class SubmarineScene {
       if (this.view === 'perspectiva') this.controls.target.copy(this.perspectiveFrame().target);
       if (this.view === 'piloto') this.controls.target.add(this.headingVectors().fwd.multiplyScalar(this.pilotLead()));
       if (sh) this.controls.target.copy(sh.pos).add(new THREE.Vector3(0, 8, 0));
-      const tf = this.view === 'torpedo' ? this.torpedoVis.focus : null;
-      if (tf) this.controls.target.copy(tf.pos).addScaledVector(tf.dir, 8);
       if (this.viewBlend >= 1) this.viewFrom.copy(target);
     }
     this.camera.up.set(0, 1, 0);
@@ -1681,6 +1715,12 @@ export class SubmarineScene {
       this.camera.up.copy(fwd);
     }
     this.controls.update();
+    if (this.enemyVis.shake > 0.01 && !droneView) {
+      // tremor da explosão (só visual, some em ~3 s)
+      const k = this.enemyVis.shake * 0.9;
+      this.shakeOff.set((Math.random() - 0.5) * k, (Math.random() - 0.5) * k, (Math.random() - 0.5) * k);
+      this.camera.position.add(this.shakeOff);
+    }
     if (this.view === 'cinematografica') {
       // Inclinação discreta (< 0,4°), aplicada após o lookAt e removida no quadro seguinte.
       this.camera.rotateZ(this.viewBlend * (0.005 * Math.sin(this.wallTime * 0.67) + 0.0015 * Math.sin(this.wallTime * 1.61)));
@@ -1862,6 +1902,7 @@ export class SubmarineScene {
     this.cargoVis.update(e, this.sub, this.layers, lbl, proj);
     this.torpedoVis.setClip(showInt && this.halfOpen ? this.cutPlane : null);
     this.torpedoVis.update(e, this.sub, pn, pe, this.layers.torpedoes !== false, showInt, a, step, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
+    this.enemyVis.update(e, pn, pe, this.layers.torpedoes !== false, step, this.camera, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
     this.pitchAngle.update(!!this.layers.pitchAngle, e, this.sub, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
     // tráfego adicional (quantidade nas Configurações): mesmos navios do mapa tático

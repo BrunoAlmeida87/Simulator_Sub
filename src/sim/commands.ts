@@ -12,7 +12,7 @@ import { bumplessInit } from './systems/autopilot';
 import { emergencyBlowActive } from './systems/hpAir';
 import { sensorDef } from './systems/sensors';
 import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
-import { seaPressureAtTube, torpedoCommand, tubeCommand, weaponTargets, type TorpedoAction, type TubeAction, type TubeCmdCtx } from './systems/weapons';
+import { enemyCommand, seaPressureAtTube, torpedoCommand, tubeCommand, weaponTargets, type EnemyAction, type EnemyParams, type TorpedoAction, type TubeAction, type TubeCmdCtx } from './systems/weapons';
 import type { TubePresets } from './core/state';
 import { makeDepthOf } from './core/context';
 import { qToMat3 } from './core/math';
@@ -84,7 +84,8 @@ export type Command =
   /** ordem a um tubo lançador (sequência automática ou passo a passo); origin/traffic: onde achar o alvo */
   | { type: 'tube'; tube: number; action: TubeAction; presets?: Partial<TubePresets>; origin?: LatLon; traffic?: number }
   /** ordem a um torpedo em corrida pelo fio (alvo, rumo, cota, cortar o fio) ou recolher a arma de exercício */
-  | { type: 'torpedo'; id: string; action: TorpedoAction; target?: string | null; course?: number; depth?: number };
+  | { type: 'torpedo'; id: string; action: TorpedoAction; target?: string | null; course?: number; depth?: number }
+  | ({ type: 'enemy'; action: EnemyAction } & EnemyParams);
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
 
@@ -494,6 +495,9 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
       if (r) torpedoCommand(weaponCtx(e, r.origin, r.traffic), c.id, c.action, { target: c.target, course: c.course, depth: c.depth });
       break;
     }
+    case 'enemy':
+      enemyCommand({ s, env: e.env, heading: e.outputs.euler.heading, log: (text, group) => e.log(text, group) }, c.action, c);
+      break;
   }
 }
 
@@ -511,7 +515,7 @@ function weaponCtx(e: SimulationEngine, origin?: LatLon, traffic?: number): Tube
     log: (text, group) => e.log(text, group),
     origin: o,
     traffic: traffic ?? 0,
-    targetName: (id) => weaponTargets(e.env, o, s.t, traffic ?? 0).find((x) => x.id === id)?.name,
+    targetName: (id) => weaponTargets(e.env, o, s.t, traffic ?? 0, s.weapons).find((x) => x.id === id)?.name,
   };
 }
 

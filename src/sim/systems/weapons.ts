@@ -20,9 +20,14 @@
  * aquisição pelo autodiretor (alcance e cone) e ataque. É tiro de EXERCÍCIO: a arma passa sob o alvo,
  * registra o acerto e, no fim da corrida, flutua para ser recolhida. Os alvos são os contatos fictícios
  * do quadro tático (geo.ts) e o tráfego adicional (traffic.ts), funções do tempo de simulação.
+ *
+ * Submarinos INIMIGOS (fictícios, comando 'enemy'): cinemática simples (rumo, velocidade e cota), fogem
+ * quando um torpedo os ataca e afundam quando atingidos. A arma de COMBATE (presets.warhead = 'combate')
+ * só pode ter como alvo um submarino inimigo: no ataque desce à cota dele e explode pela espoleta de
+ * proximidade (WeaponSpec.fuzeRadius, distância 3D); a explosão fica em weapons.explosions para a cena.
  */
-import type { VesselConfig, ValveConfig, WeaponsConfig, TorpedoTubeConfig } from '../config/types';
-import type { SimState, TorpedoRun, TubePresets, TubeState, WeaponsState, ValveState } from '../core/state';
+import type { EnemyConfig, VesselConfig, ValveConfig, WeaponsConfig, TorpedoTubeConfig } from '../config/types';
+import type { EnemySub, SimState, TorpedoRun, TubePresets, TubeState, WeaponsState, ValveState } from '../core/state';
 import type { Vec3 } from '../core/math';
 import type { StepContext } from '../core/context';
 import type { Environment } from '../environment/environment';
@@ -170,11 +175,19 @@ export function tubeView(v: VesselConfig, s: SimState, ctx: Pick<StepContext, 'e
 
 // ------------------------------------------------------------------ alvos
 
-/** Contatos que podem ser alvo (os mesmos do quadro tático): fixos + tráfego adicional. */
-export function weaponTargets(env: Environment, origin: LatLon, t: number, traffic: number): Contact[] {
+/** Alvo possível: contato do quadro tático ou submarino inimigo (com a cota). */
+export type WeaponTarget = Omit<Contact, 'kind'> & { kind: Contact['kind'] | 'submarino'; d?: number; enemy?: boolean };
+
+export const isEnemyId = (id: string | null | undefined) => !!id && id.startsWith('INI');
+
+const enemyTarget = (x: EnemySub): WeaponTarget => ({ id: x.id, name: x.name, kind: 'submarino', n: x.n, e: x.e, course: x.course, speed: x.speed, d: x.d, enemy: true });
+
+/** Contatos que podem ser alvo (os mesmos do quadro tático): submarinos inimigos ativos + fixos + tráfego adicional. */
+export function weaponTargets(env: Environment, origin: LatLon, t: number, traffic: number, ws?: WeaponsState): WeaponTarget[] {
   const fixed = contactsLocal(t, origin);
   const extra = traffic > 0 ? trafficAt(t, trafficForEnv(env, origin, traffic), origin) : [];
-  return [...fixed, ...extra];
+  const en = (ws?.enemies ?? []).filter((x) => x.sunk === null).map(enemyTarget);
+  return [...en, ...fixed, ...extra];
 }
 
 const DEG = Math.PI / 180;
@@ -209,7 +222,22 @@ export function interceptCourse(from: { n: number; e: number }, speed: number, t
 // ------------------------------------------------------------------ comandos
 
 export type TubeAction =
-  'preparar' | 'disparar' | 'fechar' | 'recarregar' | 'cancelar' | 'alimentar' | 'alagar' | 'equalizar' | 'abrirPorta' | 'fecharPorta' | 'drenar' | 'abrirCulatra' | 'fecharCulatra' | 'carregar' | 'dados';
+  | 'preparar'
+  | 'disparar'
+  | 'fechar'
+  | 'recarregar'
+  | 'cancelar'
+  | 'alimentar'
+  | 'alagar'
+  | 'equalizar'
+  | 'abrirPorta'
+  | 'fogo'
+  | 'fecharPorta'
+  | 'drenar'
+  | 'abrirCulatra'
+  | 'fecharCulatra'
+  | 'carregar'
+  | 'dados';
 
 export const TUBE_ACTION_LABEL: Record<TubeAction, string> = {
   preparar: 'preparar (alagar, equalizar, abrir a porta)',
@@ -221,6 +249,7 @@ export const TUBE_ACTION_LABEL: Record<TubeAction, string> = {
   alagar: 'alagar',
   equalizar: 'equalizar com o mar',
   abrirPorta: 'abrir a porta da boca',
+  fogo: 'disparar (passo a passo)',
   fecharPorta: 'fechar a porta da boca',
   drenar: 'drenar para o TCA',
   abrirCulatra: 'abrir a culatra',
@@ -248,7 +277,172 @@ const G = 'Armas';
 function presetText(p: TubePresets, name?: string): string {
   const alvo = p.target ? `alvo ${name ?? p.target}` : 'sem alvo';
   const rumo = p.course === null ? 'rumo do submarino' : `rumo ${Math.round(p.course).toString().padStart(3, '0')}°`;
-  return `${alvo}, velocidade ${p.speed}, cota ${Math.round(p.depth)} m, ${rumo}`;
+  return `${p.warhead === 'combate' ? 'arma de COMBATE, ' : ''}${alvo}, velocidade ${p.speed}, cota ${Math.round(p.depth)} m, ${rumo}`;
+}
+
+/** Estado lido de um tubo para os intertravamentos (o mesmo nas ordens e nas telas). */
+interface TubeCond {
+  w: WeaponsConfig;
+  ws: WeaponsState;
+  t: TubeState;
+  full: number;
+  flooded: boolean;
+  equalized: boolean;
+  sea: number;
+  flaskPa: number;
+}
+
+function tubeCond(v: VesselConfig, ws: WeaponsState, i: number, R: RadiusAt, sea: number): TubeCond {
+  const w = v.weapons!;
+  const t = ws.tubes[i];
+  const full = fullWater(w, w.tubes[i], t, R);
+  const flooded = t.water >= full - 2;
+  const equalized = flooded && t.equalize.pos > 0.999 && Math.abs(t.pressure - sea) < EQ_TOL;
+  return { w, ws, t, full, flooded, equalized, sea, flaskPa: flaskPressure(w, t.flask, v.hpAir.temperature + 273.15) };
+}
+
+/**
+ * Motivo da recusa de uma ordem ao tubo (null = aceita). É a mesma regra usada por tubeCommand e pelas
+ * etapas do lançamento manual (tubeSteps), para o botão verde/vermelho dizer a verdade.
+ */
+function tubeRefusal(c: TubeCond, action: TubeAction, presets: TubePresets): string | null {
+  const { w, ws, t, flooded, equalized, sea } = c;
+  if (t.eject !== null) return 'disparo em andamento';
+  const combatBad = presets.warhead === 'combate' && presets.target && !isEnemyId(presets.target) ? 'arma de combate só contra um submarino inimigo' : null;
+  switch (action) {
+    case 'dados':
+    case 'cancelar':
+    case 'fechar':
+    case 'fecharPorta':
+      return null;
+    case 'preparar':
+    case 'disparar':
+      if (!t.weapon) return 'tubo vazio (recarregar da reserva)';
+      if (t.breech.pos > 0.001 || t.breech.cmd > 0) return 'culatra aberta';
+      if (t.reload !== null) return 'recarga em andamento';
+      return action === 'disparar' ? combatBad : null;
+    case 'recarregar':
+      if (t.weapon) return 'já há arma no tubo';
+      if (ws.reserve <= 0) return 'sem armas de reserva';
+      if (t.water > tcaFree(w, ws) + 1) return `sem espaço nos TCA para a água do tubo (${(t.water / RHO_NOMINAL).toFixed(2)} m³)`;
+      return null;
+    case 'alimentar':
+      return t.weapon ? null : 'tubo vazio';
+    case 'alagar':
+      if (t.breech.pos > 0.001) return 'culatra aberta';
+      if (flooded) return 'tubo já alagado';
+      return null;
+    case 'equalizar':
+      return flooded ? null : 'tubo não está alagado';
+    case 'abrirPorta':
+      return equalized ? null : `tubo não equalizado (tubo ${(t.pressure / BAR).toFixed(1)} bar, mar ${(sea / BAR).toFixed(1)} bar)`;
+    case 'fogo':
+      if (!t.weapon) return 'tubo vazio';
+      if (!t.energized) return 'arma não alimentada';
+      if (!equalized) return 'tubo não equalizado';
+      if (t.door.pos < 0.999) return 'porta da boca fechada';
+      if (c.flaskPa < w.flask.minPressure) return `garrafa de lançamento abaixo de ${Math.round(w.flask.minPressure / BAR)} bar`;
+      return combatBad;
+    case 'drenar':
+      if (t.door.pos > 0.001) return 'porta da boca aberta';
+      if (t.water <= 1) return 'tubo já seco';
+      if (t.water > tcaFree(w, ws) + 1) return `sem espaço nos TCA para a água do tubo (${(t.water / RHO_NOMINAL).toFixed(2)} m³)`;
+      return null;
+    case 'abrirCulatra':
+      if (t.door.pos > 0.001) return 'porta da boca aberta';
+      if (t.water > 1) return 'tubo com água (drenar antes)';
+      return null;
+    case 'fecharCulatra':
+      return t.reload !== null ? 'recarga em andamento' : null;
+    case 'carregar':
+      if (t.breech.pos < 0.999) return 'culatra fechada';
+      if (t.weapon) return 'já há arma no tubo';
+      if (ws.reserve <= 0) return 'sem armas de reserva';
+      return null;
+  }
+  return null;
+}
+
+/** Uma etapa do lançamento manual, na ordem em que é feita. */
+export interface ManualStep {
+  action: TubeAction;
+  /** número da etapa (1…10) e nome curto */
+  n: number;
+  label: string;
+  /** o que acontece (dica) */
+  hint: string;
+  group: 'lancar' | 'recarregar';
+  /** feito: já cumprida · andamento: em execução · liberado: pode ser feita agora · bloqueado: ainda não */
+  state: 'feito' | 'andamento' | 'liberado' | 'bloqueado';
+  /** motivo do bloqueio (etapa anterior pendente ou intertravamento) */
+  why?: string;
+  /** progresso da etapa em andamento (0…1) */
+  progress?: number;
+}
+
+const STEP_DEF: [TubeAction, string, string, ManualStep['group']][] = [
+  ['alimentar', 'Alimentar a arma', 'Liga a arma e passa os dados de tiro (alvo, velocidade, cota).', 'lancar'],
+  ['alagar', 'Alagar o tubo', 'A água do TCA enche o espaço em volta da arma; o ar sai pelo suspiro para dentro do casco.', 'lancar'],
+  ['equalizar', 'Equalizar com o mar', 'A válvula de equalização iguala a pressão do tubo à do mar na boca.', 'lancar'],
+  ['abrirPorta', 'Abrir a porta da boca', 'A porta externa (hidráulica) abre: o tubo fica em contato com o mar.', 'lancar'],
+  ['fogo', 'FOGO!', 'A garrafa de ar comprimido aciona a ejeção e a arma sai pela boca.', 'lancar'],
+  ['fecharPorta', 'Fechar a porta da boca', 'Isola o tubo do mar (o tubo continua cheio de água).', 'recarregar'],
+  ['drenar', 'Drenar para o TCA', 'A água do tubo volta para o tanque de compensação.', 'recarregar'],
+  ['abrirCulatra', 'Abrir a culatra', 'A porta interna abre para a sala de torpedos (só com o tubo seco).', 'recarregar'],
+  ['carregar', 'Carregar arma da reserva', 'Uma arma da reserva é empurrada para dentro do tubo (≈ 5 min).', 'recarregar'],
+  ['fecharCulatra', 'Fechar a culatra', 'Fecha a porta interna: tubo carregado e seco, pronto para a próxima.', 'recarregar'],
+];
+
+/**
+ * Etapas do lançamento manual com a cor de cada uma (não altera nada). A fase ativa é "lançar" com a arma
+ * no tubo e a culatra fechada; senão "recarregar". Uma etapa só fica liberada com as anteriores do mesmo
+ * grupo feitas e o intertravamento da física satisfeito.
+ */
+export function tubeSteps(v: VesselConfig, s: SimState, ctx: Pick<StepContext, 'env' | 'depthOf' | 'rhoLocal'>, R: RadiusAt, i: number, presets?: TubePresets): ManualStep[] {
+  const w = v.weapons!;
+  const ws = s.weapons!;
+  const c = tubeCond(v, ws, i, R, seaPressureAtTube(ctx, w, w.tubes[i], R));
+  const t = c.t;
+  const pr = presets ?? t.presets;
+  const recarga = !t.weapon || t.breech.pos > 0.001 || t.breech.cmd > 0 || t.reload !== null;
+  const doorOpen = t.door.pos > 0.999;
+  const status: Record<string, { done: boolean; busy: boolean; progress?: number }> = {
+    alimentar: { done: t.energized, busy: false },
+    alagar: { done: c.flooded, busy: t.flood.cmd > 0 && !c.flooded, progress: Math.min(1, t.water / Math.max(1, c.full)) },
+    equalizar: { done: c.equalized, busy: t.equalize.cmd > 0 && !c.equalized, progress: Math.max(0, 1 - Math.abs(t.pressure - c.sea) / Math.max(1, c.sea - v.internalPressure)) },
+    abrirPorta: { done: doorOpen, busy: t.door.cmd > 0.5 && !doorOpen, progress: t.door.pos },
+    fogo: { done: false, busy: t.eject !== null, progress: t.eject !== null ? Math.min(1, t.eject / ejectTravel(w, w.tubes[i], R)) : 0 },
+    fecharPorta: { done: t.door.pos <= 0.001, busy: t.door.cmd < 0.5 && t.door.pos > 0.001, progress: 1 - t.door.pos },
+    drenar: { done: t.water <= 1, busy: t.drain.cmd > 0 && t.water > 1, progress: 1 - Math.min(1, t.water / Math.max(1, c.full)) },
+    abrirCulatra: { done: t.breech.pos >= 0.999 || t.weapon, busy: t.breech.cmd > 0.5 && t.breech.pos < 0.999, progress: t.breech.pos },
+    carregar: { done: t.weapon, busy: t.reload !== null, progress: t.reload !== null ? t.reload / w.reloadTime : 0 },
+    fecharCulatra: { done: t.weapon && t.breech.pos <= 0.001, busy: t.breech.cmd < 0.5 && t.breech.pos > 0.001 && t.weapon, progress: 1 - t.breech.pos },
+  };
+  const out: ManualStep[] = [];
+  let pending: string | null = null;
+  STEP_DEF.forEach(([action, label, hint, group], k) => {
+    const st = status[action];
+    const active = (group === 'recarregar') === recarga;
+    const step: ManualStep = { action, n: k + 1, label, hint, group, state: 'bloqueado' };
+    if (k === 5) pending = null; // novo grupo
+    if (!active) {
+      step.state = group === 'recarregar' ? 'feito' : 'bloqueado';
+      if (step.state === 'bloqueado') step.why = 'carregar o tubo antes (etapas 6 a 10)';
+    } else if (st.busy) {
+      step.state = 'andamento';
+      step.progress = st.progress;
+    } else if (st.done) step.state = 'feito';
+    else if (pending) step.why = `antes: ${pending}`;
+    else if (t.auto) step.why = 'sequência automática em curso';
+    else {
+      const why = tubeRefusal(c, action, pr);
+      if (why) step.why = why;
+      else step.state = 'liberado';
+    }
+    if (active && step.state !== 'feito' && !pending) pending = label;
+    out.push(step);
+  });
+  return out;
 }
 
 /** Aplica uma ordem a um tubo. Recusas são registradas com o motivo (o estado não muda). */
@@ -262,10 +456,6 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
   const t = ws.tubes[i];
   const nm = tubeName(tc);
   const refuse = (why: string) => c.log(`${nm}: ${TUBE_ACTION_LABEL[action]} recusado — ${why}.`, G);
-  const full = fullWater(w, tc, t, c.R);
-  const flooded = t.water >= full - 2;
-  const sea = c.sea(i);
-  const equalized = flooded && t.equalize.pos > 0.999 && Math.abs(t.pressure - sea) < EQ_TOL;
   if (presets) {
     t.presets = { ...t.presets, ...presets };
     if (t.presets.depth < 3) t.presets.depth = 3;
@@ -273,10 +463,15 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
     if (c.origin) t.origin = c.origin;
     if (c.traffic !== undefined) t.traffic = c.traffic;
   }
-  if (t.eject !== null) return refuse('disparo em andamento');
+  const sea = c.sea(i);
+  const cond = tubeCond(c.v, ws, i, c.R, sea);
+  const { full } = cond;
+  const why = tubeRefusal(cond, action, t.presets);
+  if (why) return refuse(why);
+  const tname = () => (t.presets.target ? c.targetName?.(t.presets.target) : undefined);
   switch (action) {
     case 'dados':
-      c.log(`${nm}: dados de tiro — ${presetText(t.presets, t.presets.target ? c.targetName?.(t.presets.target) : undefined)}`, G);
+      c.log(`${nm}: dados de tiro — ${presetText(t.presets, tname())}`, G);
       return;
     case 'cancelar':
       if (!t.auto) return;
@@ -285,46 +480,39 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
       return;
     case 'preparar':
     case 'disparar':
-      if (!t.weapon) return refuse('tubo vazio (recarregar da reserva)');
-      if (t.breech.pos > 0.001 || t.breech.cmd > 0) return refuse('culatra aberta');
-      if (t.reload !== null) return refuse('recarga em andamento');
       t.auto = action;
-      c.log(`${nm}: ${action === 'disparar' ? 'preparar e disparar' : 'preparar para disparo'} — ${presetText(t.presets, t.presets.target ? c.targetName?.(t.presets.target) : undefined)}`, G);
+      c.log(`${nm}: ${action === 'disparar' ? 'preparar e disparar' : 'preparar para disparo'} — ${presetText(t.presets, tname())}`, G);
       if (action === 'disparar' && tubeReadyNow(c.v, t, full, sea)) fire(c, i);
+      return;
+    case 'fogo':
+      c.log(`${nm}: disparar — ${presetText(t.presets, tname())}`, G);
+      fire(c, i);
       return;
     case 'fechar':
       t.auto = 'fechar';
       c.log(`${nm}: fechar a porta da boca e isolar o tubo do mar`, G);
       return;
     case 'recarregar':
-      if (t.weapon) return refuse('já há arma no tubo');
-      if (ws.reserve <= 0) return refuse('sem armas de reserva');
-      if (t.water > tcaFree(w, ws) + 1) return refuse(`sem espaço nos TCA para a água do tubo (${(t.water / RHO_NOMINAL).toFixed(2)} m³)`);
       t.auto = 'recarregar';
       c.log(`${nm}: recarregar — fechar a porta, drenar, abrir a culatra e puxar uma arma da reserva (${ws.reserve} a bordo)`, G);
       return;
     case 'alimentar':
-      if (!t.weapon) return refuse('tubo vazio');
       t.energized = !t.energized;
-      c.log(`${nm}: arma ${t.energized ? 'alimentada — ' + presetText(t.presets, t.presets.target ? c.targetName?.(t.presets.target) : undefined) : 'desligada'}`, G);
+      c.log(`${nm}: arma ${t.energized ? 'alimentada — ' + presetText(t.presets, tname()) : 'desligada'}`, G);
       return;
     case 'alagar':
-      if (t.breech.pos > 0.001) return refuse('culatra aberta');
-      if (flooded) return refuse('tubo já alagado');
       t.flood.cmd = 1;
       t.vent.cmd = 1;
       t.drain.cmd = 0;
       c.log(`${nm}: alagar — água do TCA, suspiro aberto para dentro do casco`, G);
       return;
     case 'equalizar':
-      if (!flooded) return refuse('tubo não está alagado');
       t.vent.cmd = 0;
       t.flood.cmd = 0;
       t.equalize.cmd = 1;
       c.log(`${nm}: equalizar com o mar (${(sea / BAR).toFixed(1)} bar na boca)`, G);
       return;
     case 'abrirPorta':
-      if (!equalized) return refuse(`tubo não equalizado (tubo ${(t.pressure / BAR).toFixed(1)} bar, mar ${(sea / BAR).toFixed(1)} bar)`);
       t.door.cmd = 1;
       c.log(`${nm}: abrir a porta da boca`, G);
       return;
@@ -333,9 +521,6 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
       c.log(`${nm}: fechar a porta da boca`, G);
       return;
     case 'drenar':
-      if (t.door.pos > 0.001) return refuse('porta da boca aberta');
-      if (t.water <= 1) return refuse('tubo já seco');
-      if (t.water > tcaFree(w, ws) + 1) return refuse(`sem espaço nos TCA para a água do tubo (${(t.water / RHO_NOMINAL).toFixed(2)} m³)`);
       t.equalize.cmd = 0;
       t.flood.cmd = 0;
       t.vent.cmd = 1;
@@ -343,20 +528,14 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
       c.log(`${nm}: drenar para o TCA (suspiro aberto)`, G);
       return;
     case 'abrirCulatra':
-      if (t.door.pos > 0.001) return refuse('porta da boca aberta');
-      if (t.water > 1) return refuse('tubo com água (drenar antes)');
       t.breech.cmd = 1;
       c.log(`${nm}: abrir a culatra`, G);
       return;
     case 'fecharCulatra':
-      if (t.reload !== null) return refuse('recarga em andamento');
       t.breech.cmd = 0;
       c.log(`${nm}: fechar a culatra`, G);
       return;
     case 'carregar':
-      if (t.breech.pos < 0.999) return refuse('culatra fechada');
-      if (t.weapon) return refuse('já há arma no tubo');
-      if (ws.reserve <= 0) return refuse('sem armas de reserva');
       t.reload = 0;
       c.log(`${nm}: carregar uma arma da reserva (${Math.round(w.reloadTime / 60)} min)`, G);
       return;
@@ -400,12 +579,12 @@ export function torpedoCommand(c: TubeCmdCtx, id: string, action: TorpedoAction,
   if (!ws || !r) return;
   const refuse = (why: string) => c.log(`Torpedo ${id}: ordem recusada — ${why}.`, G);
   if (action === 'recolher') {
-    if (r.phase !== 'recolher') return refuse('ainda em corrida');
+    if (r.phase !== 'recolher' && r.phase !== 'explodiu' && r.phase !== 'perdido') return refuse('ainda em corrida');
     ws.runs = ws.runs.filter((x) => x !== r);
-    c.log(`Torpedo ${id} (exercício) recolhido`, G);
+    c.log(r.phase === 'recolher' ? `Torpedo ${id} (exercício) recolhido` : `Torpedo ${id} retirado da lista`, G);
     return;
   }
-  if (r.phase === 'flutuando' || r.phase === 'recolher') return refuse('corrida terminada');
+  if (r.phase === 'flutuando' || r.phase === 'recolher' || r.phase === 'explodiu' || r.phase === 'perdido') return refuse('corrida terminada');
   if (action === 'cortarFio') {
     if (!r.wire) return;
     r.wire = false;
@@ -414,6 +593,7 @@ export function torpedoCommand(c: TubeCmdCtx, id: string, action: TorpedoAction,
   }
   if (!r.wire) return refuse('sem fio de guiagem');
   if (action === 'alvo') {
+    if (r.presets.warhead === 'combate' && p.target && !isEnemyId(p.target)) return refuse('arma de combate só contra um submarino inimigo');
     r.target = p.target ?? null;
     r.presets = { ...r.presets, target: r.target };
     r.tgt = null;
@@ -477,6 +657,19 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
     out.strokes += updateValve(doorValve(w), t.door, dt, hyd);
     out.strokes += updateValve(breechValve(w), t.breech, dt, hyd);
     const full = fullWater(w, tc, t, R);
+    // passo a passo: no fim do alagamento ou da drenagem as válvulas fecham sozinhas (o tubo fica isolado)
+    if (!t.auto) {
+      if (t.flood.cmd > 0 && t.water >= full - 2) {
+        t.flood.cmd = 0;
+        t.vent.cmd = 0;
+        ctx.log(`${tubeName(tc)}: tubo alagado — válvulas de alagamento e do suspiro fechadas`, G);
+      }
+      if (t.drain.cmd > 0 && t.water <= 0.5) {
+        t.drain.cmd = 0;
+        t.vent.cmd = 0;
+        ctx.log(`${tubeName(tc)}: tubo seco — válvulas de drenagem e do suspiro fechadas`, G);
+      }
+    }
 
     // alagamento a partir do TCA (o suspiro precisa estar aberto para o ar sair)
     if (t.flood.pos > 0 && t.vent.pos > 0 && t.water < full) {
@@ -578,8 +771,150 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
     }
   }
 
+  updateEnemies(v, s, inp);
   for (const r of ws.runs) updateRun(v, s, inp, r);
   return out;
+}
+
+// ------------------------------------------------------------------ submarinos inimigos
+
+const KN = 1852 / 3600;
+export const ENEMY_DEFAULT: EnemyConfig = { evadeSpeed: 9 * KN, turnRate: 1.5, depthRate: 0.5, accel: 0.06, sinkRate: 1.2, alertRange: 2500 };
+
+export type EnemyAction = 'add' | 'remove' | 'clear';
+
+export interface EnemyParams {
+  id?: string;
+  name?: string;
+  /** distância (m) e marcação relativa à proa (°) a partir do SX-1 */
+  range?: number;
+  bearing?: number;
+  /** cota (m), rumo verdadeiro (°; omitido = cruzando a proa do SX-1) e velocidade (m/s) */
+  depth?: number;
+  course?: number;
+  speed?: number;
+}
+
+export interface EnemyCmdCtx {
+  s: SimState;
+  env: Environment;
+  heading: number;
+  log: (text: string, group: string) => void;
+}
+
+/** Acrescenta, remove ou limpa os submarinos inimigos (alvos fictícios do tiro de combate). */
+export function enemyCommand(c: EnemyCmdCtx, action: EnemyAction, p: EnemyParams = {}): void {
+  const ws = c.s.weapons;
+  if (!ws) return;
+  const list = (ws.enemies ??= []);
+  if (action === 'clear') {
+    if (!list.length) return;
+    ws.enemies = [];
+    ws.explosions = [];
+    c.log(`Submarinos inimigos removidos (${list.length})`, G);
+    return;
+  }
+  if (action === 'remove') {
+    const x = list.find((k) => k.id === p.id);
+    if (!x) return c.log(`Ordem recusada: inimigo ${p.id ?? '?'} não existe.`, G);
+    ws.enemies = list.filter((k) => k !== x);
+    c.log(`${x.name} removido`, G);
+    return;
+  }
+  const own = c.s.body.pos;
+  const range = Math.max(300, Math.min(30000, p.range ?? 3000));
+  const brg = wrap360(c.heading + (p.bearing ?? 20));
+  const n = own.x + Math.cos(brg * DEG) * range;
+  const e = own.y + Math.sin(brg * DEG) * range;
+  const bottom = c.env.bottomDepthAt(n, e);
+  if (bottom < 30) return c.log(`Submarino inimigo recusado — águas rasas no ponto escolhido (${bottom.toFixed(0)} m de fundo)`, G);
+  const depth = Math.max(15, Math.min(p.depth ?? Math.max(40, own.z + 20), bottom - 12));
+  const course = wrap360(p.course ?? brg + 90);
+  const speed = Math.max(0, Math.min(10, p.speed ?? 5 * KN));
+  ws.enemyCount = (ws.enemyCount ?? 0) + 1;
+  // o prefixo INI identifica o inimigo como alvo (isEnemyId); um id escolhido de fora também o recebe
+  let id = p.id ? (isEnemyId(p.id) ? p.id : `INI-${p.id}`) : `INI${ws.enemyCount}`;
+  while (list.some((k) => k.id === id)) id = `${id}'`;
+  const name = p.name ?? `Submarino inimigo ${ws.enemyCount}`;
+  list.push({ id, name, n, e, d: depth, course, speed, cmdCourse: course, cmdSpeed: speed, cmdDepth: depth, evading: false, sunk: null, pitch: 0, hits: 0 });
+  c.log(
+    `${name} (fictício) a ${(range / 1000).toFixed(1)} km, marcação ${Math.round(brg).toString().padStart(3, '0')}°, cota ${depth.toFixed(0)} m, rumo ${Math.round(course).toString().padStart(3, '0')}°, ${(speed / KN).toFixed(0)} nós`,
+    G,
+  );
+}
+
+function updateEnemies(v: VesselConfig, s: SimState, inp: WeaponsStepInput): void {
+  const ws = s.weapons!;
+  const list = ws.enemies;
+  if (!list?.length) return;
+  const cfg = v.weapons?.enemy ?? ENEMY_DEFAULT;
+  const { ctx } = inp;
+  const dt = ctx.dt;
+  for (const x of list) {
+    const bottom = ctx.env.bottomDepthAt(x.n, x.e);
+    if (x.sunk !== null) {
+      // atingido: perde a propulsão, embica e desce até o fundo
+      x.speed *= Math.exp(-dt / 6);
+      x.pitch += (28 - x.pitch) * (1 - Math.exp(-dt / 8));
+      x.d = Math.min(bottom - 2, x.d + cfg.sinkRate * dt * Math.min(1, (s.t - x.sunk) / 4));
+      x.n += x.speed * Math.cos(x.course * DEG) * dt;
+      x.e += x.speed * Math.sin(x.course * DEG) * dt;
+      continue;
+    }
+    // ameaça: torpedo em corrida contra ele, dentro do alcance de alerta
+    let threat: TorpedoRun | null = null;
+    for (const r of ws.runs) if (r.target === x.id && (r.phase === 'ataque' || r.phase === 'guiado' || r.phase === 'busca') && Math.hypot(r.n - x.n, r.e - x.e) < cfg.alertRange) threat = r;
+    if (threat && !x.evading) ctx.log(`${x.name}: detectou o torpedo ${threat.id} — manobra evasiva`, G);
+    x.evading = !!threat;
+    let course = x.cmdCourse;
+    let speed = x.cmdSpeed;
+    if (threat) {
+      course = wrap360(Math.atan2(x.e - threat.e, x.n - threat.n) / DEG);
+      speed = Math.max(speed, cfg.evadeSpeed);
+    }
+    // fundo raso à frente: guina para boreste até achar água
+    const ahead = ctx.env.bottomDepthAt(x.n + Math.cos(x.course * DEG) * 400, x.e + Math.sin(x.course * DEG) * 400);
+    if (ahead < x.d + 20) course = wrap360(x.course + 90);
+    const dh = angDiff(course, x.course);
+    const mt = cfg.turnRate * dt;
+    x.course = wrap360(x.course + Math.max(-mt, Math.min(mt, dh)));
+    const dv = speed - x.speed;
+    x.speed += Math.max(-cfg.accel * dt, Math.min(cfg.accel * dt, dv));
+    const dCmd = Math.max(15, Math.min(x.cmdDepth, bottom - 12));
+    x.d += Math.max(-cfg.depthRate * dt, Math.min(cfg.depthRate * dt, dCmd - x.d));
+    x.pitch = Math.max(-8, Math.min(8, ((dCmd - x.d) / 20) * 8));
+    x.n += x.speed * Math.cos(x.course * DEG) * dt;
+    x.e += x.speed * Math.sin(x.course * DEG) * dt;
+  }
+}
+
+/** Alvo de um torpedo em corrida (contato do quadro tático ou submarino inimigo ainda à tona… ou ao fundo, não). */
+function runTarget(env: Environment, origin: LatLon, s: SimState, r: TorpedoRun): WeaponTarget | undefined {
+  if (!r.target) return undefined;
+  if (isEnemyId(r.target)) {
+    const x = s.weapons?.enemies?.find((k) => k.id === r.target && k.sunk === null);
+    return x ? enemyTarget(x) : undefined;
+  }
+  return weaponTargets(env, origin, s.t, r.traffic).find((c) => c.id === r.target);
+}
+
+/** Espoleta de proximidade da arma de combate: explosão, o inimigo afunda. */
+function explode(v: VesselConfig, s: SimState, inp: WeaponsStepInput, r: TorpedoRun, x: EnemySub | null, dist: number): void {
+  const ws = s.weapons!;
+  const { ctx } = inp;
+  ws.explosions = [...(ws.explosions ?? []), { id: r.id, t: s.t, n: r.n, e: r.e, d: r.d, target: x?.id ?? null }].slice(-6);
+  r.phase = 'explodiu';
+  r.wire = false;
+  r.speed = 0;
+  r.endReason = 'explosão';
+  const own = Math.hypot(ctx.pos.x - r.n, ctx.pos.y - r.e);
+  if (x) {
+    x.sunk = s.t;
+    x.evading = false;
+    r.hit = { t: s.t, dist, depth: r.d, target: x.id, name: x.name };
+    ctx.log(`Torpedo ${r.id}: EXPLOSÃO — ${x.name} atingido a ${dist.toFixed(0)} m, cota ${r.d.toFixed(0)} m (${(own / 1000).toFixed(1)} km do SX-1). O alvo afunda.`, G);
+  } else ctx.log(`Torpedo ${r.id}: explosão a ${(own / 1000).toFixed(1)} km do SX-1`, G);
+  void v;
 }
 
 function runAuto(c: TubeCmdCtx, i: number, full: number, sea: number): void {
@@ -762,7 +1097,17 @@ function updateRun(v: VesselConfig, s: SimState, inp: WeaponsStepInput, r: Torpe
   const W = w.weapon;
   const { ctx } = inp;
   const dt = ctx.dt;
-  if (r.phase === 'recolher') return;
+  if (r.phase === 'recolher' || r.phase === 'explodiu') return;
+  const combat = r.presets.warhead === 'combate';
+  if (r.phase === 'perdido') {
+    // arma de combate sem alvo no fim da corrida: sem flutuador, desce até o fundo
+    if (r.wire) r.wire = false;
+    r.speed *= Math.exp(-dt / 3);
+    r.d = Math.min(ctx.env.bottomDepthAt(r.n, r.e) - 0.5, r.d + 0.8 * dt);
+    r.n += r.speed * Math.cos(r.heading * DEG) * dt;
+    r.e += r.speed * Math.sin(r.heading * DEG) * dt;
+    return;
+  }
   r.trackTimer += dt;
   if (r.trackTimer >= 2) {
     r.trackTimer = 0;
@@ -788,19 +1133,38 @@ function updateRun(v: VesselConfig, s: SimState, inp: WeaponsStepInput, r: Torpe
   r.guideTimer += dt;
   if (r.guideTimer >= 0.2) {
     r.guideTimer = 0;
-    let tg: Contact | undefined;
-    if (r.target) tg = weaponTargets(ctx.env, origin, s.t, r.traffic).find((c) => c.id === r.target);
+    // arma de combate em busca: o autodiretor procura um submarino inimigo no cone
+    if (combat && !r.target && (r.phase === 'busca' || r.phase === 'guiado')) {
+      let best: EnemySub | null = null;
+      let bestR = W.acquisitionRange;
+      for (const x of s.weapons?.enemies ?? []) {
+        if (x.sunk !== null) continue;
+        const rr = Math.hypot(x.n - r.n, x.e - r.e);
+        if (rr < bestR && Math.abs(angDiff(wrap360(Math.atan2(x.e - r.e, x.n - r.n) / DEG), r.heading)) <= W.seekerHalfAngle) [best, bestR] = [x, rr];
+      }
+      if (best) {
+        r.target = best.id;
+        r.presets = { ...r.presets, target: best.id };
+        ctx.log(`Torpedo ${r.id}: autodiretor detectou ${best.name} a ${bestR.toFixed(0)} m`, G);
+      }
+    }
+    const tg = runTarget(ctx.env, origin, s, r);
     if (tg) {
       const dn = tg.n - r.n;
       const de = tg.e - r.e;
       const range = Math.hypot(dn, de);
       const bearing = wrap360(Math.atan2(de, dn) / DEG);
-      r.tgt = { n: tg.n, e: tg.e, course: tg.course, speed: tg.speed, name: tg.name, range, bearing };
+      r.tgt = { n: tg.n, e: tg.e, course: tg.course, speed: tg.speed, name: tg.name, range, bearing, d: tg.d };
       r.closest = Math.min(r.closest, range);
-      if (r.phase !== 'afastamento' && range < W.hitRadius) {
+      const enemy = tg.enemy ? (s.weapons?.enemies?.find((x) => x.id === tg.id) ?? null) : null;
+      if (combat && enemy && r.phase !== 'afastamento') {
+        const d3 = Math.hypot(range, enemy.d - r.d);
+        if (d3 < (W.fuzeRadius ?? 12)) return explode(v, s, inp, r, enemy, d3);
+      } else if (!combat && r.phase !== 'afastamento' && range < W.hitRadius) {
         r.hit = { t: s.t, dist: range, depth: r.d, target: tg.id, name: tg.name };
         r.endReason = 'acerto';
         r.phase = 'flutuando';
+        if (enemy) enemy.hits += 1;
         ctx.log(`Torpedo ${r.id}: ACERTO (exercício) — passou sob ${tg.name} a ${range.toFixed(0)} m, cota ${r.d.toFixed(0)} m. Fim de corrida; a arma sobe para ser recolhida.`, G);
         return;
       }
@@ -832,7 +1196,9 @@ function updateRun(v: VesselConfig, s: SimState, inp: WeaponsStepInput, r: Torpe
   r.heading = wrap360(r.heading + Math.max(-maxTurn, Math.min(maxTurn, dh)));
   // cota (sem passar do fundo)
   const bottom = ctx.env.bottomDepthAt(r.n, r.e);
-  const dCmd = Math.min(r.presets.depth, bottom - 3);
+  // contra um submarino, a arma de combate desce à cota do alvo na aproximação final
+  const aim = combat && r.tgt?.d !== undefined && (r.phase === 'ataque' || (r.phase === 'guiado' && r.tgt.range < 2 * W.acquisitionRange)) ? r.tgt.d : r.presets.depth;
+  const dCmd = Math.min(aim, bottom - 3);
   const dd = dCmd - r.d;
   r.d += Math.max(-W.depthRate * dt, Math.min(W.depthRate * dt, dd));
   r.n += r.speed * Math.cos(r.heading * DEG) * dt;
@@ -840,7 +1206,7 @@ function updateRun(v: VesselConfig, s: SimState, inp: WeaponsStepInput, r: Torpe
   r.run += r.speed * dt;
   if (bottom < 4) {
     r.endReason = 'águas rasas';
-    r.phase = 'flutuando';
+    r.phase = combat ? 'perdido' : 'flutuando';
     ctx.log(`Torpedo ${r.id}: águas rasas (${bottom.toFixed(0)} m) — fim de corrida`, G);
     return;
   }
@@ -850,8 +1216,11 @@ function updateRun(v: VesselConfig, s: SimState, inp: WeaponsStepInput, r: Torpe
   }
   if (r.run >= W.range[r.presets.speed]) {
     r.endReason = 'fim da bateria';
-    r.phase = 'flutuando';
-    ctx.log(`Torpedo ${r.id}: fim da bateria após ${(r.run / 1000).toFixed(1)} km${r.target ? ` (menor distância ao alvo ${r.closest.toFixed(0)} m)` : ''} — a arma sobe para ser recolhida`, G);
+    r.phase = combat ? 'perdido' : 'flutuando';
+    ctx.log(
+      `Torpedo ${r.id}: fim da bateria após ${(r.run / 1000).toFixed(1)} km${r.target ? ` (menor distância ao alvo ${r.closest.toFixed(0)} m)` : ''} — ${combat ? 'a arma afunda' : 'a arma sobe para ser recolhida'}`,
+      G,
+    );
   }
 }
 

@@ -70,6 +70,7 @@ const VIEWS: ViewOption<ViewMode | 'seguir'>[] = [
   { id: 'calado', label: 'Calado' },
   { id: 'navio', label: 'Navio próximo' },
   { id: 'torpedo', label: 'Torpedo (acompanhar)' },
+  { id: 'alvo', label: 'Alvo (submarino inimigo)' },
   { id: 'fixa', label: 'Fixa' },
   { id: 'passadico', label: 'Passadiço' },
   { id: 'drone', label: 'Drone (câmera livre)' },

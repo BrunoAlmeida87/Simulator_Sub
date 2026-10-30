@@ -60,7 +60,9 @@ As cargas deslocáveis (`mass.shiftLoads`) entram na condição de projeto na po
 | Comprimento | 9,7 a 10,4 m | até a parede chegar a 3 cm do casco externo; portas no nariz da proa (x ≈ 33,9–34,9 m) |
 | Arma | F21 de exercício (ordem de grandeza pública): 1,6 t, 6,4 m, 1,3 m³ | velocidade baixa 25 nós / 50 km, alta 50 nós / 20 km; partida 2,5 s; guinada 12 °/s; cota 2,5 m/s |
 | Guiagem | fio de 50 km; distância de segurança 200 m | autodiretor: 1,8 km, cone ±45°; acerto de exercício a < 25 m do alvo (passa sob ele) |
-| Fim de corrida | subida a 1 m/s | flutua para ser recolhida |
+| Fim de corrida | subida a 1 m/s | exercício: flutua para ser recolhida; combate: afunda |
+| Arma de combate | espoleta de proximidade 12 m (distância 3D, `weapon.fuzeRadius`) | só contra submarino inimigo; desce à cota do alvo na aproximação final |
+| Submarino inimigo (`weapons.enemy`) | fuga 9 nós, guinada 1,5 °/s, cota 0,5 m/s, aceleração 0,06 m/s² | alerta a 2,5 km do torpedo em ataque; atingido, afunda a 1,2 m/s; cota ≥ 15 m e ≥ 12 m acima do fundo |
 | Ejeção | 13 m/s na boca, aceleração constante no tubo (≈ 1,5 s) | reação −(m_arma + ½ m_água)·a no meio do tubo |
 | Garrafa de lançamento | 0,25 m³ a 150 bar (≈ 45 kg de ar) | mínimo 100 bar para disparar; recarga do coletor AP a 0,4 kg/s; sobram 20 bar |
 | Alagamento / drenagem | 0,02 / 0,03 m³/s | água do / para o TCA |

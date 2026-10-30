@@ -352,6 +352,21 @@ export interface WeaponSpec {
   hitRadius: number;
   /** velocidade de subida ao fim da corrida (arma de exercício flutua para ser recolhida, m/s) */
   floatRate: number;
+  /** arma de combate: distância 3D ao alvo que aciona a espoleta de proximidade (m) */
+  fuzeRadius?: number;
+}
+
+/** Submarino inimigo fictício (alvo): manobra evasiva e afundamento. */
+export interface EnemyConfig {
+  /** velocidade de fuga (m/s), razão de guinada (°/s), variação de cota (m/s), aceleração (m/s²) */
+  evadeSpeed: number;
+  turnRate: number;
+  depthRate: number;
+  accel: number;
+  /** velocidade de afundamento depois de atingido (m/s) */
+  sinkRate: number;
+  /** distância em que percebe o torpedo em ataque e começa a fugir (m) */
+  alertRange: number;
 }
 
 export interface WeaponsConfig {
@@ -382,6 +397,8 @@ export interface WeaponsConfig {
   flask: { volume: number; pressure: number; minPressure: number; rechargeFlow: number };
   /** velocidade da arma na boca do tubo (m/s, ejeção por ar comprimido) */
   ejectSpeed: number;
+  /** submarinos inimigos fictícios (alvos do tiro de combate) */
+  enemy?: EnemyConfig;
 }
 
 export interface SimSettings {

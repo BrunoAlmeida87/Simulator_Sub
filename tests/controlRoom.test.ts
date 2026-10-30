@@ -374,3 +374,21 @@ describe('Som e anúncios (1MC) da sala', () => {
     expect(sayOrder('PARAR')).toBe('parar');
   });
 });
+
+describe('Painel de lançamento: passo a passo com cores', () => {
+  it('no modo MANUAL só a próxima etapa tem ação; as outras mostram o estado', () => {
+    const e = buildScenario('submerso_50');
+    const ui = newUi();
+    ui.page['armas.modo'] = 1;
+    const sent: Command[] = [];
+    const regions = drawRegions(drawLaunchPanel(mockActs(sent)), e, ui, [960, 640]);
+    const steps = regions.filter((r) => r.id.startsWith('etapa_'));
+    expect(steps.length).toBe(10);
+    expect(steps.filter((r) => r.action).map((r) => r.id)).toEqual(['etapa_alimentar']);
+    steps.find((r) => r.id === 'etapa_alimentar')!.action!();
+    expect(sent.at(-1)).toMatchObject({ type: 'tube', tube: 1, action: 'alimentar' });
+    applyCommand(e, sent.at(-1)!);
+    const again = drawRegions(drawLaunchPanel(mockActs(sent)), e, ui, [960, 640]);
+    expect(again.filter((r) => r.id.startsWith('etapa_') && r.action).map((r) => r.id)).toEqual(['etapa_alagar']);
+  });
+});
