@@ -1,3 +1,4 @@
+import { SCENE_LAYER_KEYS } from '../../render3d/layers';
 /**
  * OPERAÇÃO — CENTRAL DE OPERAÇÃO (antiga Pilotagem; id de tela 'pilotagem').
  * Indicadores no topo, cena 3D grande, console inferior fixo (propulsão,
@@ -60,42 +61,7 @@ const PILOT_LAYER_DEFAULTS = {
   hullOpacity: 0.16,
   resultantGain: 'auto' as const,
 };
-const PILOT_LAYER_KEYS: LayerKey[] = [
-  'sonarRays',
-  'sonarWave',
-  'sonarThermocline',
-  'sonarProfile',
-  'sonarCoverage',
-  'sonarHeatmap',
-  'sonarSurface',
-  'sonarBottom',
-  'sonarEchoes',
-  'sonarBearings',
-  'sonarRulers',
-  'vectors',
-  'hydroVectors',
-  'trimVectors',
-  'tanks',
-  'pipes',
-  'flows',
-  'halfCut',
-  'labels',
-  'batteryInfo',
-  'airInfo',
-  'wake',
-  'wind',
-  'pennant',
-  'flag',
-  'trail',
-  'markers',
-  'trimRef',
-  'pitchAngle',
-  'depthLines',
-  'ships',
-  'torpedoes',
-  'noWater',
-  'presLight',
-];
+const PILOT_LAYER_KEYS: LayerKey[] = SCENE_LAYER_KEYS;
 
 /** vistas da Operação (os enquadramentos de apresentação já ligam o que mostram) */
 const PILOT_VIEWS: ViewOption[] = [
@@ -205,9 +171,7 @@ export function PilotScreen() {
     if (p.markers !== undefined) setMarks(p.markers);
     if (p.trimRef !== undefined) setTrimRef(p.trimRef);
     if (p.ships !== undefined) setShips(p.ships);
-    const rest: Partial<SceneLayers> = {};
-    for (const k of Object.keys(PILOT_LAYER_DEFAULTS) as (keyof typeof PILOT_LAYER_DEFAULTS)[]) if (p[k] !== undefined) Object.assign(rest, { [k]: p[k] });
-    if (Object.keys(rest).length) setLay({ ...laySaved, ...rest });
+    setLay({ ...laySaved, ...p });
   };
   const [quality, setQuality] = useQuality();
   const o = e.outputs;
@@ -251,7 +215,7 @@ export function PilotScreen() {
             quality={quality}
             view={view}
             cutaway={cut}
-            labels={false}
+
             persistKey="pilot"
             layers={{ ...layerValue, highlight: ops.highlight }}
             onPick={(p) => {

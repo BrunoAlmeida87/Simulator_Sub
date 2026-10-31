@@ -109,8 +109,8 @@ describe('Camadas em grupos', () => {
     expect(toggleLayerGroup(vet, {})).toEqual({ vectors: true, hydroVectors: true, trimVectors: true, hiddenVectors: [] });
     expect(toggleLayerGroup(vet, { hydroVectors: true })).toEqual({ vectors: false, hydroVectors: false, trimVectors: false });
     const amb = LAYER_GROUPS.find((g) => g.id === 'amb')!.keys;
-    expect(toggleLayerGroup(amb, {})).toEqual({ noWater: true, presLight: true });
+    expect(toggleLayerGroup(amb, {})).toEqual({ fog: true, noWater: true, presLight: true });
     expect(toggleLayerGroup(['noWater'], {})).toEqual({ noWater: true });
-    expect(toggleLayerGroup(amb, { noWater: true })).toEqual({ noWater: false, presLight: false });
+    expect(toggleLayerGroup(amb, { noWater: true })).toEqual({ fog: false, noWater: false, presLight: false });
   });
 });

@@ -12,5 +12,6 @@ referencias/
 # arquivo de trabalho do Blender
 *.blend
 *.blend1
+public/models/catalog.json
 # saída intermediária do modelo 3D (Blender)
 build/

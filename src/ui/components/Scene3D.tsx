@@ -18,6 +18,8 @@ import { bridgeSight, useBridgeSight } from '../bridgeSight';
 import { DroneHud } from './DroneHud';
 import { droneCtl } from '../droneCtl';
 import type { DronePose } from '../../render3d/drone';
+import { labelIsVisible } from '../../render3d/labelVisibility';
+import { labelPreferences, useLabelPreferences } from '../labelPreferences';
 import { layoutLabels, type LabelRect } from '../../render3d/labelLayout';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
@@ -38,8 +40,6 @@ export interface Scene3DProps {
   className?: string;
   style?: React.CSSProperties;
   children?: ReactNode;
-  /** rótulos básicos (superfície, cota/velocidade, fundo) */
-  labels?: boolean;
   quality?: OceanQuality;
   /** camadas visuais (vetores, tanques, tubulações, escoamentos, identificações…) */
   layers?: Partial<SceneLayers>;
@@ -65,8 +65,6 @@ export interface Scene3DProps {
   hudKeys?: boolean;
   /** botão "Descer" no painel do passadiço */
   onBridgeExit?: () => void;
-  /** identificações ocultas na primeira vez (ids de Label3D, ex.: 'sub' = cota e velocidade sobre o submarino) */
-  defaultHiddenLabels?: string[];
 }
 
 /** painel do passadiço com a visada compartilhada desta janela (ou a recebida pela prop, só leitura) */
@@ -77,7 +75,6 @@ function BridgeLayer({ p }: { p: Scene3DProps }) {
 
 type CamPose = { pos: [number, number, number]; target: [number, number, number] };
 
-const BASIC = new Set(['surf', 'sub', 'bot']);
 
 function mergedLayers(p: Scene3DProps): SceneLayers {
   const l = { ...defaultLayers(), ...p.layers };
@@ -98,19 +95,8 @@ export function Scene3D(props: Scene3DProps) {
   opts.current = props;
   /** chave da última posição de câmera imposta já aplicada */
   const appliedPose = useRef(-1);
-  // identificações que o operador ocultou com um clique sobre elas (guardadas por tela)
-  const hiddenKey = `rotulos.ocultos.${props.persistKey ?? 'geral'}`;
-  const [hidden, setHidden] = useState<string[]>(() => loadPersisted<string[]>(hiddenKey, props.defaultHiddenLabels ?? []));
-  const hiddenRef = useRef(hidden);
-  hiddenRef.current = hidden;
-  const saveHidden = (list: string[]) => {
-    savePersisted(hiddenKey, list);
-    setHidden(list);
-  };
-  const hideLabel = useRef<(id: string) => void>(() => undefined);
-  hideLabel.current = (id: string) => {
-    if (!hiddenRef.current.includes(id)) saveHidden([...hiddenRef.current, id]);
-  };
+  // identificações ocultas com um clique (compartilhadas entre as telas): atalho para mostrar todas de novo
+  const hiddenCount = Object.keys(useLabelPreferences().hidden).length;
 
   useEffect(() => {
     let raf = 0;
@@ -124,7 +110,7 @@ export function Scene3D(props: Scene3DProps) {
           try {
             const sc = new SubmarineScene(box.current!, runner, opts.current.view, opts.current.quality ?? defaultQuality());
             sc.layers = mergedLayers(opts.current);
-            sc.realisticFog = opts.current.fog ?? true;
+            sc.realisticFog = opts.current.fog ?? sc.layers.fog;
             appliedPose.current = -1;
             const k = opts.current.persistKey;
             if (k && opts.current.view === 'livre') {
@@ -190,7 +176,7 @@ export function Scene3D(props: Scene3DProps) {
               visualOut.bridge = opts.current.view === 'passadico' ? sc.bridge : null;
               visualOut.drone = droneOn ? sc.drone : null;
             }
-            sc.realisticFog = opts.current.fog ?? true;
+            sc.realisticFog = opts.current.fog ?? sc.layers.fog;
             sc.setRenderScale(perf.frame(() => sc.renderStats()));
             drawLabels(sc.render(), sc.labelBounds);
             if (droneOn) {
@@ -226,7 +212,7 @@ export function Scene3D(props: Scene3DProps) {
   const drawLabels = (labels: Label3D[], hull: LabelRect | null) => {
     const host = lblBox.current;
     if (!host) return;
-    const basic = opts.current.labels !== false;
+    const labelPrefs = labelPreferences.get();
     const W = host.clientWidth;
     const H = host.clientHeight;
     if (labelWidth.current !== W) {
@@ -235,16 +221,12 @@ export function Scene3D(props: Scene3DProps) {
     }
     const origin = host.getBoundingClientRect();
     const obstacles: LabelRect[] = [];
-    box.current
-      ?.querySelectorAll<HTMLElement>(
-        '.lbl-restore, .overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter',
-      )
-      .forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
-      });
+    box.current?.querySelectorAll<HTMLElement>('.lbl-restore, .overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
+    });
     const list = labels
-      .filter((l) => l.visible && !(BASIC.has(l.id) && !basic) && !hiddenRef.current.includes(l.id) && l.x > -50 && l.y > -30 && l.x < W + 50 && l.y < H + 30)
+      .filter((l) => l.visible && labelIsVisible(l.id, labelPrefs) && l.x > -50 && l.y > -30 && l.x < W + 50 && l.y < H + 30)
       .sort((a, b) => (a.prio ?? 1) - (b.prio ?? 1));
     // 1) conteúdo
     const slots = list.map((l) => {
@@ -252,20 +234,29 @@ export function Scene3D(props: Scene3DProps) {
       if (!slot) {
         const el = document.createElement('div');
         el.className = 'lbl3d';
-        el.title = 'Clique para ocultar esta identificação';
-        const id = l.id;
-        el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        el.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          hideLabel.current(id);
-        });
+        el.tabIndex = 0;
+        el.setAttribute('role', 'button');
+        el.dataset.labelId = l.id;
+        el.title = 'Clique para ocultar esta identificação. Restaure em Camadas → Identificações ocultadas.';
+        // Consome os eventos antes que alcancem a câmera ou a seleção de componentes.
+        el.onpointerdown = (event) => event.stopPropagation();
+        el.onpointerup = (event) => event.stopPropagation();
+        el.onclick = (event) => {
+          event.stopPropagation();
+          labelPreferences.hide(l.id, el.firstElementChild?.textContent ?? l.id);
+        };
+        el.onkeydown = (event) => {
+          event.stopPropagation();
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); el.click(); }
+        };
         const line = document.createElement('div');
         line.className = 'lbl3d-leader';
         host.append(line, el);
         slot = { el, line, key: '', w: 0, h: 0 };
         pool.current.set(l.id, slot);
       }
-      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.big ? 1 : 0}|${l.callout ? 1 : 0}`;
+      const sub = labelPrefs.details ? l.sub : undefined;
+      const key = `${l.text}|${sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.big ? 1 : 0}|${l.callout ? 1 : 0}`;
       if (slot.key !== key) {
         slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.big ? ' big' : ''}${l.color ? ' col' : ''}${l.callout ? ' callout' : ''}`;
         slot.el.style.borderColor = l.color ?? '';
@@ -274,10 +265,11 @@ export function Scene3D(props: Scene3DProps) {
         const a = document.createElement('div');
         a.textContent = l.text;
         slot.el.appendChild(a);
-        if (l.sub) {
+        slot.el.setAttribute('aria-label', `Ocultar identificação: ${l.text}`);
+        if (sub) {
           const b = document.createElement('div');
           b.className = 's';
-          b.textContent = l.sub;
+          b.textContent = sub;
           slot.el.appendChild(b);
         }
         slot.key = key;
@@ -294,13 +286,7 @@ export function Scene3D(props: Scene3DProps) {
       }
     }
     // 3) posição e linhas de identificação (sem forçar sobreposições)
-    const positions = layoutLabels(
-      list.map((l, i) => ({ ...l, width: slots[i].w, height: slots[i].h })),
-      W,
-      H,
-      obstacles,
-      hull,
-    );
+    const positions = layoutLabels(list.map((l, i) => ({ ...l, width: slots[i].w, height: slots[i].h })), W, H, obstacles, hull);
     const used = new Set<string>();
     const byId = new Map(list.map((l) => [l.id, l]));
     for (const p of positions) {
@@ -321,11 +307,10 @@ export function Scene3D(props: Scene3DProps) {
       }
       used.add(p.id);
     }
-    for (const [id, s] of pool.current)
-      if (!used.has(id)) {
-        s.el.style.display = 'none';
-        s.line.style.display = 'none';
-      }
+    for (const [id, s] of pool.current) if (!used.has(id)) {
+      s.el.style.display = 'none';
+      s.line.style.display = 'none';
+    }
   };
 
   useEffect(() => {
@@ -353,9 +338,9 @@ export function Scene3D(props: Scene3DProps) {
     <div className={`view3d ${props.className ?? ''}`} ref={box} style={props.style} onPointerDown={onDown} onPointerUp={onUp}>
       {err && <div style={{ padding: 20 }}>{err}</div>}
       <div className="lbl3d-host" ref={lblBox} />
-      {hidden.length > 0 && (
-        <button className="lbl-restore" onClick={() => saveHidden([])} title="Mostrar de novo as identificações ocultas nesta tela">
-          {hidden.length === 1 ? '1 identificação oculta' : `${hidden.length} identificações ocultas`} · mostrar
+      {hiddenCount > 0 && (
+        <button className="lbl-restore" onClick={labelPreferences.restoreAll} title="Mostrar de novo as identificações ocultas com um clique (também em Camadas → Identificações ocultadas)">
+          {hiddenCount === 1 ? '1 identificação oculta' : `${hiddenCount} identificações ocultas`} · mostrar
         </button>
       )}
       <TrimGainBanner />
@@ -366,3 +351,4 @@ export function Scene3D(props: Scene3DProps) {
     </div>
   );
 }
+

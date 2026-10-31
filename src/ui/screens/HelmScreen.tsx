@@ -1,3 +1,5 @@
+import { SceneLayerPanel } from '../components/SceneLayerPanel';
+import { SCENE_LAYER_KEYS } from '../../render3d/layers';
 /**
  * PAINEL DE GOVERNO — inspirado no posto de governo de um submarino: à
  * esquerda o GOVERNO (manche para leme de direção e lemes de ré, alavanca dos
@@ -21,7 +23,7 @@ import { useIdentity } from '../appearance';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { perspSection } from '../components/SeaControls';
 import { viewSection, type ViewOption } from '../components/OverlayMenu';
-import { LayerPanel, type LayerKey } from '../components/LayerPanel';
+import { type LayerKey } from '../components/LayerPanel';
 import type { SceneLayers } from '../../render3d/layers';
 
 /** camadas da cena do Governo (padrão = como era: boias, esteira e identificações; sem corte, logo sem rótulos internos) */
@@ -38,19 +40,7 @@ const HELM_LAYER_DEFAULTS: Partial<SceneLayers> = {
   sonarBearings: false,
   sonarRulers: false,
  markers: true, wake: true, wind: true, labels: true, trail: true, ships: true, noWater: false, trimRef: false, depthLines: true };
-const HELM_LAYER_KEYS: LayerKey[] = [
-  'sonarRays',
-  'sonarWave',
-  'sonarThermocline',
-  'sonarProfile',
-  'sonarCoverage',
-  'sonarHeatmap',
-  'sonarSurface',
-  'sonarBottom',
-  'sonarEchoes',
-  'sonarBearings',
-  'sonarRulers',
-'labels', 'wake', 'wind', 'pennant', 'flag', 'trail', 'markers', 'trimRef', 'pitchAngle', 'depthLines', 'ships', 'torpedoes', 'noWater'];
+const HELM_LAYER_KEYS: LayerKey[] = SCENE_LAYER_KEYS;
 const HELM_VIEWS: ViewOption[] = [
   { id: 'perseguicao', label: 'Perseguição' },
   { id: 'cinematografica', label: 'Cinematográfica' },
@@ -92,8 +82,8 @@ export function HelmScreen() {
         <div><span>Piloto automático</span><strong className="gov-authority">Rumo: {ap.headingMode === 'AUTO' ? 'AUTO' : 'MANUAL'}<br />Prof.: {ap.depthMode === 'AUTO' ? 'AUTO' : 'MANUAL'}</strong></div>
       </div>
       {showScene && <div className="helm-view" id="gov-scene">
-        {/* syncVisual false: esta cena reduzida (sem vetores) não define a 2ª janela, que segue a última cena 3D completa */}
-        <Scene3D quality={quality} view={view} labels={false} persistKey="helm" syncVisual={false} layers={{ ...lay, hydroVectors: false, vectors: false }}>
+        {/* syncVisual false: esta cena não define a 2ª janela, que segue a última cena 3D completa */}
+        <Scene3D quality={quality} view={view} persistKey="helm" syncVisual={false} layers={lay}>
           <OverlayCtl
             persistKey="helm"
             sections={[
@@ -102,7 +92,7 @@ export function HelmScreen() {
                 id: 'camadas',
                 label: <>Camadas ({HELM_LAYER_KEYS.filter((k) => !!lay[k]).length})</>,
                 title: 'Camadas da cena, com marcar/desmarcar todas',
-                content: <LayerPanel keys={HELM_LAYER_KEYS} value={lay} onChange={(p) => setLay({ ...laySaved, ...p })} />,
+                content: <SceneLayerPanel e={e} keys={HELM_LAYER_KEYS} value={lay} onChange={(p) => setLay({ ...laySaved, ...p })} />,
               },
               perspSection(),
             ]}

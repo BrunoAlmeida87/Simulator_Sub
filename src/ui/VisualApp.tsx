@@ -1,3 +1,4 @@
+import { SCENE_LAYER_KEYS } from '../render3d/layers';
 /**
  * JANELA DE VISUALIZAÇÃO (segundo monitor): só a cena, os indicadores e a
  * narração. Não roda física — espelha a janela de controle pelo
@@ -20,42 +21,7 @@ import { identity } from './identity';
 import { PresCardView, PresHudView, hudSide } from './components/PresCard';
 
 /** camadas desta janela (o casco tem botão próprio) */
-const LAYER_KEYS: LayerKey[] = [
-  'sonarRays',
-  'sonarWave',
-  'sonarThermocline',
-  'sonarProfile',
-  'sonarCoverage',
-  'sonarHeatmap',
-  'sonarSurface',
-  'sonarBottom',
-  'sonarEchoes',
-  'sonarBearings',
-  'sonarRulers',
-  'vectors',
-  'hydroVectors',
-  'trimVectors',
-  'tanks',
-  'pipes',
-  'flows',
-  'halfCut',
-  'batteryInfo',
-  'airInfo',
-  'wake',
-  'wind',
-  'pennant',
-  'flag',
-  'ships',
-  'torpedoes',
-  'markers',
-  'trail',
-  'labels',
-  'trimRef',
-  'pitchAngle',
-  'depthLines',
-  'noWater',
-  'presLight',
-];
+const LAYER_KEYS: LayerKey[] = SCENE_LAYER_KEYS;
 
 const VIEWS: ViewOption<ViewMode | 'seguir'>[] = [
   { id: 'seguir', label: 'Igual ao controle', tip: 'Segue a vista da janela de controle' },
@@ -112,7 +78,7 @@ export function VisualApp() {
         quality={defaultQuality()}
         view={view}
         layers={layers}
-        labels={false}
+
         persistKey="visual"
         onPick={(p) => p && v?.pick(p)}
         bridge={(presDrive || mode === 'seguir') && view === 'passadico' ? (v?.bridge ?? undefined) : undefined}

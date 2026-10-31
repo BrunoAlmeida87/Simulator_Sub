@@ -486,7 +486,7 @@ export function WeaponsScreen() {
               <Toggle on={cut} set={setCut} label="Corte (armas nos tubos)" />
               <Toggle on={lbl3d} set={setLbl3d} label="Identificações" />
             </div>
-            <Scene3D view={view} viewKey={camKey} layers={layers} cutaway={cut} persistKey="armas" defaultHiddenLabels={['sub']} syncVisual={false} style={{ height: 460, position: 'relative' }} />
+            <Scene3D view={view} viewKey={camKey} layers={layers} cutaway={cut} persistKey="armas" syncVisual={false} style={{ height: 460, position: 'relative' }} />
             <p className="subtle">
               Arraste para girar em volta do torpedo ou do alvo (a câmera continua acompanhando), roda para aproximar. Clique de novo no botão da câmera para voltar ao enquadramento padrão. Clique numa identificação para
               ocultá-la.
