@@ -112,7 +112,9 @@ export const VIEW_OPTIONS: [ViewMode, string][] = [
   ['calado', 'Calado'],
   ['navio', 'Navio próximo'],
   ['torpedo', 'Torpedo (acompanhar)'],
-  ['alvo', 'Alvo (submarino inimigo)'],
+  ['alvo', 'Alvo (submarino inimigo, fragata ou alvo em terra)'],
+  ['missil', 'Míssil (acompanhar)'],
+  ['missilCine', 'Míssil cinematográfica'],
   ['piloto', 'Seguir (lateral)'],
   ['perseguicao', 'Perseguição'],
   ['cinematografica', 'Cinematográfica'],
@@ -632,6 +634,81 @@ export const ACTION_TYPES: ActionType[] = [
     run: (p, c) => c.send({ type: 'enemy', action: 'add', range: num(p, 'dist', 3000), bearing: num(p, 'marc', 20), depth: num(p, 'cota', 60), speed: (num(p, 'vel', 5) * 1852) / 3600 }),
   },
   {
+    id: 'missilDisparar',
+    group: 'Armas (míssil SM39)',
+    label: 'Míssil SM39: preparar e disparar',
+    hint: 'O tubo precisa estar com o SM39 (cenário "Ataque com míssil Exocet" ou troca na tela Armas). A cápsula sobe, o míssil sai da água e voa rente ao mar até o alvo.',
+    fields: [
+      { key: 'tubo', label: 'Tubo', type: 'select', options: TUBES },
+      {
+        key: 'alvo',
+        label: 'Alvo',
+        type: 'select',
+        options: () => [
+          ['fragata', 'fragata mais próxima (na hora da ação)'],
+          ['terra', 'alvo em terra mais próximo (na hora da ação)'],
+          ['', 'sem alvo (autodiretor no rumo)'],
+        ],
+      },
+      {
+        key: 'arma',
+        label: 'Ogiva',
+        type: 'select',
+        options: () => [
+          ['combate', 'combate (impacto e explosão)'],
+          ['exercicio', 'exercício (passa por cima do alvo)'],
+        ],
+      },
+      {
+        key: 'subida',
+        label: 'Subida da cápsula',
+        type: 'select',
+        options: () => [
+          ['obliqua', 'oblíqua (≈ 45°)'],
+          ['vertical', 'quase vertical (≈ 75°)'],
+        ],
+      },
+    ],
+    defaults: { tubo: '5', alvo: 'fragata', arma: 'combate', subida: 'obliqua' },
+    describe: (p) => `DISPARAR o SM39 do tubo ${num(p, 'tubo', 5)} contra ${str(p, 'alvo') === 'terra' ? 'o alvo em terra' : str(p, 'alvo') === 'fragata' ? 'a fragata' : 'nenhum alvo'} (${str(p, 'arma', 'combate')})`,
+    run: (p, c) => {
+      const e = c.r.engine;
+      const s = e.state;
+      const kind = str(p, 'alvo');
+      const list = (s.weapons?.hostiles ?? []).filter((h) => h.sunk === null && h.type === kind);
+      const tg = list.sort((a, b) => Math.hypot(a.n - s.body.pos.x, a.e - s.body.pos.y) - Math.hypot(b.n - s.body.pos.x, b.e - s.body.pos.y))[0];
+      const warhead = str(p, 'arma', 'combate') === 'exercicio' ? 'exercicio' : 'combate';
+      const climb = str(p, 'subida', 'obliqua') === 'vertical' ? 'vertical' : 'obliqua';
+      c.send({ type: 'tube', tube: num(p, 'tubo', 5), action: 'disparar', presets: { target: tg?.id ?? null, warhead, climb, speed: 'alta', depth: 30 }, origin: geoOriginOf(e), traffic: graphics.get().traffic });
+    },
+  },
+  {
+    id: 'fragataAdicionar',
+    group: 'Armas (míssil SM39)',
+    label: 'Fragata classe Tamandaré: acrescentar (alvo fictício)',
+    fields: [
+      { key: 'dist', label: 'Distância', type: 'number', unit: 'm', min: 3000, max: 60000, step: 1000 },
+      { key: 'marc', label: 'Marcação relativa', type: 'number', unit: '°', min: -180, max: 180, step: 5 },
+      { key: 'rumo', label: 'Rumo', type: 'number', unit: '°', min: 0, max: 359, step: 5 },
+      { key: 'vel', label: 'Velocidade', type: 'number', unit: 'nós', min: 0, max: 26, step: 1 },
+    ],
+    defaults: { dist: 25000, marc: 20, rumo: 270, vel: 15 },
+    describe: (p) => `Fragata a ${f(num(p, 'dist', 25000) / 1000)} km, marcação ${f(num(p, 'marc', 20))}°, rumo ${f(num(p, 'rumo', 270))}°`,
+    run: (p, c) => c.send({ type: 'hostile', action: 'add', kind: 'fragata', range: num(p, 'dist', 25000), bearing: num(p, 'marc', 20), course: num(p, 'rumo', 270), speed: (num(p, 'vel', 15) * 1852) / 3600 }),
+  },
+  {
+    id: 'alvoTerraAdicionar',
+    group: 'Armas (míssil SM39)',
+    label: 'Alvo em terra: acrescentar (cenários com costa)',
+    fields: [
+      { key: 'dist', label: 'A partir de', type: 'number', unit: 'm', min: 500, max: 60000, step: 500 },
+      { key: 'marc', label: 'Marcação relativa', type: 'number', unit: '°', min: -180, max: 180, step: 5 },
+    ],
+    defaults: { dist: 4000, marc: 0 },
+    describe: (p) => `Alvo em terra na marcação ${f(num(p, 'marc', 0))}°`,
+    run: (p, c) => c.send({ type: 'hostile', action: 'add', kind: 'terra', range: num(p, 'dist', 4000), bearing: num(p, 'marc', 0) }),
+  },
+  {
     id: 'inimigoLimpar',
     group: 'Armas (torpedos)',
     label: 'Submarino inimigo: remover todos',
@@ -918,6 +995,7 @@ const COMMAND_FIELDS: Record<string, Record<string, FieldCheck>> = {
   tube: { tube: isNum, action: isStr, presets: opt(isObj) },
   torpedo: { id: isStr, action: oneOf('cortarFio', 'alvo', 'rumo', 'cota', 'recolher') },
   enemy: { action: oneOf('add', 'remove', 'clear'), range: opt(isNum), bearing: opt(isNum), depth: opt(isNum), course: opt(isNum), speed: opt(isNum), id: opt(isStr) },
+  hostile: { action: oneOf('add', 'remove', 'clear'), kind: opt(oneOf('fragata', 'terra')), range: opt(isNum), bearing: opt(isNum), course: opt(isNum), speed: opt(isNum), id: opt(isStr) },
 };
 
 /** tipos de comando aceitos no modo avançado */

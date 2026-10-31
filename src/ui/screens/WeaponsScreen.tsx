@@ -5,9 +5,13 @@
  * PASSO (dez etapas em ordem: verde = liberada, vermelha = ainda não, âmbar = em andamento, ✓ = feita;
  * a cor vem de tubeSteps, a mesma regra dos intertravamentos da física); dados de tiro com arma de
  * exercício ou de combate; submarinos inimigos fictícios como alvo; o tubo em 3D etapa a etapa (corte,
- * fluxos e identificações ligáveis); a vista 3D com câmeras livres (torpedo, alvo…); torpedos em corrida
- * e a plotagem tática. Tudo passa por comandos ('tube', 'torpedo', 'enemy'); a física fica em
- * src/sim/systems/weapons.ts.
+ * fluxos e identificações ligáveis); a vista 3D com câmeras livres (torpedo, míssil, alvo…); torpedos em corrida
+ * e a plotagem tática. Tudo passa por comandos ('tube', 'torpedo', 'enemy', 'hostile'); a física fica em
+ * src/sim/systems/weapons.ts e src/sim/systems/missiles.ts.
+ *
+ * Míssil SM39 (Exocet na cápsula VSM): cada tubo leva um F21 ou um SM39 (troca e recarga escolhem o tipo); com o
+ * SM39 no tubo, os dados de tiro passam a ser os do míssil (alvo de superfície ou em terra, exercício ou combate,
+ * subida e desvio da cápsula); fragatas classe Tamandaré e alvos em terra (fictícios) entram pelo painel de alvos.
  */
 import { useMemo, useState } from 'react';
 import { cmd, useSim } from '../store';
@@ -23,8 +27,9 @@ import { makeDepthOf } from '../../sim/core/context';
 import { qToMat3 } from '../../sim/core/math';
 import { RHO_NOMINAL } from '../../sim/core/context';
 import { tubeLength, stowedWeaponX } from '../../sim/systems/torpedoTubes';
-import { DEFAULT_PRESETS, tubeSteps, tubeView, weaponTargets, isEnemyId, type ManualStep, type TubeAction, type TubeView } from '../../sim/systems/weapons';
-import type { EnemySub, TorpedoRun, TubePresets, TubeState } from '../../sim/core/state';
+import { DEFAULT_PRESETS, tubeSteps, tubeView, weaponTargets, weaponsWeight, isEnemyId, type ManualStep, type TubeAction, type TubeView } from '../../sim/systems/weapons';
+import { ENEMY_SURFACE_D, kindOf, missileRefusal, missileTargets, weaponDims } from '../../sim/systems/missiles';
+import type { EnemySub, Hostile, MissileRun, TorpedoRun, TubePresets, TubeState, WeaponKind } from '../../sim/core/state';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import type { TubeLabelGroup, TubeStagePreset } from '../../render3d/TubeStage';
@@ -43,6 +48,22 @@ const PHASE: Record<TorpedoRun['phase'], [string, string]> = {
   perdido: ['AFUNDOU', 'off'],
 };
 const STEP_ICON: Record<ManualStep['state'], string> = { feito: '✓', andamento: '⏳', liberado: '▶', bloqueado: '⛔' };
+const MPHASE: Record<MissileRun['phase'], [string, string]> = {
+  capsula: ['CÁPSULA SUBINDO', 'info'],
+  superficie: ['ROMPEU A SUPERFÍCIE', 'info'],
+  separacao: ['SEPARAÇÃO', 'info'],
+  acelerador: ['ACELERADOR', 'warn'],
+  cruzeiro: ['CRUZEIRO', 'info'],
+  busca: ['AUTODIRETOR BUSCANDO', 'info'],
+  terminal: ['TERMINAL', 'warn'],
+  subida: ['SUBIDA', 'warn'],
+  mergulho: ['MERGULHO', 'warn'],
+  impacto: ['IMPACTO', 'alarm'],
+  passagem: ['PASSAGEM (EXERCÍCIO)', 'ok'],
+  caindo: ['SEM COMBUSTÍVEL', 'off'],
+  perdido: ['CAIU', 'off'],
+};
+const KIND_ICON: Record<string, string> = { fragata: '⚓', terra: '🏭', submarino: '👾', mercante: '🚢', pesqueiro: '🎣', patrulha: '🚤', rebocador: '⛴️' };
 
 /** contexto de leitura da pressão do mar na boca de cada tubo */
 function seaCtx(e: SimulationEngine) {
@@ -102,6 +123,8 @@ export function WeaponsScreen() {
   const [tsLbl, setTsLbl] = usePersisted<Record<TubeLabelGroup, boolean>>('armas.tubo3d.rotulos', { pecas: true, valvulas: true, valores: true });
   const [tsPreset, setTsPreset] = useState<{ key: number; p: TubeStagePreset } | undefined>(undefined);
   const [enemyCfg, setEnemyCfg] = usePersisted('armas.inimigo', { range: 3000, bearing: 20, depth: 60, speed: 5 });
+  const [hostCfg, setHostCfg] = usePersisted('armas.alvoSuperficie', { range: 25000, bearing: 20, course: 90, speed: 15, landRange: 8000, landBearing: 0 });
+  const [loadKind, setLoadKind] = usePersisted<WeaponKind>('armas.carregar', 'sm39');
   const targets = useTargets(e);
   const ctx = useMemo(() => seaCtx(e), [e, s.t]);
   if (!w || !ws) return <div className="note">Este navio não tem tubos lançadores na configuração.</div>;
@@ -117,11 +140,27 @@ export function WeaponsScreen() {
   const setPr = (p: Partial<TubePresets>) => setDraft({ ...draft, [tc.n]: { ...pr, ...p } });
   const origin = geoOriginOf(e);
   const traffic = graphics.get().traffic;
-  const order = (action: TubeAction, n = tc.n) => cmd({ type: 'tube', tube: n, action, presets: n === tc.n ? pr : undefined, origin, traffic });
+  const hasMissile = !!w.missile;
+  const load: WeaponKind = hasMissile ? loadKind : 'f21';
+  const order = (action: TubeAction, n = tc.n) => cmd({ type: 'tube', tube: n, action, presets: n === tc.n ? { ...pr, load } : undefined, origin, traffic });
+  // dados de tiro do míssil com o SM39 no tubo (tubo vazio: os da arma escolhida para carregar)
+  const isSm39 = hasMissile && (t.weapon ? kindOf(t) === 'sm39' : load === 'sm39');
+  const mTargets = hasMissile
+    ? missileTargets(e.env, origin, s.t, traffic, ws).map((c) => ({
+        ...c,
+        range: Math.hypot(c.n - s.body.pos.x, c.e - s.body.pos.y),
+        bearing: ((Math.atan2(c.e - s.body.pos.y, c.n - s.body.pos.x) * 180) / Math.PI + 360) % 360,
+      }))
+    : [];
+  mTargets.sort((a, b) => Number(b.hostile) - Number(a.hostile) || a.range - b.range);
   const target = pr.target ? targets.find((x) => x.id === pr.target) : undefined;
-  const busy = t.auto !== null || t.eject !== null || t.reload !== null;
+  const mTarget = pr.target ? mTargets.find((x) => x.id === pr.target) : undefined;
+  const busy = t.auto !== null || t.eject !== null || t.reload !== null || t.unload != null;
   const combat = pr.warhead === 'combate';
-  const combatBad = combat && !!pr.target && !isEnemyId(pr.target);
+  const combatBad = isSm39 ? !!missileRefusal(ws, pr) : combat && !!pr.target && !isEnemyId(pr.target);
+  const hostiles = ws.hostiles ?? [];
+  const missiles = ws.missiles ?? [];
+  const tubeKindName = (st: TubeState) => (st.weapon ? weaponDims(w, kindOf(st)).name : '—');
   const steps = tubeSteps(v, s, ctx, e.geom.radiusAt, i, pr);
   const current = steps.find((x) => x.state === 'andamento') ?? steps.find((x) => x.state === 'liberado') ?? null;
   const enemies = ws.enemies ?? [];
@@ -139,7 +178,20 @@ export function WeaponsScreen() {
           <div>
             <h2>Sala de torpedos</h2>
             <span className="subtle">
-              6 tubos · F21 · reserva <b>{ws.reserve}</b> · lançados <b>{ws.fired}</b>
+              6 tubos · reserva F21 <b>{ws.reserve}</b>
+              {hasMissile && (
+                <>
+                  {' '}
+                  · SM39 <b>{ws.reserveSm39 ?? 0}</b>
+                </>
+              )}{' '}
+              · lançados <b>{ws.fired}</b>
+              {hostiles.length > 0 && (
+                <>
+                  {' '}
+                  · alvos <b className="wx-red">{hostiles.filter((x) => x.sunk === null).length}</b>
+                </>
+              )}
               {enemies.length > 0 && (
                 <>
                   {' '}
@@ -163,7 +215,7 @@ export function WeaponsScreen() {
                   </span>
                   <span className="wx-tube-txt">
                     <b>
-                      {TUBE_EMOJI(vw, st)} Tubo {x.n}
+                      {TUBE_EMOJI(vw, st)} Tubo {x.n} <span className={`wx-kind k-${st.weapon ? kindOf(st) : 'vazio'}`}>{tubeKindName(st)}</span>
                     </b>
                     <small>{vw.status}</small>
                   </span>
@@ -176,7 +228,33 @@ export function WeaponsScreen() {
       <div className="wx-cols">
         <div className="wx-col">
           {/* ---------- lançamento */}
-          <Panel title={`Tubo ${tc.n} (${tc.side === 'BE' ? 'boreste' : 'bombordo'})`} className="wx-launch" right={<span className={`badge ${TONE_BADGE[tv.tone]}`}>{tv.status}</span>}>
+          <Panel
+            title={`Tubo ${tc.n} (${tc.side === 'BE' ? 'boreste' : 'bombordo'}) — ${t.weapon ? (isSm39 ? 'míssil SM39 na cápsula VSM' : 'torpedo F21') : 'vazio'}`}
+            className="wx-launch"
+            right={<span className={`badge ${TONE_BADGE[tv.tone]}`}>{tv.status}</span>}
+          >
+            {hasMissile && (
+              <div className="wx-load">
+                <span>Arma da reserva:</span>
+                <div className="seg">
+                  {(['f21', 'sm39'] as WeaponKind[]).map((k) => (
+                    <button key={k} className={load === k ? 'on' : ''} onClick={() => setLoadKind(k)} title={k === 'sm39' ? 'Míssil antinavio SM39 (Exocet) na cápsula VSM' : 'Torpedo pesado F21'}>
+                      {k === 'sm39' ? `🚀 SM39 (${ws.reserveSm39 ?? 0})` : `🐟 F21 (${ws.reserve})`}
+                    </button>
+                  ))}
+                </div>
+                {t.weapon && kindOf(t) !== load && (
+                  <button
+                    className="btn"
+                    disabled={busy || (load === 'sm39' ? (ws.reserveSm39 ?? 0) : ws.reserve) <= 0}
+                    onClick={() => order('trocar')}
+                    title="Fechar a porta, drenar, abrir a culatra, devolver a arma à reserva e carregar a escolhida (≈ 10 min)"
+                  >
+                    🔁 Trocar por {load === 'sm39' ? 'SM39' : 'F21'}
+                  </button>
+                )}
+              </div>
+            )}
             <div className="wx-mode">
               <button className={mode === 'manual' ? 'on' : ''} onClick={() => setMode('manual')}>
                 ✋ Passo a passo
@@ -202,8 +280,13 @@ export function WeaponsScreen() {
                 <button className="wx-big" disabled={busy || t.door.pos <= 0.001} onClick={() => order('fechar')} title="Fechar a porta da boca e isolar o tubo do mar">
                   <span>🚪</span>Fechar porta
                 </button>
-                <button className="wx-big" disabled={busy || t.weapon || ws.reserve <= 0} onClick={() => order('recarregar')} title="Fechar a porta, drenar para o TCA, abrir a culatra e puxar uma arma da reserva">
-                  <span>🔄</span>Recarregar ({ws.reserve})
+                <button
+                  className="wx-big"
+                  disabled={busy || t.weapon || (load === 'sm39' ? (ws.reserveSm39 ?? 0) : ws.reserve) <= 0}
+                  onClick={() => order('recarregar')}
+                  title="Fechar a porta, drenar para o TCA, abrir a culatra e puxar uma arma da reserva"
+                >
+                  <span>🔄</span>Recarregar {load === 'sm39' ? 'SM39' : 'F21'} ({load === 'sm39' ? (ws.reserveSm39 ?? 0) : ws.reserve})
                 </button>
                 <button className="wx-big warn" disabled={!t.auto} onClick={() => order('cancelar')}>
                   <span>✋</span>Cancelar
@@ -258,73 +341,262 @@ export function WeaponsScreen() {
             </div>
           </Panel>
 
-          {/* ---------- dados de tiro */}
-          <Panel title="🎯 Dados de tiro" className="wx-fire">
-            <div className="wx-warhead">
-              <button className={!combat ? 'on ex' : 'ex'} onClick={() => setPr({ warhead: 'exercicio' })} title="Passa sob o alvo, registra o acerto e flutua para ser recolhida">
-                🟠 Exercício
-              </button>
-              <button className={combat ? 'on cb' : 'cb'} onClick={() => setPr({ warhead: 'combate' })} title="Ogiva real: explode no submarino inimigo (alvo fictício)">
-                💥 Combate
-              </button>
-            </div>
-            <div className="wx-targets">
-              <button className={`wx-target ${!pr.target ? 'on' : ''}`} onClick={() => setPr({ target: null })}>
-                <span>🧭</span>
-                <b>Sem alvo</b>
-                <small>corrida no rumo</small>
-              </button>
-              {targets.slice(0, 14).map((c) => (
-                <button key={c.id} className={`wx-target ${c.enemy ? 'enemy' : ''} ${pr.target === c.id ? 'on' : ''}`} onClick={() => setPr({ target: c.id, ...(c.enemy ? {} : { warhead: 'exercicio' as const }) })}>
-                  <span>{c.enemy ? '👾' : '🚢'}</span>
-                  <b>{c.name.replace(' (fictício)', '')}</b>
-                  <small>
-                    {km(c.range)} · {deg3(c.bearing)}
-                    {c.d !== undefined ? ` · ${fmt(c.d, 0)} m` : ''}
-                  </small>
+          {isSm39 && (
+            <Panel title="🚀 Dados de tiro — míssil SM39" className="wx-fire">
+              <div className="wx-warhead">
+                <button className={!combat ? 'on ex' : 'ex'} onClick={() => setPr({ warhead: 'exercicio' })} title="Sem ogiva: passa por cima do alvo, registra o acerto e cai no mar no fim do combustível">
+                  🟠 Exercício
                 </button>
-              ))}
-            </div>
-            {combatBad && <div className="wx-alert">💥 A arma de combate só pode ir contra um submarino inimigo. Escolha um 👾 ou troque para exercício.</div>}
-            <div className="wx-fields">
-              <div className="wx-field">
-                <span>Velocidade</span>
-                <div className="seg">
-                  {(['baixa', 'alta'] as const).map((sp) => (
-                    <button key={sp} className={pr.speed === sp ? 'on' : ''} onClick={() => setPr({ speed: sp })}>
-                      {sp} · {fmt(w.weapon.speeds[sp] / KT, 0)} nós
-                    </button>
-                  ))}
+                <button className={combat ? 'on cb' : 'cb'} onClick={() => setPr({ warhead: 'combate' })} title="Ogiva de 165 kg: impacto e explosão (só contra alvo hostil)">
+                  💥 Combate
+                </button>
+              </div>
+              <div className="wx-targets">
+                <button className={`wx-target ${!pr.target ? 'on' : ''}`} onClick={() => setPr({ target: null })}>
+                  <span>🧭</span>
+                  <b>Sem alvo</b>
+                  <small>autodiretor no rumo</small>
+                </button>
+                {mTargets.slice(0, 16).map((c) => (
+                  <button key={c.id} className={`wx-target ${c.hostile ? 'enemy' : ''} ${pr.target === c.id ? 'on' : ''}`} onClick={() => setPr({ target: c.id, ...(c.hostile ? {} : { warhead: 'exercicio' as const }) })}>
+                    <span>{KIND_ICON[c.kind] ?? '🚢'}</span>
+                    <b>{c.name.replace(' (fictício)', '').replace(' (classe Tamandaré, alvo fictício)', '').replace(' (instalação fictícia)', '')}</b>
+                    <small>
+                      {km(c.range)} · {deg3(c.bearing)}
+                      {c.range > (w.missile?.range ?? 5e4) ? ' · fora de alcance' : ''}
+                    </small>
+                  </button>
+                ))}
+              </div>
+              {combatBad && <div className="wx-alert">💥 {missileRefusal(ws, pr)}.</div>}
+              <div className="wx-fields">
+                <div className="wx-field">
+                  <span>Subida da cápsula VSM</span>
+                  <div className="seg">
+                    {(['obliqua', 'vertical'] as const).map((k) => (
+                      <button
+                        key={k}
+                        className={(pr.climb ?? 'obliqua') === k ? 'on' : ''}
+                        onClick={() => setPr({ climb: k })}
+                        title={k === 'vertical' ? 'Quase vertical (≈ 75°): rompe a superfície perto do submarino' : 'Oblíqua (≈ 45°): rompe a superfície a ~150–200 m'}
+                      >
+                        {k === 'vertical' ? '⬆️ Quase vertical' : '↗️ Oblíqua 45°'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <label className="wx-field">
+                  <span>
+                    Desvio da cápsula <b>{pr.dogleg ? `${Math.abs(pr.dogleg)}° ${pr.dogleg > 0 ? 'BE' : 'BB'}` : 'nenhum'}</b>
+                  </span>
+                  <input
+                    type="range"
+                    min={-40}
+                    max={40}
+                    step={5}
+                    value={pr.dogleg ?? 0}
+                    onChange={(ev) => setPr({ dogleg: Number(ev.target.value) })}
+                    title="A cápsula guina debaixo d'água antes de subir: o míssil não denuncia a posição do submarino"
+                  />
+                </label>
+                {!pr.target && (
+                  <label className="wx-field">
+                    <span>Rumo (vazio = do submarino)</span>
+                    <input
+                      className="num"
+                      type="number"
+                      min={0}
+                      max={359}
+                      placeholder="auto"
+                      value={pr.course ?? ''}
+                      onChange={(ev) => setPr({ course: ev.target.value === '' ? null : Number(ev.target.value) })}
+                      style={{ width: 90 }}
+                    />
+                  </label>
+                )}
               </div>
-              <label className="wx-field">
-                <span>
-                  Cota de corrida <b>{fmt(pr.depth, 0)} m</b>
-                </span>
-                <input type="range" min={3} max={300} step={1} value={pr.depth} onChange={(ev) => setPr({ depth: Number(ev.target.value) || DEFAULT_PRESETS.depth })} />
-              </label>
-              <label className="wx-field">
-                <span>Rumo (vazio = do submarino)</span>
-                <input
-                  className="num"
-                  type="number"
-                  min={0}
-                  max={359}
-                  placeholder="auto"
-                  value={pr.course ?? ''}
-                  onChange={(ev) => setPr({ course: ev.target.value === '' ? null : Number(ev.target.value) })}
-                  style={{ width: 90 }}
-                />
-              </label>
-            </div>
-            {target && (
-              <div className="note">
-                {target.enemy ? '👾' : '🚢'} {target.name}: {km(target.range)} na marcação {deg3(target.bearing)}, rumo {deg3(target.course)}, {fmt(target.speed / KT, 1)} nós
-                {target.d !== undefined ? `, cota ${fmt(target.d, 0)} m` : ''}. Tempo de corrida ≈ {fmt(target.range / w.weapon.speeds[pr.speed] / 60, 1)} min.{' '}
-                {combat ? 'Arma de combate: desce à cota do alvo e explode na espoleta de proximidade.' : 'Arma de exercício: passa sob o alvo na cota ajustada.'}
+              {mTarget && w.missile && (
+                <div className="note">
+                  {KIND_ICON[mTarget.kind] ?? '🚢'} {mTarget.name}: {km(mTarget.range)} na marcação {deg3(mTarget.bearing)}
+                  {mTarget.kind !== 'terra' ? `, rumo ${deg3(mTarget.course)}, ${fmt(mTarget.speed / KT, 0)} nós` : `, ${fmt(mTarget.ground, 0)} m de altitude`}. Voo ≈{' '}
+                  {fmt(mTarget.range / w.missile.cruiseSpeed / 60 + 0.2, 1)} min a {fmt(w.missile.cruiseSpeed * 3.6, 0)} km/h.{' '}
+                  {mTarget.kind === 'terra'
+                    ? 'Alvo em terra: voo por pontos, subida a ~180 m e mergulho final.'
+                    : `Cruzeiro a ${fmt(w.missile.cruiseAlt, 0)} m, autodiretor ligado a ${fmt(w.missile.seekerOn / 1000, 0)} km do ponto de busca, terminal rente ao mar.`}{' '}
+                  {combat ? 'Ogiva de combate (165 kg).' : 'Exercício: passa por cima do alvo.'}
+                </div>
+              )}
+              <p className="subtle">
+                Sequência: a cápsula VSM sai do tubo, acende o motor e sobe; rompe a superfície, ejeta o nariz; a ~20 m o míssil se separa, abre as asas e acende o acelerador; depois voa rente ao mar a Mach 0,93 até o
+                alvo.
+              </p>
+            </Panel>
+          )}
+
+          {/* ---------- dados de tiro */}
+          {!isSm39 && (
+            <Panel title="🎯 Dados de tiro" className="wx-fire">
+              <div className="wx-warhead">
+                <button className={!combat ? 'on ex' : 'ex'} onClick={() => setPr({ warhead: 'exercicio' })} title="Passa sob o alvo, registra o acerto e flutua para ser recolhida">
+                  🟠 Exercício
+                </button>
+                <button className={combat ? 'on cb' : 'cb'} onClick={() => setPr({ warhead: 'combate' })} title="Ogiva real: explode no submarino inimigo (alvo fictício)">
+                  💥 Combate
+                </button>
               </div>
-            )}
-          </Panel>
+              <div className="wx-targets">
+                <button className={`wx-target ${!pr.target ? 'on' : ''}`} onClick={() => setPr({ target: null })}>
+                  <span>🧭</span>
+                  <b>Sem alvo</b>
+                  <small>corrida no rumo</small>
+                </button>
+                {targets.slice(0, 14).map((c) => (
+                  <button key={c.id} className={`wx-target ${c.enemy ? 'enemy' : ''} ${pr.target === c.id ? 'on' : ''}`} onClick={() => setPr({ target: c.id, ...(c.enemy ? {} : { warhead: 'exercicio' as const }) })}>
+                    <span>{c.enemy ? '👾' : '🚢'}</span>
+                    <b>{c.name.replace(' (fictício)', '')}</b>
+                    <small>
+                      {km(c.range)} · {deg3(c.bearing)}
+                      {c.d !== undefined ? ` · ${fmt(c.d, 0)} m` : ''}
+                    </small>
+                  </button>
+                ))}
+              </div>
+              {combatBad && <div className="wx-alert">💥 A arma de combate só pode ir contra um submarino inimigo. Escolha um 👾 ou troque para exercício.</div>}
+              <div className="wx-fields">
+                <div className="wx-field">
+                  <span>Velocidade</span>
+                  <div className="seg">
+                    {(['baixa', 'alta'] as const).map((sp) => (
+                      <button key={sp} className={pr.speed === sp ? 'on' : ''} onClick={() => setPr({ speed: sp })}>
+                        {sp} · {fmt(w.weapon.speeds[sp] / KT, 0)} nós
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="wx-field">
+                  <span>
+                    Cota de corrida <b>{fmt(pr.depth, 0)} m</b>
+                  </span>
+                  <input type="range" min={3} max={300} step={1} value={pr.depth} onChange={(ev) => setPr({ depth: Number(ev.target.value) || DEFAULT_PRESETS.depth })} />
+                </label>
+                <label className="wx-field">
+                  <span>Rumo (vazio = do submarino)</span>
+                  <input
+                    className="num"
+                    type="number"
+                    min={0}
+                    max={359}
+                    placeholder="auto"
+                    value={pr.course ?? ''}
+                    onChange={(ev) => setPr({ course: ev.target.value === '' ? null : Number(ev.target.value) })}
+                    style={{ width: 90 }}
+                  />
+                </label>
+              </div>
+              {target && (
+                <div className="note">
+                  {target.enemy ? '👾' : '🚢'} {target.name}: {km(target.range)} na marcação {deg3(target.bearing)}, rumo {deg3(target.course)}, {fmt(target.speed / KT, 1)} nós
+                  {target.d !== undefined ? `, cota ${fmt(target.d, 0)} m` : ''}. Tempo de corrida ≈ {fmt(target.range / w.weapon.speeds[pr.speed] / 60, 1)} min.{' '}
+                  {combat ? 'Arma de combate: desce à cota do alvo e explode na espoleta de proximidade.' : 'Arma de exercício: passa sob o alvo na cota ajustada.'}
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {/* ---------- alvos de superfície e em terra */}
+          {hasMissile && (
+            <Panel title="⚓ Alvos de superfície e em terra (fictícios)" className="wx-enemy">
+              <div className="wx-fields">
+                <label className="wx-field">
+                  <span>
+                    Distância <b>{km(hostCfg.range)}</b>
+                  </span>
+                  <input type="range" min={3000} max={60000} step={1000} value={hostCfg.range} onChange={(ev) => setHostCfg({ ...hostCfg, range: Number(ev.target.value) })} />
+                </label>
+                <label className="wx-field">
+                  <span>
+                    Marcação relativa <b>{hostCfg.bearing > 0 ? `${hostCfg.bearing}° BE` : hostCfg.bearing < 0 ? `${-hostCfg.bearing}° BB` : 'pela proa'}</b>
+                  </span>
+                  <input type="range" min={-180} max={180} step={5} value={hostCfg.bearing} onChange={(ev) => setHostCfg({ ...hostCfg, bearing: Number(ev.target.value) })} />
+                </label>
+                <label className="wx-field">
+                  <span>
+                    Rumo da fragata <b>{deg3(hostCfg.course)}</b>
+                  </span>
+                  <input type="range" min={0} max={355} step={5} value={hostCfg.course} onChange={(ev) => setHostCfg({ ...hostCfg, course: Number(ev.target.value) })} />
+                </label>
+                <label className="wx-field">
+                  <span>
+                    Velocidade <b>{hostCfg.speed} nós</b>
+                  </span>
+                  <input type="range" min={0} max={26} step={1} value={hostCfg.speed} onChange={(ev) => setHostCfg({ ...hostCfg, speed: Number(ev.target.value) })} />
+                </label>
+              </div>
+              <div className="row mt8">
+                <button
+                  className="wx-big enemy"
+                  onClick={() => cmd({ type: 'hostile', action: 'add', kind: 'fragata', range: hostCfg.range, bearing: hostCfg.bearing, course: hostCfg.course, speed: hostCfg.speed * KT })}
+                  title="Uma fragata classe Tamandaré (alvo fictício) na distância e marcação escolhidas"
+                >
+                  <span>⚓</span>Colocar fragata
+                </button>
+                <button
+                  className="wx-big"
+                  onClick={() => cmd({ type: 'hostile', action: 'add', kind: 'terra', range: hostCfg.landRange, bearing: hostCfg.bearing })}
+                  title="Instalação fictícia no primeiro ponto em terra na marcação escolhida (cenários com costa)"
+                >
+                  <span>🏭</span>Alvo em terra
+                </button>
+                {hostiles.length > 0 && (
+                  <button className="btn" onClick={() => cmd({ type: 'hostile', action: 'clear' })}>
+                    Remover todos
+                  </button>
+                )}
+              </div>
+              {hostiles.map((x: Hostile) => {
+                const rng = Math.hypot(x.n - s.body.pos.x, x.e - s.body.pos.y);
+                return (
+                  <div key={x.id} className={`wx-foe ${x.sunk !== null ? 'sunk' : ''}`}>
+                    <span className="wx-foe-ico">{x.sunk !== null ? (x.type === 'terra' ? '🔥' : '☠️') : x.type === 'terra' ? '🏭' : '⚓'}</span>
+                    <span className="wx-foe-txt">
+                      <b>{x.name}</b>
+                      <small>
+                        {x.sunk !== null
+                          ? x.type === 'terra'
+                            ? 'destruído'
+                            : `perdida — afundando`
+                          : `${km(rng)}${x.type === 'fragata' ? ` · ${fmt(x.speed / KT, 0)} nós · rumo ${deg3(x.course)}` : ` · ${fmt(x.ground, 0)} m de altitude`}${x.tHit !== null ? ' · EM CHAMAS' : ''}${x.evading ? ' · MANOBRA EVASIVA' : ''}${x.hits ? ` · ${x.hits} acerto(s) de exercício` : ''}`}
+                      </small>
+                    </span>
+                    {x.sunk === null && isSm39 && (
+                      <button className={`btn ${pr.target === x.id ? 'on' : ''}`} onClick={() => setPr({ target: x.id, warhead: 'combate' })} title={`Mirar o SM39 do tubo ${tc.n} neste alvo (combate)`}>
+                        🎯 Mirar
+                      </button>
+                    )}
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        setView('alvo');
+                        setCamKey(camKey + 1);
+                      }}
+                      title="Câmera no alvo"
+                    >
+                      👁️
+                    </button>
+                    <button className="btn" onClick={() => cmd({ type: 'hostile', action: 'remove', id: x.id })} title="Remover">
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+              {!hostiles.length && (
+                <p className="subtle">
+                  Coloque uma fragata (ou um alvo em terra, nos cenários com costa), carregue um 🚀 SM39 no tubo, mire com 🎯 e dispare. O alvo em terra fica no primeiro ponto de terra na marcação escolhida, a partir de{' '}
+                  {km(hostCfg.landRange)}.
+                </p>
+              )}
+            </Panel>
+          )}
 
           {/* ---------- inimigo */}
           <Panel title="👾 Submarino inimigo (alvo fictício)" className="wx-enemy">
@@ -343,9 +615,17 @@ export function WeaponsScreen() {
               </label>
               <label className="wx-field">
                 <span>
-                  Cota <b>{enemyCfg.depth} m</b>
+                  Cota <b>{enemyCfg.depth > 0 ? `${enemyCfg.depth} m` : 'na superfície'}</b>
                 </span>
-                <input type="range" min={15} max={250} step={5} value={enemyCfg.depth} onChange={(ev) => setEnemyCfg({ ...enemyCfg, depth: Number(ev.target.value) })} />
+                <input
+                  type="range"
+                  min={0}
+                  max={250}
+                  step={5}
+                  value={enemyCfg.depth < 15 && enemyCfg.depth > 0 ? 15 : enemyCfg.depth}
+                  onChange={(ev) => setEnemyCfg({ ...enemyCfg, depth: Number(ev.target.value) < 15 && Number(ev.target.value) > 0 ? 0 : Number(ev.target.value) })}
+                  title="0 = navegando na superfície (alvo também do míssil SM39)"
+                />
               </label>
               <label className="wx-field">
                 <span>
@@ -381,7 +661,7 @@ export function WeaponsScreen() {
                         : `${km(rng)} · cota ${fmt(x.d, 0)} m · ${fmt(x.speed / KT, 0)} nós${x.evading ? ' · FUGINDO!' : ''}${x.hits ? ` · ${x.hits} acerto(s) de exercício` : ''}`}
                     </small>
                   </span>
-                  {x.sunk === null && (
+                  {x.sunk === null && (!isSm39 || x.d <= ENEMY_SURFACE_D + 2) && (
                     <button className={`btn ${pr.target === x.id && combat ? 'on' : ''}`} onClick={() => aim(x)} title={`Mirar o tubo ${tc.n} neste alvo com a arma de combate`}>
                       🎯 Mirar
                     </button>
@@ -449,8 +729,10 @@ export function WeaponsScreen() {
             <div className="wx-cams">
               {(
                 [
-                  ['torpedo', '🚀 Torpedo'],
-                  ['alvo', '👾 Alvo'],
+                  ['torpedo', '🐟 Torpedo'],
+                  ['missil', '🚀 Míssil'],
+                  ['missilCine', '🎬 Míssil cinematográfica'],
+                  ['alvo', '🎯 Alvo'],
                   ['perseguicao', '🎥 Perseguição'],
                   ['perspectiva', 'Proa ¾'],
                   ['frente', 'Frente'],
@@ -475,8 +757,41 @@ export function WeaponsScreen() {
               <Toggle on={lbl3d} set={setLbl3d} label="🏷️ Identificações" />
             </div>
             <Scene3D view={view} viewKey={camKey} layers={layers} cutaway={cut} persistKey="armas" syncVisual={false} style={{ height: 460, position: 'relative' }} />
-            <p className="subtle">Arraste para girar em volta do torpedo ou do alvo (a câmera continua acompanhando), roda para aproximar. Clique de novo no botão da câmera para voltar ao enquadramento padrão.</p>
+            <p className="subtle">
+              Arraste para girar em volta do torpedo, do míssil ou do alvo (a câmera continua acompanhando), roda para aproximar. Clique de novo no botão da câmera para voltar ao enquadramento padrão. 🎬 Míssil
+              cinematográfica: planos automáticos (cápsula subindo, saída da água, perseguição rasante, passagem e impacto).
+            </p>
           </Panel>
+
+          {/* ---------- mísseis em voo */}
+          {hasMissile && (
+            <Panel title="Mísseis lançados">
+              {missiles.length === 0 ? (
+                <p className="subtle">Nenhum míssil lançado.</p>
+              ) : (
+                <div className="scroll">
+                  <table className="t">
+                    <thead>
+                      <tr>
+                        <th>Míssil</th>
+                        <th>Fase</th>
+                        <th>Vel.</th>
+                        <th>Altitude</th>
+                        <th>Voado</th>
+                        <th>Alvo</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {missiles.map((r) => (
+                        <MissileRow key={r.id} r={r} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          )}
 
           {/* ---------- torpedos em corrida */}
           <Panel title="Torpedos em corrida">
@@ -549,20 +864,39 @@ function TubeMuzzle({ st, full }: { st: TubeState; full: number }) {
       </defs>
       <circle cx="20" cy="20" r="15" fill="#0b1622" />
       <rect x="4" y={35 - 30 * f} width="32" height={30 * f} fill="#2a92ec" opacity="0.8" clipPath={`url(#mz${st.n})`} />
-      {st.weapon && <circle cx="20" cy="20" r="8" fill="#e8622b" stroke="#1a1a1a" strokeWidth="1.5" />}
-      {st.weapon && <circle cx="20" cy="20" r="3" fill="#ffd27a" />}
+      {st.weapon && <circle cx="20" cy="20" r="8" fill={kindOf(st) === 'sm39' ? '#5d6b3c' : '#e8622b'} stroke="#1a1a1a" strokeWidth="1.5" />}
+      {st.weapon && <circle cx="20" cy="20" r="3" fill={kindOf(st) === 'sm39' ? '#d9dfc4' : '#ffd27a'} />}
       <circle cx="20" cy="20" r="17" fill="none" stroke={doorCol} strokeWidth="3.5" strokeDasharray={st.door.pos > 0.001 ? `${(1 - st.door.pos) * 107} 200` : undefined} />
     </svg>
   );
 }
 
 function weightError(e: SimulationEngine): number {
-  const w = e.vessel.weapons!;
   const ws = e.state.weapons!;
-  let m = ws.reserve * w.weapon.mass;
-  for (const t of ws.tubes) m += (t.weapon ? w.weapon.mass : 0) + t.water;
-  for (const k of ws.tca) m += k.mass;
-  return ws.awcRef - m;
+  return ws.awcRef - weaponsWeight(e.vessel.weapons!, ws);
+}
+
+function MissileRow({ r }: { r: MissileRun }) {
+  const [ph, tone] = MPHASE[r.phase];
+  const alt = -r.d;
+  return (
+    <tr>
+      <td>
+        <b>{r.id}</b> <span className="subtle">tubo {r.tube}</span> {r.presets.warhead === 'combate' && <span title="ogiva de combate">💥</span>}
+      </td>
+      <td>
+        <span className={`badge ${tone}`}>{ph}</span> {r.hit && <span className="badge ok">{r.phase === 'impacto' ? 'ALVO ATINGIDO' : 'ACERTO'}</span>}
+      </td>
+      <td className="mono">{fmt(r.speed * 3.6, 0)} km/h</td>
+      <td className="mono">{alt >= 0 ? `${fmt(alt, 0)} m` : `${fmt(-alt, 0)} m prof.`}</td>
+      <td className="mono">{km(r.run)}</td>
+      <td>
+        {r.tgt ? `${r.tgt.name} — ${km(r.tgt.range)}` : r.target ? r.target : r.seeker ? 'buscando' : '—'}
+        {r.endReason && !r.hit && <div className="subtle">{r.endReason}</div>}
+      </td>
+      <td>{r.seeker ? <span className="badge info">AUTODIRETOR</span> : <span className="badge off">INERCIAL</span>}</td>
+    </tr>
+  );
 }
 
 function RunRow({ r, targets }: { r: TorpedoRun; targets: Target[] }) {
@@ -632,7 +966,8 @@ function TubeDiagram({ e, i, tv }: { e: SimulationEngine; i: number; tv: TubeVie
   const yT = 40;
   const H = 46;
   const fill = Math.max(0, Math.min(1, t.water / Math.max(1, tv.fullWater)));
-  const wx = X0 + (stowedWeaponX(w) - w.weapon.length / 2 - w.breechX + (t.eject ?? 0)) * k;
+  const dims = weaponDims(w, kindOf(t));
+  const wx = X0 + (stowedWeaponX(w, dims.length) - dims.length / 2 - w.breechX + (t.eject ?? 0)) * k;
   const valve = (x: number, y: number, st: { pos: number; cmd: number }, label: string) => (
     <g>
       <circle cx={x} cy={y} r="7" fill={st.pos > 0.999 ? '#3ddc84' : st.pos > 0.001 || st.cmd > 0.5 ? '#f5b041' : '#5a6f86'} stroke="#0a1017" />
@@ -654,10 +989,10 @@ function TubeDiagram({ e, i, tv }: { e: SimulationEngine; i: number; tv: TubeVie
       {/* arma */}
       {t.weapon && (
         <g>
-          <rect x={wx} y={yT + 9} width={w.weapon.length * k} height={H - 18} rx={(H - 18) / 2} fill="#1d262c" stroke="#c9d6e3" />
-          <rect x={wx + w.weapon.length * k * 0.35} y={yT + 9} width={w.weapon.length * k * 0.34} height={H - 18} fill="#e8622b" />
-          <text x={wx + (w.weapon.length * k) / 2} y={yT + H / 2 + 4} textAnchor="middle" fontSize="11" fill="#fff">
-            F21
+          <rect x={wx} y={yT + 9} width={dims.length * k} height={H - 18} rx={(H - 18) / 2} fill={dims.name === 'SM39' ? '#3d4628' : '#1d262c'} stroke="#c9d6e3" />
+          <rect x={wx + dims.length * k * 0.35} y={yT + 9} width={dims.length * k * 0.34} height={H - 18} fill={dims.name === 'SM39' ? '#6b7a45' : '#e8622b'} />
+          <text x={wx + (dims.length * k) / 2} y={yT + H / 2 + 4} textAnchor="middle" fontSize="11" fill="#fff">
+            {dims.name === 'SM39' ? 'SM39 · VSM' : 'F21'}
           </text>
         </g>
       )}
@@ -690,11 +1025,15 @@ function TacticalPlot({ e, targets, sel }: { e: SimulationEngine; targets: Targe
   const s = e.state;
   const runs = s.weapons?.runs ?? [];
   const foes = s.weapons?.enemies ?? [];
+  const mis = s.weapons?.missiles ?? [];
+  const hosts = s.weapons?.hostiles ?? [];
   const booms = (s.weapons?.explosions ?? []).filter((x) => s.t - x.t < 60);
   const own = { n: s.body.pos.x, e: s.body.pos.y };
   const focus = targets.filter((c) => c.id === sel || runs.some((r) => r.target === c.id));
   let span = 2000;
   for (const r of runs) for (const p of [r, ...r.track]) span = Math.max(span, Math.abs(p.n - own.n), Math.abs(p.e - own.e));
+  for (const r of mis) for (const p of [r, ...r.track]) span = Math.max(span, Math.abs(p.n - own.n), Math.abs(p.e - own.e));
+  for (const h of hosts) span = Math.max(span, Math.abs(h.n - own.n), Math.abs(h.e - own.e));
   for (const c of focus) span = Math.max(span, Math.abs(c.n - own.n), Math.abs(c.e - own.e));
   for (const c of foes) span = Math.max(span, Math.abs(c.n - own.n), Math.abs(c.e - own.e));
   span *= 1.15;
@@ -751,6 +1090,40 @@ function TacticalPlot({ e, targets, sel }: { e: SimulationEngine; targets: Targe
             </g>
           );
         })}
+        {hosts.map((h) => {
+          const [px, py] = xy(h.n, h.e);
+          const dead = h.sunk !== null;
+          const ch = (h.course * Math.PI) / 180;
+          const vl = Math.min(40, h.speed * 360 * k);
+          return (
+            <g key={h.id}>
+              {h.type === 'fragata' && !dead && <line x1={px} y1={py} x2={px + Math.sin(ch) * vl} y2={py - Math.cos(ch) * vl} stroke="#ff5257" />}
+              {h.type === 'terra' ? (
+                <rect x={px - 5} y={py - 5} width="10" height="10" fill={dead ? '#5a6f86' : '#ff8a3d'} stroke="#1a0000" />
+              ) : (
+                <polygon points={`${px},${py - 7} ${px + 6},${py + 5} ${px - 6},${py + 5}`} fill={dead ? '#5a6f86' : '#ff5257'} stroke="#1a0000" />
+              )}
+              <text x={px + 8} y={py + 3} fontSize="10" fill={dead ? '#8399b1' : '#ff9a9c'} fontWeight="bold">
+                {dead ? '☠ ' : h.tHit !== null ? '🔥 ' : ''}
+                {h.id}
+              </text>
+            </g>
+          );
+        })}
+        {mis.map((r) => {
+          const pts = [...r.track, r].map((p) => xy(p.n, p.e).join(',')).join(' ');
+          const [x, y] = xy(r.n, r.e);
+          const col = r.hit ? '#3ddc84' : r.presets.warhead === 'combate' ? '#ff6b5a' : '#ffd166';
+          return (
+            <g key={r.id}>
+              <polyline points={pts} fill="none" stroke={col} strokeWidth="1.8" strokeDasharray={r.seeker ? undefined : '6 3'} />
+              <circle cx={x} cy={y} r="3.5" fill={col} />
+              <text x={x + 6} y={y - 5} fontSize="10" fill="#ffe2c4">
+                {r.id}
+              </text>
+            </g>
+          );
+        })}
         {booms.map((x) => {
           const [px, py] = xy(x.n, x.e);
           const a = Math.max(0, 1 - (s.t - x.t) / 60);
@@ -782,7 +1155,8 @@ function TacticalPlot({ e, targets, sel }: { e: SimulationEngine; targets: Targe
         />
       </svg>
       <p className="subtle" style={{ textAlign: 'center' }}>
-        Norte para cima. Verde: SX-1 · azul: torpedos (tracejado = sem fio) · laranja: alvo e contatos atacados (vetor de 6 min) · vermelho: submarino inimigo · 💥 explosão.
+        Norte para cima. Verde: SX-1 · azul: torpedos (tracejado = sem fio) · vermelho/amarelo: mísseis de combate/exercício (tracejado = inercial) · laranja: alvo e contatos atacados (vetor de 6 min) · vermelho:
+        submarino inimigo e fragata (▲) · ■ alvo em terra · 💥 explosão.
       </p>
     </div>
   );

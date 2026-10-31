@@ -82,8 +82,8 @@ export function doorOutline(w: WeaponsConfig, t: TorpedoTubeConfig, R: RadiusAt,
   return out;
 }
 
-/** Posição do centro da arma estivada no tubo (cauda junto à culatra, 15 cm de folga). */
-export const stowedWeaponX = (w: WeaponsConfig) => w.breechX + 0.15 + w.weapon.length / 2;
+/** Posição do centro da arma estivada no tubo (cauda junto à culatra, 15 cm de folga); length = comprimento da arma (padrão: F21). */
+export const stowedWeaponX = (w: WeaponsConfig, length = w.weapon.length) => w.breechX + 0.15 + length / 2;
 
 /** Percurso da arma dentro do tubo até a cauda passar a boca (m). */
 export const ejectTravel = (w: WeaponsConfig, t: TorpedoTubeConfig, R: RadiusAt) => muzzleX(w, t, R) - (w.breechX + 0.15);

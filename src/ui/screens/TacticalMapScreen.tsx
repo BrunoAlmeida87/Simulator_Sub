@@ -292,6 +292,29 @@ export function TacticalMapScreen() {
         .bindTooltip(tip, { permanent: true, direction: 'right', className: 'tm-tip' })
         .addTo(g);
     }
+    // mísseis SM39 (derrota tracejada no voo inercial) e alvos de superfície/terra (fictícios)
+    for (const h of st.weapons?.hostiles ?? []) {
+      const hll = ll(nedToLatLon(origin, h.n, h.e));
+      const dead = h.sunk !== null;
+      const tip = `${h.name}${dead ? (h.type === 'terra' ? ' · DESTRUÍDO' : ' · AFUNDANDO') : h.tHit !== null ? ' · EM CHAMAS' : h.type === 'fragata' ? ` · ${(h.speed / 0.5144).toFixed(0)} nós` : ''}`;
+      if (h.type === 'fragata' && !dead) {
+        const h2 = nedToLatLon(origin, h.n + Math.cos((h.course * Math.PI) / 180) * h.speed * 360, h.e + Math.sin((h.course * Math.PI) / 180) * h.speed * 360);
+        L.polyline([hll, ll(h2)], { color: '#ff5257', weight: 1.6 }).addTo(g);
+      }
+      L.circleMarker(hll, { radius: h.type === 'terra' ? 7 : 6, color: dead ? '#8399b1' : '#ff5257', weight: 2, fillColor: h.type === 'terra' ? '#ff8a3d' : '#ff5257', fillOpacity: 0.85 })
+        .bindTooltip(tip, { permanent: true, direction: 'top', className: 'tm-tip' })
+        .addTo(g);
+    }
+    for (const r of st.weapons?.missiles ?? []) {
+      const ro = r.origin ?? origin;
+      const pts = [...r.track, r].map((p) => ll(nedToLatLon(ro, p.n, p.e)));
+      const col = r.hit ? '#3ddc84' : r.presets.warhead === 'combate' ? '#ff6b5a' : '#ffd166';
+      L.polyline(pts, { color: col, weight: 2.2, dashArray: r.seeker ? undefined : '7 5' }).addTo(g);
+      const tip = `${r.id} · ${r.phase === 'impacto' ? 'IMPACTO' : r.hit ? 'ACERTO' : `${Math.round(r.speed * 3.6)} km/h · ${(-r.d).toFixed(0)} m`}`;
+      L.circleMarker(pts[pts.length - 1], { radius: 5, color: col, weight: 2, fillOpacity: 0.9 })
+        .bindTooltip(tip, { permanent: true, direction: 'right', className: 'tm-tip' })
+        .addTo(g);
+    }
     // rota
     if (route.points.length) {
       L.polyline([ll(pos), ...route.points.slice(route.active ? route.idx : 0).map(ll)], { color: '#ffe14d', weight: 1.8, dashArray: route.active ? undefined : '6 5' }).addTo(g);

@@ -4,8 +4,10 @@
  * (submarinos inimigos e contatos mais próximos), a arma (exercício ou combate), a velocidade de corrida e,
  * no modo AUTO, os botões PREPARAR / DISPARAR / FECHAR / RECARREGAR / CANCELAR; no modo MANUAL, as dez
  * etapas em ordem (verde = liberada, vermelha = ainda não, âmbar = em andamento, ✓ = feita; tubeSteps).
- * Embaixo, os torpedos em corrida (cortar o fio).
- * Cada botão só monta um comando ('tube' ou 'torpedo'); a física fica em src/sim/systems/weapons.ts.
+ * Embaixo, as armas lançadas (torpedos: cortar o fio; mísseis SM39: fase, altitude e alvo).
+ * Com o míssil SM39 no tubo, o alvo passa a ser a fragata, o alvo em terra, o submarino inimigo na superfície ou um
+ * contato, e o terceiro botão escolhe a subida da cápsula (oblíqua ou quase vertical) no lugar da velocidade.
+ * Cada botão só monta um comando ('tube' ou 'torpedo'); a física fica em src/sim/systems/weapons.ts e missiles.ts.
  */
 import type { DrawCtx } from './panel';
 import type { RoomActions } from './actions';
@@ -16,6 +18,7 @@ import { roomContacts } from './panelsCombat';
 import { makeDepthOf } from '../../sim/core/context';
 import { qToMat3 } from '../../sim/core/math';
 import { isEnemyId, tubeSteps, tubeView, type ManualStep, type TubeAction } from '../../sim/systems/weapons';
+import { ENEMY_SURFACE_D, isHostileId, kindOf, missileActive } from '../../sim/systems/missiles';
 
 /** cores das etapas do passo a passo: fundo, borda (tom), texto */
 const STEP_STYLE: Record<ManualStep['state'], { fill: string; fg: string; tone: 'ok' | 'danger' | 'warn' | 'neutral' }> = {
@@ -27,6 +30,21 @@ const STEP_STYLE: Record<ManualStep['state'], { fill: string; fg: string; tone: 
 
 const KT = 1852 / 3600;
 const PHASE: Record<string, string> = { afastamento: 'AFASTAMENTO', guiado: 'GUIADO', busca: 'CORRIDA', ataque: 'ATAQUE', flutuando: 'FIM', recolher: 'FLUTUANDO', explodiu: 'EXPLODIU', perdido: 'AFUNDOU' };
+const MPHASE: Record<string, string> = {
+  capsula: 'CÁPSULA',
+  superficie: 'SUPERFÍCIE',
+  separacao: 'SEPARAÇÃO',
+  acelerador: 'ACELERADOR',
+  cruzeiro: 'CRUZEIRO',
+  busca: 'BUSCA',
+  terminal: 'TERMINAL',
+  subida: 'SUBIDA',
+  mergulho: 'MERGULHO',
+  impacto: 'IMPACTO',
+  passagem: 'PASSAGEM',
+  caindo: 'SEM COMBUST.',
+  perdido: 'CAIU',
+};
 
 function seaCtx(e: SimulationEngine) {
   const s = e.state;
@@ -38,7 +56,7 @@ export function drawLaunchPanel(act: RoomActions) {
     const { g, e, W, H, ui } = c;
     const w = e.vessel.weapons;
     const ws = e.state.weapons;
-    const y0 = screenBg(c, 'LANÇAMENTO DE ARMAS', 'tiro de exercício · F21');
+    const y0 = screenBg(c, 'LANÇAMENTO DE ARMAS', w?.missile ? 'torpedo F21 · míssil SM39' : 'tiro de exercício · F21');
     if (!w || !ws) {
       text(g, 'sem tubos lançadores nesta configuração', W / 2, H / 2, 26, C.dim, 'center', 'bold');
       return;
@@ -67,7 +85,7 @@ export function drawLaunchPanel(act: RoomActions) {
         y: y0 + 40 + row * 84,
         w: 146,
         h: 74,
-        label: `TUBO ${x.n}`,
+        label: `TUBO ${x.n}${ws.tubes[i].weapon && kindOf(ws.tubes[i]) === 'sm39' ? ' · SM39' : ''}`,
         sub: vw.ready ? 'PRONTO' : !ws.tubes[i].weapon ? 'VAZIO' : vw.tone === 'busy' ? 'EM SEQUÊNCIA' : 'CARREGADO',
         on: x.n === tc.n,
         tone: vw.ready ? 'ok' : vw.tone === 'warn' ? 'warn' : 'cmd',
@@ -77,7 +95,8 @@ export function drawLaunchPanel(act: RoomActions) {
     });
     // ---- tubo escolhido: lâmpadas da sequência
     const bx = 354;
-    box(g, bx, y0, W - bx - 12, 300, `TUBO ${tc.n} — ${tv.status}`);
+    const sm39 = t.weapon && kindOf(t) === 'sm39';
+    box(g, bx, y0, W - bx - 12, 300, `TUBO ${tc.n}${sm39 ? ' (SM39)' : ''} — ${tv.status}`);
     const lamps: [string, boolean, 'green' | 'amber' | 'red' | 'white'][] = [
       ['ARMA', t.weapon, 'white'],
       ['ALIMENTADA', t.energized, 'amber'],
@@ -97,8 +116,18 @@ export function drawLaunchPanel(act: RoomActions) {
     const foes = (ws.enemies ?? [])
       .filter((x) => x.sunk === null)
       .map((x) => ({ id: x.id, name: x.name, rng: Math.hypot(x.n - own.n, x.e - own.e), brg: ((Math.atan2(x.e - own.e, x.n - own.n) * 180) / Math.PI + 360) % 360 }));
+    const hosts = (ws.hostiles ?? [])
+      .filter((x) => x.sunk === null && (sm39 || x.type === 'fragata'))
+      .map((x) => ({
+        id: x.id,
+        name: x.name.replace(' (classe Tamandaré, alvo fictício)', '').replace(' (instalação fictícia)', ''),
+        rng: Math.hypot(x.n - own.n, x.e - own.e),
+        brg: ((Math.atan2(x.e - own.e, x.n - own.n) * 180) / Math.PI + 360) % 360,
+      }));
+    const foes2 = sm39 ? foes.filter((x) => (ws.enemies ?? []).find((k) => k.id === x.id)!.d <= ENEMY_SURFACE_D + 2) : foes;
     const cts = [
-      ...foes,
+      ...hosts,
+      ...foes2,
       ...roomContacts(e, act)
         .sort((a, b) => a.rng - b.rng)
         .slice(0, 6),
@@ -106,8 +135,10 @@ export function drawLaunchPanel(act: RoomActions) {
     const ti = Math.min(ui.page['armas.alvo'] ?? 0, cts.length);
     const tgt = ti > 0 ? cts[ti - 1] : null;
     const fast = (ui.page['armas.vel'] ?? 1) === 1;
-    const combat = (ui.page['armas.ogiva'] ?? 0) === 1 && (!tgt || isEnemyId(tgt.id));
-    const presets: Partial<TubePresets> = { target: tgt?.id ?? null, speed: fast ? 'alta' : 'baixa', warhead: combat ? 'combate' : 'exercicio' };
+    const vertical = (ui.page['armas.subida'] ?? 0) === 1;
+    const hostileTgt = !tgt || isEnemyId(tgt.id) || (sm39 && isHostileId(tgt.id));
+    const combat = (ui.page['armas.ogiva'] ?? 0) === 1 && hostileTgt;
+    const presets: Partial<TubePresets> = { target: tgt?.id ?? null, speed: fast ? 'alta' : 'baixa', warhead: combat ? 'combate' : 'exercicio', ...(sm39 ? { climb: vertical ? 'vertical' : 'obliqua' } : {}) };
     button(c, {
       id: 'alvo',
       x: bx + 12,
@@ -116,8 +147,8 @@ export function drawLaunchPanel(act: RoomActions) {
       h: 60,
       label: tgt ? tgt.name.replace(' (fictício)', '').toUpperCase() : 'SEM ALVO',
       sub: tgt ? `${(tgt.rng / 1000).toFixed(1)} km · ${String(Math.round(tgt.brg)).padStart(3, '0')}°` : 'corrida no rumo do submarino',
-      tone: tgt && isEnemyId(tgt.id) ? 'danger' : 'neutral',
-      tip: 'Alvo: o próximo dos submarinos inimigos e contatos mais próximos (ou sem alvo)',
+      tone: tgt && (isEnemyId(tgt.id) || isHostileId(tgt.id)) ? 'danger' : 'neutral',
+      tip: sm39 ? 'Alvo do míssil: fragata, alvo em terra, submarino inimigo na superfície ou contato (ou sem alvo)' : 'Alvo: o próximo dos submarinos inimigos e contatos mais próximos (ou sem alvo)',
       action: () => (ui.page['armas.alvo'] = (ti + 1) % (cts.length + 1)),
     });
     button(c, {
@@ -127,23 +158,37 @@ export function drawLaunchPanel(act: RoomActions) {
       w: 150,
       h: 60,
       label: combat ? 'COMBATE' : 'EXERCÍCIO',
-      sub: combat ? 'explode no alvo' : 'passa sob o alvo',
+      sub: combat ? 'explode no alvo' : sm39 ? 'passa por cima' : 'passa sob o alvo',
       tone: combat ? 'danger' : 'warn',
-      tip: 'Arma de exercício ou de combate (combate só contra submarino inimigo)',
+      tip: sm39 ? 'Míssil de exercício ou de combate (combate só contra alvo hostil)' : 'Arma de exercício ou de combate (combate só contra submarino inimigo)',
       action: () => (ui.page['armas.ogiva'] = combat ? 0 : 1),
     });
-    button(c, {
-      id: 'vel',
-      x: bx + 482,
-      y: y0 + 160,
-      w: W - bx - 494,
-      h: 60,
-      label: fast ? 'ALTA' : 'BAIXA',
-      sub: `${Math.round(w.weapon.speeds[fast ? 'alta' : 'baixa'] / KT)} nós`,
-      tone: 'neutral',
-      tip: 'Velocidade de corrida da arma (alta: alcance menor)',
-      action: () => (ui.page['armas.vel'] = fast ? 0 : 1),
-    });
+    if (sm39)
+      button(c, {
+        id: 'subida',
+        x: bx + 482,
+        y: y0 + 160,
+        w: W - bx - 494,
+        h: 60,
+        label: vertical ? 'VERTICAL' : 'OBLÍQUA',
+        sub: vertical ? 'cápsula ≈ 75°' : 'cápsula ≈ 45°',
+        tone: 'neutral',
+        tip: 'Subida da cápsula VSM até a superfície (oblíqua ou quase vertical)',
+        action: () => (ui.page['armas.subida'] = vertical ? 0 : 1),
+      });
+    else
+      button(c, {
+        id: 'vel',
+        x: bx + 482,
+        y: y0 + 160,
+        w: W - bx - 494,
+        h: 60,
+        label: fast ? 'ALTA' : 'BAIXA',
+        sub: `${Math.round(w.weapon.speeds[fast ? 'alta' : 'baixa'] / KT)} nós`,
+        tone: 'neutral',
+        tip: 'Velocidade de corrida da arma (alta: alcance menor)',
+        action: () => (ui.page['armas.vel'] = fast ? 0 : 1),
+      });
     text(
       g,
       `água ${(t.water / 1025).toFixed(2)} m³ · tubo ${(t.pressure / 1e5).toFixed(1)} bar · mar ${(tv.seaPressure / 1e5).toFixed(1)} bar · garrafa ${tv.flaskBar.toFixed(0)} bar`,
@@ -156,10 +201,10 @@ export function drawLaunchPanel(act: RoomActions) {
       false,
       W - bx - 40,
     );
-    text(g, `reserva ${ws.reserve} · lançados ${ws.fired}`, bx + 14, y0 + 274, 18, C.dim, 'left', 'normal', false, W - bx - 40);
+    text(g, `reserva F21 ${ws.reserve}${w.missile ? ` · SM39 ${ws.reserveSm39 ?? 0}` : ''} · lançados ${ws.fired}`, bx + 14, y0 + 274, 18, C.dim, 'left', 'normal', false, W - bx - 40);
     // ---- ordens
     const send = (action: TubeAction) => act.cmd({ type: 'tube', tube: tc.n, action, presets, origin: act.geoOrigin(), traffic: act.traffic() });
-    const busy = t.auto !== null || t.eject !== null || t.reload !== null;
+    const busy = t.auto !== null || t.eject !== null || t.reload !== null || t.unload != null;
     const by = y0 + 312;
     const manual = (ui.page['armas.modo'] ?? 0) === 1;
     const bw = (W - 24 - 5 * 10) / 6;
@@ -225,10 +270,33 @@ export function drawLaunchPanel(act: RoomActions) {
     }
     // ---- torpedos em corrida
     const ry = by + (manual ? 130 : 76);
-    box(g, 12, ry, W - 24, H - ry - 10, 'TORPEDOS EM CORRIDA');
-    const runs = ws.runs.slice(manual ? -2 : -3);
-    if (!runs.length) text(g, 'nenhum torpedo lançado', W / 2, ry + 80, 22, C.dim, 'center', 'bold');
-    runs.forEach((r, k) => {
+    // mísseis: os em voo (e o último) aparecem antes dos torpedos
+    const mis = (ws.missiles ?? []).filter((r, k, a) => missileActive(r) || k === a.length - 1).slice(-2);
+    box(g, 12, ry, W - 24, H - ry - 10, mis.length ? 'ARMAS LANÇADAS' : 'TORPEDOS EM CORRIDA');
+    const nTorp = Math.max(0, (manual ? 2 : 3) - mis.length);
+    const runs = nTorp ? ws.runs.slice(-nTorp) : [];
+    if (!runs.length && !mis.length) text(g, 'nenhuma arma lançada', W / 2, ry + 80, 22, C.dim, 'center', 'bold');
+    mis.forEach((r, k) => {
+      const yy = ry + 56 + k * 46;
+      const alt = -r.d;
+      text(g, r.id, 30, yy, 24, r.hit ? C.real : C.warn, 'left', 'bold', true);
+      text(g, MPHASE[r.phase] ?? r.phase, 90, yy, 20, r.phase === 'terminal' || r.phase === 'acelerador' || r.phase === 'impacto' ? C.warn : C.text, 'left', 'bold', false, 170);
+      text(g, `${Math.round(r.speed * 3.6)} km/h · ${alt >= 0 ? `${alt.toFixed(0)} m alt` : `${(-alt).toFixed(0)} m prof`} · ${(r.run / 1000).toFixed(1)} km`, 270, yy, 19, C.text, 'left', 'normal', true, 290);
+      text(
+        g,
+        r.phase === 'impacto' ? 'IMPACTO — ALVO ATINGIDO' : r.hit ? 'ACERTO (exercício)' : r.tgt ? `alvo ${(r.tgt.range / 1000).toFixed(1)} km` : r.seeker ? 'autodiretor' : 'inercial',
+        570,
+        yy,
+        19,
+        r.hit ? C.real : C.dim,
+        'left',
+        'bold',
+        false,
+        360,
+      );
+    });
+    runs.forEach((r, k0) => {
+      const k = k0 + mis.length;
       const yy = ry + 56 + k * 46;
       text(g, r.id, 30, yy, 24, r.hit ? C.real : C.cmd, 'left', 'bold', true);
       text(g, PHASE[r.phase] ?? r.phase, 90, yy, 20, r.phase === 'ataque' ? C.warn : C.text, 'left', 'bold', false, 170);

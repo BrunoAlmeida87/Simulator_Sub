@@ -197,6 +197,42 @@ function plot(c: DrawCtx, act: RoomActions, x: number, y: number, w: number, h: 
     g.lineTo(cx, cy);
     g.stroke();
   }
+  // mísseis SM39: derrota (tracejada no voo inercial) e posição; fragatas (▲) e alvos em terra (■)
+  for (const h of s.weapons?.hostiles ?? []) {
+    const [px, py] = P(h.n, h.e);
+    const dead = h.sunk !== null;
+    g.fillStyle = dead ? C.dim : '#ff5257';
+    g.beginPath();
+    if (h.type === 'terra') g.rect(px - 7, py - 7, 14, 14);
+    else {
+      g.moveTo(px, py - 9);
+      g.lineTo(px + 8, py + 7);
+      g.lineTo(px - 8, py + 7);
+      g.closePath();
+    }
+    g.fill();
+    text(g, `${dead ? '☠ ' : h.tHit !== null ? '🔥 ' : ''}${h.id}`, px + 11, py + 4, opts.table ? 20 : 18, dead ? C.dim : '#ff9a9c', 'left', 'bold');
+  }
+  for (const r of s.weapons?.missiles ?? []) {
+    const col = r.hit ? C.real : r.presets.warhead === 'combate' ? '#ff6b5a' : '#ffd166';
+    g.strokeStyle = col;
+    g.lineWidth = 2.5;
+    g.setLineDash(r.seeker ? [] : [10, 5]);
+    g.beginPath();
+    [...r.track, r].forEach((p, i) => {
+      const [px, py] = P(p.n, p.e);
+      if (i) g.lineTo(px, py);
+      else g.moveTo(px, py);
+    });
+    g.stroke();
+    g.setLineDash([]);
+    const [px, py] = P(r.n, r.e);
+    g.fillStyle = col;
+    g.beginPath();
+    g.arc(px, py, 6, 0, Math.PI * 2);
+    g.fill();
+    text(g, r.id, px + 9, py - 10, opts.table ? 20 : 18, col, 'left', 'bold');
+  }
   // torpedos lançados (tiro de exercício): derrota e posição
   for (const r of s.weapons?.runs ?? []) {
     g.strokeStyle = r.hit ? C.real : C.cmd;

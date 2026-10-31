@@ -23,6 +23,7 @@ import { qToMat3 } from '../sim/core/math';
 import { torpedo as fallbackTorpedo } from './CargoVis';
 import { loadSubModel } from './subModel';
 import { Bubbles, torpedoModelUrl } from './TorpedoVis';
+import { sm39ModelUrl } from './MissileVis';
 
 export type TubeLabelGroup = 'pecas' | 'valvulas' | 'valores';
 export type TubeStagePreset = 'tres4' | 'lado' | 'boca' | 'culatra' | 'cima';
@@ -90,6 +91,7 @@ export class TubeStage {
   private opts: TubeStageOptions = { cut: true, flows: true, labels: { pecas: true, valvulas: true, valores: true } };
   private focus: TubeAction | null = null;
   private torpSrc: THREE.Object3D | null = null;
+  private vsmSrc: THREE.Object3D | null = null;
   private disposed = false;
 
   // peças (refeitas a cada troca de tubo)
@@ -166,6 +168,13 @@ export class TubeStage {
         if (this.disposed) return;
         this.torpSrc = src;
         this.builtFor = 'modelo'; // refaz as peças com o modelo, sem mexer na câmera
+      })
+      .catch(() => undefined);
+    loadSubModel(sm39ModelUrl(), this.renderer)
+      .then((src) => {
+        if (this.disposed) return;
+        this.vsmSrc = src;
+        this.builtFor = 'modelo';
       })
       .catch(() => undefined);
     this.loop();
@@ -257,9 +266,10 @@ export class TubeStage {
 
   // ------------------------------------------------------------------ construção
 
-  private makeTorpedo(): THREE.Group {
+  private makeTorpedo(kind: 'f21' | 'sm39' = 'f21'): THREE.Group {
     const g = new THREE.Group();
-    const m = this.torpSrc ? this.torpSrc.clone(true) : fallbackTorpedo();
+    g.userData.kind = kind;
+    const m = kind === 'sm39' && this.vsmSrc ? this.vsmSrc.clone(true) : this.torpSrc ? this.torpSrc.clone(true) : fallbackTorpedo();
     m.rotation.y = -Math.PI / 2; // eixo −z do modelo → +x (boca)
     g.add(m);
     return g;
@@ -601,13 +611,18 @@ export class TubeStage {
     this.surf.scale.z = Math.max(0.001, chord * 0.98);
     // arma no tubo (anda no disparo)
     const showW = t.weapon;
+    const kind = t.kind === 'sm39' && w.missile ? 'sm39' : 'f21';
+    if (this.weapon && this.weapon.userData.kind !== kind) {
+      this.root.remove(this.weapon);
+      this.weapon = null;
+    }
     if (showW && !this.weapon) {
-      this.weapon = this.makeTorpedo();
+      this.weapon = this.makeTorpedo(kind);
       this.root.add(this.weapon);
     }
     if (this.weapon) {
       this.weapon.visible = showW;
-      this.weapon.position.set(stowedWeaponX(w) - w.breechX + (t.eject ?? 0), 0, 0);
+      this.weapon.position.set(stowedWeaponX(w, kind === 'sm39' ? w.missile!.length : w.weapon.length) - w.breechX + (t.eject ?? 0), 0, 0);
     }
     this.weaponGlow.visible = showW && t.energized;
     if (this.weaponGlow.visible) {

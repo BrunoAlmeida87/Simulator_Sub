@@ -18,6 +18,7 @@ import { muzzleX, stowedWeaponX } from '../sim/systems/torpedoTubes';
 import { torpedo as fallbackTorpedo } from './CargoVis';
 import { loadSubModel } from './subModel';
 import type { Label3D } from './SubmarineScene';
+import { sm39ModelUrl } from './MissileVis';
 
 /** corpo (x vante, y boreste, z para baixo) → local do submarino */
 const b2l = (x: number, y: number, z: number) => new THREE.Vector3(y, -z, -x);
@@ -31,6 +32,8 @@ export function torpedoModelUrl(): string {
 
 interface Inst {
   root: THREE.Group;
+  /** arma desenhada: torpedo F21 ou cápsula VSM do SM39 */
+  kind: 'f21' | 'sm39';
   props: { obj: THREE.Object3D; dir: number }[];
   mats: THREE.Material[];
 }
@@ -156,6 +159,7 @@ export class TorpedoVis {
   /** torpedo acompanhado pela vista "Torpedo": posição na cena e direção (null = nenhum) */
   focus: { id: string; pos: THREE.Vector3; dir: THREE.Vector3; n: number; e: number } | null = null;
   private src: THREE.Object3D | null = null;
+  private vsm: THREE.Object3D | null = null;
   private tubes: (Inst | null)[] = [];
   private runs = new Map<string, RunVis>();
   private burst: Bubbles;
@@ -169,19 +173,34 @@ export class TorpedoVis {
   ) {
     this.burst = new Bubbles(BURST_N, dot, 0.45);
     this.world.add(this.burst.points);
-    if (renderer)
+    if (renderer) {
       loadSubModel(torpedoModelUrl(), renderer)
         .then((src) => {
           this.src = src;
           this.rebuild();
         })
         .catch(() => undefined);
+      loadSubModel(sm39ModelUrl(), renderer)
+        .then((src) => {
+          this.vsm = src;
+          this.rebuild();
+        })
+        .catch(() => undefined);
+    }
   }
 
-  private make(): Inst {
+  private make(kind: Inst['kind'] = 'f21'): Inst {
     let root: THREE.Group;
     const props: Inst['props'] = [];
-    if (this.src) {
+    if (kind === 'sm39') {
+      root = new THREE.Group();
+      if (this.vsm) root.add(this.vsm.clone(true));
+      else {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.266, 0.266, 5.8, 20), new THREE.MeshStandardMaterial({ color: 0x4b5534, roughness: 0.6 }));
+        m.rotation.x = Math.PI / 2;
+        root.add(m);
+      }
+    } else if (this.src) {
       root = new THREE.Group();
       const c = this.src.clone(true);
       root.add(c);
@@ -199,7 +218,7 @@ export class TorpedoVis {
       for (const x of Array.isArray(m.material) ? m.material : [m.material]) mats.push(x);
       m.castShadow = m.receiveShadow = false;
     });
-    return { root, props, mats };
+    return { root, props, mats, kind };
   }
 
   /** troca os desenhos simples pelo modelo assim que ele carrega */
@@ -255,9 +274,15 @@ export class TorpedoVis {
     w.tubes.forEach((tc, i) => {
       const t = ws.tubes[i];
       const show = t.weapon && (inside || t.eject !== null);
+      const kind = t.kind ?? 'f21';
       let inst = this.tubes[i] ?? null;
+      if (inst && inst.kind !== kind) {
+        this.local.remove(inst.root);
+        inst = null;
+        this.tubes[i] = null;
+      }
       if (show && !inst) {
-        inst = this.make();
+        inst = this.make(kind);
         for (const m of inst.mats) m.clippingPlanes = this.clip;
         this.tubes[i] = inst;
         this.local.add(inst.root);
@@ -265,7 +290,7 @@ export class TorpedoVis {
       if (!inst) return;
       inst.root.visible = show;
       if (!show) return;
-      inst.root.position.copy(b2l(stowedWeaponX(w) + (t.eject ?? 0), tc.y, tc.z));
+      inst.root.position.copy(b2l(stowedWeaponX(w, kind === 'sm39' && w.missile ? w.missile.length : w.weapon.length) + (t.eject ?? 0), tc.y, tc.z));
       // no disparo, as bolhas do ar de lançamento saem pela boca
       if (t.eject !== null && step > 0) {
         sub.updateMatrixWorld();

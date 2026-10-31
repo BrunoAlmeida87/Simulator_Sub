@@ -74,6 +74,27 @@ As cargas deslocáveis (`mass.shiftLoads`) entram na condição de projeto na po
 
 As 6 armas, a água inicial dos TCA e o ar das garrafas entram na condição de projeto (o peso leve automático as desconta); com a carga útil reduzida nas mesmas 9,6 t, a massa total e o G do navio no início ficam iguais aos de antes dos tubos (teste `tests/weapons.test.ts`).
 
+### Míssil antinavio SM39 (Exocet) na cápsula VSM (`weapons.missile`, `src/sim/systems/missiles.ts`)
+
+Ordens de grandeza públicas (MBDA, CSIS Missile Threat, EDR Magazine). Cinemática simples, sem aerodinâmica do míssil.
+
+| Item | Valor | Observação |
+|---|---|---|
+| Cápsula VSM com o míssil | 1 345 kg, 5,8 m × 533 mm, 1,3 m³ | entra no tubo no lugar do F21 (`TubeState.kind = 'sm39'`); a compensação usa a massa e o volume do tipo carregado |
+| Míssil | 655 kg, 4,69 m × 350 mm, ogiva 165 kg | asas em X abrem depois da separação |
+| Reserva | 2 SM39 (`missileReserve`) | junto aos torpedos de reserva (x = 13 m); entra na condição de projeto (peso leve automático) |
+| Motor da cápsula | acende 1,5 s depois de sair do tubo; 20 m/s (constante 1,2 s) | sobe a 45° (oblíqua) ou 75° (quase vertical); arfagem 12 °/s; desvio lateral até ±40° a 8 °/s |
+| Superfície | nariz ejetado 0,25 s depois de romper; separação a 20 m de altura (ou 3 s) | a cápsula cai no mar |
+| Acelerador | acende 1,0 s depois da separação; queima 2,6 s | sobe para 40 m |
+| Cruzeiro | 310 m/s (Mach ≈ 0,93) a 12 m | navegação inercial até o ponto de busca (posição prevista do alvo no lançamento) |
+| Autodiretor | ligado a 12 km do ponto de busca; alcance 15 km; cone ±30°; travamento após ≈ 1 s de varredura | fase terminal a max(3 m; 0,8·Hs + 1,5 m) |
+| Manobra | guinada 9 °/s; ângulo de trajetória 10 °/s | |
+| Alcance | 50 km de voo depois da separação | depois cai no mar |
+| Alvo em terra | subida a 5 km do alvo até 180 m acima do terreno; mergulho a ≈ 1,3 km | licença do simulador (no Exocet, Bloco 3 com GPS) |
+| Dano | 0,55 por impacto de ogiva | fragata: incêndio e para; com dano ≥ 1 afunda (dois mísseis); alvo em terra: destruído com um |
+| Fragata (alvo) | classe Tamandaré: 107,2 × 15,95 m, calado 5,2 m, até 26 nós | manobra evasiva (proa para o míssil, toda força) com o míssil em busca/terminal a < 9 km |
+| Submarino inimigo na superfície | cota 1,8 m (`depth: 0` no comando `enemy`) | único alvo submarino aceito pelo míssil |
+
 ## Bombas e válvulas
 
 | Componente | Valor |

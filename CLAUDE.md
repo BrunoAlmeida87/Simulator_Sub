@@ -40,6 +40,8 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
                       weapons.ts (tubos lançadores: sequência, compensação das armas, corrida do torpedo, alvos;
                       tubeSteps = etapas do passo a passo com a cor; submarinos inimigos e arma de combate/explosão;
                       comandos 'tube'/'torpedo'/'enemy'); torpedoTubes.ts (geometria dos tubos retos e das portas da boca)
+                      missiles.ts (míssil SM39 na cápsula VSM: tubo com kind 'sm39', voo, autodiretor, impacto;
+                      alvos hostis — fragata e alvo em terra — comando 'hostile'); teste tests/missiles.test.ts
   environment/        água do mar, ondas
   commands.ts         ÚNICA via para alterar a simulação (tipo Command + applyCommand)
   scenarios.ts        cenários iniciais (SCENARIOS)
@@ -56,6 +58,10 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   torpedoTubes.ts     tubos lançadores e sala de torpedos (desenho; geometria de sim/systems/torpedoTubes.ts)
   TorpedoVis.ts       torpedos na cena: armas nos tubos, saída pela boca, corrida (esteira, fio), vista 'torpedo';
                       modelo public/models/sx1-f21.glb (scripts/blender/build_f21.py, do .blend da pasta kimi)
+  MissileVis.ts       míssil SM39 (cápsula, nariz, separação, asas por morph, fumaça, impacto), fragata Tamandaré
+                      (sx1-fragata.glb, fogo e afundamento) e alvo em terra; modelos de public/models/SM_39VSM.blend e
+                      fragata_tamandare.blend (scripts/blender/build_sm39.py, build_fragata.py; npm run modelo:otimizar -- sm39 fragata)
+  missileCam.ts       câmera "Míssil cinematográfica" (diretor de planos por fase); a vista "Míssil" segue como a do torpedo
   EnemyVis.ts         submarinos inimigos (casco que se parte e afunda) e explosões (função da idade: 2ª janela igual);
                       vista 'alvo' e órbita livre nas vistas 'torpedo'/'alvo' (SubmarineScene: followUser)
   TubeStage.ts        tubo lançador em 3D etapa a etapa (cena própria, tela Armas; UI: components/TubeStage3D.tsx)

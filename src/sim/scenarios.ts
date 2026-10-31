@@ -7,6 +7,7 @@ import { SimulationEngine } from './core/engine';
 import { createState, type InitialPose } from './core/initialState';
 import { settleAtSurface, solveNeutralCompensation } from './equilibrium';
 import { KNOT } from './units';
+import { hostileCommand } from './systems/missiles';
 
 export type LoadCondition = 'leve' | 'normal' | 'pesada';
 
@@ -233,6 +234,53 @@ SCENARIOS.push(
     pose: { depth: 11.9, heading: 270, speed: 4 * KNOT },
     submerged: true,
     compensationDepth: 11.9,
+  },
+);
+
+/**
+ * MÍSSIL SM39 (acrescentados): tubos 5 e 6 carregados com o Exocet na cápsula VSM e uma fragata classe Tamandaré
+ * (alvo fictício) cruzando a proa a 28 km; e a mesma arma contra um alvo em terra na Restinga da Marambaia.
+ */
+SCENARIOS.push(
+  {
+    id: 'ataque_exocet',
+    name: 'Ataque com míssil Exocet SM39 — fragata a 28 km',
+    description:
+      'Mar aberto ao sul do Rio, cota periscópica (~18 m de quilha), 4 nós, rumo norte. Tubos 5 e 6 com o míssil antinavio SM39 na cápsula VSM (os outros com o torpedo F21) e mais 2 mísseis na reserva. Uma fragata classe Tamandaré (alvo fictício) cruza a proa a 28 km, 15 nós. Na tela Armas: escolher o tubo 5, a fragata como alvo, exercício ou combate, e disparar.',
+    objectives: [
+      'Passar os dados de tiro ao SM39 (alvo, cabeça de exercício ou de combate, subida da cápsula)',
+      'Preparar o tubo (alagar, equalizar, abrir a porta) e disparar',
+      'Acompanhar a cápsula subindo, o míssil saindo da água, o voo rasante e o impacto (câmeras Míssil e Míssil cinematográfica)',
+      'Ver a compensação automática repor o peso da arma lançada',
+    ],
+    env: (c) => {
+      // mar aberto ~45 km ao sul da Baía de Guanabara (sem costa: o fundo é o de mar aberto)
+      c.environment.geo = { origin: { lat: -23.32, lon: -43.12 }, coast: false, shelfWidth: 3000 };
+      if (c.vessel.weapons) c.vessel.weapons.initialKinds = ['f21', 'f21', 'f21', 'f21', 'sm39', 'sm39'];
+    },
+    pose: { depth: 13.9, heading: 0, speed: 4 * KNOT },
+    submerged: true,
+    compensationDepth: 13.9,
+    post: (e) => {
+      hostileCommand({ s: e.state, env: e.env, heading: 0, log: (t, g) => e.log(t, g) }, 'add', { kind: 'fragata', range: 28000, bearing: 25, course: 280, speed: 15 * KNOT });
+    },
+  },
+  {
+    id: 'exocet_terra',
+    name: 'Míssil SM39 contra alvo em terra — Restinga da Marambaia',
+    description:
+      'Cota periscópica ao sul da Restinga da Marambaia, rumo norte. Tubos 5 e 6 com o SM39. Um alvo em terra fictício (instalação) fica na restinga, ao norte. O míssil voa por pontos (licença do simulador: no Exocet isso é do Bloco 3, com GPS), sobe e mergulha sobre o alvo.',
+    objectives: ['Escolher o alvo em terra no tubo 5 e disparar', 'Acompanhar a subida e o mergulho final (câmera Míssil cinematográfica)', 'Comparar com o perfil rasante contra navio'],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -23.16, lon: -43.78 }, coast: true, shelfWidth: 3000 };
+      if (c.vessel.weapons) c.vessel.weapons.initialKinds = ['f21', 'f21', 'f21', 'f21', 'sm39', 'sm39'];
+    },
+    pose: { depth: 13.9, heading: 0, speed: 3 * KNOT },
+    submerged: true,
+    compensationDepth: 13.9,
+    post: (e) => {
+      hostileCommand({ s: e.state, env: e.env, heading: 0, log: (t, g) => e.log(t, g) }, 'add', { kind: 'terra', range: 4000, bearing: 0 });
+    },
   },
 );
 

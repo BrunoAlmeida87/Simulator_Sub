@@ -39,6 +39,8 @@ import { newDosing, tankWaterCentroid } from './internalTanks';
 import { boreVolume, ejectTravel, muzzleX, stowedWeaponX, tubeLength } from './torpedoTubes';
 import { contactsLocal, DEFAULT_ORIGIN, type Contact, type LatLon } from '../geo';
 import { trafficAt, trafficForEnv } from '../traffic';
+import { createMissile, ENEMY_SURFACE_D, FRIGATE, kindOf, missileRefusal, updateMissiles, weaponDims } from './missiles';
+import type { WeaponKind } from '../core/state';
 
 type RadiusAt = (x: number) => number;
 
@@ -62,6 +64,7 @@ export function initWeapons(v: VesselConfig, R: RadiusAt): WeaponsState | undefi
   const tubes: TubeState[] = w.tubes.map((tc, i) => ({
     n: tc.n,
     weapon: i < w.initialLoaded,
+    ...(w.missile && w.initialKinds?.[i] === 'sm39' ? { kind: 'sm39' as const } : {}),
     energized: false,
     water: 0,
     pressure: v.internalPressure,
@@ -86,6 +89,7 @@ export function initWeapons(v: VesselConfig, R: RadiusAt): WeaponsState | undefi
     awcFlow: 0,
     reserve,
     fired: 0,
+    ...(w.missile ? { reserveSm39: w.missileReserve ?? 0, missiles: [], hostiles: [] } : {}),
   };
   st.awcRef = weaponsWeight(w, st);
   st.awcMomentRef = weaponsMoment(v, st, R);
@@ -97,10 +101,11 @@ export function initWeapons(v: VesselConfig, R: RadiusAt): WeaponsState | undefi
 export function weaponsMoment(v: VesselConfig, st: WeaponsState, R: RadiusAt): number {
   const w = v.weapons!;
   const home = v.mass.shiftLoads?.find((l) => l.id === w.reserveLoad)?.home.x ?? 0;
-  let m = st.reserve * w.weapon.mass * home;
+  let m = st.reserve * w.weapon.mass * home + (st.reserveSm39 ?? 0) * (w.missile?.mass ?? 0) * home;
   w.tubes.forEach((tc, i) => {
     const t = st.tubes[i];
-    if (t.weapon) m += w.weapon.mass * (stowedWeaponX(w) + (t.eject ?? 0));
+    const dm = weaponDims(w, kindOf(t));
+    if (t.weapon) m += dm.mass * (stowedWeaponX(w, dm.length) + (t.eject ?? 0));
     m += t.water * (w.breechX + tubeLength(w, tc, R) / 2);
   });
   w.tca.forEach((tk, k) => (m += st.tca[k].mass * tk.center.x));
@@ -112,14 +117,17 @@ export const tcaFree = (w: WeaponsConfig, st: WeaponsState) => Math.max(0, w.tca
 
 /** Peso mantido pela compensação automática (kg). */
 export function weaponsWeight(w: WeaponsConfig, st: WeaponsState): number {
-  let m = st.reserve * w.weapon.mass;
-  for (const t of st.tubes) m += (t.weapon ? w.weapon.mass : 0) + t.water;
+  let m = st.reserve * w.weapon.mass + (st.reserveSm39 ?? 0) * (w.missile?.mass ?? 0);
+  for (const t of st.tubes) m += (t.weapon ? weaponDims(w, kindOf(t)).mass : 0) + t.water;
   for (const k of st.tca) m += k.mass;
   return m;
 }
 
 /** Água para encher o tubo (kg): o furo inteiro menos a arma. */
-export const fullWater = (w: WeaponsConfig, tc: TorpedoTubeConfig, t: TubeState, R: RadiusAt) => Math.max(0, boreVolume(w, tc, R) - (t.weapon ? w.weapon.volume : 0)) * RHO_NOMINAL;
+export const fullWater = (w: WeaponsConfig, tc: TorpedoTubeConfig, t: TubeState, R: RadiusAt) => Math.max(0, boreVolume(w, tc, R) - (t.weapon ? weaponDims(w, kindOf(t)).volume : 0)) * RHO_NOMINAL;
+
+/** Armas de reserva a bordo de um tipo. */
+export const reserveOf = (ws: WeaponsState, kind: WeaponKind) => (kind === 'sm39' ? (ws.reserveSm39 ?? 0) : ws.reserve);
 
 /** Pressão do mar na boca do tubo (Pa). */
 export function seaPressureAtTube(ctx: Pick<StepContext, 'env' | 'depthOf' | 'rhoLocal'>, w: WeaponsConfig, tc: TorpedoTubeConfig, R: RadiusAt): number {
@@ -158,6 +166,7 @@ export function tubeView(v: VesselConfig, s: SimState, ctx: Pick<StepContext, 'e
   let status = '';
   let tone: TubeView['tone'] = 'off';
   if (t.eject !== null) [status, tone] = ['DISPARANDO', 'warn'];
+  else if (t.unload != null) [status, tone] = [`DESCARREGANDO ${Math.round((100 * t.unload) / w.reloadTime)}%`, 'busy'];
   else if (t.reload !== null) [status, tone] = [`RECARREGANDO ${Math.round((100 * t.reload) / w.reloadTime)}%`, 'busy'];
   else if (ready) [status, tone] = ['PRONTO PARA DISPARO', 'ready'];
   else if (t.door.pos > 0.001 && t.door.pos < 0.999) [status, tone] = [t.door.cmd > 0.5 ? 'ABRINDO A PORTA' : 'FECHANDO A PORTA', 'busy'];
@@ -176,7 +185,7 @@ export function tubeView(v: VesselConfig, s: SimState, ctx: Pick<StepContext, 'e
 // ------------------------------------------------------------------ alvos
 
 /** Alvo possível: contato do quadro tático ou submarino inimigo (com a cota). */
-export type WeaponTarget = Omit<Contact, 'kind'> & { kind: Contact['kind'] | 'submarino'; d?: number; enemy?: boolean };
+export type WeaponTarget = Omit<Contact, 'kind'> & { kind: Contact['kind'] | 'submarino' | 'fragata'; d?: number; enemy?: boolean; hostile?: boolean };
 
 export const isEnemyId = (id: string | null | undefined) => !!id && id.startsWith('INI');
 
@@ -187,7 +196,11 @@ export function weaponTargets(env: Environment, origin: LatLon, t: number, traff
   const fixed = contactsLocal(t, origin);
   const extra = traffic > 0 ? trafficAt(t, trafficForEnv(env, origin, traffic), origin) : [];
   const en = (ws?.enemies ?? []).filter((x) => x.sunk === null).map(enemyTarget);
-  return [...en, ...fixed, ...extra];
+  // fragatas (alvos de superfície fictícios): o torpedo de exercício passa sob a quilha
+  const fr: WeaponTarget[] = (ws?.hostiles ?? [])
+    .filter((h) => h.type === 'fragata' && h.sunk === null)
+    .map((h) => ({ id: h.id, name: h.name, kind: 'fragata' as const, n: h.n, e: h.e, course: h.course, speed: h.speed, d: FRIGATE.draft, hostile: true }));
+  return [...en, ...fr, ...fixed, ...extra];
 }
 
 const DEG = Math.PI / 180;
@@ -237,6 +250,7 @@ export type TubeAction =
   | 'abrirCulatra'
   | 'fecharCulatra'
   | 'carregar'
+  | 'trocar'
   | 'dados';
 
 export const TUBE_ACTION_LABEL: Record<TubeAction, string> = {
@@ -255,6 +269,7 @@ export const TUBE_ACTION_LABEL: Record<TubeAction, string> = {
   abrirCulatra: 'abrir a culatra',
   fecharCulatra: 'fechar a culatra',
   carregar: 'carregar arma da reserva',
+  trocar: 'trocar a arma do tubo',
   dados: 'dados de tiro',
 };
 
@@ -274,8 +289,13 @@ export interface TubeCmdCtx {
 
 const G = 'Armas';
 
-function presetText(p: TubePresets, name?: string): string {
+function presetText(p: TubePresets, name?: string, kind: WeaponKind = 'f21'): string {
   const alvo = p.target ? `alvo ${name ?? p.target}` : 'sem alvo';
+  if (kind === 'sm39') {
+    const rumo = p.course === null ? 'rumo do submarino' : `rumo ${Math.round(p.course).toString().padStart(3, '0')}°`;
+    const dog = p.dogleg ? `, desvio da cápsula ${Math.abs(Math.round(p.dogleg))}° ${p.dogleg > 0 ? 'BE' : 'BB'}` : '';
+    return `míssil SM39 ${p.warhead === 'combate' ? 'de COMBATE' : 'de exercício'}, ${alvo}, ${rumo}, subida ${p.climb === 'vertical' ? 'quase vertical' : 'oblíqua'}${dog}`;
+  }
   const rumo = p.course === null ? 'rumo do submarino' : `rumo ${Math.round(p.course).toString().padStart(3, '0')}°`;
   return `${p.warhead === 'combate' ? 'arma de COMBATE, ' : ''}${alvo}, velocidade ${p.speed}, cota ${Math.round(p.depth)} m, ${rumo}`;
 }
@@ -308,7 +328,16 @@ function tubeCond(v: VesselConfig, ws: WeaponsState, i: number, R: RadiusAt, sea
 function tubeRefusal(c: TubeCond, action: TubeAction, presets: TubePresets): string | null {
   const { w, ws, t, flooded, equalized, sea } = c;
   if (t.eject !== null) return 'disparo em andamento';
-  const combatBad = presets.warhead === 'combate' && presets.target && !isEnemyId(presets.target) ? 'arma de combate só contra um submarino inimigo' : null;
+  const missile = kindOf(t) === 'sm39';
+  const combatBad = missile
+    ? missileRefusal(ws, presets)
+    : presets.warhead === 'combate' && presets.target && !isEnemyId(presets.target)
+      ? 'arma de combate só contra um submarino inimigo'
+      : presets.target?.startsWith('TER')
+        ? 'o torpedo não atinge alvo em terra'
+        : null;
+  const load = presets.load ?? 'f21';
+  if (load === 'sm39' && !w.missile && (action === 'recarregar' || action === 'carregar' || action === 'trocar')) return 'este navio não leva mísseis';
   switch (action) {
     case 'dados':
     case 'cancelar':
@@ -323,7 +352,7 @@ function tubeRefusal(c: TubeCond, action: TubeAction, presets: TubePresets): str
       return action === 'disparar' ? combatBad : null;
     case 'recarregar':
       if (t.weapon) return 'já há arma no tubo';
-      if (ws.reserve <= 0) return 'sem armas de reserva';
+      if (reserveOf(ws, load) <= 0) return load === 'sm39' ? 'sem mísseis SM39 de reserva' : 'sem armas de reserva';
       if (t.water > tcaFree(w, ws) + 1) return `sem espaço nos TCA para a água do tubo (${(t.water / RHO_NOMINAL).toFixed(2)} m³)`;
       return null;
     case 'alimentar':
@@ -357,7 +386,14 @@ function tubeRefusal(c: TubeCond, action: TubeAction, presets: TubePresets): str
     case 'carregar':
       if (t.breech.pos < 0.999) return 'culatra fechada';
       if (t.weapon) return 'já há arma no tubo';
-      if (ws.reserve <= 0) return 'sem armas de reserva';
+      if (reserveOf(ws, load) <= 0) return load === 'sm39' ? 'sem mísseis SM39 de reserva' : 'sem armas de reserva';
+      return null;
+    case 'trocar':
+      if (!t.weapon) return 'tubo vazio (use recarregar)';
+      if (kindOf(t) === load) return `já há ${load === 'sm39' ? 'um SM39' : 'um F21'} no tubo`;
+      if (reserveOf(ws, load) <= 0) return load === 'sm39' ? 'sem mísseis SM39 de reserva' : 'sem torpedos de reserva';
+      if (t.reload !== null || t.unload != null) return 'recarga em andamento';
+      if (t.water > tcaFree(w, ws) + 1) return `sem espaço nos TCA para a água do tubo (${(t.water / RHO_NOMINAL).toFixed(2)} m³)`;
       return null;
   }
   return null;
@@ -389,7 +425,7 @@ const STEP_DEF: [TubeAction, string, string, ManualStep['group']][] = [
   ['fecharPorta', 'Fechar a porta da boca', 'Isola o tubo do mar (o tubo continua cheio de água).', 'recarregar'],
   ['drenar', 'Drenar para o TCA', 'A água do tubo volta para o tanque de compensação.', 'recarregar'],
   ['abrirCulatra', 'Abrir a culatra', 'A porta interna abre para a sala de torpedos (só com o tubo seco).', 'recarregar'],
-  ['carregar', 'Carregar arma da reserva', 'Uma arma da reserva é empurrada para dentro do tubo (≈ 5 min).', 'recarregar'],
+  ['carregar', 'Carregar arma da reserva', 'Uma arma da reserva (F21 ou SM39, a escolher) é empurrada para dentro do tubo (≈ 5 min).', 'recarregar'],
   ['fecharCulatra', 'Fechar a culatra', 'Fecha a porta interna: tubo carregado e seco, pronto para a próxima.', 'recarregar'],
 ];
 
@@ -471,7 +507,7 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
   const tname = () => (t.presets.target ? c.targetName?.(t.presets.target) : undefined);
   switch (action) {
     case 'dados':
-      c.log(`${nm}: dados de tiro — ${presetText(t.presets, tname())}`, G);
+      c.log(`${nm}: dados de tiro — ${presetText(t.presets, tname(), kindOf(t))}`, G);
       return;
     case 'cancelar':
       if (!t.auto) return;
@@ -481,24 +517,32 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
     case 'preparar':
     case 'disparar':
       t.auto = action;
-      c.log(`${nm}: ${action === 'disparar' ? 'preparar e disparar' : 'preparar para disparo'} — ${presetText(t.presets, tname())}`, G);
+      c.log(`${nm}: ${action === 'disparar' ? 'preparar e disparar' : 'preparar para disparo'} — ${presetText(t.presets, tname(), kindOf(t))}`, G);
       if (action === 'disparar' && tubeReadyNow(c.v, t, full, sea)) fire(c, i);
       return;
     case 'fogo':
-      c.log(`${nm}: disparar — ${presetText(t.presets, tname())}`, G);
+      c.log(`${nm}: disparar — ${presetText(t.presets, tname(), kindOf(t))}`, G);
       fire(c, i);
       return;
     case 'fechar':
       t.auto = 'fechar';
       c.log(`${nm}: fechar a porta da boca e isolar o tubo do mar`, G);
       return;
-    case 'recarregar':
+    case 'recarregar': {
       t.auto = 'recarregar';
-      c.log(`${nm}: recarregar — fechar a porta, drenar, abrir a culatra e puxar uma arma da reserva (${ws.reserve} a bordo)`, G);
+      const k = t.presets.load ?? 'f21';
+      c.log(`${nm}: recarregar com ${k === 'sm39' ? 'míssil SM39' : 'torpedo F21'} — fechar a porta, drenar, abrir a culatra e puxar uma arma da reserva (${reserveOf(ws, k)} a bordo)`, G);
       return;
+    }
+    case 'trocar': {
+      t.auto = 'trocar';
+      const k = t.presets.load ?? 'f21';
+      c.log(`${nm}: trocar ${weaponDims(w, kindOf(t)).name} por ${weaponDims(w, k).name} — fechar a porta, drenar, abrir a culatra, devolver a arma à reserva e carregar a nova`, G);
+      return;
+    }
     case 'alimentar':
       t.energized = !t.energized;
-      c.log(`${nm}: arma ${t.energized ? 'alimentada — ' + presetText(t.presets, tname()) : 'desligada'}`, G);
+      c.log(`${nm}: arma ${t.energized ? 'alimentada — ' + presetText(t.presets, tname(), kindOf(t)) : 'desligada'}`, G);
       return;
     case 'alagar':
       t.flood.cmd = 1;
@@ -537,7 +581,7 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
       return;
     case 'carregar':
       t.reload = 0;
-      c.log(`${nm}: carregar uma arma da reserva (${Math.round(w.reloadTime / 60)} min)`, G);
+      c.log(`${nm}: carregar ${(t.presets.load ?? 'f21') === 'sm39' ? 'um míssil SM39' : 'um torpedo F21'} da reserva (${Math.round(w.reloadTime / 60)} min)`, G);
       return;
   }
 }
@@ -693,6 +737,23 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
       t.water -= q;
       tcaMove(q);
     }
+    // descarga (troca de arma): a arma volta para a reserva
+    if (t.unload != null) {
+      if (t.breech.pos < 0.999) t.unload = null;
+      else {
+        t.unload += dt;
+        if (t.unload >= w.reloadTime) {
+          t.unload = null;
+          const k = kindOf(t);
+          t.weapon = false;
+          t.energized = false;
+          delete t.kind;
+          if (k === 'sm39') ws.reserveSm39 = (ws.reserveSm39 ?? 0) + 1;
+          else ws.reserve += 1;
+          ctx.log(`${tubeName(tc)}: ${k === 'sm39' ? 'míssil SM39' : 'torpedo F21'} devolvido à reserva`, G);
+        }
+      }
+    }
     // recarga a partir da reserva
     if (t.reload !== null) {
       if (t.breech.pos < 0.999) t.reload = null;
@@ -700,11 +761,18 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
         t.reload += dt;
         if (t.reload >= w.reloadTime) {
           t.reload = null;
-          if (ws.reserve > 0) {
+          const k: WeaponKind = t.presets.load === 'sm39' && w.missile ? 'sm39' : 'f21';
+          if (reserveOf(ws, k) > 0) {
             t.weapon = true;
             t.energized = false;
-            ws.reserve -= 1;
-            ctx.log(`${tubeName(tc)}: arma carregada da reserva (${ws.reserve} na reserva)`, G);
+            if (k === 'sm39') {
+              t.kind = 'sm39';
+              ws.reserveSm39 = (ws.reserveSm39 ?? 0) - 1;
+            } else {
+              delete t.kind;
+              ws.reserve -= 1;
+            }
+            ctx.log(`${tubeName(tc)}: ${k === 'sm39' ? 'míssil SM39' : 'torpedo F21'} carregado da reserva (${reserveOf(ws, k)} na reserva)`, G);
           }
         }
       }
@@ -726,7 +794,7 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
       t.ejectV += a * dt;
       t.eject += t.ejectV * dt;
       // reação: arma + parte da água do tubo aceleradas para vante
-      const Fx = -(w.weapon.mass + 0.5 * t.water) * a;
+      const Fx = -(weaponDims(w, kindOf(t)).mass + 0.5 * t.water) * a;
       const at = { x: w.breechX + tubeLength(w, tc, R) / 2, y: tc.y, z: tc.z };
       out.F.x += Fx;
       // M = r × F, F = (Fx, 0, 0)
@@ -754,7 +822,7 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
   // compensação automática do trim: com os tubos parados, uma transferência TT-AV ↔ TT-AR anula a
   // variação do momento das armas (alagar, disparar, drenar e recarregar levam peso para vante ou ré)
   if (ws.awcMomentRef === undefined) ws.awcMomentRef = weaponsMoment(v, ws, R);
-  const busy = ws.tubes.some((t) => t.eject !== null || t.reload !== null || t.flood.pos > 0 || t.drain.pos > 0 || (t.equalize.pos > 0 && t.equalize.pos < 1) || t.breech.pos > 0);
+  const busy = ws.tubes.some((t) => t.eject !== null || t.reload !== null || t.unload != null || t.flood.pos > 0 || t.drain.pos > 0 || (t.equalize.pos > 0 && t.equalize.pos < 1) || t.breech.pos > 0);
   const tr = s.trim;
   if (!busy && !(tr.dosing && tr.dosing.active) && !tr.pump.cmd && Math.abs(ws.awcFlow) < 1e-6) {
     const lever = v.trim.tankA.center.x - v.trim.tankB.center.x;
@@ -773,6 +841,7 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
 
   updateEnemies(v, s, inp);
   for (const r of ws.runs) updateRun(v, s, inp, r);
+  updateMissiles(v, s, { ctx });
   return out;
 }
 
@@ -828,7 +897,9 @@ export function enemyCommand(c: EnemyCmdCtx, action: EnemyAction, p: EnemyParams
   const e = own.y + Math.sin(brg * DEG) * range;
   const bottom = c.env.bottomDepthAt(n, e);
   if (bottom < 30) return c.log(`Submarino inimigo recusado — águas rasas no ponto escolhido (${bottom.toFixed(0)} m de fundo)`, G);
-  const depth = Math.max(15, Math.min(p.depth ?? Math.max(40, own.z + 20), bottom - 12));
+  // cota 0 = navegando na superfície (alvo também do míssil SM39)
+  const surfaced = p.depth !== undefined && p.depth <= 0;
+  const depth = surfaced ? ENEMY_SURFACE_D : Math.max(15, Math.min(p.depth ?? Math.max(40, own.z + 20), bottom - 12));
   const course = wrap360(p.course ?? brg + 90);
   const speed = Math.max(0, Math.min(10, p.speed ?? 5 * KN));
   ws.enemyCount = (ws.enemyCount ?? 0) + 1;
@@ -836,9 +907,9 @@ export function enemyCommand(c: EnemyCmdCtx, action: EnemyAction, p: EnemyParams
   let id = p.id ? (isEnemyId(p.id) ? p.id : `INI-${p.id}`) : `INI${ws.enemyCount}`;
   while (list.some((k) => k.id === id)) id = `${id}'`;
   const name = p.name ?? `Submarino inimigo ${ws.enemyCount}`;
-  list.push({ id, name, n, e, d: depth, course, speed, cmdCourse: course, cmdSpeed: speed, cmdDepth: depth, evading: false, sunk: null, pitch: 0, hits: 0 });
+  list.push({ id, name, n, e, d: depth, course, speed, cmdCourse: course, cmdSpeed: speed, cmdDepth: surfaced ? 0 : depth, evading: false, sunk: null, pitch: 0, hits: 0 });
   c.log(
-    `${name} (fictício) a ${(range / 1000).toFixed(1)} km, marcação ${Math.round(brg).toString().padStart(3, '0')}°, cota ${depth.toFixed(0)} m, rumo ${Math.round(course).toString().padStart(3, '0')}°, ${(speed / KN).toFixed(0)} nós`,
+    `${name} (fictício) a ${(range / 1000).toFixed(1)} km, marcação ${Math.round(brg).toString().padStart(3, '0')}°, ${surfaced ? 'na superfície' : `cota ${depth.toFixed(0)} m`}, rumo ${Math.round(course).toString().padStart(3, '0')}°, ${(speed / KN).toFixed(0)} nós`,
     G,
   );
 }
@@ -880,7 +951,7 @@ function updateEnemies(v: VesselConfig, s: SimState, inp: WeaponsStepInput): voi
     x.course = wrap360(x.course + Math.max(-mt, Math.min(mt, dh)));
     const dv = speed - x.speed;
     x.speed += Math.max(-cfg.accel * dt, Math.min(cfg.accel * dt, dv));
-    const dCmd = Math.max(15, Math.min(x.cmdDepth, bottom - 12));
+    const dCmd = x.cmdDepth <= 0 ? ENEMY_SURFACE_D : Math.max(15, Math.min(x.cmdDepth, bottom - 12));
     x.d += Math.max(-cfg.depthRate * dt, Math.min(cfg.depthRate * dt, dCmd - x.d));
     x.pitch = Math.max(-8, Math.min(8, ((dCmd - x.d) / 20) * 8));
     x.n += x.speed * Math.cos(x.course * DEG) * dt;
@@ -975,13 +1046,14 @@ function runAuto(c: TubeCmdCtx, i: number, full: number, sea: number): void {
       t.auto = null;
       c.log(`${nm}: porta fechada, tubo isolado do mar`, G);
       return;
+    case 'trocar':
     case 'recarregar': {
       if (t.door.pos > 0.001 || t.equalize.pos > 0.001) {
         t.door.cmd = 0;
         t.equalize.cmd = 0;
         return;
       }
-      if (t.water > 0.5 && !t.weapon) {
+      if (t.water > 0.5 && (!t.weapon || t.auto === 'trocar')) {
         if (t.drain.pos > 0.999 && tcaFree(w, c.s.weapons!) < 1) {
           // TCA cheios: a drenagem parou (não acontece com a dotação normal de armas)
           t.auto = null;
@@ -1001,6 +1073,22 @@ function runAuto(c: TubeCmdCtx, i: number, full: number, sea: number): void {
         t.vent.cmd = 0;
       }
       if (t.drain.pos > 0.001) return;
+      // troca: a arma atual volta para a reserva antes de carregar a nova
+      if (t.auto === 'trocar' && t.weapon && kindOf(t) !== (t.presets.load ?? 'f21')) {
+        if (t.breech.pos < 0.999) {
+          if (t.breech.cmd < 1) {
+            t.breech.cmd = 1;
+            c.log(`${nm}: tubo seco; abrindo a culatra`, G);
+          }
+          return;
+        }
+        if (t.unload == null) {
+          t.unload = 0;
+          c.log(`${nm}: retirando a arma do tubo para a reserva (${Math.round(w.reloadTime / 60)} min)`, G);
+        }
+        return;
+      }
+      if (t.unload != null) return;
       if (!t.weapon) {
         if (t.breech.pos < 0.999) {
           if (t.breech.cmd < 1) {
@@ -1010,7 +1098,7 @@ function runAuto(c: TubeCmdCtx, i: number, full: number, sea: number): void {
           return;
         }
         if (t.reload === null) {
-          if (c.s.weapons!.reserve <= 0) {
+          if (reserveOf(c.s.weapons!, t.presets.load ?? 'f21') <= 0) {
             c.log(`${nm}: sem armas de reserva`, G);
             t.auto = null;
             t.breech.cmd = 0;
@@ -1041,14 +1129,17 @@ function launch(v: VesselConfig, s: SimState, inp: WeaponsStepInput, i: number, 
   const t = ws.tubes[i];
   const { ctx, R } = inp;
   void sea;
+  const kind = kindOf(t);
+  const dims = weaponDims(w, kind);
   t.weapon = false;
   t.energized = false;
   t.eject = null;
+  delete t.kind;
   const vExit = t.ejectV;
   t.ejectV = 0;
-  s.ledger.weaponsOut = (s.ledger.weaponsOut ?? 0) + w.weapon.mass;
+  s.ledger.weaponsOut = (s.ledger.weaponsOut ?? 0) + dims.mass;
   // o mar ocupa no tubo o lugar da arma
-  const inflow = w.weapon.volume * ctx.rhoLocal;
+  const inflow = dims.volume * ctx.rhoLocal;
   t.water += inflow;
   s.ledger.seaIn += inflow;
   ws.fired += 1;
@@ -1060,6 +1151,13 @@ function launch(v: VesselConfig, s: SimState, inp: WeaponsStepInput, i: number, 
   const d = ctx.pos.z + M[6] * p.x + M[7] * p.y + M[8] * p.z;
   const hdg = wrap360(inp.heading);
   const vAlong = inp.velNED.x * Math.cos(hdg * DEG) + inp.velNED.y * Math.sin(hdg * DEG);
+  if (kind === 'sm39') {
+    // míssil: a cápsula VSM sai pela boca e o voo é tratado em missiles.ts
+    const m = createMissile(v, s, ctx.env, { id: `M${ws.fired}`, tube: tc.n, n, e, d, heading: hdg, speed: Math.max(0, vAlong) + vExit, presets: t.presets, traffic: t.traffic ?? 0, origin: t.origin }, ctx.log);
+    ws.missiles = [...(ws.missiles ?? []), m].slice(-8);
+    ctx.log(`${tubeName(tc)}: cápsula fora do tubo a ${vExit.toFixed(1)} m/s. Água do mar no tubo; compensação automática em ação.`, G);
+    return;
+  }
   const id = `T${ws.fired}`;
   const run: TorpedoRun = {
     id,
@@ -1243,13 +1341,21 @@ export function weaponMassItems(v: VesselConfig, s: SimState, R: RadiusAt): Weap
   let flask = 0;
   w.tubes.forEach((tc, i) => {
     const t = ws.tubes[i];
-    if (t.weapon) items.push({ id: `arma${tc.n}`, name: `Arma no tubo ${tc.n}`, group: 'armas', mass: w.weapon.mass, pos: { x: stowedWeaponX(w) + (t.eject ?? 0), y: tc.y, z: tc.z } });
+    const dm = weaponDims(w, kindOf(t));
+    if (t.weapon) items.push({ id: `arma${tc.n}`, name: `${dm.name} no tubo ${tc.n}`, group: 'armas', mass: dm.mass, pos: { x: stowedWeaponX(w, dm.length) + (t.eject ?? 0), y: tc.y, z: tc.z } });
     if (t.water > 0) items.push({ id: `aguaTubo${tc.n}`, name: `Água no tubo ${tc.n}`, group: 'armas', mass: t.water, pos: { x: w.breechX + tubeLength(w, tc, R) / 2, y: tc.y, z: tc.z } });
     flask += t.flask;
   });
   w.tca.forEach((tk, k) => items.push({ id: tk.id, name: tk.name, group: 'armas', mass: ws.tca[k].mass, pos: tankWaterCentroid(tk, { mass: ws.tca[k].mass }) }));
+  if (w.missile && (ws.reserveSm39 ?? 0) > 0) items.push({ id: 'reservaSM39', name: `Mísseis SM39 de reserva (${ws.reserveSm39})`, group: 'armas', mass: (ws.reserveSm39 ?? 0) * w.missile.mass, pos: sm39Stow(v) });
   items.push({ id: 'arTubos', name: 'Ar das garrafas de lançamento', group: 'ar', mass: flask, pos: { x: 22.3, y: 0, z: 0.2 } });
   return items;
+}
+
+/** Estiva dos mísseis SM39 de reserva: junto aos torpedos de reserva (mesma posição longitudinal). */
+function sm39Stow(v: VesselConfig): Vec3 {
+  const home = v.mass.shiftLoads?.find((l) => l.id === v.weapons?.reserveLoad)?.home;
+  return { x: home?.x ?? 13, y: 0, z: home?.z ?? 1.3 };
 }
 
 /** Itens de peso da condição de projeto (estado inicial) — entram no cálculo do peso leve. */
@@ -1259,8 +1365,10 @@ export function weaponDesignItems(v: VesselConfig, R: RadiusAt): { m: number; p:
   const T = v.hpAir.temperature + 273.15;
   const out: { m: number; p: Vec3 }[] = [];
   w.tubes.forEach((tc, i) => {
-    if (i < w.initialLoaded) out.push({ m: w.weapon.mass, p: { x: stowedWeaponX(w), y: tc.y, z: tc.z } });
+    const dm = weaponDims(w, w.missile && w.initialKinds?.[i] === 'sm39' ? 'sm39' : 'f21');
+    if (i < w.initialLoaded) out.push({ m: dm.mass, p: { x: stowedWeaponX(w, dm.length), y: tc.y, z: tc.z } });
   });
+  if (w.missile && (w.missileReserve ?? 0) > 0) out.push({ m: (w.missileReserve ?? 0) * w.missile.mass, p: sm39Stow(v) });
   for (const tk of w.tca) out.push({ m: tk.initialVolume * RHO_NOMINAL, p: tankWaterCentroid(tk, { mass: tk.initialVolume * RHO_NOMINAL }) });
   out.push({ m: w.tubes.length * flaskMass(w, w.flask.pressure, T), p: { x: 22.3, y: 0, z: 0.2 } });
   void R;

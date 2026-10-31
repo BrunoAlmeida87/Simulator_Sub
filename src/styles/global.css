@@ -1308,6 +1308,12 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .wx-tube-txt { display: flex; flex-direction: column; min-width: 0; }
 .wx-tube-txt b { font-size: 14px; white-space: nowrap; }
 .wx-tube-txt small { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* tipo da arma no tubo (F21 ou míssil SM39) e escolha da arma da reserva */
+.wx-kind { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 6px; font-size: 10px; font-weight: 700; vertical-align: 1px; background: #24384d; color: #cfe3f5; }
+.wx-kind.k-sm39 { background: #4a5a2a; color: #eef5d6; }
+.wx-kind.k-vazio { background: transparent; color: var(--muted); }
+.wx-load { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12.5px; color: var(--muted); }
+.wx-load .seg button { white-space: nowrap; }
 .wx-cols { display: grid; grid-template-columns: minmax(340px, 1fr) minmax(0, 1.35fr); gap: 12px; align-items: start; }
 .wx-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .wx-col > .panel { margin: 0; }

@@ -38,3 +38,10 @@ Os contatos seguem a cinemática existente do mapa; os rebocadores adicionais
 usam trajetos fictícios paralelos ao R1. Eles não alteram a física do submarino.
 A camada de tráfego existente aplica ondas, esteiras, luzes, alcance e rótulos
 aos modelos importados. Em falha de carregamento, mantém o modelo simplificado.
+
+## Míssil SM39 e fragata Tamandaré (alvo)
+
+`sx1-sm39.glb` (cápsula VSM com o míssil SM39, asas com a forma "Recolhida") e `sx1-fragata.glb` (fragata classe
+Tamandaré, radar giratório) saem de `SM_39VSM.blend` e `fragata_tamandare.blend` desta pasta pelos scripts
+`scripts/blender/build_sm39.py` e `build_fragata.py` e são comprimidos com `npm run modelo:otimizar -- sm39 fragata`.
+São lidos por `src/render3d/MissileVis.ts` (contrato conferido em `tests/missileModels.test.ts`).

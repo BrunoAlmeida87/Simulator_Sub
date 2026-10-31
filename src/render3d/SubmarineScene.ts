@@ -38,6 +38,8 @@ import { TrimVis } from './TrimVis';
 import { CargoVis } from './CargoVis';
 import { TorpedoVis, torpedoPose } from './TorpedoVis';
 import { EnemyVis, enemyScenePos, focusEnemy } from './EnemyVis';
+import { MissileVis, focusHostile, focusMissile, hostileScenePos, missilePose } from './MissileVis';
+import { directMissileCam, newCine } from './missileCam';
 import { PitchAngle } from './PitchAngle';
 import { Ensign } from './Ensign';
 import { defaultLayers, type SceneLayers } from './layers';
@@ -93,7 +95,9 @@ export type ViewMode = 'sonar' | 'ping'
   | 'passadico'
   | 'drone'
   | 'torpedo'
-  | 'alvo';
+  | 'alvo'
+  | 'missil'
+  | 'missilCine';
 
 /** Linha de visada do periscópio: marcação relativa à proa (°), elevação (°) e campo de visão vertical (°). */
 export interface PeriscopeSight {
@@ -240,6 +244,10 @@ export class SubmarineScene {
   private cargoVis!: CargoVis;
   private torpedoVis!: TorpedoVis;
   private enemyVis!: EnemyVis;
+  private missileVis!: MissileVis;
+  /** diretor da câmera cinematográfica do míssil e a origem flutuante do quadro anterior (cena) */
+  private cine = newCine();
+  private cineOrigin: THREE.Vector3 | null = null;
   /** vistas que acompanham um objeto em movimento (torpedo, alvo): o operador gira/aproxima e a câmera continua acompanhando */
   private followUser = false;
   private followPrev: THREE.Vector3 | null = null;
@@ -348,7 +356,7 @@ export class SubmarineScene {
     this.controls.maxDistance = 6000;
     this.controls.addEventListener('start', () => {
       // torpedo e alvo: arrastar gira em volta do objeto sem deixar de acompanhá-lo
-      if (this.view === 'torpedo' || this.view === 'alvo') {
+      if (this.view === 'torpedo' || this.view === 'alvo' || this.view === 'missil' || this.view === 'missilCine') {
         this.followUser = true;
         return;
       }
@@ -415,6 +423,8 @@ export class SubmarineScene {
     this.scene.add(this.torpedoVis.world);
     this.enemyVis = new EnemyVis(this.dot);
     this.scene.add(this.enemyVis.group);
+    this.missileVis = new MissileVis(this.dot, this.renderer);
+    this.scene.add(this.missileVis.group);
     this.scene.add(this.pitchAngle.group);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
@@ -879,6 +889,35 @@ export class SubmarineScene {
     return this.view;
   }
 
+  /**
+   * Objeto da vista "Alvo": o alvo de superfície/terra do último míssil (se for a arma mais recente) ou o submarino
+   * inimigo; posição na cena, direção (rumo) e o enquadramento (distância para trás, ao lado e acima).
+   */
+  private alvoFocus(e: SimulationEngine, pn: number, pe: number): { pos: THREE.Vector3; dir: THREE.Vector3; back: number; side: number; up: number; host: boolean } | null {
+    const ws = e.state.weapons;
+    const host = focusHostile(e);
+    const foe = focusEnemy(e);
+    const tMis = Math.max(-1, ...(ws?.missiles ?? []).map((r) => r.tFire));
+    const tTorp = Math.max(-1, ...(ws?.runs ?? []).map((r) => r.tFire));
+    const dirOf = (c: number) => new THREE.Vector3(Math.sin((c * Math.PI) / 180), 0, -Math.cos((c * Math.PI) / 180));
+    if (host && (!foe || tMis > tTorp || (tMis < 0 && tTorp < 0 && (ws?.hostiles?.length ?? 0) > 0 && !(ws?.enemies ?? []).some((x) => x.sunk === null)))) {
+      const p = hostileScenePos(host, pn, pe).add(new THREE.Vector3(0, host.type === 'terra' ? 6 : 8, 0));
+      return host.type === 'terra' ? { pos: p, dir: dirOf(host.course), back: 230, side: 120, up: 90, host: true } : { pos: p, dir: dirOf(host.course), back: 170, side: 80, up: 38, host: true };
+    }
+    if (foe) return { pos: enemyScenePos(foe, pn, pe), dir: dirOf(foe.course), back: 85, side: 30, up: 16, host: false };
+    return null;
+  }
+
+  /** alvo do míssil na cena (fragata, submarino inimigo, alvo em terra ou o contato travado) */
+  private missileTarget(e: SimulationEngine, r: NonNullable<ReturnType<typeof focusMissile>>, pn: number, pe: number): THREE.Vector3 | null {
+    const ws = e.state.weapons;
+    const h = r.target ? ws?.hostiles?.find((k) => k.id === r.target) : undefined;
+    if (h) return hostileScenePos(h, pn, pe);
+    const x = r.target ? ws?.enemies?.find((k) => k.id === r.target) : undefined;
+    if (x) return new THREE.Vector3(x.e - pe, 0, -(x.n - pn));
+    return r.tgt ? new THREE.Vector3(r.tgt.e - pe, r.tgt.alt, -(r.tgt.n - pn)) : null;
+  }
+
   /** Posição da câmera e do alvo relativas ao submarino (para restaurar a vista livre). */
   getCameraPose(): { pos: [number, number, number]; target: [number, number, number] } {
     const p = this.camera.position.clone().sub(this.lastSubPos);
@@ -1163,7 +1202,16 @@ export class SubmarineScene {
             .add(new THREE.Vector3(0, 3.5, 0));
         return this.baseCameraTarget('perseguicao');
       }
+      case 'missil':
+      case 'missilCine': {
+        const e = this.env();
+        const p = missilePose(e, e.state.body.pos.x, e.state.body.pos.y, 1);
+        if (p) return p.pos.clone().addScaledVector(p.dir, -24).add(new THREE.Vector3(0, 4, 0));
+        return this.baseCameraTarget('perseguicao');
+      }
       case 'alvo': {
+        const af = this.alvoFocus(this.env(), this.env().state.body.pos.x, this.env().state.body.pos.y);
+        if (af?.host) return af.pos.clone().addScaledVector(af.dir, -af.back).add(new THREE.Vector3(0, af.up, 0));
         const x = focusEnemy(this.env());
         if (x) {
           const p = enemyScenePos(x, this.env().state.body.pos.x, this.env().state.body.pos.y);
@@ -1217,6 +1265,7 @@ export class SubmarineScene {
     if (v === 'perspectiva') return this.perspectiveFrame().fov;
     if (v === 'calado') return 16;
     if (v === 'drone') return 60;
+    if (v === 'missilCine') return this.cine.fov;
     if (v === 'livre') return this.deepFov > 0 ? this.deepFov : this.freeFov;
     return this.deepFov > 0 && DEEP_VIEWS.has(v) ? this.deepFov : BASE_FOV;
   }
@@ -1388,7 +1437,9 @@ export class SubmarineScene {
     const coastOn = !!e.env.cfg.geo?.coast;
     const terrain = this.ensureTerrain();
     // no drone os níveis de detalhe do terreno se centram na câmera (o grupo é deslocado para a origem flutuante)
-    const tf = this.view === 'torpedo' ? this.torpedoVis.focus : this.view === 'alvo' ? focusEnemy(e) : null;
+    // vistas do míssil e do alvo de superfície: o terreno se centra na câmera (pode estar a dezenas de km do submarino)
+    const camNE = this.view === 'missil' || this.view === 'missilCine' || (this.view === 'alvo' && (e.state.weapons?.hostiles?.length ?? 0) > 0) ? { n: pn - this.camera.position.z, e: pe + this.camera.position.x } : null;
+    const tf = this.view === 'torpedo' ? this.torpedoVis.focus : camNE ?? (this.view === 'alvo' ? focusEnemy(e) : null);
     const tc = this.view === 'drone' && this.drone ? { n: this.drone.n, e: this.drone.e } : tf ? { n: tf.n, e: tf.e } : { n: pn, e: pe };
     terrain.update(e.env, tc.n, tc.e, coastOn);
     terrain.group.position.set(tc.e - pe, 0, -(tc.n - pn));
@@ -1588,8 +1639,13 @@ export class SubmarineScene {
     }
     // vista "Torpedo": câmera atrás e acima da arma, pela pose deste passo (a arma anda até 26 m/s)
     const torpPose = this.view === 'torpedo' ? torpedoPose(e, pn, pe, a) : null;
-    const foe = this.view === 'alvo' ? focusEnemy(e) : null;
-    const followPose = torpPose ?? (foe ? { pos: enemyScenePos(foe, pn, pe), dir: new THREE.Vector3(Math.sin((foe.course * Math.PI) / 180), 0, -Math.cos((foe.course * Math.PI) / 180)) } : null);
+    const misPose = this.view === 'missil' || this.view === 'missilCine' ? missilePose(e, pn, pe, a) : null;
+    const alvo = this.view === 'alvo' ? this.alvoFocus(e, pn, pe) : null;
+    const followPose = torpPose ?? misPose ?? alvo;
+    // origem flutuante: deslocamento da cena neste quadro (planos parados da câmera cinematográfica)
+    const originNow = new THREE.Vector3(pe, 0, -pn);
+    const originShift = this.cineOrigin ? originNow.clone().sub(this.cineOrigin) : new THREE.Vector3();
+    this.cineOrigin = originNow;
     const following = !!followPose;
     if (eyeView || droneView) this.controls.enabled = false;
     else if (!this.controls.enabled) this.controls.enabled = true;
@@ -1653,15 +1709,32 @@ export class SubmarineScene {
       this.camera.position.copy(head);
       this.controls.target.copy(head).add(dir.multiplyScalar(100));
       this.viewFrom.copy(head);
+    } else if (misPose && this.view === 'missilCine') {
+      // MÍSSIL CINEMATOGRÁFICA: o diretor escolhe o plano pela fase do voo; se o operador gira ou aproxima,
+      // a câmera mantém a posição relativa ao ponto de mira e continua acompanhando
+      const r = misPose.run;
+      const capsule = new THREE.Vector3(r.vsm.e - pe, -r.vsm.d, -(r.vsm.n - pn));
+      if (r.vsm.tSep === null) capsule.copy(misPose.pos);
+      const tgt = this.missileTarget(e, r, pn, pe);
+      const shot = directMissileCam(this.cine, { run: r, capsule, missile: misPose.pos, dir: misPose.dir, target: tgt, surf: e.env.waves.elevation(r.n, r.e, tWave), t: s.t, wall: this.wallTime, dtR: Math.min(0.1, dtR), shift: originShift });
+      if (!this.followUser || !this.followPrev) this.camera.position.copy(shot.pos);
+      else this.camera.position.add(shot.look.clone().sub(this.followPrev));
+      this.followPrev = shot.look.clone();
+      this.controls.target.copy(shot.look);
+      this.viewFrom.copy(this.camera.position);
+      this.viewBlend = 1;
     } else if (followPose) {
-      // TORPEDO / ALVO: câmera atrás e acima do objeto; depois que o operador gira ou aproxima, a câmera
+      // TORPEDO / MÍSSIL / ALVO: câmera atrás e acima do objeto; depois que o operador gira ou aproxima, a câmera
       // mantém a posição relativa escolhida e continua acompanhando (sem voltar sozinha)
       const fp = followPose;
-      const look = fp.pos.clone().addScaledVector(fp.dir, torpPose ? 5 : 0);
+      const capsule = misPose && misPose.run.vsm.tSep === null;
+      const look = fp.pos.clone().addScaledVector(fp.dir, torpPose ? 5 : misPose ? (capsule ? 2 : 6) : 0);
       if (!this.followUser || !this.followPrev) {
-        const side = new THREE.Vector3(-fp.dir.z, 0, fp.dir.x);
-        const [back, sideOff, up] = torpPose ? [13, 2.5, 2.8] : [85, 30, 16];
-        this.camera.position.copy(fp.pos).addScaledVector(fp.dir, -back).addScaledVector(side, sideOff).add(new THREE.Vector3(0, up, 0));
+        const h = new THREE.Vector3(fp.dir.x, 0, fp.dir.z);
+        const fh = h.lengthSq() > 1e-6 ? h.normalize() : new THREE.Vector3(0, 0, -1);
+        const side = new THREE.Vector3(-fh.z, 0, fh.x);
+        const [back, sideOff, up] = torpPose ? [13, 2.5, 2.8] : misPose ? (capsule ? [10, 4, 1.5] : [26, 6, 4]) : alvo ? [alvo.back, alvo.side, alvo.up] : [85, 30, 16];
+        this.camera.position.copy(fp.pos).addScaledVector(torpPose ? fp.dir : fh, -back).addScaledVector(side, sideOff).add(new THREE.Vector3(0, up, 0));
       } else this.camera.position.add(look.clone().sub(this.followPrev));
       this.followPrev = look.clone();
       this.controls.target.copy(look);
@@ -1715,9 +1788,10 @@ export class SubmarineScene {
       this.camera.up.copy(fwd);
     }
     this.controls.update();
-    if (this.enemyVis.shake > 0.01 && !droneView) {
+    const shakeK = Math.max(this.enemyVis.shake, this.missileVis.shake);
+    if (shakeK > 0.01 && !droneView) {
       // tremor da explosão (só visual, some em ~3 s)
-      const k = this.enemyVis.shake * 0.9;
+      const k = shakeK * 0.9;
       this.shakeOff.set((Math.random() - 0.5) * k, (Math.random() - 0.5) * k, (Math.random() - 0.5) * k);
       this.camera.position.add(this.shakeOff);
     }
@@ -1903,6 +1977,7 @@ export class SubmarineScene {
     this.torpedoVis.setClip(showInt && this.halfOpen ? this.cutPlane : null);
     this.torpedoVis.update(e, this.sub, pn, pe, this.layers.torpedoes !== false, showInt, a, step, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
     this.enemyVis.update(e, pn, pe, this.layers.torpedoes !== false, step, this.camera, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
+    this.missileVis.update(e, pn, pe, this.layers.torpedoes !== false, step, this.camera, this.renderer.domElement.height, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj, a);
     this.pitchAngle.update(!!this.layers.pitchAngle, e, this.sub, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
     // tráfego adicional (quantidade nas Configurações): mesmos navios do mapa tático

@@ -12,6 +12,7 @@ import { bumplessInit } from './systems/autopilot';
 import { emergencyBlowActive } from './systems/hpAir';
 import { sensorDef } from './systems/sensors';
 import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
+import { hostileCommand, type HostileAction, type HostileParams } from './systems/missiles';
 import { enemyCommand, seaPressureAtTube, torpedoCommand, tubeCommand, weaponTargets, type EnemyAction, type EnemyParams, type TorpedoAction, type TubeAction, type TubeCmdCtx } from './systems/weapons';
 import type { TubePresets } from './core/state';
 import { makeDepthOf } from './core/context';
@@ -85,7 +86,9 @@ export type Command =
   | { type: 'tube'; tube: number; action: TubeAction; presets?: Partial<TubePresets>; origin?: LatLon; traffic?: number }
   /** ordem a um torpedo em corrida pelo fio (alvo, rumo, cota, cortar o fio) ou recolher a arma de exercício */
   | { type: 'torpedo'; id: string; action: TorpedoAction; target?: string | null; course?: number; depth?: number }
-  | ({ type: 'enemy'; action: EnemyAction } & EnemyParams);
+  | ({ type: 'enemy'; action: EnemyAction } & EnemyParams)
+  /** alvos de superfície (fragata classe Tamandaré) e em terra para o míssil SM39 */
+  | ({ type: 'hostile'; action: HostileAction } & HostileParams);
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
 
@@ -497,6 +500,9 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     }
     case 'enemy':
       enemyCommand({ s, env: e.env, heading: e.outputs.euler.heading, log: (text, group) => e.log(text, group) }, c.action, c);
+      break;
+    case 'hostile':
+      hostileCommand({ s, env: e.env, heading: e.outputs.euler.heading, log: (text, group) => e.log(text, group) }, c.action, c);
       break;
   }
 }

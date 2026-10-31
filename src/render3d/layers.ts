@@ -159,7 +159,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   depthLines: { label: 'Linhas de profundidade', title: 'Linha leve a cada 25 m, com a profundidade, da superfície até o fundo' },
   pitchAngle: { label: 'Ângulo de pitch', title: 'Linha horizontal, eixo do casco e o ângulo θ entre eles (arco graduado a cada grau)' },
   ships: { label: 'Navios', title: 'Contatos da mesa tática como navios no mar' },
-  torpedoes: { label: 'Torpedos', title: 'Armas nos tubos (no corte), disparo, corrida com esteira de bolhas e fio de guiagem' },
+  torpedoes: { label: 'Torpedos e mísseis', title: 'Armas nos tubos (no corte), disparo, corrida do torpedo com esteira e fio; míssil SM39 (cápsula, voo, fumaça e impacto); fragatas e alvos em terra' },
   presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
   noWater: { label: 'Sem água', title: 'Esconde o mar para ver o submarino isolado', mode: true },
 };

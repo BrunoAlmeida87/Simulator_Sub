@@ -369,6 +369,8 @@ export class EnemyVis {
     // ---- explosões
     const seen = new Set<string>();
     for (const x of ws.explosions ?? []) {
+      // as explosões dos mísseis (no ar ou em terra) ficam com MissileVis
+      if (x.kind === 'missil') continue;
       seen.add(x.id);
       let fx = this.fx.get(x.id);
       if (!fx) {

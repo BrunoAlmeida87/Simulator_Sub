@@ -309,7 +309,10 @@ export interface SimState {
 }
 
 /** Sequência automática em curso num tubo. */
-export type TubeAuto = 'preparar' | 'disparar' | 'recarregar' | 'fechar' | null;
+export type TubeAuto = 'preparar' | 'disparar' | 'recarregar' | 'fechar' | 'trocar' | null;
+
+/** Arma no tubo: torpedo pesado F21 ou míssil antinavio SM39 (Exocet) na cápsula VSM. */
+export type WeaponKind = 'f21' | 'sm39';
 
 /** Dados de tiro (ajustados antes do disparo; o alvo e o rumo podem mudar pelo fio). */
 export interface TubePresets {
@@ -322,6 +325,11 @@ export interface TubePresets {
   course: number | null;
   /** cabeça da arma: exercício (passa sob o alvo e flutua) ou combate (explode no alvo). Ausente = exercício */
   warhead?: Warhead;
+  /** SM39: subida da cápsula VSM até a superfície (oblíqua ≈ 45° ou quase vertical) e desvio lateral da cápsula (°, + boreste) */
+  climb?: 'obliqua' | 'vertical';
+  dogleg?: number;
+  /** arma a carregar da reserva na recarga ou na troca (ausente = F21) */
+  load?: WeaponKind;
 }
 
 export type Warhead = 'exercicio' | 'combate';
@@ -330,6 +338,8 @@ export interface TubeState {
   n: number;
   /** arma no tubo */
   weapon: boolean;
+  /** tipo da arma no tubo (ausente = F21) */
+  kind?: WeaponKind;
   /** arma alimentada e com os dados de tiro */
   energized: boolean;
   /** água no tubo (kg) */
@@ -353,6 +363,8 @@ export interface TubeState {
   ejectV: number;
   /** tempo decorrido da recarga (s); null sem recarga */
   reload: number | null;
+  /** tempo decorrido da descarga para a reserva na troca de arma (s); null/ausente sem descarga */
+  unload?: number | null;
   /** origem geográfica e tráfego adicional vistos pelo operador ao passar os dados (para achar o alvo) */
   origin?: { lat: number; lon: number };
   traffic?: number;
@@ -415,6 +427,93 @@ export interface WeaponsState {
   explosions?: Explosion[];
   /** contador para os nomes dos inimigos */
   enemyCount?: number;
+  /** mísseis SM39 lançados (cápsula, voo e impacto) */
+  missiles?: MissileRun[];
+  /** mísseis SM39 de reserva a bordo (na estiva das armas) */
+  reserveSm39?: number;
+  /** alvos de superfície e em terra (fictícios, acrescentados pelo operador): fragatas e alvos terrestres */
+  hostiles?: Hostile[];
+  hostileCount?: number;
+}
+
+/**
+ * Fases do SM39: cápsula VSM subindo (motor da cápsula) → rompe a superfície (nariz ejetado) → separação do míssil
+ * a ≈ 20 m (asas abrem) → acelerador → cruzeiro rasante (inercial) → autodiretor ligado (busca) → terminal → fim.
+ * Alvo em terra: cruzeiro por pontos (GPS) → subida → mergulho.
+ */
+export type MissilePhase = 'capsula' | 'superficie' | 'separacao' | 'acelerador' | 'cruzeiro' | 'busca' | 'terminal' | 'subida' | 'mergulho' | 'impacto' | 'passagem' | 'caindo' | 'perdido';
+
+export interface MissileRun {
+  id: string;
+  tube: number;
+  tFire: number;
+  /** posição NED (m): d é a cota (+ para baixo) — no voo, negativa (altitude = −d) */
+  n: number;
+  e: number;
+  d: number;
+  /** rumo (°), ângulo de trajetória (°, + subindo) e velocidade na trajetória (m/s) */
+  heading: number;
+  pitch: number;
+  speed: number;
+  phase: MissilePhase;
+  /** instante (s de simulação) em que começou a fase atual */
+  tPhase: number;
+  target: string | null;
+  traffic: number;
+  presets: TubePresets;
+  /** distância voada pelo míssil depois da separação (m) */
+  run: number;
+  launch: { n: number; e: number };
+  /** rumo do submarino no lançamento (°): referência do desvio lateral da cápsula */
+  launchHeading: number;
+  /** ponto de busca da navegação inercial (posição prevista do alvo no lançamento) */
+  aim: { n: number; e: number } | null;
+  /** alvo travado pelo autodiretor (ou o ponto do alvo em terra) */
+  tgt: { n: number; e: number; course: number; speed: number; name: string; range: number; bearing: number; alt: number } | null;
+  /** autodiretor ligado */
+  seeker: boolean;
+  /** cápsula VSM: posição, rumo, ângulo, velocidade; instantes do rompimento, da ejeção do nariz, da separação e da queda */
+  vsm: { n: number; e: number; d: number; heading: number; pitch: number; speed: number; vz: number; tBreach: number | null; tNose: number | null; tSep: number | null; tSplash: number | null };
+  /** nariz ejetado (para o desenho): ponto e rumo na ejeção */
+  nose: { n: number; e: number; d: number; heading: number } | null;
+  /** velocidade vertical do míssil no voo balístico (separação e queda, m/s, + para cima) */
+  vz: number;
+  closest: number;
+  hit: { t: number; dist: number; target: string; name: string; alt: number } | null;
+  endReason: string | null;
+  track: { n: number; e: number; d: number }[];
+  trackTimer: number;
+  guideTimer: number;
+  origin?: { lat: number; lon: number };
+}
+
+/** Alvo de superfície ou em terra (fictício): fragata classe Tamandaré ou instalação terrestre. */
+export interface Hostile {
+  id: string;
+  name: string;
+  type: 'fragata' | 'terra';
+  /** posição NED (m), rumo (°) e velocidade (m/s); rumo e velocidade ordenados */
+  n: number;
+  e: number;
+  course: number;
+  speed: number;
+  cmdCourse: number;
+  cmdSpeed: number;
+  /** altura do terreno (m, alvo em terra; 0 no mar) */
+  ground: number;
+  /** dano (0 … 1; ≥ 1 = perdido), instante do primeiro impacto e do afundamento/destruição */
+  damage: number;
+  tHit: number | null;
+  sunk: number | null;
+  /** afundamento (m abaixo da linha d'água) e banda (°) do navio atingido */
+  sink: number;
+  list: number;
+  /** manobra evasiva (míssil detectado) */
+  evading: boolean;
+  /** passagens de mísseis de exercício */
+  hits: number;
+  /** pontos de impacto no casco (x ao longo, + proa; y + boreste; z altura, m) para o fogo e a fumaça */
+  impacts: { t: number; x: number; y: number; z: number }[];
 }
 
 /** Submarino inimigo fictício (cinemática simples): rumo e velocidade constantes, foge quando atacado, afunda quando atingido. */
@@ -450,6 +549,8 @@ export interface Explosion {
   d: number;
   /** alvo atingido (id) ou null (fim de corrida) */
   target: string | null;
+  /** arma: torpedo (submarina, padrão) ou míssil (no ar ou em terra: d negativo = altitude) */
+  kind?: 'torpedo' | 'missil';
 }
 
 export const newValve = (open = false): ValveState => ({ cmd: open ? 1 : 0, pos: open ? 1 : 0, stuck: false });

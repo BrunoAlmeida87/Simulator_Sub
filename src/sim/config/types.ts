@@ -356,6 +356,61 @@ export interface WeaponSpec {
   fuzeRadius?: number;
 }
 
+/**
+ * Míssil antinavio SM39 (Exocet) na cápsula VSM, lançado pelo tubo de torpedos. Valores de ordem de grandeza
+ * pública (MBDA, CSIS, EDR Magazine); a cinemática é simplificada (sem aerodinâmica do míssil).
+ */
+export interface MissileSpec {
+  name: string;
+  /** cápsula com o míssil: massa (kg), comprimento (m), diâmetro (m) e volume deslocado (m³) */
+  mass: number;
+  length: number;
+  diameter: number;
+  volume: number;
+  /** míssil: massa (kg), comprimento (m), ogiva (kg) */
+  missileMass: number;
+  missileLength: number;
+  warhead: number;
+  vsm: {
+    /** atraso da ignição do motor da cápsula depois de sair do tubo (s), velocidade (m/s) e constante de tempo (s) */
+    ignition: number;
+    speed: number;
+    tau: number;
+    /** ângulo de subida (°) oblíquo e quase vertical, razão de arfagem (°/s) e de guinada (°/s), desvio lateral máximo (°) */
+    climb: { obliqua: number; vertical: number };
+    pitchRate: number;
+    turnRate: number;
+    maxDogleg: number;
+    /** ejeção do nariz depois de romper a superfície (s) e altura de separação do míssil (m) */
+    noseDelay: number;
+    separationAlt: number;
+  };
+  /** ignição do acelerador depois da separação (s) e duração da queima (s) */
+  boosterDelay: number;
+  boosterTime: number;
+  /** velocidade de cruzeiro (m/s, Mach ≈ 0,93) */
+  cruiseSpeed: number;
+  /** altitude (m) depois do acelerador, de cruzeiro (inercial) e terminal mínima (rasante; sobe com o mar) */
+  climbAlt: number;
+  cruiseAlt: number;
+  terminalAlt: number;
+  /** autodiretor: ligado a esta distância do ponto de busca (m), alcance de detecção (m), meia-abertura (°) */
+  seekerOn: number;
+  seekerRange: number;
+  seekerHalfAngle: number;
+  /** razão de guinada (°/s) e de variação do ângulo de trajetória (°/s) */
+  turnRate: number;
+  pitchRate: number;
+  /** alcance (m de voo depois da separação) */
+  range: number;
+  /** alvo em terra (navegação por pontos/GPS): começa a subir a esta distância (m), altura de subida (m) e mergulho (m) */
+  popUpRange: number;
+  popUpAlt: number;
+  diveRange: number;
+  /** dano por impacto de ogiva (fração; ≥ 1 perde o navio) */
+  damage: number;
+}
+
 /** Submarino inimigo fictício (alvo): manobra evasiva e afundamento. */
 export interface EnemyConfig {
   /** velocidade de fuga (m/s), razão de guinada (°/s), variação de cota (m/s), aceleração (m/s²) */
@@ -399,6 +454,10 @@ export interface WeaponsConfig {
   ejectSpeed: number;
   /** submarinos inimigos fictícios (alvos do tiro de combate) */
   enemy?: EnemyConfig;
+  /** míssil antinavio SM39 (cápsula VSM), mísseis de reserva e o tipo inicial de cada tubo (ausente = todos F21) */
+  missile?: MissileSpec;
+  missileReserve?: number;
+  initialKinds?: ('f21' | 'sm39')[];
 }
 
 export interface SimSettings {
