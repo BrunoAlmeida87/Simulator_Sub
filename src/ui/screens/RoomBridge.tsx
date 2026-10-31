@@ -12,7 +12,7 @@ export function RoomBridge({ onExit }: { onExit: () => void }) {
       <Scene3D
         view="passadico"
         quality={defaultQuality()}
-        labels={false}
+
         syncVisual={false}
         onBridgeExit={onExit}
         layers={{

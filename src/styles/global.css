@@ -1430,3 +1430,15 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .acoustic-scene > div { height: 100%; }
 @media (max-width: 1000px) { .acoustic-grid { grid-template-columns: minmax(0, 1fr); } .acoustic-grid aside { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } }
 @media (max-width: 600px) { .acoustic-console { padding: 8px; } .acoustic-heading { flex-wrap: wrap; } .acoustic-stats { grid-template-columns: 1fr 1fr; } .acoustic-stats > div { padding: 10px; } .acoustic-grid aside, .acoustic-science-grid { display: block; } .acoustic-console .panel > header { flex-wrap: wrap; gap: 8px; } .acoustic-scene { height: 320px; } }
+
+/* Identificações interativas e filtros comuns a todas as cenas externas. */
+.lbl3d-host .lbl3d { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+.lbl3d-host .lbl3d:hover { outline: 1px solid #9edfff; background: #142a3e; }
+.lbl3d-host .lbl3d:focus-visible { outline: 2px solid #9edfff; outline-offset: 3px; }
+.label-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px 0; }
+.label-filter-grid .chk { white-space: normal; align-items: flex-start; }
+.label-hidden-list { padding: 0; list-style: none; max-height: 220px; overflow: auto; }
+.label-hidden-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.label-hidden-list li span { min-width: 0; overflow-wrap: anywhere; }
+.label-hidden-list button { flex-shrink: 0; }
+.room-pip .room-pip-opts { display: block; position: absolute; z-index: 20; top: 42px; right: 4px; width: min(420px, calc(100% - 8px)); max-height: calc(100% - 50px); overflow: auto; background: #0b1622; border: 1px solid var(--line2); padding: 10px; }
