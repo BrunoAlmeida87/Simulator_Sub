@@ -42,7 +42,7 @@ const PHASE: Record<TorpedoRun['phase'], [string, string]> = {
   explodiu: ['EXPLODIU', 'alarm'],
   perdido: ['AFUNDOU', 'off'],
 };
-const STEP_ICON: Record<ManualStep['state'], string> = { feito: '✓', andamento: '⏳', liberado: '▶', bloqueado: '⛔' };
+const STEP_ICON: Record<ManualStep['state'], string> = { feito: '✓', andamento: '…', liberado: '›', bloqueado: '' };
 
 /** contexto de leitura da pressão do mar na boca de cada tubo */
 function seaCtx(e: SimulationEngine) {
@@ -82,8 +82,6 @@ const deg3 = (x: number) =>
     .toString()
     .padStart(3, '0') + '°';
 
-const TUBE_EMOJI = (vw: TubeView, st: TubeState) => (st.eject !== null ? '💨' : vw.ready ? '🟢' : st.reload !== null ? '🔄' : !st.weapon ? '⚪' : vw.tone === 'busy' ? '🟡' : '🔵');
-
 export function WeaponsScreen() {
   const e = useSim(10);
   const s = e.state;
@@ -100,6 +98,7 @@ export function WeaponsScreen() {
   const [tsCut, setTsCut] = usePersisted('armas.tubo3d.corte', true);
   const [tsFlows, setTsFlows] = usePersisted('armas.tubo3d.fluxos', true);
   const [tsLbl, setTsLbl] = usePersisted<Record<TubeLabelGroup, boolean>>('armas.tubo3d.rotulos', { pecas: true, valvulas: true, valores: true });
+  const [tsHidden, setTsHidden] = usePersisted<string[]>('armas.tubo3d.ocultos', []);
   const [tsPreset, setTsPreset] = useState<{ key: number; p: TubeStagePreset } | undefined>(undefined);
   const [enemyCfg, setEnemyCfg] = usePersisted('armas.inimigo', { range: 3000, bearing: 20, depth: 60, speed: 5 });
   const targets = useTargets(e);
@@ -135,7 +134,6 @@ export function WeaponsScreen() {
       {/* ---------- cabeçalho: tubos */}
       <section className="wx-hero">
         <div className="wx-title">
-          <span className="wx-logo">🚀</span>
           <div>
             <h2>Sala de torpedos</h2>
             <span className="subtle">
@@ -163,7 +161,7 @@ export function WeaponsScreen() {
                   </span>
                   <span className="wx-tube-txt">
                     <b>
-                      {TUBE_EMOJI(vw, st)} Tubo {x.n}
+                      <i className={`wx-dot tone-${vw.tone}`} /> Tubo {x.n}
                     </b>
                     <small>{vw.status}</small>
                   </span>
@@ -179,16 +177,16 @@ export function WeaponsScreen() {
           <Panel title={`Tubo ${tc.n} (${tc.side === 'BE' ? 'boreste' : 'bombordo'})`} className="wx-launch" right={<span className={`badge ${TONE_BADGE[tv.tone]}`}>{tv.status}</span>}>
             <div className="wx-mode">
               <button className={mode === 'manual' ? 'on' : ''} onClick={() => setMode('manual')}>
-                ✋ Passo a passo
+                Passo a passo
               </button>
               <button className={mode === 'auto' ? 'on' : ''} onClick={() => setMode('auto')}>
-                🤖 Automático
+                Automático
               </button>
             </div>
             {mode === 'auto' ? (
               <div className="wx-auto">
                 <button className="wx-big go" disabled={!t.weapon || busy || tv.ready} onClick={() => order('preparar')} title="Alimentar a arma, alagar com a água do TCA, equalizar com o mar e abrir a porta da boca">
-                  <span>🛠️</span>Preparar
+                  Preparar
                 </button>
                 <button
                   className="wx-big fire"
@@ -196,20 +194,19 @@ export function WeaponsScreen() {
                   onClick={() => order('disparar')}
                   title={tv.ready ? 'Disparar agora (ejeção por ar comprimido)' : 'Preparar e disparar quando o tubo estiver pronto'}
                 >
-                  <span>🔥</span>
-                  {tv.ready ? 'FOGO!' : 'Preparar e FOGO'}
+                  {tv.ready ? 'Disparar' : 'Preparar e disparar'}
                 </button>
                 <button className="wx-big" disabled={busy || t.door.pos <= 0.001} onClick={() => order('fechar')} title="Fechar a porta da boca e isolar o tubo do mar">
-                  <span>🚪</span>Fechar porta
+                  Fechar porta
                 </button>
                 <button className="wx-big" disabled={busy || t.weapon || ws.reserve <= 0} onClick={() => order('recarregar')} title="Fechar a porta, drenar para o TCA, abrir a culatra e puxar uma arma da reserva">
-                  <span>🔄</span>Recarregar ({ws.reserve})
+                  Recarregar ({ws.reserve})
                 </button>
                 <button className="wx-big warn" disabled={!t.auto} onClick={() => order('cancelar')}>
-                  <span>✋</span>Cancelar
+                  Cancelar
                 </button>
                 <button className="wx-big" onClick={() => order('dados')} title="Passar os dados de tiro à arma (registrados no histórico)">
-                  <span>📡</span>Passar dados
+                  Passar dados
                 </button>
                 {t.auto && <div className="wx-running">Sequência automática: {t.auto}…</div>}
               </div>
@@ -217,7 +214,7 @@ export function WeaponsScreen() {
               <div className="wx-steps">
                 {(['lancar', 'recarregar'] as const).map((g) => (
                   <div key={g} className="wx-lane">
-                    <h4>{g === 'lancar' ? '🎯 Lançar' : '🔄 Recarregar'}</h4>
+                    <h4>{g === 'lancar' ? 'Lançamento' : 'Recarga'}</h4>
                     {steps
                       .filter((x) => x.group === g)
                       .map((x) => (
@@ -259,24 +256,24 @@ export function WeaponsScreen() {
           </Panel>
 
           {/* ---------- dados de tiro */}
-          <Panel title="🎯 Dados de tiro" className="wx-fire">
+          <Panel title="Dados de tiro" className="wx-fire">
             <div className="wx-warhead">
               <button className={!combat ? 'on ex' : 'ex'} onClick={() => setPr({ warhead: 'exercicio' })} title="Passa sob o alvo, registra o acerto e flutua para ser recolhida">
-                🟠 Exercício
+                Exercício
               </button>
               <button className={combat ? 'on cb' : 'cb'} onClick={() => setPr({ warhead: 'combate' })} title="Ogiva real: explode no submarino inimigo (alvo fictício)">
-                💥 Combate
+                Combate
               </button>
             </div>
             <div className="wx-targets">
               <button className={`wx-target ${!pr.target ? 'on' : ''}`} onClick={() => setPr({ target: null })}>
-                <span>🧭</span>
+                <span className="wx-tag">—</span>
                 <b>Sem alvo</b>
                 <small>corrida no rumo</small>
               </button>
               {targets.slice(0, 14).map((c) => (
                 <button key={c.id} className={`wx-target ${c.enemy ? 'enemy' : ''} ${pr.target === c.id ? 'on' : ''}`} onClick={() => setPr({ target: c.id, ...(c.enemy ? {} : { warhead: 'exercicio' as const }) })}>
-                  <span>{c.enemy ? '👾' : '🚢'}</span>
+                  <span className={`wx-tag ${c.enemy ? 'red' : ''}`}>{c.enemy ? 'SUB' : 'NAV'}</span>
                   <b>{c.name.replace(' (fictício)', '')}</b>
                   <small>
                     {km(c.range)} · {deg3(c.bearing)}
@@ -285,7 +282,7 @@ export function WeaponsScreen() {
                 </button>
               ))}
             </div>
-            {combatBad && <div className="wx-alert">💥 A arma de combate só pode ir contra um submarino inimigo. Escolha um 👾 ou troque para exercício.</div>}
+            {combatBad && <div className="wx-alert">A arma de combate só pode ser usada contra um submarino inimigo. Escolha um alvo SUB ou troque para exercício.</div>}
             <div className="wx-fields">
               <div className="wx-field">
                 <span>Velocidade</span>
@@ -319,7 +316,7 @@ export function WeaponsScreen() {
             </div>
             {target && (
               <div className="note">
-                {target.enemy ? '👾' : '🚢'} {target.name}: {km(target.range)} na marcação {deg3(target.bearing)}, rumo {deg3(target.course)}, {fmt(target.speed / KT, 1)} nós
+                {target.name}: {km(target.range)} na marcação {deg3(target.bearing)}, rumo {deg3(target.course)}, {fmt(target.speed / KT, 1)} nós
                 {target.d !== undefined ? `, cota ${fmt(target.d, 0)} m` : ''}. Tempo de corrida ≈ {fmt(target.range / w.weapon.speeds[pr.speed] / 60, 1)} min.{' '}
                 {combat ? 'Arma de combate: desce à cota do alvo e explode na espoleta de proximidade.' : 'Arma de exercício: passa sob o alvo na cota ajustada.'}
               </div>
@@ -327,7 +324,7 @@ export function WeaponsScreen() {
           </Panel>
 
           {/* ---------- inimigo */}
-          <Panel title="👾 Submarino inimigo (alvo fictício)" className="wx-enemy">
+          <Panel title="Submarino inimigo (alvo fictício)" className="wx-enemy">
             <div className="wx-fields">
               <label className="wx-field">
                 <span>
@@ -360,7 +357,7 @@ export function WeaponsScreen() {
                 onClick={() => cmd({ type: 'enemy', action: 'add', range: enemyCfg.range, bearing: enemyCfg.bearing, depth: enemyCfg.depth, speed: enemyCfg.speed * KT })}
                 title="O inimigo aparece na distância e marcação escolhidas, cruzando a proa do SX-1"
               >
-                <span>👾</span>Colocar inimigo
+                Inserir submarino inimigo
               </button>
               {enemies.length > 0 && (
                 <button className="btn" onClick={() => cmd({ type: 'enemy', action: 'clear' })}>
@@ -372,7 +369,7 @@ export function WeaponsScreen() {
               const rng = Math.hypot(x.n - s.body.pos.x, x.e - s.body.pos.y);
               return (
                 <div key={x.id} className={`wx-foe ${x.sunk !== null ? 'sunk' : ''}`}>
-                  <span className="wx-foe-ico">{x.sunk !== null ? '☠️' : '👾'}</span>
+                  <span className={`wx-tag ${x.sunk !== null ? '' : 'red'}`}>{x.sunk !== null ? 'AFUNDADO' : 'ATIVO'}</span>
                   <span className="wx-foe-txt">
                     <b>{x.name}</b>
                     <small>
@@ -383,7 +380,7 @@ export function WeaponsScreen() {
                   </span>
                   {x.sunk === null && (
                     <button className={`btn ${pr.target === x.id && combat ? 'on' : ''}`} onClick={() => aim(x)} title={`Mirar o tubo ${tc.n} neste alvo com a arma de combate`}>
-                      🎯 Mirar
+                      Mirar
                     </button>
                   )}
                   <button
@@ -394,7 +391,7 @@ export function WeaponsScreen() {
                     }}
                     title="Câmera no inimigo"
                   >
-                    👁️
+                    Câmera
                   </button>
                   <button className="btn" onClick={() => cmd({ type: 'enemy', action: 'remove', id: x.id })} title="Remover">
                     ✕
@@ -402,14 +399,24 @@ export function WeaponsScreen() {
                 </div>
               );
             })}
-            {!enemies.length && <p className="subtle">Coloque um submarino inimigo, mire nele com 🎯, escolha 💥 Combate e dispare. A arma desce à cota dele e explode.</p>}
+            {!enemies.length && <p className="subtle">Insira um submarino inimigo, clique em Mirar (escolhe a arma de combate) e dispare. A arma desce à cota dele e explode pela espoleta de proximidade.</p>}
           </Panel>
         </div>
 
         <div className="wx-col">
           {/* ---------- tubo em 3D */}
-          <Panel title="🔍 Tubo em 3D — etapa a etapa" className="wx-stage">
-            <TubeStage3D tube={tc.n} cut={tsCut} flows={tsFlows} labels={tsLbl} focus={current?.action ?? null} preset={tsPreset} style={{ height: 440 }}>
+          <Panel title="Tubo em 3D — etapa a etapa" className="wx-stage">
+            <TubeStage3D
+              tube={tc.n}
+              cut={tsCut}
+              flows={tsFlows}
+              labels={tsLbl}
+              focus={current?.action ?? null}
+              preset={tsPreset}
+              hidden={tsHidden}
+              onHide={(id) => setTsHidden([...tsHidden.filter((x) => x !== id), id])}
+              style={{ height: 440 }}
+            >
               <div className="wx-stage-bar">
                 {(
                   [
@@ -424,6 +431,11 @@ export function WeaponsScreen() {
                     {l}
                   </button>
                 ))}
+                {tsHidden.length > 0 && (
+                  <button className="wx-restore" onClick={() => setTsHidden([])} title="Mostrar de novo as identificações ocultas">
+                    {tsHidden.length === 1 ? '1 oculta' : `${tsHidden.length} ocultas`} · mostrar
+                  </button>
+                )}
               </div>
               {current && (
                 <div className={`wx-stage-cap st-${current.state}`}>
@@ -435,27 +447,27 @@ export function WeaponsScreen() {
               )}
             </TubeStage3D>
             <div className="wx-toggles">
-              <Toggle on={tsCut} set={setTsCut} label="✂️ Corte" title="Meio tubo aberto (desligado: tubo de vidro)" />
-              <Toggle on={tsFlows} set={setTsFlows} label="💧 Fluxos" title="Escoamento nas tubulações e bolhas" />
-              <Toggle on={tsLbl.pecas} set={(b) => setTsLbl({ ...tsLbl, pecas: b })} label="🏷️ Peças" />
-              <Toggle on={tsLbl.valvulas} set={(b) => setTsLbl({ ...tsLbl, valvulas: b })} label="🔧 Válvulas" />
-              <Toggle on={tsLbl.valores} set={(b) => setTsLbl({ ...tsLbl, valores: b })} label="🔢 Valores" />
+              <Toggle on={tsCut} set={setTsCut} label="Corte" title="Meio tubo aberto (desligado: tubo de vidro)" />
+              <Toggle on={tsFlows} set={setTsFlows} label="Fluxos" title="Escoamento nas tubulações e bolhas" />
+              <Toggle on={tsLbl.pecas} set={(b) => setTsLbl({ ...tsLbl, pecas: b })} label="Peças" />
+              <Toggle on={tsLbl.valvulas} set={(b) => setTsLbl({ ...tsLbl, valvulas: b })} label="Válvulas" />
+              <Toggle on={tsLbl.valores} set={(b) => setTsLbl({ ...tsLbl, valores: b })} label="Valores" />
             </div>
-            <p className="subtle">Arraste para girar, roda/pinça para aproximar, botão direito (ou dois dedos) para deslocar. A peça da etapa atual pisca em amarelo.</p>
+            <p className="subtle">Arraste para girar, roda/pinça para aproximar, botão direito (ou dois dedos) para deslocar. Clique numa identificação para ocultá-la. A peça da etapa atual pisca em amarelo.</p>
           </Panel>
 
           {/* ---------- vista 3D */}
-          <Panel title="🌊 Vista 3D" className="weapons-3d">
+          <Panel title="Vista 3D" className="weapons-3d">
             <div className="wx-cams">
               {(
                 [
-                  ['torpedo', '🚀 Torpedo'],
-                  ['alvo', '👾 Alvo'],
-                  ['perseguicao', '🎥 Perseguição'],
+                  ['torpedo', 'Torpedo'],
+                  ['alvo', 'Alvo'],
+                  ['perseguicao', 'Perseguição'],
                   ['perspectiva', 'Proa ¾'],
                   ['frente', 'Frente'],
                   ['perfil', 'Perfil'],
-                  ['livre', '🖐️ Livre'],
+                  ['livre', 'Livre'],
                 ] as [ViewMode, string][]
               ).map(([id, label]) => (
                 <button
@@ -471,11 +483,14 @@ export function WeaponsScreen() {
               ))}
             </div>
             <div className="wx-toggles">
-              <Toggle on={cut} set={setCut} label="✂️ Corte (armas nos tubos)" />
-              <Toggle on={lbl3d} set={setLbl3d} label="🏷️ Identificações" />
+              <Toggle on={cut} set={setCut} label="Corte (armas nos tubos)" />
+              <Toggle on={lbl3d} set={setLbl3d} label="Identificações" />
             </div>
-            <Scene3D view={view} viewKey={camKey} layers={layers} cutaway={cut} persistKey="armas" syncVisual={false} style={{ height: 460, position: 'relative' }} />
-            <p className="subtle">Arraste para girar em volta do torpedo ou do alvo (a câmera continua acompanhando), roda para aproximar. Clique de novo no botão da câmera para voltar ao enquadramento padrão.</p>
+            <Scene3D view={view} viewKey={camKey} layers={layers} cutaway={cut} persistKey="armas" defaultHiddenLabels={['sub']} syncVisual={false} style={{ height: 460, position: 'relative' }} />
+            <p className="subtle">
+              Arraste para girar em volta do torpedo ou do alvo (a câmera continua acompanhando), roda para aproximar. Clique de novo no botão da câmera para voltar ao enquadramento padrão. Clique numa identificação para
+              ocultá-la.
+            </p>
           </Panel>
 
           {/* ---------- torpedos em corrida */}
@@ -571,7 +586,7 @@ function RunRow({ r, targets }: { r: TorpedoRun; targets: Target[] }) {
   return (
     <tr>
       <td>
-        <b>{r.id}</b> <span className="subtle">tubo {r.tube}</span> {r.presets.warhead === 'combate' && <span title="arma de combate">💥</span>}
+        <b>{r.id}</b> <span className="subtle">tubo {r.tube}</span> {r.presets.warhead === 'combate' && <span className="wx-tag red">COMBATE</span>}
       </td>
       <td>
         <span className={`badge ${tone}`}>{ph}</span> {r.hit && <span className="badge ok">{r.phase === 'explodiu' ? 'ALVO ATINGIDO' : 'ACERTO'}</span>}
@@ -757,8 +772,8 @@ function TacticalPlot({ e, targets, sel }: { e: SimulationEngine; targets: Targe
           return (
             <g key={'b' + x.id} opacity={a}>
               <circle cx={px} cy={py} r={6 + 10 * (1 - a)} fill="none" stroke="#ffb347" strokeWidth="2" />
-              <text x={px} y={py + 4} fontSize="12" textAnchor="middle">
-                💥
+              <text x={px} y={py + 4} fontSize="12" textAnchor="middle" fill="#ffb347" fontWeight="bold">
+                ✱
               </text>
             </g>
           );
@@ -782,7 +797,7 @@ function TacticalPlot({ e, targets, sel }: { e: SimulationEngine; targets: Targe
         />
       </svg>
       <p className="subtle" style={{ textAlign: 'center' }}>
-        Norte para cima. Verde: SX-1 · azul: torpedos (tracejado = sem fio) · laranja: alvo e contatos atacados (vetor de 6 min) · vermelho: submarino inimigo · 💥 explosão.
+        Norte para cima. Verde: SX-1 · azul: torpedos (tracejado = sem fio) · laranja: alvo e contatos atacados (vetor de 6 min) · vermelho: submarino inimigo · ✱ explosão.
       </p>
     </div>
   );

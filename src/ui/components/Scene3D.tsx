@@ -65,6 +65,8 @@ export interface Scene3DProps {
   hudKeys?: boolean;
   /** botão "Descer" no painel do passadiço */
   onBridgeExit?: () => void;
+  /** identificações ocultas na primeira vez (ids de Label3D, ex.: 'sub' = cota e velocidade sobre o submarino) */
+  defaultHiddenLabels?: string[];
 }
 
 /** painel do passadiço com a visada compartilhada desta janela (ou a recebida pela prop, só leitura) */
@@ -96,6 +98,19 @@ export function Scene3D(props: Scene3DProps) {
   opts.current = props;
   /** chave da última posição de câmera imposta já aplicada */
   const appliedPose = useRef(-1);
+  // identificações que o operador ocultou com um clique sobre elas (guardadas por tela)
+  const hiddenKey = `rotulos.ocultos.${props.persistKey ?? 'geral'}`;
+  const [hidden, setHidden] = useState<string[]>(() => loadPersisted<string[]>(hiddenKey, props.defaultHiddenLabels ?? []));
+  const hiddenRef = useRef(hidden);
+  hiddenRef.current = hidden;
+  const saveHidden = (list: string[]) => {
+    savePersisted(hiddenKey, list);
+    setHidden(list);
+  };
+  const hideLabel = useRef<(id: string) => void>(() => undefined);
+  hideLabel.current = (id: string) => {
+    if (!hiddenRef.current.includes(id)) saveHidden([...hiddenRef.current, id]);
+  };
 
   useEffect(() => {
     let raf = 0;
@@ -220,12 +235,16 @@ export function Scene3D(props: Scene3DProps) {
     }
     const origin = host.getBoundingClientRect();
     const obstacles: LabelRect[] = [];
-    box.current?.querySelectorAll<HTMLElement>('.overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter').forEach((el) => {
-      const r = el.getBoundingClientRect();
-      if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
-    });
+    box.current
+      ?.querySelectorAll<HTMLElement>(
+        '.lbl-restore, .overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter',
+      )
+      .forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
+      });
     const list = labels
-      .filter((l) => l.visible && !(BASIC.has(l.id) && !basic) && l.x > -50 && l.y > -30 && l.x < W + 50 && l.y < H + 30)
+      .filter((l) => l.visible && !(BASIC.has(l.id) && !basic) && !hiddenRef.current.includes(l.id) && l.x > -50 && l.y > -30 && l.x < W + 50 && l.y < H + 30)
       .sort((a, b) => (a.prio ?? 1) - (b.prio ?? 1));
     // 1) conteúdo
     const slots = list.map((l) => {
@@ -233,6 +252,13 @@ export function Scene3D(props: Scene3DProps) {
       if (!slot) {
         const el = document.createElement('div');
         el.className = 'lbl3d';
+        el.title = 'Clique para ocultar esta identificação';
+        const id = l.id;
+        el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+        el.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          hideLabel.current(id);
+        });
         const line = document.createElement('div');
         line.className = 'lbl3d-leader';
         host.append(line, el);
@@ -268,7 +294,13 @@ export function Scene3D(props: Scene3DProps) {
       }
     }
     // 3) posição e linhas de identificação (sem forçar sobreposições)
-    const positions = layoutLabels(list.map((l, i) => ({ ...l, width: slots[i].w, height: slots[i].h })), W, H, obstacles, hull);
+    const positions = layoutLabels(
+      list.map((l, i) => ({ ...l, width: slots[i].w, height: slots[i].h })),
+      W,
+      H,
+      obstacles,
+      hull,
+    );
     const used = new Set<string>();
     const byId = new Map(list.map((l) => [l.id, l]));
     for (const p of positions) {
@@ -289,10 +321,11 @@ export function Scene3D(props: Scene3DProps) {
       }
       used.add(p.id);
     }
-    for (const [id, s] of pool.current) if (!used.has(id)) {
-      s.el.style.display = 'none';
-      s.line.style.display = 'none';
-    }
+    for (const [id, s] of pool.current)
+      if (!used.has(id)) {
+        s.el.style.display = 'none';
+        s.line.style.display = 'none';
+      }
   };
 
   useEffect(() => {
@@ -320,6 +353,11 @@ export function Scene3D(props: Scene3DProps) {
     <div className={`view3d ${props.className ?? ''}`} ref={box} style={props.style} onPointerDown={onDown} onPointerUp={onUp}>
       {err && <div style={{ padding: 20 }}>{err}</div>}
       <div className="lbl3d-host" ref={lblBox} />
+      {hidden.length > 0 && (
+        <button className="lbl-restore" onClick={() => saveHidden([])} title="Mostrar de novo as identificações ocultas nesta tela">
+          {hidden.length === 1 ? '1 identificação oculta' : `${hidden.length} identificações ocultas`} · mostrar
+        </button>
+      )}
       <TrimGainBanner />
       {perf.show && <FpsMeter meterRef={perf.meterRef} />}
       {props.view === 'passadico' && props.hud !== 'none' && <BridgeLayer p={props} />}
@@ -328,4 +366,3 @@ export function Scene3D(props: Scene3DProps) {
     </div>
   );
 }
-

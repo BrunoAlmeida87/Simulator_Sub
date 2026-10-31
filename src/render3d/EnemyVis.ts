@@ -385,7 +385,7 @@ export class EnemyVis {
       }
       if (labels && age >= 0 && age < 12) {
         const pp = proj(p.clone().add(new THREE.Vector3(0, 22, 0)));
-        labels.push({ id: 'exp_' + x.id, text: '💥 EXPLOSÃO', sub: `torpedo ${x.id}`, color: '#ffb347', small: true, prio: 0, x: pp.x, y: pp.y, visible: pp.visible });
+        labels.push({ id: 'exp_' + x.id, text: 'EXPLOSÃO', sub: `torpedo ${x.id}`, color: '#ffb347', small: true, prio: 0, x: pp.x, y: pp.y, visible: pp.visible });
       }
     }
     for (const [id, fx] of this.fx)
