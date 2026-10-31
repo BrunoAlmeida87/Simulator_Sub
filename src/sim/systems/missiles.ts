@@ -281,8 +281,9 @@ function stepMissile(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRu
       break;
     }
     case 'superficie': {
-      // fora d'água com o motor da cápsula ainda queimando: o nariz é ejetado e a cápsula sobe até a separação
-      c.pitch += clamp(12 - c.pitch, -8 * dt, 8 * dt);
+      // fora d'água com o motor da cápsula ainda queimando: o nariz é ejetado e a cápsula sobe até a separação.
+      // Lançada rasa (ou da superfície) ela rompe a água quase deitada: o jato a empina para ~35° para ganhar altura
+      c.pitch += clamp(Math.max(35, Math.min(c.pitch, 50)) - c.pitch, -M.vsm.pitchRate * dt, M.vsm.pitchRate * dt);
       c.speed += (M.vsm.speed - c.speed) * (1 - Math.exp(-dt / M.vsm.tau));
       moveAlong(c, dt);
       if (c.tNose === null && t - c.tBreach! >= M.vsm.noseDelay) {
@@ -291,7 +292,7 @@ function stepMissile(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRu
         ctx.log(`Míssil ${r.id}: nariz da cápsula ejetado`, LOG);
       }
       copyPose(r, c);
-      if (-c.d >= M.vsm.separationAlt || t - c.tBreach! > 3) {
+      if (-c.d >= M.vsm.separationAlt || t - c.tBreach! > 5) {
         c.tSep = t;
         c.vz = c.speed * Math.sin(c.pitch * DEG);
         // o míssil sai pela frente da cápsula, um pouco mais rápido
@@ -386,7 +387,10 @@ function flight(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRun): v
     const vzCmd = clamp((hCmd - alt) / 2.2, -35, 45);
     pitchCmd = Math.asin(clamp(vzCmd / Math.max(1, r.speed), -0.9, 0.9)) / DEG;
   }
-  const pr = r.phase === 'mergulho' ? 2 * M.pitchRate : M.pitchRate;
+  // perto da água (fora da fase terminal e do mergulho) o míssil nunca aponta para baixo
+  if (alt < 6 && r.phase !== 'terminal' && r.phase !== 'mergulho' && r.phase !== 'passagem') pitchCmd = Math.max(pitchCmd, 8);
+  // o acelerador (empuxo alto, baixa velocidade) levanta o nariz bem mais rápido que o voo de cruzeiro
+  const pr = r.phase === 'mergulho' ? 2 * M.pitchRate : r.phase === 'acelerador' ? 4 * M.pitchRate : M.pitchRate;
   r.pitch += clamp(pitchCmd - r.pitch, -pr * dt, pr * dt);
   // ---- rumo ordenado
   let hdgCmd = r.heading;

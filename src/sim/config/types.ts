@@ -457,6 +457,8 @@ export interface WeaponsConfig {
   /** míssil antinavio SM39 (cápsula VSM), mísseis de reserva e o tipo inicial de cada tubo (ausente = todos F21) */
   missile?: MissileSpec;
   missileReserve?: number;
+  /** troca rápida de arma no tubo, F21 ↔ SM39 (s; simplificação para as apresentações, padrão 4 s) */
+  swapTime?: number;
   initialKinds?: ('f21' | 'sm39')[];
 }
 

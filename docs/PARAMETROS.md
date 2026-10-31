@@ -82,6 +82,7 @@ Ordens de grandeza públicas (MBDA, CSIS Missile Threat, EDR Magazine). Cinemát
 |---|---|---|
 | Cápsula VSM com o míssil | 1 345 kg, 5,8 m × 533 mm, 1,3 m³ | entra no tubo no lugar do F21 (`TubeState.kind = 'sm39'`); a compensação usa a massa e o volume do tipo carregado |
 | Míssil | 655 kg, 4,69 m × 350 mm, ogiva 165 kg | asas em X abrem depois da separação |
+| Troca F21 ↔ SM39 | 4 s (`swapTime`) | simplificação para as apresentações (a recarga de um tubo vazio continua com 300 s) |
 | Reserva | 2 SM39 (`missileReserve`) | junto aos torpedos de reserva (x = 13 m); entra na condição de projeto (peso leve automático) |
 | Motor da cápsula | acende 1,5 s depois de sair do tubo; 20 m/s (constante 1,2 s) | sobe a 45° (oblíqua) ou 75° (quase vertical); arfagem 12 °/s; desvio lateral até ±40° a 8 °/s |
 | Superfície | nariz ejetado 0,25 s depois de romper; separação a 20 m de altura (ou 3 s) | a cápsula cai no mar |

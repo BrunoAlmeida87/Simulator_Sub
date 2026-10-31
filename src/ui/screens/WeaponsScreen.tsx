@@ -245,9 +245,9 @@ export function WeaponsScreen() {
                 {t.weapon && kindOf(t) !== load && (
                   <button
                     className="btn"
-                    disabled={busy || (load === 'sm39' ? (ws.reserveSm39 ?? 0) : ws.reserve) <= 0}
+                    disabled={busy || t.door.pos > 0.001 || (load === 'sm39' ? (ws.reserveSm39 ?? 0) : ws.reserve) <= 0}
                     onClick={() => order('trocar')}
-                    title="Fechar a porta, drenar, abrir a culatra, devolver a arma à reserva e carregar a escolhida (≈ 10 min)"
+                    title={t.door.pos > 0.001 ? 'Feche a porta da boca antes de trocar a arma' : 'Devolve a arma do tubo à reserva e carrega a escolhida (poucos segundos)'}
                   >
                     Trocar por {load === 'sm39' ? 'SM39' : 'F21'}
                   </button>

@@ -363,7 +363,7 @@ export interface TubeState {
   ejectV: number;
   /** tempo decorrido da recarga (s); null sem recarga */
   reload: number | null;
-  /** tempo decorrido da descarga para a reserva na troca de arma (s); null/ausente sem descarga */
+  /** tempo decorrido da troca rápida de arma (s); null/ausente sem troca */
   unload?: number | null;
   /** origem geográfica e tráfego adicional vistos pelo operador ao passar os dados (para achar o alvo) */
   origin?: { lat: number; lon: number };

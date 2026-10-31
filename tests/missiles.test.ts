@@ -145,12 +145,44 @@ describe('míssil SM39', () => {
     const r0 = ws.reserve;
     applyCommand(e, { type: 'tube', tube: 1, action: 'trocar', presets: { load: 'sm39' } });
     expect(last(e)).not.toMatch(/recusad/);
-    await runAsync(e, 1200, () => ws.tubes[0].auto === null);
+    // troca rápida: poucos segundos
+    await runAsync(e, 6);
     expect(ws.tubes[0].kind).toBe('sm39');
     expect(ws.tubes[0].weapon).toBe(true);
     expect(ws.reserve).toBe(r0 + 1);
     expect(ws.reserveSm39).toBe(1);
     expect(Math.abs(ws.awcRef - weaponsWeight(e.vessel.weapons!, ws))).toBeLessThan(5);
+  });
+
+  it('lançado da superfície: a cápsula empina, o míssil separa a ~20 m e não cai no mar', async () => {
+    for (const sc of ['superficie', 'superficie_avante']) {
+      const e = buildScenario(sc);
+      const ws = e.state.weapons!;
+      applyCommand(e, { type: 'tube', tube: 1, action: 'trocar', presets: { load: 'sm39' } });
+      await runAsync(e, 6);
+      applyCommand(e, { type: 'hostile', action: 'add', kind: 'fragata', range: 15000, bearing: 0, speed: 5 });
+      const f = ws.hostiles![0];
+      applyCommand(e, { type: 'tube', tube: 1, action: 'disparar', presets: { target: f.id, warhead: 'combate', ...fire } });
+      let sepAlt = 0;
+      await runAsync(
+        e,
+        400,
+        () => ['impacto', 'perdido'].includes(ws.missiles?.[0]?.phase ?? ''),
+        () => {
+          const r = ws.missiles?.[0];
+          if (r?.phase === 'separacao' && !sepAlt) sepAlt = -r.d;
+        },
+      );
+      expect(sepAlt, sc).toBeGreaterThan(15);
+      expect(ws.missiles![0].phase, sc).toBe('impacto');
+    }
+  });
+
+  it('troca recusada com a porta da boca aberta', () => {
+    const e = buildScenario('submerso_50');
+    e.state.weapons!.tubes[0].door.pos = 1;
+    applyCommand(e, { type: 'tube', tube: 1, action: 'trocar', presets: { load: 'sm39' } });
+    expect(last(e)).toMatch(/recusado — porta da boca aberta/);
   });
 
   it('alvo em terra recusado sem costa', () => {

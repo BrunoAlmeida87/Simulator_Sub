@@ -126,6 +126,9 @@ export function weaponsWeight(w: WeaponsConfig, st: WeaponsState): number {
 /** Água para encher o tubo (kg): o furo inteiro menos a arma. */
 export const fullWater = (w: WeaponsConfig, tc: TorpedoTubeConfig, t: TubeState, R: RadiusAt) => Math.max(0, boreVolume(w, tc, R) - (t.weapon ? weaponDims(w, kindOf(t)).volume : 0)) * RHO_NOMINAL;
 
+/** Duração da troca rápida de arma no tubo (s). */
+export const swapTime = (w: WeaponsConfig) => w.swapTime ?? 4;
+
 /** Armas de reserva a bordo de um tipo. */
 export const reserveOf = (ws: WeaponsState, kind: WeaponKind) => (kind === 'sm39' ? (ws.reserveSm39 ?? 0) : ws.reserve);
 
@@ -166,7 +169,7 @@ export function tubeView(v: VesselConfig, s: SimState, ctx: Pick<StepContext, 'e
   let status = '';
   let tone: TubeView['tone'] = 'off';
   if (t.eject !== null) [status, tone] = ['DISPARANDO', 'warn'];
-  else if (t.unload != null) [status, tone] = [`DESCARREGANDO ${Math.round((100 * t.unload) / w.reloadTime)}%`, 'busy'];
+  else if (t.unload != null) [status, tone] = [`TROCANDO A ARMA ${Math.round((100 * t.unload) / swapTime(w))}%`, 'busy'];
   else if (t.reload !== null) [status, tone] = [`RECARREGANDO ${Math.round((100 * t.reload) / w.reloadTime)}%`, 'busy'];
   else if (ready) [status, tone] = ['PRONTO PARA DISPARO', 'ready'];
   else if (t.door.pos > 0.001 && t.door.pos < 0.999) [status, tone] = [t.door.cmd > 0.5 ? 'ABRINDO A PORTA' : 'FECHANDO A PORTA', 'busy'];
@@ -393,7 +396,8 @@ function tubeRefusal(c: TubeCond, action: TubeAction, presets: TubePresets): str
       if (kindOf(t) === load) return `já há ${load === 'sm39' ? 'um SM39' : 'um F21'} no tubo`;
       if (reserveOf(ws, load) <= 0) return load === 'sm39' ? 'sem mísseis SM39 de reserva' : 'sem torpedos de reserva';
       if (t.reload !== null || t.unload != null) return 'recarga em andamento';
-      if (t.water > tcaFree(w, ws) + 1) return `sem espaço nos TCA para a água do tubo (${(t.water / RHO_NOMINAL).toFixed(2)} m³)`;
+      if (t.auto) return 'sequência automática em curso';
+      if (t.door.pos > 0.001 || t.door.cmd > 0) return 'porta da boca aberta (fechar antes)';
       return null;
   }
   return null;
@@ -535,9 +539,10 @@ export function tubeCommand(c: TubeCmdCtx, n: number, action: TubeAction, preset
       return;
     }
     case 'trocar': {
-      t.auto = 'trocar';
+      // troca rápida (simplificação para as apresentações): a arma volta à estiva e a nova entra em poucos segundos
+      t.unload = 0;
       const k = t.presets.load ?? 'f21';
-      c.log(`${nm}: trocar ${weaponDims(w, kindOf(t)).name} por ${weaponDims(w, k).name} — fechar a porta, drenar, abrir a culatra, devolver a arma à reserva e carregar a nova`, G);
+      c.log(`${nm}: trocar ${weaponDims(w, kindOf(t)).name} por ${weaponDims(w, k).name} (${swapTime(w).toFixed(0)} s)`, G);
       return;
     }
     case 'alimentar':
@@ -737,20 +742,25 @@ export function updateWeapons(v: VesselConfig, s: SimState, inp: WeaponsStepInpu
       t.water -= q;
       tcaMove(q);
     }
-    // descarga (troca de arma): a arma volta para a reserva
+    // troca rápida de arma: a do tubo volta à reserva e a escolhida entra (o peso total não muda; a compensação corrige o trim)
     if (t.unload != null) {
-      if (t.breech.pos < 0.999) t.unload = null;
-      else {
-        t.unload += dt;
-        if (t.unload >= w.reloadTime) {
-          t.unload = null;
-          const k = kindOf(t);
-          t.weapon = false;
-          t.energized = false;
-          delete t.kind;
-          if (k === 'sm39') ws.reserveSm39 = (ws.reserveSm39 ?? 0) + 1;
+      t.unload += dt;
+      if (t.unload >= swapTime(w)) {
+        t.unload = null;
+        const old = kindOf(t);
+        const k: WeaponKind = t.presets.load === 'sm39' && w.missile ? 'sm39' : 'f21';
+        if (t.weapon && old !== k && reserveOf(ws, k) > 0) {
+          if (old === 'sm39') ws.reserveSm39 = (ws.reserveSm39 ?? 0) + 1;
           else ws.reserve += 1;
-          ctx.log(`${tubeName(tc)}: ${k === 'sm39' ? 'míssil SM39' : 'torpedo F21'} devolvido à reserva`, G);
+          if (k === 'sm39') {
+            ws.reserveSm39 = (ws.reserveSm39 ?? 0) - 1;
+            t.kind = 'sm39';
+          } else {
+            ws.reserve -= 1;
+            delete t.kind;
+          }
+          t.energized = false;
+          ctx.log(`${tubeName(tc)}: ${k === 'sm39' ? 'míssil SM39' : 'torpedo F21'} no tubo (${weaponDims(w, old).name} devolvido à reserva)`, G);
         }
       }
     }
@@ -1046,14 +1056,13 @@ function runAuto(c: TubeCmdCtx, i: number, full: number, sea: number): void {
       t.auto = null;
       c.log(`${nm}: porta fechada, tubo isolado do mar`, G);
       return;
-    case 'trocar':
     case 'recarregar': {
       if (t.door.pos > 0.001 || t.equalize.pos > 0.001) {
         t.door.cmd = 0;
         t.equalize.cmd = 0;
         return;
       }
-      if (t.water > 0.5 && (!t.weapon || t.auto === 'trocar')) {
+      if (t.water > 0.5 && !t.weapon) {
         if (t.drain.pos > 0.999 && tcaFree(w, c.s.weapons!) < 1) {
           // TCA cheios: a drenagem parou (não acontece com a dotação normal de armas)
           t.auto = null;
@@ -1073,22 +1082,6 @@ function runAuto(c: TubeCmdCtx, i: number, full: number, sea: number): void {
         t.vent.cmd = 0;
       }
       if (t.drain.pos > 0.001) return;
-      // troca: a arma atual volta para a reserva antes de carregar a nova
-      if (t.auto === 'trocar' && t.weapon && kindOf(t) !== (t.presets.load ?? 'f21')) {
-        if (t.breech.pos < 0.999) {
-          if (t.breech.cmd < 1) {
-            t.breech.cmd = 1;
-            c.log(`${nm}: tubo seco; abrindo a culatra`, G);
-          }
-          return;
-        }
-        if (t.unload == null) {
-          t.unload = 0;
-          c.log(`${nm}: retirando a arma do tubo para a reserva (${Math.round(w.reloadTime / 60)} min)`, G);
-        }
-        return;
-      }
-      if (t.unload != null) return;
       if (!t.weapon) {
         if (t.breech.pos < 0.999) {
           if (t.breech.cmd < 1) {
