@@ -1,4 +1,5 @@
 /** Seletores detalhados permanecem dentro do grupo de camadas correspondente. */
+import { LabelFilterPanel } from './LabelFilterPanel';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
 import { LayerPanel, type LayerKey } from './LayerPanel';
@@ -11,9 +12,7 @@ export function SceneLayerPanel({
   keys,
   value,
   onChange,
-  hullControl = false,
-  fog,
-  onFogChange,
+  hullControl = true,
   marked,
 }: {
   e: SimulationEngine;
@@ -21,8 +20,6 @@ export function SceneLayerPanel({
   value: Partial<SceneLayers>;
   onChange: (p: Partial<SceneLayers>) => void;
   hullControl?: boolean;
-  fog?: boolean;
-  onFogChange?: (v: boolean) => void;
   marked?: (k: LayerKey) => boolean;
 }) {
   const L = { ...defaultLayers(), ...value };
@@ -70,16 +67,10 @@ export function SceneLayerPanel({
             <div className="note">Peso e empuxo usam a mesma escala. O fator de ampliação da resultante aparece no rótulo.</div>
           </details>
         ),
-        refs: L.trimRef ? (
-          <div className="layer-setting">
-            <TrimGainSelect />
-          </div>
-        ) : undefined,
-        amb: onFogChange ? (
-          <label className="chk layer-setting">
-            <input type="checkbox" checked={fog} onChange={(ev) => onFogChange(ev.target.checked)} /> Turbidez
-          </label>
-        ) : undefined,
+        refs: <>
+          <LabelFilterPanel />
+          {L.trimRef && <div className="layer-setting"><TrimGainSelect /></div>}
+        </>,
       }}
     />
   );

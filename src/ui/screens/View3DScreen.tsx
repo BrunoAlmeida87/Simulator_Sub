@@ -1,3 +1,4 @@
+import { SCENE_LAYER_KEYS } from '../../render3d/layers';
 /** Tela 6 — Visualização 3D. */
 import { usePersisted } from '../persist';
 import { useSim } from '../store';
@@ -42,42 +43,7 @@ const V3D_LAYER_DEFAULTS = {
   hullOpacity: 0.16,
   resultantGain: 'auto' as const,
 };
-const V3D_LAYER_KEYS: LayerKey[] = [
-  'sonarRays',
-  'sonarWave',
-  'sonarThermocline',
-  'sonarProfile',
-  'sonarCoverage',
-  'sonarHeatmap',
-  'sonarSurface',
-  'sonarBottom',
-  'sonarEchoes',
-  'sonarBearings',
-  'sonarRulers',
-  'vectors',
-  'hydroVectors',
-  'trimVectors',
-  'tanks',
-  'pipes',
-  'flows',
-  'halfCut',
-  'labels',
-  'batteryInfo',
-  'airInfo',
-  'wake',
-  'wind',
-  'pennant',
-  'flag',
-  'trail',
-  'markers',
-  'trimRef',
-  'pitchAngle',
-  'depthLines',
-  'ships',
-  'torpedoes',
-  'noWater',
-  'presLight',
-];
+const V3D_LAYER_KEYS: LayerKey[] = SCENE_LAYER_KEYS;
 
 const VIEWS: ViewOption[] = [
   { id: 'piloto', label: 'Lateral' },
@@ -143,9 +109,11 @@ export function View3DScreen() {
     trimRef,
     ships,
     trail,
+    fog,
   };
   const setLayers = (p: Partial<SceneLayers>) => {
     setVecLayers(p);
+    if (p.fog !== undefined) setFog(p.fog);
     if (p.tankFilter !== undefined) setTankF(p.tankFilter);
     if (p.tanks !== undefined) setCut(p.tanks);
     if (p.noWater !== undefined) setDry(p.noWater);
@@ -153,9 +121,7 @@ export function View3DScreen() {
     if (p.trimRef !== undefined) setTrimRef(p.trimRef);
     if (p.ships !== undefined) setShips(p.ships);
     if (p.trail !== undefined) setTrail(p.trail);
-    const rest: Partial<SceneLayers> = {};
-    for (const k of Object.keys(V3D_LAYER_DEFAULTS) as (keyof typeof V3D_LAYER_DEFAULTS)[]) if (p[k] !== undefined) Object.assign(rest, { [k]: p[k] });
-    if (Object.keys(rest).length) setLay({ ...laySaved, ...rest });
+    setLay({ ...laySaved, ...p });
   };
   const o = e.outputs;
   const s = e.state;
@@ -191,7 +157,7 @@ export function View3DScreen() {
             label: <>Camadas ({V3D_LAYER_KEYS.filter((k) => !!layerValue[k]).length})</>,
             title: 'Tanques, vetores, identificações e ambiente',
             className: 'scene-layer-pop',
-            content: <SceneLayerPanel e={e} keys={V3D_LAYER_KEYS} value={layerValue} onChange={setLayers} fog={fog} onFogChange={setFog} />,
+            content: <SceneLayerPanel e={e} keys={V3D_LAYER_KEYS} value={layerValue} onChange={setLayers} />,
           },
           ...seaSections(quality, setQuality),
         ]}

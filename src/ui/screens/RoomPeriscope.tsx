@@ -421,7 +421,7 @@ export function RoomPeriscope({ sight, setSight, onExit, acts }: { sight: Perisc
           view="periscopio"
           periscope={sight}
           quality={defaultQuality()}
-          labels={false}
+
           syncVisual={false}
           layers={{
             vectors: false,

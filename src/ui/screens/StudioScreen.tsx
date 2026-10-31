@@ -568,7 +568,7 @@ function EditorStage({ e, cur, step, k, pose }: { e: SimulationEngine; cur: User
   const card = step ? previewCard(cur, step, k, e) : null;
   return (
     <div className="st-preview">
-      <Scene3D quality={quality} view={pres.view} layers={pres.layers} labels={false} persistKey="studio" camPose={pose} hud="compact">
+      <Scene3D quality={quality} view={pres.view} layers={pres.layers} persistKey="studio" camPose={pose} hud="compact">
         {step && <PresHudView items={previewHud(step, e)} side={hudSide(card)} />}
         {card && (
           <div className="st-in">
@@ -1526,7 +1526,7 @@ function PlayerStage({ onEditor }: { onEditor: () => void }) {
   return (
     <div className={`st-play ${panel && !fs ? 'with-panel' : ''}`}>
       <div className="st-stage" ref={stageRef}>
-        <Scene3D quality={quality} view={pres.view} layers={pres.layers} labels={false} persistKey="studio" camPose={pl.cam} hud="compact">
+        <Scene3D quality={quality} view={pres.view} layers={pres.layers} persistKey="studio" camPose={pl.cam} hud="compact">
           <PresHudView items={hud} side={hudSide(card)} />
           {card && (
             <div className="st-in">

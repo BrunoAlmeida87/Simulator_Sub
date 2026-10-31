@@ -421,7 +421,7 @@ const STEP_DEF: [TubeAction, string, string, ManualStep['group']][] = [
   ['alagar', 'Alagar o tubo', 'A água do TCA enche o espaço em volta da arma; o ar sai pelo suspiro para dentro do casco.', 'lancar'],
   ['equalizar', 'Equalizar com o mar', 'A válvula de equalização iguala a pressão do tubo à do mar na boca.', 'lancar'],
   ['abrirPorta', 'Abrir a porta da boca', 'A porta externa (hidráulica) abre: o tubo fica em contato com o mar.', 'lancar'],
-  ['fogo', 'FOGO!', 'A garrafa de ar comprimido aciona a ejeção e a arma sai pela boca.', 'lancar'],
+  ['fogo', 'Disparar', 'A garrafa de ar comprimido aciona a ejeção e a arma sai pela boca.', 'lancar'],
   ['fecharPorta', 'Fechar a porta da boca', 'Isola o tubo do mar (o tubo continua cheio de água).', 'recarregar'],
   ['drenar', 'Drenar para o TCA', 'A água do tubo volta para o tanque de compensação.', 'recarregar'],
   ['abrirCulatra', 'Abrir a culatra', 'A porta interna abre para a sala de torpedos (só com o tubo seco).', 'recarregar'],

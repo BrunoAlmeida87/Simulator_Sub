@@ -1,7 +1,24 @@
 # Modelos 3D
 
-Os oito GLBs foram exportados dos arquivos fornecidos pelo usuário, preservados
-em `assets/blender`. O catálogo está em `src/render3d/modelAssets.ts`.
+## Inclusão automática na galeria
+
+Adicione um arquivo `.glb` em `public/models/`: o próximo build o inclui na aba
+**Modelos 3D**, sem editar o código. Arquivos `.blend` enviados para a mesma pasta
+são exportados para `.glb` pelo workflow de publicação no GitHub antes do build.
+Esse processo precisa de Blender 5.2.3; o navegador não consegue abrir `.blend`
+diretamente. A conversão usa apenas objetos visíveis de geometria, exclui planos
+de oceano da cena e não executa
+scripts contidos no arquivo Blender. Os novos modelos aparecem na galeria após a
+publicação do site; integrar um navio à simulação requer definir também o contato
+e a associação do modelo no código.
+
+Para exportar localmente, instale Python 3.13 e `bpy==5.2.3`, depois execute
+`npm run modelos:exportar` e `npm run build`.
+
+Os oito GLBs originais foram exportados dos arquivos fornecidos pelo usuário,
+preservados em `assets/blender`. Eles têm associações fixas aos contatos em
+`src/render3d/modelAssets.ts`. Os modelos adicionados depois aparecem pelo
+catálogo gerado em `public/models/catalog.json` durante o build.
 
 | GLB | Uso |
 | --- | --- |
