@@ -1,3 +1,4 @@
+import { SCENE_LAYER_KEYS } from '../../render3d/layers';
 /**
  * Tela de APRESENTAÇÃO: cena 3D, tanques, vetores de força e indicadores
  * físicos reunidos, com controles de condução (situações prontas, pausa,
@@ -49,42 +50,7 @@ export const FRAMES: [ViewMode, string, string][] = [
 ];
 
 /** camadas da apresentação (nomes no catálogo LAYER_INFO) */
-export const LAYER_LIST: LayerKey[] = [
-  'sonarRays',
-  'sonarWave',
-  'sonarThermocline',
-  'sonarProfile',
-  'sonarCoverage',
-  'sonarHeatmap',
-  'sonarSurface',
-  'sonarBottom',
-  'sonarEchoes',
-  'sonarBearings',
-  'sonarRulers',
-  'vectors',
-  'hydroVectors',
-  'trimVectors',
-  'tanks',
-  'pipes',
-  'flows',
-  'halfCut',
-  'labels',
-  'batteryInfo',
-  'airInfo',
-  'wake',
-  'wind',
-  'pennant',
-  'flag',
-  'markers',
-  'trail',
-  'presLight',
-  'noWater',
-  'trimRef',
-  'pitchAngle',
-  'depthLines',
-  'ships',
-  'torpedoes',
-];
+export const LAYER_LIST: LayerKey[] = SCENE_LAYER_KEYS;
 
 function usePres() {
   const [, f] = useReducer((x: number) => x + 1, 0);
@@ -233,7 +199,7 @@ export function PresentationScreen() {
   return (
     <div className="pres">
       <div className="pres-view">
-        <Scene3D quality={quality} view={p.view} layers={L} labels={false} persistKey="pres" onPickTank={(id) => id && pick(id)}>
+        <Scene3D quality={quality} view={p.view} layers={L} persistKey="pres" onPickTank={(id) => id && pick(id)}>
           {(L.vectors || L.hydroVectors) && (
             <div className="only-wide">
               <ForceHud e={e} gain={gainTxt} />

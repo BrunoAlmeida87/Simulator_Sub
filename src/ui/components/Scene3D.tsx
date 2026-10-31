@@ -18,6 +18,8 @@ import { bridgeSight, useBridgeSight } from '../bridgeSight';
 import { DroneHud } from './DroneHud';
 import { droneCtl } from '../droneCtl';
 import type { DronePose } from '../../render3d/drone';
+import { labelIsVisible } from '../../render3d/labelVisibility';
+import { labelPreferences } from '../labelPreferences';
 import { layoutLabels, type LabelRect } from '../../render3d/labelLayout';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
@@ -38,8 +40,6 @@ export interface Scene3DProps {
   className?: string;
   style?: React.CSSProperties;
   children?: ReactNode;
-  /** rótulos básicos (superfície, cota/velocidade, fundo) */
-  labels?: boolean;
   quality?: OceanQuality;
   /** camadas visuais (vetores, tanques, tubulações, escoamentos, identificações…) */
   layers?: Partial<SceneLayers>;
@@ -75,7 +75,6 @@ function BridgeLayer({ p }: { p: Scene3DProps }) {
 
 type CamPose = { pos: [number, number, number]; target: [number, number, number] };
 
-const BASIC = new Set(['surf', 'sub', 'bot']);
 
 function mergedLayers(p: Scene3DProps): SceneLayers {
   const l = { ...defaultLayers(), ...p.layers };
@@ -109,7 +108,7 @@ export function Scene3D(props: Scene3DProps) {
           try {
             const sc = new SubmarineScene(box.current!, runner, opts.current.view, opts.current.quality ?? defaultQuality());
             sc.layers = mergedLayers(opts.current);
-            sc.realisticFog = opts.current.fog ?? true;
+            sc.realisticFog = opts.current.fog ?? sc.layers.fog;
             appliedPose.current = -1;
             const k = opts.current.persistKey;
             if (k && opts.current.view === 'livre') {
@@ -175,7 +174,7 @@ export function Scene3D(props: Scene3DProps) {
               visualOut.bridge = opts.current.view === 'passadico' ? sc.bridge : null;
               visualOut.drone = droneOn ? sc.drone : null;
             }
-            sc.realisticFog = opts.current.fog ?? true;
+            sc.realisticFog = opts.current.fog ?? sc.layers.fog;
             sc.setRenderScale(perf.frame(() => sc.renderStats()));
             drawLabels(sc.render(), sc.labelBounds);
             if (droneOn) {
@@ -211,7 +210,7 @@ export function Scene3D(props: Scene3DProps) {
   const drawLabels = (labels: Label3D[], hull: LabelRect | null) => {
     const host = lblBox.current;
     if (!host) return;
-    const basic = opts.current.labels !== false;
+    const labelPrefs = labelPreferences.get();
     const W = host.clientWidth;
     const H = host.clientHeight;
     if (labelWidth.current !== W) {
@@ -225,7 +224,7 @@ export function Scene3D(props: Scene3DProps) {
       if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
     });
     const list = labels
-      .filter((l) => l.visible && !(BASIC.has(l.id) && !basic) && l.x > -50 && l.y > -30 && l.x < W + 50 && l.y < H + 30)
+      .filter((l) => l.visible && labelIsVisible(l.id, labelPrefs) && l.x > -50 && l.y > -30 && l.x < W + 50 && l.y < H + 30)
       .sort((a, b) => (a.prio ?? 1) - (b.prio ?? 1));
     // 1) conteúdo
     const slots = list.map((l) => {
@@ -233,13 +232,29 @@ export function Scene3D(props: Scene3DProps) {
       if (!slot) {
         const el = document.createElement('div');
         el.className = 'lbl3d';
+        el.tabIndex = 0;
+        el.setAttribute('role', 'button');
+        el.dataset.labelId = l.id;
+        el.title = 'Clique para ocultar esta identificação. Restaure em Camadas → Identificações ocultadas.';
+        // Consome os eventos antes que alcancem a câmera ou a seleção de componentes.
+        el.onpointerdown = (event) => event.stopPropagation();
+        el.onpointerup = (event) => event.stopPropagation();
+        el.onclick = (event) => {
+          event.stopPropagation();
+          labelPreferences.hide(l.id, el.firstElementChild?.textContent ?? l.id);
+        };
+        el.onkeydown = (event) => {
+          event.stopPropagation();
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); el.click(); }
+        };
         const line = document.createElement('div');
         line.className = 'lbl3d-leader';
         host.append(line, el);
         slot = { el, line, key: '', w: 0, h: 0 };
         pool.current.set(l.id, slot);
       }
-      const key = `${l.text}|${l.sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.big ? 1 : 0}|${l.callout ? 1 : 0}`;
+      const sub = labelPrefs.details ? l.sub : undefined;
+      const key = `${l.text}|${sub ?? ''}|${l.color ?? ''}|${l.small ? 1 : 0}|${l.big ? 1 : 0}|${l.callout ? 1 : 0}`;
       if (slot.key !== key) {
         slot.el.className = `lbl3d${l.small ? ' small' : ''}${l.big ? ' big' : ''}${l.color ? ' col' : ''}${l.callout ? ' callout' : ''}`;
         slot.el.style.borderColor = l.color ?? '';
@@ -248,10 +263,11 @@ export function Scene3D(props: Scene3DProps) {
         const a = document.createElement('div');
         a.textContent = l.text;
         slot.el.appendChild(a);
-        if (l.sub) {
+        slot.el.setAttribute('aria-label', `Ocultar identificação: ${l.text}`);
+        if (sub) {
           const b = document.createElement('div');
           b.className = 's';
-          b.textContent = l.sub;
+          b.textContent = sub;
           slot.el.appendChild(b);
         }
         slot.key = key;

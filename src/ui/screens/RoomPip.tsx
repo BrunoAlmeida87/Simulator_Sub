@@ -1,3 +1,6 @@
+import { defaultLayers, SCENE_LAYER_KEYS, type SceneLayers } from '../../render3d/layers';
+import { SceneLayerPanel } from '../components/SceneLayerPanel';
+import { useSim } from '../store';
 /**
  * SUBMARINO 3D EM PICTURE-IN-PICTURE na sala de comando: janela móvel
  * (arrastar pelo título), em três tamanhos, com as vistas da aba 3D e
@@ -33,25 +36,12 @@ const SIZES: [PipSize, string][] = [
   ['G', 'Grande'],
 ];
 
-interface PipLayers {
-  vectors: boolean;
-  tanks: boolean;
-  noWater: boolean;
-  trail: boolean;
-}
-
-const LAYER_BTNS: [keyof PipLayers, string, string][] = [
-  ['vectors', 'Vetores', 'Peso, empuxo e resultante'],
-  ['tanks', 'Tanques', 'Casco em corte com tanques e escoamentos'],
-  ['noWater', 'Sem água', 'Esconde o mar (vê o casco inteiro)'],
-  ['trail', 'Rastro', 'Trajetória percorrida'],
-];
-
 export function RoomPip({ onClose }: { onClose: () => void }) {
+  const e = useSim(4);
   const [view, setView] = usePersisted<ViewMode>('room.pipView', 'perseguicao');
   const [size, setSize] = usePersisted<PipSize>('room.pipSize', 'M');
   const [pos, setPos] = usePersisted<{ r: number; b: number }>('room.pipPos', { r: 8, b: 52 });
-  const [lay, setLay] = usePersisted<PipLayers>('room.pipLayers', { vectors: false, tanks: false, noWater: false, trail: false });
+  const [lay, setLay] = usePersisted<Partial<SceneLayers>>('room.pipLayers', { vectors: false, tanks: false, noWater: false, trail: false });
   const [opts, setOpts] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; r: number; b: number } | null>(null);
@@ -65,8 +55,7 @@ export function RoomPip({ onClose }: { onClose: () => void }) {
     const maxB = Math.max(0, host.clientHeight - el.offsetHeight);
     return { r: Math.round(Math.min(maxR, Math.max(0, r))), b: Math.round(Math.min(maxB, Math.max(0, b))) };
   };
-  const tanks = lay.tanks || view === 'tanques';
-  const vectors = lay.vectors || view === 'forcas';
+  const layers = { ...defaultLayers(), ...lay };
 
   return (
     <div ref={box} className={`room-pip size-${size}`} style={{ right: pos.r, bottom: pos.b }} onPointerDown={(ev) => ev.stopPropagation()} onWheel={(ev) => ev.stopPropagation()}>
@@ -86,7 +75,7 @@ export function RoomPip({ onClose }: { onClose: () => void }) {
         onPointerCancel={() => (drag.current = null)}
       >
         <b className="room-pip-title">⠿ Submarino 3D</b>
-        <select value={view} onChange={(ev) => setView(ev.target.value as ViewMode)} aria-label="Vista do submarino">
+        <select value={view} onChange={(ev) => { const next = ev.target.value as ViewMode; setView(next); if (next === 'tanques') setLay({ ...lay, tanks: true }); if (next === 'forcas') setLay({ ...lay, vectors: true }); }} aria-label="Vista do submarino">
           {VIEWS.map(([k, l]) => (
             <option key={k} value={k}>
               {l}
@@ -118,38 +107,18 @@ export function RoomPip({ onClose }: { onClose: () => void }) {
       </div>
       {opts && (
         <div className="room-pip-opts">
-          {LAYER_BTNS.map(([k, l, tip]) => (
-            <button key={k} className={`btn sm ${lay[k] ? 'on' : ''}`} title={tip} onClick={() => setLay({ ...lay, [k]: !lay[k] })}>
-              {l}
-            </button>
-          ))}
+          <SceneLayerPanel e={e} keys={SCENE_LAYER_KEYS} value={layers} onChange={(patch) => setLay({ ...lay, ...patch })} />
         </div>
       )}
       <Scene3D
         view={view}
         quality="baixa"
-        labels={false}
+
         syncVisual={false}
         hud="compact"
         hudKeys={false}
         persistKey="roompip"
-        layers={{
-          markers: true,
-          wake: true,
-          ships: true,
-          labels: false,
-          vectors,
-          hydroVectors: false,
-          trimVectors: false,
-          tanks,
-          pipes: tanks,
-          flows: tanks,
-          batteryInfo: false,
-          airInfo: false,
-          trimRef: false,
-          trail: lay.trail,
-          noWater: lay.noWater,
-        }}
+        layers={layers}
       />
     </div>
   );

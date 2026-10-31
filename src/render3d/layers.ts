@@ -56,6 +56,8 @@ export interface SceneLayers {
   hiddenVectors: string[];
   /** sem água: oculta o mar, a névoa e os efeitos de água para ver melhor o submarino */
   noWater: boolean;
+  /** turbidez da água */
+  fog: boolean;
   /** referências de trim/calado: linha do nível do mar × linha do casco e leituras de calado AV/AR */
   trimRef: boolean;
   /** navios (contatos da mesa tática) no mar */
@@ -109,6 +111,7 @@ export const defaultLayers = (): SceneLayers => ({
   tankFilter: null,
   hiddenVectors: [],
   noWater: false,
+  fog: true,
   trimRef: false,
   ships: true,
   batteryInfo: true,
@@ -161,6 +164,7 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   ships: { label: 'Navios', title: 'Contatos da mesa tática como navios no mar' },
   torpedoes: { label: 'Torpedos', title: 'Armas nos tubos (no corte), disparo, corrida com esteira de bolhas e fio de guiagem' },
   presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
+  fog: { label: 'Turbidez', title: 'Névoa subaquática conforme a qualidade da água', mode: true },
   noWater: { label: 'Sem água', title: 'Esconde o mar para ver o submarino isolado', mode: true },
 };
 
@@ -198,8 +202,11 @@ export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exc
     keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef', 'pitchAngle', 'depthLines'],
   },
   { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, torpedos, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'flag', 'ships', 'torpedoes', 'markers', 'trail'] },
-  { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['noWater', 'presLight'] },
+  { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['fog', 'noWater', 'presLight'] },
 ];
+
+/** Catálogo completo usado por TODAS as vistas externas do submarino. */
+export const SCENE_LAYER_KEYS: Exclude<BoolLayer, 'hull'>[] = LAYER_GROUPS.flatMap((group) => group.keys);
 
 /** “Marcar todas”: liga as camadas de informação da lista (não tira a água nem muda a luz). */
 export function allLayersOn(keys: readonly Exclude<BoolLayer, 'hull'>[]): Partial<SceneLayers> {
