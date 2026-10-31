@@ -9,6 +9,9 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "predev": "node scripts/assets/gallery_catalog.mjs",
+    "prebuild": "node scripts/assets/gallery_catalog.mjs",
+    "modelos:exportar": "python3.13 scripts/assets/export_gallery_blends.py public/models",
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",

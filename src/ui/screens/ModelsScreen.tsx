@@ -16,6 +16,7 @@ export function ModelsScreen() {
   const [grid, setGrid] = useState(true);
   const [wire, setWire] = useState(false);
   const [selected, setSelected] = useState(modelUrl(MODEL_ASSETS[0].file));
+  const [additional, setAdditional] = useState<{ file: string; name: string }[]>([]);
   const [lastFleetMember, setLastFleetMember] = useState(modelUrl(fleetMembers[0].file));
   const fleetTogether = selected === modelUrl(fleetModel.file);
   const fleetSeparate = fleetMembers.some((asset) => selected === modelUrl(asset.file));
@@ -29,6 +30,20 @@ export function ModelsScreen() {
   const [status, setStatus] = useState('Selecione um modelo do catálogo ou abra arquivos GLB do seu computador.');
   options.current = { rotate, grid, wire };
   useEffect(() => () => localRef.current.forEach((item) => URL.revokeObjectURL(item.url)), []);
+  useEffect(() => {
+    let active = true;
+    fetch(modelUrl('catalog.json'), { cache: 'no-cache' })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Catálogo indisponível: ${response.status}`);
+        return response.json() as Promise<{ assets?: { file: string; name: string }[] }>;
+      })
+      .then((catalog) => {
+        if (!active || !Array.isArray(catalog.assets)) return;
+        setAdditional(catalog.assets.filter((asset) => typeof asset.name === 'string' && typeof asset.file === 'string' && /^[^/\\]+\.glb$/i.test(asset.file)));
+      })
+      .catch(() => { if (active) setAdditional([]); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const container = host.current;
@@ -155,6 +170,7 @@ export function ModelsScreen() {
       <label>Modelo <select aria-label="Modelo" value={selected} onChange={(event) => selectModel(event.target.value)}>
         <option value="">Selecione um modelo</option>
         {MODEL_ASSETS.map((item) => <option key={item.file} value={modelUrl(item.file)}>{item.name}</option>)}
+        {additional.map((item) => <option key={item.file} value={modelUrl(item.file)}>{item.name}</option>)}
         {local.map((item) => <option key={item.url} value={item.url}>{item.name} (local)</option>)}
       </select></label>
       <label className="btn">Abrir GLB <input type="file" accept=".glb" multiple style={{ maxWidth: 240 }} onChange={(event) => {
@@ -189,6 +205,6 @@ export function ModelsScreen() {
     <p role="status">{status}</p>
     <div ref={host} style={{ height: '60vh', minHeight: 320, overflow: 'hidden', borderRadius: 8, touchAction: 'none' }} aria-label="Visualizador de modelos 3D" />
     <p>Arraste para girar; use a roda do mouse para zoom e o botão direito para deslocar. No celular, use um dedo para girar e dois para zoom e deslocamento.</p>
-    <p>Arquivos locais ficam disponíveis somente nesta tela até sair da aba. Para incluir modelos permanentemente no sistema, adicione os GLB ao projeto.</p>
+    <p>Arquivos locais ficam disponíveis somente nesta tela até sair da aba. Novos GLB em <code>public/models</code> entram automaticamente no catálogo no próximo build. Arquivos Blender (.blend) enviados ao GitHub são convertidos na publicação.</p>
   </section>;
 }

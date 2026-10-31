@@ -26,6 +26,18 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Verificar modelos Blender novos
+        id: gallery_blender
+        run: echo "needed=$(node scripts/assets/gallery_catalog.mjs --needs-blender)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        if: steps.gallery_blender.outputs.needed == 'true'
+        with:
+          python-version: '3.13'
+      - name: Converter modelos Blender novos para GLB
+        if: steps.gallery_blender.outputs.needed == 'true'
+        run: |
+          python -m pip install bpy==5.2.3
+          python scripts/assets/export_gallery_blends.py public/models
       - name: Testes (validação física)
         run: npm test
       - name: Build de produção
