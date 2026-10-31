@@ -9,6 +9,7 @@ describe('Identificações por categoria e por componente', () => {
     ['rio-Cristo', 'places'], ['estaleiro', 'places'], ['cg_tripulantes', 'cargo'],
     ['dwB', 'cargo'], ['dwP', 'forces'], ['tmN', 'forces'], ['fP', 'forces'],
     ['hrudder', 'forces'], ['drF', 'attitude'], ['pAngH', 'attitude'], ['surf', 'environment'],
+    ['torp_T1', 'weapons'], ['ini_INI1', 'weapons'], ['exp_T2', 'weapons'],
   ])('classifica %s como %s', (id, category) => expect(labelCategory(id)).toBe(category));
 
   it('ocultar um tanque não oculta os demais nem modifica suas camadas', () => {

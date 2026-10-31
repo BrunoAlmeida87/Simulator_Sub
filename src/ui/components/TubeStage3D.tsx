@@ -12,6 +12,9 @@ export interface TubeStage3DProps {
   focus: TubeAction | null;
   /** enquadramento pedido (aplicado quando a chave muda) */
   preset?: { key: number; p: TubeStagePreset };
+  /** identificações ocultas uma a uma (clique sobre elas) */
+  hidden: string[];
+  onHide: (id: string) => void;
   style?: React.CSSProperties;
   children?: React.ReactNode;
 }
@@ -36,6 +39,12 @@ export function TubeStage3D(p: TubeStage3DProps) {
   useEffect(() => stage.current?.setTube(p.tube), [p.tube]);
   useEffect(() => stage.current?.setOptions({ cut: p.cut, flows: p.flows, labels: p.labels }), [p.cut, p.flows, p.labels.pecas, p.labels.valvulas, p.labels.valores]);
   useEffect(() => stage.current?.setFocus(p.focus), [p.focus]);
+  useEffect(() => stage.current?.setHidden(p.hidden), [p.hidden.join('|')]);
+  const onHide = useRef(p.onHide);
+  onHide.current = p.onHide;
+  useEffect(() => {
+    if (stage.current) stage.current.onHide = (id) => onHide.current(id);
+  }, []);
   useEffect(() => {
     if (p.preset) stage.current?.preset(p.preset.p);
   }, [p.preset?.key]);

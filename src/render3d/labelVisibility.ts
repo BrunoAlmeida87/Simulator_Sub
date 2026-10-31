@@ -4,7 +4,8 @@ export const LABEL_CATEGORIES = [
   ['energy', 'Bateria e geradores'], ['air', 'Ar comprimido'],
   ['forces', 'Forças e momentos'], ['cargo', 'Cargas e peso deslocável'],
   ['ships', 'Navios e contatos'], ['places', 'Costa e estaleiro'],
-  ['attitude', 'Calados e atitude'], ['environment', 'Vento, superfície e fundo'],
+  ['attitude', 'Calados e atitude'], ['weapons', 'Torpedos, alvos e explosões'],
+  ['environment', 'Vento, superfície e fundo'],
 ] as const;
 export type LabelCategory = (typeof LABEL_CATEGORIES)[number][0];
 export interface LabelVisibility {
@@ -25,6 +26,7 @@ export function labelCategory(id: string): LabelCategory {
   if (id.startsWith('rio-') || id === 'estaleiro') return 'places';
   if (id.startsWith('cg_') || id === 'dwB') return 'cargo';
   if (id.startsWith('dr') || id.startsWith('pAng')) return 'attitude';
+  if (id.startsWith('torp_') || id.startsWith('ini_') || id.startsWith('exp_')) return 'weapons';
   if (/^(f[PERGB]|h(prop|drag|bow|stern|rudder)|dw[PM]|tv|tmN)/.test(id)) return 'forces';
   return 'environment';
 }

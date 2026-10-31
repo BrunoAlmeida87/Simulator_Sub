@@ -19,7 +19,7 @@ import { DroneHud } from './DroneHud';
 import { droneCtl } from '../droneCtl';
 import type { DronePose } from '../../render3d/drone';
 import { labelIsVisible } from '../../render3d/labelVisibility';
-import { labelPreferences } from '../labelPreferences';
+import { labelPreferences, useLabelPreferences } from '../labelPreferences';
 import { layoutLabels, type LabelRect } from '../../render3d/labelLayout';
 
 /** qualidade gráfica preferida (guardada nas preferências gráficas) */
@@ -95,6 +95,8 @@ export function Scene3D(props: Scene3DProps) {
   opts.current = props;
   /** chave da última posição de câmera imposta já aplicada */
   const appliedPose = useRef(-1);
+  // identificações ocultas com um clique (compartilhadas entre as telas): atalho para mostrar todas de novo
+  const hiddenCount = Object.keys(useLabelPreferences().hidden).length;
 
   useEffect(() => {
     let raf = 0;
@@ -219,7 +221,7 @@ export function Scene3D(props: Scene3DProps) {
     }
     const origin = host.getBoundingClientRect();
     const obstacles: LabelRect[] = [];
-    box.current?.querySelectorAll<HTMLElement>('.overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter').forEach((el) => {
+    box.current?.querySelectorAll<HTMLElement>('.lbl-restore, .overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter').forEach((el) => {
       const r = el.getBoundingClientRect();
       if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
     });
@@ -336,6 +338,11 @@ export function Scene3D(props: Scene3DProps) {
     <div className={`view3d ${props.className ?? ''}`} ref={box} style={props.style} onPointerDown={onDown} onPointerUp={onUp}>
       {err && <div style={{ padding: 20 }}>{err}</div>}
       <div className="lbl3d-host" ref={lblBox} />
+      {hiddenCount > 0 && (
+        <button className="lbl-restore" onClick={labelPreferences.restoreAll} title="Mostrar de novo as identificações ocultas com um clique (também em Camadas → Identificações ocultadas)">
+          {hiddenCount === 1 ? '1 identificação oculta' : `${hiddenCount} identificações ocultas`} · mostrar
+        </button>
+      )}
       <TrimGainBanner />
       {perf.show && <FpsMeter meterRef={perf.meterRef} />}
       {props.view === 'passadico' && props.hud !== 'none' && <BridgeLayer p={props} />}

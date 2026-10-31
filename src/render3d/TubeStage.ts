@@ -51,6 +51,7 @@ interface ValveVis {
 }
 
 interface Lbl {
+  id: string;
   el: HTMLDivElement;
   group: TubeLabelGroup;
   at: () => THREE.Vector3 | null;
@@ -183,6 +184,13 @@ export class TubeStage {
     this.applyCut();
   }
 
+  /** identificações ocultas uma a uma (clique sobre a identificação chama onHide com o id) */
+  private hidden = new Set<string>();
+  onHide: ((id: string) => void) | null = null;
+  setHidden(ids: string[]): void {
+    this.hidden = new Set(ids);
+  }
+
   /** peça da etapa atual (pulsa) */
   setFocus(a: TubeAction | null): void {
     this.focus = a;
@@ -192,7 +200,7 @@ export class TubeStage {
     const L = this.L;
     const c = new THREE.Vector3(L / 2, 0, 0);
     const pos: Record<TubeStagePreset, [THREE.Vector3, THREE.Vector3]> = {
-      tres4: [new THREE.Vector3(L * 0.42, L * 0.3, L * 0.78), new THREE.Vector3(L * 0.45, -0.55, 0)],
+      tres4: [new THREE.Vector3(L * 0.36, L * 0.3, L * 0.86), new THREE.Vector3(L * 0.4, -0.55, 0)],
       lado: [new THREE.Vector3(L * 0.45, 0.2, L * 0.95), new THREE.Vector3(L * 0.45, -0.5, 0)],
       boca: [new THREE.Vector3(L + 3.2, 1.1, 2.4), new THREE.Vector3(L - 0.6, 0, 0)],
       culatra: [new THREE.Vector3(-2.6, 1.2, 2.2), new THREE.Vector3(0.9, -0.2, 0)],
@@ -487,36 +495,44 @@ export class TubeStage {
     };
     const v3 = (x: number, y: number, z: number) => () => new THREE.Vector3(x, y, z);
     const vs = (p: { pos: number; cmd: number }) => (p.pos > 0.999 ? 'aberta' : p.pos > 0.001 ? (p.cmd > 0.5 ? 'abrindo…' : 'fechando…') : 'fechada');
-    const add = (group: TubeLabelGroup, at: () => THREE.Vector3 | null, text: () => string, cls = '') => {
+    const add = (id: string, group: TubeLabelGroup, at: () => THREE.Vector3 | null, text: () => string, cls = '') => {
       const el = document.createElement('div');
       el.className = `ts-lbl ts-${group} ${cls}`;
+      el.title = 'Clique para ocultar esta identificação';
+      el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.onHide?.(id);
+      });
       this.labelsEl.appendChild(el);
-      this.lbls.push({ el, group, at, text });
+      this.lbls.push({ id, el, group, at, text });
     };
-    add('pecas', v3(-0.15, -rO - 0.25, 0.3), () => `Culatra (${vs(st()!.breech)})`);
-    add('pecas', v3(L + 0.1, rO + 0.75, 0), () => `Porta da boca (${vs(st()!.door)})`);
-    add('pecas', v3(L + 0.25, -1.55, 0), () => 'Casco externo');
-    add('pecas', v3(L + 3.5, 0.5, 0), () => 'Mar');
-    add('pecas', v3(-0.85, 1.25, -0.55), () => 'Garrafa de lançamento (ar AP)');
-    add('pecas', v3(1.8, -1.6, 0.6), () => 'TCA (compensação das armas)');
+    add('culatra', 'pecas', v3(-0.15, -rO - 0.25, 0.3), () => `Culatra (${vs(st()!.breech)})`);
+    add('porta', 'pecas', v3(L + 0.1, rO + 0.75, 0), () => `Porta da boca (${vs(st()!.door)})`);
+    add('casco', 'pecas', v3(L + 0.25, -1.55, 0), () => 'Casco externo');
+    add('mar', 'pecas', v3(L + 3.5, 0.5, 0), () => 'Mar');
+    add('garrafa', 'pecas', v3(-0.85, 1.25, -0.55), () => 'Garrafa de lançamento (ar AP)');
+    add('tca', 'pecas', v3(1.8, -1.6, 0.6), () => 'TCA (compensação das armas)');
     add(
+      'arma',
       'pecas',
       () => (st()?.weapon ? new THREE.Vector3(stowedWeaponX(w) - w.breechX + (st()!.eject ?? 0), 0.42, 0.1) : null),
       () => (st()?.energized ? 'Arma F21 (alimentada)' : 'Arma F21'),
     );
     add(
+      'embolo',
       'pecas',
       () => (st()?.eject !== null ? new THREE.Vector3(0.1, -0.42, 0.1) : null),
       () => 'Êmbolo de ejeção',
     );
-    add('valvulas', v3(1.1, -0.52, -0.12), () => `Alagamento: ${vs(st()!.flood)}`);
-    add('valvulas', v3(2.8, -0.52, -0.12), () => `Drenagem: ${vs(st()!.drain)}`);
-    add('valvulas', v3(0.7, 0.56, -0.12), () => `Suspiro: ${vs(st()!.vent)}`);
-    add('valvulas', v3(L - 1.0, 0.56, -0.12), () => `Equalização: ${vs(st()!.equalize)}`);
-    add('valores', v3(L * 0.45, rO + 0.3, 0), () => `Tubo ${(st()!.pressure / 1e5).toFixed(1)} bar · água ${Math.round((100 * st()!.water) / Math.max(1, tv().fullWater))} %`, 'big');
-    add('valores', v3(L + 1.6, 1.2, 0), () => `Mar ${(tv().seaPressure / 1e5).toFixed(1)} bar`, 'big');
-    add('valores', v3(-0.85, 0.85, -0.55), () => `${tv().flaskBar.toFixed(0)} bar`);
-    add('valores', v3(1.8, -0.95, 0.55), () => {
+    add('alagamento', 'valvulas', v3(1.1, -0.52, -0.12), () => `Alagamento: ${vs(st()!.flood)}`);
+    add('drenagem', 'valvulas', v3(2.8, -0.52, -0.12), () => `Drenagem: ${vs(st()!.drain)}`);
+    add('suspiro', 'valvulas', v3(0.7, 0.56, -0.12), () => `Suspiro: ${vs(st()!.vent)}`);
+    add('equalizacao', 'valvulas', v3(L - 1.0, 0.56, -0.12), () => `Equalização: ${vs(st()!.equalize)}`);
+    add('tubo-valores', 'valores', v3(L * 0.45, rO + 0.3, 0), () => `Tubo ${(st()!.pressure / 1e5).toFixed(1)} bar · água ${Math.round((100 * st()!.water) / Math.max(1, tv().fullWater))} %`, 'big');
+    add('mar-pressao', 'valores', v3(L + 1.6, 1.2, 0), () => `Mar ${(tv().seaPressure / 1e5).toFixed(1)} bar`, 'big');
+    add('garrafa-pressao', 'valores', v3(-0.85, 0.85, -0.55), () => `${tv().flaskBar.toFixed(0)} bar`);
+    add('tca-volume', 'valores', v3(1.8, -0.95, 0.55), () => {
       const ws = this.getEngine().state.weapons!;
       return `${(ws.tca.reduce((a, k) => a + k.mass, 0) / RHO_NOMINAL).toFixed(2)} m³`;
     });
@@ -526,7 +542,7 @@ export class TubeStage {
     const W = this.container.clientWidth;
     const H = this.container.clientHeight;
     for (const l of this.lbls) {
-      const on = this.opts.labels[l.group];
+      const on = this.opts.labels[l.group] && !this.hidden.has(l.id);
       const p = on ? l.at() : null;
       if (!p) {
         l.el.style.display = 'none';
