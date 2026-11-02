@@ -13,6 +13,7 @@ import { RecordingPanel } from '../components/RecordingPanel';
 import { baseConfig, cmd, runner, useSim } from '../store';
 import { Panel } from '../components/Panel';
 import { useUi } from '../uiContext';
+import { usePersisted } from '../persist';
 import { storage, downloadText } from '../storage';
 import { captureSession, restoreSession, resumeSimulation, sessionFileName, type RestoreReport } from '../session';
 import { parseSaveText, saveToText, type SaveFile } from '../../sim/persistence';
@@ -189,8 +190,8 @@ function SessionPanel() {
       </table>
       <div className="note">
         O arquivo guarda tudo o que é preciso para continuar: posição, profundidade, rumo, velocidade e inclinação; tempo de simulação; níveis dos tanques; bateria, combustível e ar comprimido; equipamentos, bombas e
-        válvulas; telégrafo e lemes; piloto automático e referências; falhas, alarmes e ambiente; e as automações em andamento (manobra rápida, demonstração, roteiro automático, rota). Ao carregar, a simulação fica pausada.
-        Pode ser aberto em outro computador com o simulador {SIM_VERSION} ou mais novo (arquivos de versões anteriores também abrem). Os gráficos do Histórico recomeçam a partir do ponto carregado.
+        válvulas; telégrafo e lemes; piloto automático e referências; falhas, alarmes e ambiente; e as automações em andamento (manobra rápida, demonstração, roteiro automático, rota). Ao carregar, a simulação fica
+        pausada. Pode ser aberto em outro computador com o simulador {SIM_VERSION} ou mais novo (arquivos de versões anteriores também abrem). Os gráficos do Histórico recomeçam a partir do ponto carregado.
       </div>
     </Panel>
   );
@@ -367,9 +368,13 @@ function GraphicsPanel() {
             <span>Intensidade da cor: {Math.round(g.trailOpacity * 100)}%</span>
             <input type="range" min={20} max={100} step={5} value={Math.round(g.trailOpacity * 100)} onChange={(ev) => graphics.set({ trailOpacity: Number(ev.target.value) / 100 })} />
           </label>
-          <button className="btn sm" onClick={() => graphics.set(DEFAULT_TRAIL_STYLE)}>Restaurar aparência da trajetória</button>
+          <button className="btn sm" onClick={() => graphics.set(DEFAULT_TRAIL_STYLE)}>
+            Restaurar aparência da trajetória
+          </button>
         </div>
-        <div className="note">Linha mais visível à distância, com espessura constante ao afastar a câmera. Ajustes salvos no navegador e enviados à segunda janela. Ative Trajetória no painel de Camadas para ver o caminho percorrido.</div>
+        <div className="note">
+          Linha mais visível à distância, com espessura constante ao afastar a câmera. Ajustes salvos no navegador e enviados à segunda janela. Ative Trajetória no painel de Camadas para ver o caminho percorrido.
+        </div>
         <div className="row">
           <span className="subtle" style={{ minWidth: 120 }}>
             Cena e oceano
@@ -400,7 +405,7 @@ function GraphicsPanel() {
             ))}
           </div>
         </div>
-        <label className="row" style={{ gap: 6 }}>
+        <label className="chk" style={{ alignItems: 'flex-start' }}>
           <input type="checkbox" checked={g.fpsMeter} onChange={(ev) => graphics.set({ fpsMeter: ev.target.checked })} />
           <span>Medidor de FPS sobre as cenas 3D (FPS, tempo de quadro, resolução, chamadas de desenho, triângulos e memória de GPU)</span>
         </label>
@@ -482,7 +487,16 @@ function GraphicsPanel() {
         <span className="subtle" style={{ minWidth: 120 }}>
           Navios adicionais
         </span>
-        <input type="range" min={0} max={MAX_TRAFFIC} step={1} value={g.traffic} onChange={(ev) => graphics.set({ traffic: Number(ev.target.value) })} style={{ flex: 1, minWidth: 120 }} aria-label="Quantidade de navios adicionais" />
+        <input
+          type="range"
+          min={0}
+          max={MAX_TRAFFIC}
+          step={1}
+          value={g.traffic}
+          onChange={(ev) => graphics.set({ traffic: Number(ev.target.value) })}
+          style={{ flex: 1, minWidth: 120 }}
+          aria-label="Quantidade de navios adicionais"
+        />
         <span className="mono" style={{ minWidth: 28, textAlign: 'right' }}>
           {g.traffic}
         </span>
@@ -506,12 +520,12 @@ function GraphicsPanel() {
         </label>
       </div>
       <div className="note">
-        Navios adicionais: tráfego fictício em volta da área do cenário (até {MAX_TRAFFIC}), além dos contatos fixos da mesa tática. Cada navio percorre um trecho em água com profundidade para o seu calado (segundo o fundo e a
-        costa simulados), longe da posição inicial do submarino e afastado dos trechos dos outros navios, para não se sobreporem. Aparecem também no mapa tático, com CPA. Só são desenhados até o alcance acima.
+        Navios adicionais: tráfego fictício em volta da área do cenário (até {MAX_TRAFFIC}), além dos contatos fixos da mesa tática. Cada navio percorre um trecho em água com profundidade para o seu calado (segundo o
+        fundo e a costa simulados), longe da posição inicial do submarino e afastado dos trechos dos outros navios, para não se sobreporem. Aparecem também no mapa tático, com CPA. Só são desenhados até o alcance acima.
       </div>
       <div className="note">
-        A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao recarregar a
-        página ela volta para o valor real.
+        A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao
+        recarregar a página ela volta para o valor real.
       </div>
       <div className="note">
         Iluminação: <b>Natural</b> escurece a água com a profundidade, como no mar (o casco escuro some no fundo escuro); <b>Clara</b> (padrão) clareia a água, acende uma luz suave junto à câmera e realça o contorno do
@@ -530,21 +544,31 @@ function MarineLifePanel() {
   return (
     <Panel title="Vida marinha e ambiente submarino" tag={<Kind k="visual" />}>
       <div className="col">
-        <label className="field"><span>Movimento ambiente</span>
+        <label className="field">
+          <span>Movimento ambiente</span>
           <select value={g.ambientMotion} onChange={(ev) => graphics.set({ ambientMotion: ev.target.value as typeof g.ambientMotion })}>
-            <option value="desligado">Desligado</option><option value="suave">Suave (padrão)</option><option value="moderado">Moderado</option>
+            <option value="desligado">Desligado</option>
+            <option value="suave">Suave (padrão)</option>
+            <option value="moderado">Moderado</option>
           </select>
         </label>
-        <label className="field"><span>Direção da corrente visual: {g.currentDirection}°</span>
+        <label className="field">
+          <span>Direção da corrente visual: {g.currentDirection}°</span>
           <input type="range" min={0} max={359} step={1} value={g.currentDirection} onChange={(ev) => graphics.set({ currentDirection: Number(ev.target.value) })} />
         </label>
         <div className="note">Rumo para onde a água segue: 0° Norte, 90° Leste. Só visual, sem forças sobre o submarino. Partículas, vegetação e sedimento acompanham o tempo simulado e param em pausa.</div>
-        <label className="field"><span>Densidade do fundo</span>
+        <label className="field">
+          <span>Densidade do fundo</span>
           <select value={g.bottomLifeDensity} onChange={(ev) => graphics.set({ bottomLifeDensity: ev.target.value as typeof g.bottomLifeDensity })}>
-            <option value="desligada">Desligada</option><option value="discreta">Discreta</option><option value="moderada">Moderada (padrão)</option><option value="abundante">Abundante</option>
+            <option value="desligada">Desligada</option>
+            <option value="discreta">Discreta</option>
+            <option value="moderada">Moderada (padrão)</option>
+            <option value="abundante">Abundante</option>
           </select>
         </label>
-        <div className="note">Grupos de rochas e esponjas com áreas livres de areia. Vegetação apenas até 40 m, como aproximação de águas com luz. Objetos decorativos, sem colisão. As opções também valem para a segunda janela.</div>
+        <div className="note">
+          Grupos de rochas e esponjas com áreas livres de areia. Vegetação apenas até 40 m, como aproximação de águas com luz. Objetos decorativos, sem colisão. As opções também valem para a segunda janela.
+        </div>
       </div>
       <label className="field">
         <span>Quantidade de peixes</span>
@@ -566,8 +590,8 @@ function MarineLifePanel() {
         </label>
       </div>
       <div className="note">
-        Peixes soltos e cardumes de peixes pequenos, com tamanhos, cores e trajetórias variados (mais cardumes em “Moderada” e “Abundante”). Os saltos aparecem em locais e intervalos aleatórios; pode levar um tempo até ver um.
-        As preferências ficam salvas e valem também para a segunda janela. A animação acompanha a pausa e a velocidade da simulação.
+        Peixes soltos e cardumes de peixes pequenos, com tamanhos, cores e trajetórias variados (mais cardumes em “Moderada” e “Abundante”). Os saltos aparecem em locais e intervalos aleatórios; pode levar um tempo até
+        ver um. As preferências ficam salvas e valem também para a segunda janela. A animação acompanha a pausa e a velocidade da simulação.
       </div>
     </Panel>
   );
@@ -598,8 +622,7 @@ function saveEnvDefault(d: EnvironmentConfig, part: 'agua' | 'fundo'): void {
   if (part === 'fundo') {
     base.environment.bottom = structuredClone(d.bottom);
     if (d.geo && base.environment.geo) base.environment.geo = { ...base.environment.geo, coast: d.geo.coast, shelfWidth: d.geo.shelfWidth };
-  }
-  else for (const k of ['salinity', 'deepSalinity', 'surfaceTemperature', 'deepTemperature', 'thermoclineDepth', 'thermoclineThickness', 'magneticDeclination'] as const) base.environment[k] = d[k];
+  } else for (const k of ['salinity', 'deepSalinity', 'surfaceTemperature', 'deepTemperature', 'thermoclineDepth', 'thermoclineThickness', 'magneticDeclination'] as const) base.environment[k] = d[k];
   storage.setConfig(base);
 }
 
@@ -903,25 +926,66 @@ function RestartPanels() {
   );
 }
 
+// ------------------------------------------------------------ interface (opções de leitura)
+function InterfacePanel() {
+  const g = useGraphics();
+  return (
+    <Panel title="Interface — leitura e projeção" tag={<Kind k="visual" />}>
+      <label className="chk" style={{ alignItems: 'flex-start' }}>
+        <input type="checkbox" checked={g.uiContrast} onChange={(ev) => graphics.set({ uiContrast: ev.target.checked })} />
+        <span>
+          <b>Alto contraste (projetor)</b> — bordas e painéis mais separados, textos de apoio mais claros e um pouco maiores. Útil em projetor ou sala clara; vale também na 2ª janela.
+        </span>
+      </label>
+      <label className="chk mt8" style={{ alignItems: 'flex-start' }}>
+        <input type="checkbox" checked={g.hideKinds} onChange={(ev) => graphics.set({ hideKinds: ev.target.checked })} />
+        <span>
+          <b>Selos de origem só no modo engenharia</b> — esconde MED, CALC, CMD e VERD ao lado das leituras (eles voltam ao ligar ⓘ Engenharia).
+        </span>
+      </label>
+      <div className="note">Para aumentar tudo (texto, botões e cenas), use o zoom do navegador: Ctrl + e Ctrl − (Ctrl 0 volta ao normal).</div>
+    </Panel>
+  );
+}
+
 // ------------------------------------------------------------ tela
+/** abas internas: a página inteira tinha ~2.500 px com assuntos misturados */
+const SETTINGS_TABS = [
+  { id: 'sessao', label: 'Sessão e gravação' },
+  { id: 'aparencia', label: 'Aparência e interface' },
+  { id: 'ambiente', label: 'Ambiente e fundo' },
+  { id: 'modelo', label: 'Modelo e parâmetros' },
+  { id: 'todas', label: 'Todas' },
+] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number]['id'];
+
 export function SettingsScreen() {
+  const [tab, setTab] = usePersisted<SettingsTab>('config.tab', 'sessao');
+  const show = (t: SettingsTab) => tab === 'todas' || tab === t;
   return (
     <div className="settings">
+      <div className="settings-tabs seg" role="tablist" aria-label="Seções das configurações">
+        {SETTINGS_TABS.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
       <div className="settings-legend">
         <b>Tipos de alteração:</b> <Kind k="visual" /> só aparência, sem efeito na física · <Kind k="agora" /> muda a física da simulação em curso, sem reiniciar · <Kind k="reiniciar" /> vale ao reiniciar o cenário
       </div>
       <div className="grid g2">
-        <SessionPanel />
-        <RecordingPanel />
-        <IdentityPanel />
-        <GraphicsPanel />
-        <CavitationPanel />
-        <MarineLifePanel />
-        <EnvironmentPanel />
-        <BottomPanel />
-        <RestartPanels />
+        {show('sessao') && <SessionPanel />}
+        {show('sessao') && <RecordingPanel />}
+        {show('aparencia') && <InterfacePanel />}
+        {show('aparencia') && <IdentityPanel />}
+        {show('aparencia') && <GraphicsPanel />}
+        {show('ambiente') && <MarineLifePanel />}
+        {show('ambiente') && <EnvironmentPanel />}
+        {show('ambiente') && <BottomPanel />}
+        {show('modelo') && <CavitationPanel />}
+        {show('modelo') && <RestartPanels />}
       </div>
     </div>
   );
 }
-

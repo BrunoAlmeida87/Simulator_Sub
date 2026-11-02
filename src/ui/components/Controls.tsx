@@ -124,7 +124,23 @@ export function Telegraph({ e }: { e: SimulationEngine }) {
   );
 }
 
-export function NumSet({ value, onSet, step, unit, min, max }: { value: number; onSet: (v: number) => void; step: number; unit: string; min?: number; max?: number }) {
+export function NumSet({
+  value,
+  onSet,
+  step,
+  unit,
+  min,
+  max,
+  label,
+}: {
+  value: number;
+  onSet: (v: number) => void;
+  step: number;
+  unit: string;
+  min?: number;
+  max?: number;
+  /** nome para leitores de tela */ label?: string;
+}) {
   const [v, setV] = useState(String(Math.round(value * 10) / 10));
   useEffect(() => setV(String(Math.round(value * 10) / 10)), [value]);
   const commit = (x: number) => {
@@ -135,11 +151,19 @@ export function NumSet({ value, onSet, step, unit, min, max }: { value: number; 
   };
   return (
     <span className="row" style={{ gap: 4 }}>
-      <button className="btn sm" onClick={() => commit(value - step)}>
+      <button className="btn sm" onClick={() => commit(value - step)} aria-label={label ? `${label}: −${step} ${unit}` : undefined}>
         −{step}
       </button>
-      <input type="number" value={v} onChange={(ev) => setV(ev.target.value)} onBlur={() => commit(Number(v))} onKeyDown={(ev) => ev.key === 'Enter' && commit(Number(v))} style={{ width: 70 }} />
-      <button className="btn sm" onClick={() => commit(value + step)}>
+      <input
+        type="number"
+        aria-label={label ? `${label} (${unit})` : undefined}
+        value={v}
+        onChange={(ev) => setV(ev.target.value)}
+        onBlur={() => commit(Number(v))}
+        onKeyDown={(ev) => ev.key === 'Enter' && commit(Number(v))}
+        style={{ width: 70 }}
+      />
+      <button className="btn sm" onClick={() => commit(value + step)} aria-label={label ? `${label}: +${step} ${unit}` : undefined}>
         +{step}
       </button>
       <span className="subtle">{unit}</span>
@@ -166,7 +190,7 @@ export function AutopilotPanel({ e }: { e: SimulationEngine }) {
         </div>
       </td>
       <td>
-        <NumSet value={set} step={step} unit={unit} min={min} max={max} onSet={(v) => cmd({ type: 'setpoint', channel: ch, value: v })} />
+        <NumSet value={set} step={step} unit={unit} min={min} max={max} label={`Referência de ${label.toLowerCase()}`} onSet={(v) => cmd({ type: 'setpoint', channel: ch, value: v })} />
       </td>
       <td className="num">{mode === 'AUTO' ? fmt(tel.measured, 1) : '—'}</td>
       <td className="num">{mode === 'AUTO' ? fmt(tel.error, 1) : '—'}</td>

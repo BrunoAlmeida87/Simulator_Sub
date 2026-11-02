@@ -8,15 +8,82 @@ import { downloadText } from '../storage';
 import { fmt, fmtTime, fmtKnots } from '../format';
 
 const CHARTS: { title: string; series: { id: string; color: string; dashed?: boolean; axis?: 'right' }[]; invert?: boolean; minSpan?: number; minSpanRight?: number }[] = [
-  { title: 'Profundidade', minSpan: 2, invert: true, series: [{ id: 'depth', color: '#36c5f0' }, { id: 'depthInd', color: '#3ddc84', dashed: true }, { id: 'depthSet', color: '#ffb347', dashed: true }] },
-  { title: 'Velocidade', minSpan: 1, series: [{ id: 'speed', color: '#36c5f0' }, { id: 'speedKmh', color: '#3ddc84', axis: 'right' }] },
-  { title: 'Eixo', minSpan: 10, series: [{ id: 'rpm', color: '#3ddc84' }, { id: 'rpmCmd', color: '#ffb347', dashed: true }] },
-  { title: 'Rumo', minSpan: 2, series: [{ id: 'heading', color: '#36c5f0' }, { id: 'headingSet', color: '#ffb347', dashed: true }] },
-  { title: 'Pitch e banda', minSpan: 1, series: [{ id: 'pitch', color: '#36c5f0' }, { id: 'pitchEq', color: '#b48cff', dashed: true }, { id: 'roll', color: '#f5b041' }] },
+  {
+    title: 'Profundidade',
+    minSpan: 2,
+    invert: true,
+    series: [
+      { id: 'depth', color: '#36c5f0' },
+      { id: 'depthInd', color: '#3ddc84', dashed: true },
+      { id: 'depthSet', color: '#ffb347', dashed: true },
+    ],
+  },
+  {
+    title: 'Velocidade',
+    minSpan: 1,
+    series: [
+      { id: 'speed', color: '#36c5f0' },
+      { id: 'speedKmh', color: '#3ddc84', axis: 'right' },
+    ],
+  },
+  {
+    title: 'Eixo',
+    minSpan: 10,
+    series: [
+      { id: 'rpm', color: '#3ddc84' },
+      { id: 'rpmCmd', color: '#ffb347', dashed: true },
+    ],
+  },
+  {
+    title: 'Rumo',
+    minSpan: 2,
+    series: [
+      { id: 'heading', color: '#36c5f0' },
+      { id: 'headingSet', color: '#ffb347', dashed: true },
+    ],
+  },
+  {
+    title: 'Pitch e banda',
+    minSpan: 1,
+    series: [
+      { id: 'pitch', color: '#36c5f0' },
+      { id: 'pitchEq', color: '#b48cff', dashed: true },
+      { id: 'roll', color: '#f5b041' },
+    ],
+  },
   { title: 'Água nos tanques de lastro principal', minSpan: 1, series: [{ id: 'mbt', color: '#57a8ff' }] },
-  { title: 'Tanques internos (compensação, trim, banda)', minSpan: 0.5, series: [{ id: 'comp', color: '#3ddc84' }, { id: 'trimA', color: '#ffb347' }, { id: 'trimB', color: '#ff7b54' }, { id: 'heelA', color: '#b48cff' }, { id: 'heelB', color: '#e889ff' }] },
-  { title: 'Lemes (comando × real)', minSpan: 4, series: [{ id: 'bowCmd', color: '#3ddc84', dashed: true }, { id: 'bow', color: '#3ddc84' }, { id: 'sternCmd', color: '#36c5f0', dashed: true }, { id: 'stern', color: '#36c5f0' }, { id: 'rudderCmd', color: '#ffb347', dashed: true }, { id: 'rudder', color: '#ffb347' }] },
-  { title: 'Flutuabilidade (t, esq.) e velocidade vertical (m/s, dir.)', minSpan: 0.5, minSpanRight: 0.1, series: [{ id: 'net', color: '#b48cff' }, { id: 'vz', color: '#f5b041', axis: 'right' }] },
+  {
+    title: 'Tanques internos (compensação, trim, banda)',
+    minSpan: 0.5,
+    series: [
+      { id: 'comp', color: '#3ddc84' },
+      { id: 'trimA', color: '#ffb347' },
+      { id: 'trimB', color: '#ff7b54' },
+      { id: 'heelA', color: '#b48cff' },
+      { id: 'heelB', color: '#e889ff' },
+    ],
+  },
+  {
+    title: 'Lemes (comando × real)',
+    minSpan: 4,
+    series: [
+      { id: 'bowCmd', color: '#3ddc84', dashed: true },
+      { id: 'bow', color: '#3ddc84' },
+      { id: 'sternCmd', color: '#36c5f0', dashed: true },
+      { id: 'stern', color: '#36c5f0' },
+      { id: 'rudderCmd', color: '#ffb347', dashed: true },
+      { id: 'rudder', color: '#ffb347' },
+    ],
+  },
+  {
+    title: 'Flutuabilidade (t, esq.) e velocidade vertical (m/s, dir.)',
+    minSpan: 0.5,
+    minSpanRight: 0.1,
+    series: [
+      { id: 'net', color: '#b48cff' },
+      { id: 'vz', color: '#f5b041', axis: 'right' },
+    ],
+  },
   { title: 'Energia', minSpan: 1, series: [{ id: 'soc', color: '#3ddc84' }] },
   { title: 'Demanda elétrica', minSpan: 20, series: [{ id: 'power', color: '#ffb347' }] },
   { title: 'Ar AP e densidade', minSpan: 5, series: [{ id: 'hp', color: '#c9d6e3' }] },
@@ -62,11 +129,22 @@ export function HistoryScreen() {
         </Panel>
       ))}
       <Panel title="Comandos realizados">
+        {cmds.length === 0 && (
+          <div className="subtle empty-state">Nenhum comando ainda. Cada comando dado (telégrafo, lemes, válvulas, piloto…) aparece aqui com o horário; clique num deles para ver o antes × depois ao lado.</div>
+        )}
         <div className="scroll" style={{ maxHeight: 360 }}>
           <table className="t">
             <tbody>
               {cmds.map((c, i) => (
-                <tr key={i} className={sel === c.t ? 'sel' : ''} onClick={() => setSel(c.t)} style={{ cursor: 'pointer' }}>
+                <tr
+                  key={i}
+                  className={sel === c.t ? 'sel' : ''}
+                  onClick={() => setSel(c.t)}
+                  onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && (ev.preventDefault(), setSel(c.t))}
+                  tabIndex={0}
+                  aria-selected={sel === c.t}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td className="num" style={{ width: 70 }}>
                     {fmtTime(c.t)}
                   </td>

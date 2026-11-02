@@ -16,6 +16,7 @@ import { seaSections } from '../components/SeaControls';
 import { DepthTape } from '../components/gauges';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { navStatus } from '../navStatus';
+import { indicatedDepth } from '../instruments';
 import { visibleAlarms } from '../../sim/systems/alarms';
 import { prioBadge, prioText } from '../alarmUi';
 import { ManeuverStatus } from '../components/ManeuverStatus';
@@ -246,7 +247,7 @@ export function PilotScreen() {
           >
             <div className="pilot-tape">
               <DepthTape
-                depth={o.depthKeel}
+                depth={indicatedDepth(e)}
                 ordered={ap.depthMode === 'AUTO' ? ap.depthSet : null}
                 bottom={o.bottomDepth}
                 rate={o.verticalSpeed}

@@ -329,10 +329,8 @@ export function TrimHeelScreen() {
   const s = e.state;
   const dyn = o.euler.pitch - o.staticPitchEq;
   return (
+    // ordem: estado e comandos de trim e de banda primeiro; cargas a bordo e explicações depois (recolhíveis)
     <div className="grid g2">
-      <Panel title="Cargas a bordo — embarcar e distribuir pesos" className="span-all">
-        <CargoPanel key={s.scenarioId} e={e} />
-      </Panel>
       <Panel title="Trim longitudinal — diagrama e distribuição de massa" inspect="trim" className="span-all">
         <TrimDiagram e={e} />
       </Panel>
@@ -358,10 +356,6 @@ export function TrimHeelScreen() {
       <Panel title="Trim: comandos" inspect="trim">
         <TransferControls e={e} sys="trim" />
       </Panel>
-      <DraftPanel e={e} />
-      <Panel title="Peso deslocável (demonstração de trim)" inspect="trim">
-        <TrimDemoPanel e={e} />
-      </Panel>
       <Panel title="Banda — vista frontal" inspect="heel">
         <div className="row" style={{ alignItems: 'flex-start' }}>
           <FrontView e={e} />
@@ -379,10 +373,17 @@ export function TrimHeelScreen() {
           {!o.rollStable ? 'nenhuma — rigidez transversal negativa (equilíbrio instável), sem previsão.' : Math.abs(o.euler.roll - o.staticRollEq) < 0.05 ? 'em equilíbrio.' : `retorna para ${fmt(o.staticRollEq, 2)}°.`}
         </div>
       </Panel>
-      <CompensationCircuitPanel e={e} />
       <Panel title="Banda: comandos" inspect="heel">
         <TransferControls e={e} sys="heel" />
       </Panel>
+      <Panel title="Cargas a bordo — embarcar e distribuir pesos" className="span-all" fold="trim.cargas">
+        <CargoPanel key={s.scenarioId} e={e} />
+      </Panel>
+      <DraftPanel e={e} />
+      <Panel title="Peso deslocável (demonstração de trim)" inspect="trim">
+        <TrimDemoPanel e={e} />
+      </Panel>
+      <CompensationCircuitPanel e={e} fold="trim.circuito" />
       <Panel title="Momentos de pitch por origem" inspect="trim">
         <MomentExplain e={e} axis="pitch" />
       </Panel>

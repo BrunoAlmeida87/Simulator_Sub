@@ -49,6 +49,7 @@ import { StudioScreen } from './screens/StudioScreen';
 import { PresFloating } from './components/PresFloating';
 import { presPlayer } from './presBuilder/player';
 import { isScreenId, screenForKey, screenLabel } from './nav';
+import { useGraphics } from './graphics';
 import { BUTTON_SELECTOR, classifyFocus, focusFromKeyboard, installFocusTracking, shortcutAction } from './keyFocus';
 
 function ScenarioPicker({ current }: { current: string }) {
@@ -56,7 +57,7 @@ function ScenarioPicker({ current }: { current: string }) {
   useEffect(() => setSel(current), [current]);
   return (
     <span className="row" style={{ gap: 4 }}>
-      <select value={sel} onChange={(ev) => setSel(ev.target.value)} style={{ maxWidth: 170 }} aria-label="Cenário">
+      <select value={sel} onChange={(ev) => setSel(ev.target.value)} className="scenario-pick" aria-label="Cenário" title={SCENARIOS.find((x) => x.id === sel)?.name}>
         {SCENARIOS.map((x) => (
           <option key={x.id} value={x.id}>
             {x.name}
@@ -240,6 +241,8 @@ export function App() {
   const topRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<number>(0);
+  // opções de interface (Configurações › Aparência): alto contraste e selos de origem
+  const gfx = useGraphics();
 
   const toast = (m: string, opts: ToastOptions = {}) => {
     setToastMsg({ msg: m, action: opts.action });
@@ -275,9 +278,9 @@ export function App() {
     else storage.setPrefs({ screen, eng });
   }, [screen, eng]);
 
-  // janela de tela: nome da aba na barra do navegador (ajuda a achar a janela certa)
   useEffect(() => {
-    if (isPanelWindow) document.title = `Tela ${panelIndex} — ${screenLabel(screen)}`;
+    // nome da tela na aba do navegador (ajuda a saber onde se está e a achar a janela certa)
+    document.title = isPanelWindow ? `Tela ${panelIndex} — ${screenLabel(screen)}` : `${screenLabel(screen)} · SX-1 Simulador`;
   }, [screen]);
 
   // comandos recusados durante a reprodução de uma gravação
@@ -419,7 +422,7 @@ export function App() {
 
   return (
     <UiContext.Provider value={{ screen, setScreen, eng, setEng, inspect, setInspect, toast, showProcedure, setShowProcedure }}>
-      <div className={`app scr-${screen} ${eng ? 'eng' : ''}`}>
+      <div className={`app scr-${screen} ${eng ? 'eng' : ''} ${gfx.uiContrast ? 'hi-contrast' : ''} ${gfx.hideKinds ? 'hide-kinds' : ''}`}>
         <TopBar topRef={topRef} />
         <NavBar screen={screen} setScreen={setScreen} navRef={navRef} />
         {resume && (

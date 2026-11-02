@@ -279,7 +279,7 @@ export function BallastScreen() {
         <Diagram e={e} />
         <QuickBallast e={e} />
       </Panel>
-      <CompensationCircuitPanel e={e} />
+      {/* tabelas de operação logo abaixo do diagrama; o circuito da VDC (grande) vem depois e é recolhível */}
       <Panel title="Tanques de lastro principal (TLP)" className="span2" inspect="mbt">
         <div className="scroll">
           <table className="t">
@@ -461,7 +461,7 @@ export function BallastScreen() {
           <div style={{ flex: '1 1 260px' }} className="col">
             <b>Sequência automática de dosagem</b>
             <div className="row">
-              <input type="number" value={kg} min={10} step={50} onChange={(ev) => setKg(Number(ev.target.value))} /> kg
+              <input type="number" aria-label="Quantidade a dosar (kg)" value={kg} min={10} step={50} onChange={(ev) => setKg(Number(ev.target.value))} /> kg
               <button className="btn" onClick={() => cmd({ type: 'dosing', system: 'compensation', mode: 'admitir', kg })}>
                 Admitir (mais pesado)
               </button>
@@ -520,6 +520,7 @@ export function BallastScreen() {
           {(v.compensation.inletRegulatorFlow * 1000).toFixed(0)} L/s); a descarga exige a bomba vencer a pressão externa — o consumo elétrico cresce com a profundidade (P = Q·Δp/η).
         </div>
       </Panel>
+      <CompensationCircuitPanel e={e} fold="lastro.circuito" />
     </div>
   );
 }

@@ -23,6 +23,7 @@ import { TARGET_HEIGHT, periHeadAbove, periHeadClearance, periVisible, stadimete
 import { periMarks } from './periMarks';
 import { toKnots } from '../../sim/units';
 import { fmt, fmtKnots } from '../format';
+import { indicatedDepth } from '../instruments';
 import { BearingTape, deg3, km, wrap180, wrap360 } from '../components/OpticsHud';
 
 export const PERI_POWERS: { fov: number; label: string }[] = [
@@ -532,7 +533,7 @@ export function RoomPeriscope({ sight, setSight, onExit, acts }: { sight: Perisc
             relativa {sight.bearing >= 0 ? 'BE' : 'BB'} {Math.abs(Math.round(sight.bearing))}°
           </span>
           <span>elevação {fmt(sight.elev, 0)}°</span>
-          <span>cota {fmt(e.outputs.depthKeel, 1)} m</span>
+          <span>cota {fmt(indicatedDepth(e), 1)} m</span>
         </div>
         <div className="row" style={{ gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
           <button className="btn sm" onClick={() => turn(-10)}>

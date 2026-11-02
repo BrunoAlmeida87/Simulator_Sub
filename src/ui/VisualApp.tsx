@@ -1,4 +1,5 @@
 import { SCENE_LAYER_KEYS } from '../render3d/layers';
+import { useGraphics } from './graphics';
 import { prioBadge, prioText } from './alarmUi';
 /**
  * JANELA DE VISUALIZAÇÃO (segundo monitor): só a cena, os indicadores e a
@@ -50,6 +51,8 @@ export function VisualApp() {
   const e = useSim(6);
   const v = link.viewer;
   const [, force] = useReducer((x: number) => x + 1, 0);
+  // alto contraste (Configurações › Aparência) vale também nesta janela
+  const gfx = useGraphics();
   useEffect(() => v?.subscribe(force), []);
   const [mode, setMode] = usePersisted<ViewMode | 'seguir'>('visual.view', 'seguir');
   const [hideUi, setHideUi] = useState(false);
@@ -76,7 +79,7 @@ export function VisualApp() {
     document.title = `${identity.get().name} — visualização`;
   }, []);
   return (
-    <div className="visual-app">
+    <div className={`visual-app ${gfx.uiContrast ? 'hi-contrast' : ''}`}>
       <Scene3D
         quality={defaultQuality()}
         view={view}

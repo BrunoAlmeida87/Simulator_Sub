@@ -4,7 +4,9 @@
  * Só LÊ o estado; os botões apenas trocam de tela ou abrem o grupo na tela Operação.
  */
 import type { ReactNode } from 'react';
-import { useSim } from '../store';
+import { cmd, useSim } from '../store';
+import { Panel } from '../components/Panel';
+import { prioBadge, prioText } from '../alarmUi';
 import { useUi } from '../uiContext';
 import { visibleAlarms } from '../../sim/systems/alarms';
 import { bankPressure } from '../../sim/systems/hpAir';
@@ -12,7 +14,7 @@ import { compensationWater } from '../../sim/systems/internalTanks';
 import { RHO_NOMINAL } from '../../sim/core/context';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import type { SimulationEngine } from '../../sim/core/engine';
-import { fmt, fmtPower, fmtSpeed } from '../format';
+import { fmt, fmtPower, fmtSpeed, fmtTime } from '../format';
 import { opsBus, type GroupId } from '../ops/opsBus';
 import { screenLabel, type ScreenId } from '../nav';
 
@@ -181,15 +183,21 @@ const CARDS: SysCard[] = [
 
 type Status = 'ok' | 'warn' | 'alarm';
 const STATUS_TEXT: Record<Status, string> = { ok: 'NORMAL', warn: 'ATENÇÃO', alarm: 'ALARME' };
+/** forma do estado (não depende só da cor) */
+const STATUS_SHAPE: Record<Status, string> = { ok: '●', warn: '▲', alarm: '◆' };
 
 export function SystemsOverview() {
   const e = useSim(4);
   const ui = useUi();
   const vis = visibleAlarms(e.state);
+  // últimos 8 eventos: alarmes (entrada/saída) e comandos, do mais recente
+  const events = [...e.state.alarms.log.map((a) => ({ t: a.t, alarm: true, text: `${a.event}: ${a.text}` })), ...e.state.commands.map((c) => ({ t: c.t, alarm: false, text: `[${c.group}] ${c.text}` }))]
+    .sort((a, b) => b.t - a.t)
+    .slice(0, 8);
   return (
     <div className="sysov">
       <p className="subtle sysov-intro">
-        Resumo de cada sistema, com a cor do pior alarme (<span className="badge alarm">ALARME</span> <span className="badge warn">ATENÇÃO</span> <span className="badge ok">NORMAL</span>). Os botões abrem a tela de
+        Resumo de cada sistema, com a cor do pior alarme (<span className="badge alarm">◆ ALARME</span> <span className="badge warn">▲ ATENÇÃO</span> <span className="badge ok">● NORMAL</span>). Os botões abrem a tela de
         detalhe ou o grupo do sistema na tela Operação.
       </p>
       <div className="sysov-grid">
@@ -222,7 +230,9 @@ export function SystemsOverview() {
             <section key={c.id} className={`sysov-card ${status}`} aria-label={`${c.title}: ${STATUS_TEXT[status]}`}>
               <header>
                 <h3>{c.title}</h3>
-                <span className={`badge ${status}`}>{STATUS_TEXT[status]}</span>
+                <span className={`badge ${status}`}>
+                  {STATUS_SHAPE[status]} {STATUS_TEXT[status]}
+                </span>
               </header>
               <div className="sysov-about">{c.about}</div>
               <div className="sysov-kpis">
@@ -243,6 +253,65 @@ export function SystemsOverview() {
             </section>
           );
         })}
+      </div>
+      {/* metade de baixo (antes vazia em telas grandes): alarmes e últimos eventos */}
+      <div className="grid g2 sysov-extra">
+        <Panel title={`Alarmes (${vis.length})`}>
+          {vis.length === 0 ? (
+            <div className="subtle empty-state">Nenhum alarme. Alarmes ativos ou ainda não reconhecidos aparecem aqui, com a prioridade e o sistema.</div>
+          ) : (
+            <table className="t">
+              <tbody>
+                {vis.slice(0, 8).map((a) => (
+                  <tr key={a.def.id}>
+                    <td style={{ width: 110 }}>
+                      <span className={`badge ${prioBadge(a.def.priority)}`}>{prioText(a.def.priority)}</span>
+                    </td>
+                    <td>
+                      {a.def.text}
+                      <div className="subtle">
+                        {a.def.system} · {a.active ? 'ativo' : 'normalizado'}
+                        {a.acked ? ' · reconhecido' : ''}
+                      </div>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                      {!a.acked && (
+                        <button className="btn sm" onClick={() => cmd({ type: 'ack', id: a.def.id })}>
+                          Reconhecer
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+        <Panel
+          title="Últimos eventos"
+          right={
+            <button className="btn sm" onClick={() => ui.setScreen('seguranca')}>
+              Registro completo →
+            </button>
+          }
+        >
+          {events.length === 0 ? (
+            <div className="subtle empty-state">Nenhum evento ainda. Comandos e alarmes aparecem aqui assim que a simulação for executada.</div>
+          ) : (
+            <table className="t">
+              <tbody>
+                {events.map((l, i) => (
+                  <tr key={i}>
+                    <td className="num" style={{ width: 70 }}>
+                      {fmtTime(l.t)}
+                    </td>
+                    <td className={l.alarm ? 'warnc' : undefined}>{l.text}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
       </div>
     </div>
   );

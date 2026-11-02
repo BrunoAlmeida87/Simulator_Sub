@@ -45,6 +45,10 @@ export interface GraphicsSettings extends MarineLifeSettings, DaylightSettings, 
   renderScale: RenderScaleSetting;
   /** medidor de FPS e contadores sobre as cenas 3D */
   fpsMeter: boolean;
+  /** interface em alto contraste (projetor): bordas e superfícies mais separadas, texto de apoio mais claro e maior */
+  uiContrast: boolean;
+  /** selos de origem dos valores (MED/CALC/CMD/VERD) só no modo engenharia */
+  hideKinds: boolean;
 }
 
 const K_Q = 'sx1.quality.v1';
@@ -81,7 +85,8 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     lighting: p?.lighting === 'natural' || p?.lighting === 'clara' || p?.lighting === 'estudio' ? p.lighting : base.lighting,
     ambientMotion: p?.ambientMotion === 'desligado' || p?.ambientMotion === 'suave' || p?.ambientMotion === 'moderado' ? p.ambientMotion : base.ambientMotion,
     currentDirection: num(p?.currentDirection, 0, 359, base.currentDirection),
-    bottomLifeDensity: p?.bottomLifeDensity === 'desligada' || p?.bottomLifeDensity === 'discreta' || p?.bottomLifeDensity === 'moderada' || p?.bottomLifeDensity === 'abundante' ? p.bottomLifeDensity : base.bottomLifeDensity,
+    bottomLifeDensity:
+      p?.bottomLifeDensity === 'desligada' || p?.bottomLifeDensity === 'discreta' || p?.bottomLifeDensity === 'moderada' || p?.bottomLifeDensity === 'abundante' ? p.bottomLifeDensity : base.bottomLifeDensity,
     fishDensity: p?.fishDensity === 'desligada' || p?.fishDensity === 'discreta' || p?.fishDensity === 'moderada' || p?.fishDensity === 'abundante' ? p.fishDensity : base.fishDensity,
     fishJumps: typeof p?.fishJumps === 'boolean' ? p.fishJumps : base.fishJumps,
     fishUnderwater: typeof p?.fishUnderwater === 'boolean' ? p.fishUnderwater : base.fishUnderwater,
@@ -92,6 +97,8 @@ function sanitize(p: Partial<GraphicsSettings> | null | undefined, base: Graphic
     depthLineSpacing: typeof p?.depthLineSpacing === 'number' && DEPTH_LINE_SPACINGS.includes(p.depthLineSpacing) ? p.depthLineSpacing : base.depthLineSpacing,
     renderScale: parseRenderScale(p?.renderScale, base.renderScale),
     fpsMeter: typeof p?.fpsMeter === 'boolean' ? p.fpsMeter : base.fpsMeter,
+    uiContrast: typeof p?.uiContrast === 'boolean' ? p.uiContrast : base.uiContrast,
+    hideKinds: typeof p?.hideKinds === 'boolean' ? p.hideKinds : base.hideKinds,
     sunHour: num(p?.sunHour, 0, 24, base.sunHour),
     sunTurn: num(p?.sunTurn, -180, 180, base.sunTurn),
     moonlight: typeof p?.moonlight === 'boolean' ? p.moonlight : base.moonlight,
@@ -126,6 +133,8 @@ class GraphicsStore {
       // celular e telas pequenas começam no automático; no computador a resolução é a nativa, como sempre foi
       renderScale: q === 'baixa' ? 'auto' : 1,
       fpsMeter: false,
+      uiContrast: false,
+      hideKinds: false,
       ...DEFAULT_DAYLIGHT,
     };
     let saved: Partial<GraphicsSettings> | null = null;
@@ -182,4 +191,3 @@ export function useQuality(): [OceanQuality, (q: OceanQuality) => void] {
   const g = useGraphics();
   return [g.quality, (q) => graphics.set({ quality: q })];
 }
-

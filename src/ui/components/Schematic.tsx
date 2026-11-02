@@ -15,6 +15,21 @@ export const valveColor = (st: ValveState): string => {
   return '#f5b041';
 };
 
+/** símbolo clicável também pelo teclado: Tab chega nele, Enter ou Espaço aciona (mesma ação do clique) */
+function keyActivate(run: () => void, label: string) {
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': label,
+    onKeyDown: (ev: React.KeyboardEvent) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        run();
+      }
+    },
+  };
+}
+
 export function ValveGlyph(props: { x: number; y: number; st: ValveState; label?: string; onToggle?: () => void; inspect?: string; vertical?: boolean; size?: number }) {
   const ui = useUi();
   const s = props.size ?? 9;
@@ -26,9 +41,14 @@ export function ValveGlyph(props: { x: number; y: number; st: ValveState; label?
   };
   const pts = props.vertical ? `${-s},${-s} ${s},${-s} ${-s},${s} ${s},${s}` : `${-s},${-s} ${-s},${s} ${s},${-s} ${s},${s}`;
   return (
-    <g transform={`translate(${props.x} ${props.y})`} onClick={click} style={{ cursor: 'pointer' }}>
+    <g
+      transform={`translate(${props.x} ${props.y})`}
+      onClick={click}
+      {...keyActivate(click, `${props.label ?? 'Válvula'}: ${valveStatus(props.st)} — ${props.st.cmd > 0.5 ? 'fechar' : 'abrir'}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <title>{`${props.label ?? 'Válvula'}: ${valveStatus(props.st)} (${(props.st.pos * 100).toFixed(0)} %) — clique para ${props.st.cmd > 0.5 ? 'fechar' : 'abrir'}`}</title>
-      <rect x={-s - 4} y={-s - 4} width={2 * s + 8} height={2 * s + 8} fill="transparent" />
+      <rect className="hit" x={-s - 4} y={-s - 4} width={2 * s + 8} height={2 * s + 8} fill="transparent" />
       <polygon points={pts} fill={filled ? col : '#0a121b'} stroke={col} strokeWidth="1.6" />
       {props.label && (
         <text x={props.vertical ? s + 5 : 0} y={props.vertical ? 3 : s + 12} fontSize="9" textAnchor={props.vertical ? 'start' : 'middle'} fill="#a9bdd2">
@@ -49,7 +69,7 @@ export function PumpGlyph(props: { x: number; y: number; st: PumpState; label: s
     else props.onToggle?.();
   };
   return (
-    <g transform={`translate(${props.x} ${props.y})`} onClick={click} style={{ cursor: 'pointer' }}>
+    <g transform={`translate(${props.x} ${props.y})`} onClick={click} {...keyActivate(click, `${props.label}: ${props.st.failed ? 'falha' : run ? 'operando' : 'parada'} — partir ou parar`)} style={{ cursor: 'pointer' }}>
       <title>{`${props.label}: ${props.st.failed ? 'FALHA' : run ? 'OPERANDO' : 'PARADA'} — rotação ${(props.st.speed * 100).toFixed(0)} %`}</title>
       <circle r="13" fill="#0a121b" stroke={col} strokeWidth="2" />
       <g className={run ? 'spin' : ''} style={run ? { animationDuration: `${0.4 / Math.max(0.2, props.st.speed)}s` } : undefined}>

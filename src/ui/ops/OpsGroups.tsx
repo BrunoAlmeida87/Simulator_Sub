@@ -78,7 +78,7 @@ function ApCompact({ e }: { e: SimulationEngine }) {
               AUTO
             </button>
           </div>
-          <NumSet value={set} step={step} unit={unit} min={min} max={max} onSet={(val) => cmd({ type: 'setpoint', channel: ch, value: val })} />
+          <NumSet value={set} step={step} unit={unit} min={min} max={max} label={`Referência de ${label.toLowerCase()}`} onSet={(val) => cmd({ type: 'setpoint', channel: ch, value: val })} />
           {mode === 'AUTO' && (
             <span className="subtle mono">
               erro {fmt(tel.error, 1)}
@@ -249,7 +249,7 @@ function CompBody({ e }: { e: SimulationEngine }) {
       </table>
       <div className="row">
         <span className="subtle">Dosagem</span>
-        <NumSet value={kg} step={100} unit="kg" min={50} max={10000} onSet={setKg} />
+        <NumSet value={kg} step={100} unit="kg" min={50} max={10000} label="Quantidade a dosar" onSet={setKg} />
         <button className="btn sm" onClick={() => cmd({ type: 'dosing', system: 'compensation', mode: 'admitir', kg })}>
           Admitir
         </button>
