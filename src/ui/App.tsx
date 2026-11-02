@@ -1,13 +1,11 @@
 /** Aplicação: barra superior, navegação em dois níveis (grupos → telas, ver nav.ts) e modo engenharia. */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { UiContext, useUi, type ScreenId, type ToastOptions } from './uiContext';
+import { UiContext, type ScreenId, type ToastOptions } from './uiContext';
 import { replaceUndo, UNDO_MS } from './undo';
-import { baseConfig, cmd, runner, useSim } from './store';
-import { buildScenario } from '../sim/scenarios';
+import { cmd, runner, useSim } from './store';
 import { captureSession, restoreSession } from './session';
 import { storage } from './storage';
-import { fmt, fmtTime, fmtSpeed } from './format';
-import { SimSpeedButtons } from './components/Controls';
+import { fmtTime } from './format';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
 import { HelmScreen } from './screens/HelmScreen';
@@ -26,23 +24,19 @@ import { View3DScreen } from './screens/View3DScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { ScenarioScreen } from './screens/ScenarioScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { useIdentity } from './appearance';
-import { RecIndicator } from './components/RecordingPanel';
 import { recorder } from './recorder';
 import { AuxSystemsScreen } from './screens/AuxSystemsScreen';
 import { ValidationScreen } from './screens/ValidationScreen';
 import { HelpScreen } from './screens/HelpScreen';
 import { Inspector } from './inspector/Inspector';
 import { ProcedurePanel } from './components/Procedure';
-import { demo } from './demo';
-import { maneuver } from './maneuvers';
 import { opsBus } from './ops/opsBus';
-import { loadScenario } from './ops/OpsGroups';
-import { SCENARIOS } from '../sim/scenarios';
 import { link } from './link';
-import { isPanelWindow, openPanelWindow, openVisualWindow, panelIndex } from './sync';
+import { isPanelWindow, panelIndex } from './sync';
 import { loadPersisted, savePersisted } from './persist';
 import { NavBar } from './components/NavBar';
+import { TopBar } from './components/TopBar';
+import { visibleAlarms } from '../sim/systems/alarms';
 import { AlarmBand } from './components/AlarmBand';
 import { SystemsOverview } from './screens/SystemsOverview';
 import { StudioScreen } from './screens/StudioScreen';
@@ -52,167 +46,14 @@ import { isScreenId, screenForKey, screenLabel } from './nav';
 import { useGraphics } from './graphics';
 import { BUTTON_SELECTOR, classifyFocus, focusFromKeyboard, installFocusTracking, shortcutAction } from './keyFocus';
 
-function ScenarioPicker({ current }: { current: string }) {
-  const [sel, setSel] = useState(current);
-  useEffect(() => setSel(current), [current]);
-  return (
-    <span className="row" style={{ gap: 4 }}>
-      <select value={sel} onChange={(ev) => setSel(ev.target.value)} className="scenario-pick" aria-label="Cenário" title={SCENARIOS.find((x) => x.id === sel)?.name}>
-        {SCENARIOS.map((x) => (
-          <option key={x.id} value={x.id}>
-            {x.name}
-          </option>
-        ))}
-      </select>
-      <button className="btn" onClick={() => loadScenario(sel)} title="Carrega o cenário (pausado). Por 10 s é possível desfazer.">
-        Carregar
-      </button>
-    </span>
-  );
-}
-
-function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
-  const e = useSim(8);
-  const s = e.state;
-  const o = e.outputs;
-  const ui = useUi();
-  const id = useIdentity();
-  // celular: controles secundários recolhidos atrás de "☰" (no PC tudo fica visível, como sempre)
-  const [phMore, setPhMore] = useState(false);
-  return (
-    <div className={`topbar${phMore ? '' : ' ph-collapsed'}`} ref={topRef}>
-      <div className="brand">
-        <b>{id.name}</b>
-        <span>Simulador técnico de submarino · embarcação fictícia</span>
-      </div>
-      <div className="simctl">
-        <button className={`btn ${runner.running ? 'on' : 'ok'}`} onClick={() => ((runner.running = !runner.running), runner.notify())} title="Executar/pausar (Espaço)">
-          {runner.running ? '❚❚ Pausar' : '▶ Executar'}
-        </button>
-        <button className="btn ph-more" disabled={runner.running} onClick={() => runner.stepOnce(1)} title="Avançar um passo fixo">
-          +1 passo
-        </button>
-        <button className="btn ph-more" disabled={runner.running} onClick={() => runner.stepOnce(50)} title="Avançar 1 s">
-          +1 s
-        </button>
-        <span className="ph-wrap ph-more">
-          <SimSpeedButtons />
-        </span>
-        <span className="clock" title="Tempo de simulação">
-          {fmtTime(s.t)}
-        </span>
-        {runner.running && runner.lagging && <span className="badge warn">CPU: tempo reduzido</span>}
-        <span className="ph-wrap ph-more">
-          <ScenarioPicker current={s.scenarioId} />
-        </span>
-        {/* junto do cenário (longe de +1 passo/+1 s); a simulação anterior fica guardada para “Desfazer” */}
-        <button
-          className="btn warn ph-more"
-          onClick={() =>
-            replaceUndo.run('Cenário reiniciado', () => {
-              demo.stop(runner);
-              maneuver.cancel(runner);
-              runner.running = false;
-              runner.replaceEngine(buildScenario(s.scenarioId, baseConfig()));
-            })
-          }
-          title="Reiniciar o cenário atual (pausado). Por 10 s é possível desfazer."
-        >
-          ↺ Reiniciar
-        </button>
-        <RecIndicator />
-        {isPanelWindow ? (
-          <>
-            <span className={`badge ${link.viewer?.connected ? 'ok' : 'warn'}`} title="Esta janela espelha a janela de controle: os comandos dados aqui são executados lá">
-              Tela {panelIndex} · {link.viewer?.connected ? 'espelhando o controle' : 'sem conexão'}
-            </span>
-            <button
-              className="btn ph-more"
-              onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined)}
-              title="Tela cheia neste monitor (F11 também funciona)"
-            >
-              ⛶ Tela cheia
-            </button>
-          </>
-        ) : (
-          <>
-            <button className={`btn ph-more ${link.master?.connected ? 'on' : ''}`} onClick={openVisualWindow} title="Abre a cena numa segunda janela (ex.: outro monitor), espelhando esta simulação">
-              ⧉ 2ª janela{link.master?.connected ? ' ✓' : ''}
-            </button>
-            <button
-              className={`btn ph-more ${link.master?.panelConnected ? 'on' : ''}`}
-              onClick={() => {
-                const n = openPanelWindow();
-                ui.toast(`Tela ${n} aberta: arraste-a para o outro monitor e escolha a aba. Comandos dados nela valem aqui.`);
-              }}
-              title="Abre outra janela com o simulador completo (todas as abas), espelhando esta simulação — ex.: o mapa tático num 3º monitor"
-            >
-              ＋ Tela{link.master?.panelConnected ? ' ✓' : ''}
-            </button>
-          </>
-        )}
-        <button className={`btn phone-only ph-toggle ${phMore ? 'on' : ''}`} onClick={() => setPhMore(!phMore)} aria-expanded={phMore} title="Mais controles (cenário, passos, aceleração, 2ª janela, engenharia)">
-          {phMore ? '✕' : '☰'}
-        </button>
-      </div>
-      {/* 2ª linha, igual em todas as telas: faixa de alarme, indicadores (fora da Operação) e modos */}
-      <div className="topbar-row2">
-        <AlarmBand e={e} />
-        <div className="strip">
-          <div className="kv">
-            <small>PROF (m)</small>
-            <b>{fmt(0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value), 1)}</b>
-          </div>
-          <div className="kv">
-            <small>VELOCIDADE</small>
-            <b>{fmtSpeed(s.sensors.DVLU.value)}</b>
-          </div>
-          <div className="kv">
-            <small>RUMO</small>
-            <b>{fmt(s.sensors.GIRO.value, 0)}°</b>
-          </div>
-          <div className="kv">
-            <small>PITCH</small>
-            <b>{fmt(s.sensors.INSP.value, 1)}°</b>
-          </div>
-          <div className="kv">
-            <small>BANDA</small>
-            <b>{fmt(s.sensors.INSR.value, 1)}°</b>
-          </div>
-          {o.surfaced ? (
-            <div className="kv" title="Reserva de flutuabilidade: peso adicional necessário para submergir por completo">
-              <small>RESERVA</small>
-              <b>{fmt(o.reserveKg / 1000, 1)} t</b>
-            </div>
-          ) : (
-            <div className="kv" title="Flutuabilidade líquida calculada (+ positiva). ▲ acima de 2 t em módulo">
-              <small>FLUTUAB.</small>
-              <b className={Math.abs(o.netBuoyancyKg) > 2000 ? 'warnc' : undefined}>
-                {Math.abs(o.netBuoyancyKg) > 2000 ? '▲ ' : ''}
-                {fmt(o.netBuoyancyKg / 1000, 2)} t
-              </b>
-            </div>
-          )}
-          <div className="kv">
-            <small>BATERIA</small>
-            <b>{fmt(s.electrical.soc * 100, 0)}%</b>
-          </div>
-        </div>
-        <div className="row ph-more topbar-modes" style={{ gap: 6 }}>
-          <button className={`btn ${ui.eng ? 'on' : ''}`} onClick={() => ui.setEng(!ui.eng)} title="Modo engenharia (I)">
-            ⓘ Engenharia
-          </button>
-          <button className={`btn ${ui.showProcedure ? 'on' : ''}`} onClick={() => ui.setShowProcedure(!ui.showProcedure)}>
-            Procedimento
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /** aba de cada janela de tela (a janela de controle usa as preferências gerais) */
 const PANEL_SCREEN_KEY = `tela${panelIndex}.screen`;
+
+/** modo palco: a faixa de alarme continua visível, mas só quando há alarme */
+function StageAlarm() {
+  const e = useSim(4);
+  return visibleAlarms(e.state).length ? <AlarmBand e={e} /> : null;
+}
 
 /** janela de tela sem a janela de controle aberta */
 function PanelWait() {
@@ -237,6 +78,8 @@ export function App() {
   const [inspect, setInspect] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<{ msg: string; action?: ToastOptions['action'] } | null>(null);
   const [showProcedure, setShowProcedure] = useState(false);
+  // modo palco (F): sem barra nem navegação — só a tela, os alarmes e um botão para sair
+  const [stage, setStage] = useState(false);
   const [resume, setResume] = useState(() => (isPanelWindow ? null : storage.getAutosave()));
   const topRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
@@ -385,6 +228,7 @@ export function App() {
       else if (k === '+' || k === '=') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd + 10 });
       else if (k === '-') cmd({ type: 'telegraph', rpm: s.propulsion.rpmCmd - 10 });
       else if (k === 'i') setEng(!eng);
+      else if (k === 'f' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) setStage(!stage);
       else if (/^[0-8]$/.test(k)) {
         // o foco num botão da navegação ficaria marcado num grupo que não é mais o atual
         if (t?.closest?.('.nav2')) t.blur();
@@ -423,8 +267,8 @@ export function App() {
 
   return (
     <UiContext.Provider value={{ screen, setScreen, eng, setEng, inspect, setInspect, toast, showProcedure, setShowProcedure }}>
-      <div className={`app scr-${screen} ${eng ? 'eng' : ''} ${gfx.uiContrast ? 'hi-contrast' : ''} ${gfx.hideKinds ? 'hide-kinds' : ''}`}>
-        <TopBar topRef={topRef} />
+      <div className={`app scr-${screen} ${eng ? 'eng' : ''} ${gfx.uiContrast ? 'hi-contrast' : ''} ${gfx.hideKinds ? 'hide-kinds' : ''} ${stage ? 'stage' : ''}`}>
+        <TopBar topRef={topRef} stage={stage} setStage={setStage} />
         <NavBar screen={screen} setScreen={setScreen} navRef={navRef} />
         {resume && (
           <div className="banner">
@@ -471,6 +315,14 @@ export function App() {
             <div className="body">
               <ProcedurePanel />
             </div>
+          </div>
+        )}
+        {stage && (
+          <div className="stage-ctl">
+            <StageAlarm />
+            <button className="btn" onClick={() => setStage(false)} title="Sair do modo palco (F)">
+              ✕ Sair do palco <kbd>F</kbd>
+            </button>
           </div>
         )}
         {screen !== 'estudio' && <PresFloating onStage={() => setScreen('estudio')} />}

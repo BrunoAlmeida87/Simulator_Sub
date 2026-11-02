@@ -65,12 +65,7 @@ code, .mono { font-family: var(--mono); }
 .clock { font-family: var(--mono); font-size: 14px; color: var(--text); min-width: 74px; text-align: right; }
 .strip { display: flex; gap: 4px 12px; flex-wrap: wrap; flex: 1; justify-content: center; }
 .strip .kv { display: flex; flex-direction: column; align-items: center; min-width: 58px; }
-/* 2ª linha da barra, em TODAS as telas: faixa de alarme + indicadores + modos. Mesma altura sempre:
-   a navegação não muda de posição ao trocar de tela (antes descia 39 px fora da Operação). */
-.topbar-row2 { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; min-width: 0; min-height: 30px; padding-top: 4px; border-top: 1px solid #172536; }
-.topbar-row2 .strip { flex: 1 1 420px; justify-content: flex-start; gap: 4px 18px; }
-.topbar-row2 .strip .kv { flex-direction: row; gap: 6px; align-items: baseline; min-width: 0; }
-.topbar-row2 .topbar-modes { margin-left: auto; }
+/* barra superior numa linha só (components/TopBar.tsx) — regras no fim do arquivo */
 .warnc { color: var(--warn); }
 @media (max-width: 1250px) { .brand span { display: none; } }
 /* tela Operação: os indicadores já estão na faixa da tela (a linha fica com a faixa de alarme e os modos) */
@@ -1590,3 +1585,33 @@ svg [role='button']:focus-visible .hit { stroke: var(--accent); stroke-width: 2;
 .nav2 .nav2-modes button.on { color: #071019; background: var(--gc, var(--accent)); font-weight: 600; }
 .nav2-modes button.on .n { color: #071019; }
 .nav2-menu .items button.mode { font-size: 12px; opacity: 0.9; }
+
+/* ---------- barra superior numa linha (components/TopBar.tsx) e modo palco ---------- */
+.topbar { gap: 6px 12px; }
+.topbar .brand b { white-space: nowrap; }
+.tb-run { display: flex; align-items: center; gap: 6px; flex: none; }
+.tb-speed { width: 76px; }
+.topbar .alarmband { flex: 1 1 280px; }
+.tb-strip { flex: 0 1 auto; display: flex; flex-wrap: nowrap; gap: 4px 14px; min-width: 0; justify-content: flex-start; }
+.tb-strip .kv { flex-direction: row; gap: 5px; align-items: baseline; min-width: 0; white-space: nowrap; }
+@media (max-width: 1500px) { .tb-strip .kv.opt { display: none; } }
+@media (max-width: 1100px) { .tb-strip { display: none; } }
+.tb-menu { position: relative; flex: none; }
+.tb-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; padding: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); }
+.tb-more-pop { display: grid; gap: 12px; min-width: 320px; }
+.tb-more-pop section { display: grid; gap: 6px; }
+.tb-more-pop h4 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.tb-scn { display: inline-block; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radius: 3px; padding: 0 4px; color: var(--muted); margin-left: 4px; }
+@media (max-width: 760px) {
+  .tb-speed, .tb-scenario { display: none; }
+  .topbar .alarmband { flex-basis: 100%; order: 5; }
+  .topbar .alarmband.ok { display: none; }
+  .tb-pop { position: fixed; left: 8px; right: 8px; top: 52px; }
+  .tb-more-pop { min-width: 0; }
+}
+/* modo palco (F): sem barra e sem navegação; alarme e “sair” flutuando no canto */
+.app.stage .topbar, .app.stage .nav2 { display: none; }
+.stage-ctl { position: fixed; top: 8px; right: 10px; z-index: 70; display: flex; gap: 8px; align-items: center; max-width: calc(100% - 20px); }
+.stage-ctl > .btn { background: rgba(10, 22, 34, 0.92); }
+.stage-ctl .alarmband { background-color: #2a1013; }
