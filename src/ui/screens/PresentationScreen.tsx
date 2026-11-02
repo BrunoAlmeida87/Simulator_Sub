@@ -11,7 +11,7 @@ import { Scene3D } from '../components/Scene3D';
 import { useQuality } from '../graphics';
 import { seaSections } from '../components/SeaControls';
 import { Panel } from '../components/Panel';
-import { Telegraph } from '../components/Controls';
+import { SimSpeedButtons, Telegraph } from '../components/Controls';
 import { ManeuverStatus } from '../components/ManeuverStatus';
 import { CargoPanel } from '../components/CargoPanel';
 import { TrimDemoPanel } from '../components/TrimDemo';
@@ -198,7 +198,6 @@ export function PresentationScreen() {
   const preset = PRESETS.find((x) => x.id === presetSel) ?? PRESETS[0];
   const vb = verticalBalance(e);
   const gainTxt = L.resultantGain === 'auto' ? 'ampliação automática (fator no rótulo)' : `×${L.resultantGain}`;
-  const scales = [0.25, 0.5, 1, 2, 5, 10];
   return (
     <div className="pres">
       <div className="pres-view">
@@ -261,13 +260,8 @@ export function PresentationScreen() {
             <span className="clock mono">{fmtTime(e.state.t)}</span>
           </div>
           <div className="row mt8">
-            <div className="seg" title="Velocidade do tempo (câmera lenta abaixo de ×1)">
-              {scales.map((s) => (
-                <button key={s} className={runner.timeScale === s ? 'on' : ''} onClick={() => ((runner.timeScale = s), runner.notify())}>
-                  ×{String(s).replace('.', ',')}
-                </button>
-              ))}
-            </div>
+            {/* o mesmo seletor da barra superior (mesmas velocidades) */}
+            <SimSpeedButtons />
           </div>
           <div className="row mt8">
             <button className="btn warn" disabled={!p.initial} onClick={() => pres.restoreInitial(runner)} title="Volta ao estado em que a situação foi preparada">

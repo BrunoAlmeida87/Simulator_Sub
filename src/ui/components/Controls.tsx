@@ -287,13 +287,15 @@ export function QuickBallast({ e }: { e: SimulationEngine }) {
   );
 }
 
+/** velocidades do tempo — as mesmas na barra superior e na Apresentação (abaixo de ×1 = câmera lenta) */
+export const SIM_SPEEDS = [0.25, 0.5, 1, 2, 5, 10, 20];
+
 export function SimSpeedButtons() {
-  const scales = [0.5, 1, 2, 5, 10, 20];
   return (
-    <div className="seg" title="Aceleração do tempo (a física usa sempre o mesmo passo fixo)">
-      {scales.map((s) => (
-        <button key={s} className={runner.timeScale === s ? 'on' : ''} onClick={() => ((runner.timeScale = s), runner.notify())}>
-          ×{s}
+    <div className="seg" role="group" aria-label="Velocidade do tempo" title="Velocidade do tempo: abaixo de ×1 é câmera lenta (a física usa sempre o mesmo passo fixo)">
+      {SIM_SPEEDS.map((s) => (
+        <button key={s} className={runner.timeScale === s ? 'on' : ''} aria-pressed={runner.timeScale === s} onClick={() => ((runner.timeScale = s), runner.notify())}>
+          ×{String(s).replace('.', ',')}
         </button>
       ))}
     </div>
