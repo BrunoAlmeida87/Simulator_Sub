@@ -133,7 +133,7 @@ class GraphicsStore {
       renderScale: q === 'baixa' ? 'auto' : 1,
       fpsMeter: false,
       uiContrast: false,
-      hideKinds: false,
+      hideKinds: true,
       ...DEFAULT_DAYLIGHT,
     };
     let saved: Partial<GraphicsSettings> | null = null;
