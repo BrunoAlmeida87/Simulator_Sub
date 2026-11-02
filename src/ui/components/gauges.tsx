@@ -18,7 +18,16 @@ const C = {
   water: '#123a66',
 };
 
-export function DepthTape(props: { depth: number; ordered?: number | null; bottom: number; rate: number; opLimit: number; testLimit: number; height?: number; range?: number }) {
+export function DepthTape(props: {
+  depth: number;
+  ordered?: number | null;
+  bottom: number;
+  rate: number;
+  opLimit: number;
+  testLimit: number;
+  height?: number;
+  range?: number;
+}) {
   const H = props.height ?? 300;
   const W = 120;
   const range = props.range ?? 30;
@@ -32,12 +41,7 @@ export function DepthTape(props: { depth: number; ordered?: number | null; botto
     const major = d % 10 === 0;
     const mid = d % 5 === 0;
     ticks.push(<line key={'t' + d} x1={W - 40} x2={W - 40 + (major ? 16 : mid ? 10 : 5)} y1={yy} y2={yy} stroke={C.tick} strokeWidth={major ? 1.5 : 1} />);
-    if (major)
-      ticks.push(
-        <text key={'l' + d} x={W - 44} y={yy + 4} textAnchor="end" fontSize="11" fill={C.text} fontFamily="var(--mono)">
-          {d}
-        </text>,
-      );
+    if (major) ticks.push(<text key={'l' + d} x={W - 44} y={yy + 4} textAnchor="end" fontSize="11" fill={C.text} fontFamily="var(--mono)">{d}</text>);
   }
   const surfY = y(0);
   const botY = y(props.bottom);
@@ -49,23 +53,21 @@ export function DepthTape(props: { depth: number; ordered?: number | null; botto
       {surfY > 0 && <rect x="0" y="0" width={W} height={Math.min(H, surfY)} fill="#1b2a3a" />}
       {surfY > 0 && surfY < H && <line x1="0" x2={W} y1={surfY} y2={surfY} stroke={C.accent} strokeWidth="1.5" />}
       {botY < H && <rect x="0" y={Math.max(0, botY)} width={W} height={H - Math.max(0, botY)} fill="#3b2d1d" opacity="0.85" />}
-      {[props.opLimit, props.testLimit].map((L, i) => (y(L) > 0 && y(L) < H ? <line key={'lim' + i} x1="0" x2={W} y1={y(L)} y2={y(L)} stroke={i ? C.alarm : C.warn} strokeDasharray="4 3" /> : null))}
+      {[props.opLimit, props.testLimit].map((L, i) =>
+        y(L) > 0 && y(L) < H ? <line key={'lim' + i} x1="0" x2={W} y1={y(L)} y2={y(L)} stroke={i ? C.alarm : C.warn} strokeDasharray="4 3" /> : null,
+      )}
       {ticks}
       {/* tendência (30 s) */}
       <rect x={W - 18} y={Math.min(H / 2, H / 2 + trend * k)} width="6" height={Math.abs(trend * k)} fill={props.rate > 0 ? C.warn : C.ok} opacity="0.8" />
-      {ord !== null &&
-        ord !== undefined &&
-        (y(ord) >= 0 && y(ord) <= H ? (
+      {ord !== null && ord !== undefined && (
+        y(ord) >= 0 && y(ord) <= H ? (
           <polygon points={`${W - 24},${y(ord)} ${W - 32},${y(ord) - 6} ${W - 32},${y(ord) + 6}`} fill={C.cmd} />
         ) : (
-          <text x={W - 28} y={y(ord) < 0 ? 12 : H - 4} fill={C.cmd} fontSize="11" textAnchor="middle">
-            {y(ord) < 0 ? '▲' : '▼'}
-          </text>
-        ))}
+          <text x={W - 28} y={y(ord) < 0 ? 12 : H - 4} fill={C.cmd} fontSize="11" textAnchor="middle">{y(ord) < 0 ? '▲' : '▼'}</text>
+        )
+      )}
       <polygon points={`2,${H / 2 - 13} ${W - 44},${H / 2 - 13} ${W - 36},${H / 2} ${W - 44},${H / 2 + 13} 2,${H / 2 + 13}`} fill="#071019" stroke={C.accent} />
-      <text x={(W - 44) / 2 + 2} y={H / 2 + 6} textAnchor="middle" fontSize="16" fontWeight="700" fill={C.text} fontFamily="var(--mono)">
-        {fmt(props.depth, 1)}
-      </text>
+      <text x={(W - 44) / 2 + 2} y={H / 2 + 6} textAnchor="middle" fontSize="16" fontWeight="700" fill={C.text} fontFamily="var(--mono)">{fmt(props.depth, 1)}</text>
     </svg>
   );
 }
@@ -84,16 +86,7 @@ export function Compass(props: { heading: number; ordered?: number | null; cog?:
       const lbl = a === 0 ? 'N' : a === 90 ? 'E' : a === 180 ? 'S' : a === 270 ? 'W' : String(a / 10);
       const rl = R - 24;
       els.push(
-        <text
-          key={'l' + a}
-          x={c + rl * Math.sin(rad)}
-          y={c - rl * Math.cos(rad) + 4}
-          textAnchor="middle"
-          fontSize="12"
-          fill={a % 90 === 0 ? C.accent : C.text}
-          fontWeight={a % 90 === 0 ? 700 : 400}
-          transform={`rotate(${a} ${c + rl * Math.sin(rad)} ${c - rl * Math.cos(rad)})`}
-        >
+        <text key={'l' + a} x={c + rl * Math.sin(rad)} y={c - rl * Math.cos(rad) + 4} textAnchor="middle" fontSize="12" fill={a % 90 === 0 ? C.accent : C.text} fontWeight={a % 90 === 0 ? 700 : 400} transform={`rotate(${a} ${c + rl * Math.sin(rad)} ${c - rl * Math.cos(rad)})`}>
           {lbl}
         </text>,
       );
@@ -105,7 +98,9 @@ export function Compass(props: { heading: number; ordered?: number | null; cog?:
       <circle cx={c} cy={c} r={c - 2} fill={C.bg} stroke={C.line} />
       <g transform={`rotate(${-props.heading} ${c} ${c})`}>
         {els}
-        {bug !== null && bug !== undefined && <polygon points={`${c},${c - R + 1} ${c - 7},${c - R - 10} ${c + 7},${c - R - 10}`} fill={C.cmd} transform={`rotate(${bug} ${c} ${c})`} />}
+        {bug !== null && bug !== undefined && (
+          <polygon points={`${c},${c - R + 1} ${c - 7},${c - R - 10} ${c + 7},${c - R - 10}`} fill={C.cmd} transform={`rotate(${bug} ${c} ${c})`} />
+        )}
         {props.cog !== undefined && <circle cx={c} cy={c - R + 18} r="3.5" fill={C.calc} transform={`rotate(${props.cog} ${c} ${c})`} />}
       </g>
       <polygon points={`${c},${12} ${c - 6},${2} ${c + 6},${2}`} fill={C.accent} />
@@ -117,9 +112,7 @@ export function Compass(props: { heading: number; ordered?: number | null; cog?:
       )}
       {/* janela do valor: fundo próprio para não ficar sobre os números da rosa (bússolas pequenas) */}
       <rect x={c - 36} y={c + 35} width={72} height={23} rx={4} fill={C.bg} stroke={C.line} />
-      <text x={c} y={c + 52} textAnchor="middle" fontSize="17" fontWeight="700" fill={C.text} fontFamily="var(--mono)">
-        {fmt(props.heading, 1)}°
-      </text>
+      <text x={c} y={c + 52} textAnchor="middle" fontSize="17" fontWeight="700" fill={C.text} fontFamily="var(--mono)">{fmt(props.heading, 1)}°</text>
     </svg>
   );
 }
@@ -135,12 +128,7 @@ export function Attitude(props: { pitch: number; roll: number; staticPitch?: num
     const w = a % 10 === 0 ? 34 : 18;
     const ly = c - a * k + p * k;
     ladder.push(<line key={a} x1={c - w} x2={c + w} y1={ly} y2={ly} stroke="#e8f1fb" strokeWidth="1" opacity="0.7" />);
-    if (a % 10 === 0)
-      ladder.push(
-        <text key={'t' + a} x={c + w + 4} y={ly + 4} fontSize="10" fill="#e8f1fb" fontFamily="var(--mono)">
-          {a}
-        </text>,
-      );
+    if (a % 10 === 0) ladder.push(<text key={'t' + a} x={c + w + 4} y={ly + 4} fontSize="10" fill="#e8f1fb" fontFamily="var(--mono)">{a}</text>);
   }
   const rollTicks = [-30, -20, -10, 0, 10, 20, 30];
   return (
@@ -158,7 +146,10 @@ export function Attitude(props: { pitch: number; roll: number; staticPitch?: num
           <line x1={-S} x2={S * 2} y1={c + p * k} y2={c + p * k} stroke="#e8f1fb" strokeWidth="1.5" />
           {ladder}
           {props.staticPitch !== undefined && Number.isFinite(props.staticPitch) && (
-            <polygon points={`${c + 46},${c - props.staticPitch * k + p * k} ${c + 54},${c - props.staticPitch * k + p * k - 5} ${c + 54},${c - props.staticPitch * k + p * k + 5}`} fill={C.calc}>
+            <polygon
+              points={`${c + 46},${c - props.staticPitch * k + p * k} ${c + 54},${c - props.staticPitch * k + p * k - 5} ${c + 54},${c - props.staticPitch * k + p * k + 5}`}
+              fill={C.calc}
+            >
               <title>Pitch de equilíbrio estático (pesos)</title>
             </polygon>
           )}
@@ -172,12 +163,8 @@ export function Attitude(props: { pitch: number; roll: number; staticPitch?: num
       {/* símbolo fixo */}
       <path d={`M${c - 50},${c} L${c - 16},${c} L${c - 8},${c + 8} M${c + 50},${c} L${c + 16},${c} L${c + 8},${c + 8}`} stroke={C.cmd} strokeWidth="3" fill="none" />
       <circle cx={c} cy={c} r="3" fill={C.cmd} />
-      <text x={8} y={S - 8} fontSize="11" fill={C.text} fontFamily="var(--mono)">
-        θ {fmt(props.pitch, 1)}°
-      </text>
-      <text x={S - 8} y={S - 8} fontSize="11" fill={C.text} textAnchor="end" fontFamily="var(--mono)">
-        φ {fmt(props.roll, 1)}°
-      </text>
+      <text x={8} y={S - 8} fontSize="11" fill={C.text} fontFamily="var(--mono)">θ {fmt(props.pitch, 1)}°</text>
+      <text x={S - 8} y={S - 8} fontSize="11" fill={C.text} textAnchor="end" fontFamily="var(--mono)">φ {fmt(props.roll, 1)}°</text>
     </svg>
   );
 }
@@ -196,7 +183,13 @@ export function AngleBar(props: { actual: number; cmd: number; max: number; neg:
   const ticks: JSX.Element[] = [];
   for (let a = -props.max; a <= props.max; a += 5) {
     const p = vertical ? mid - s(a) : mid + s(a);
-    ticks.push(vertical ? <line key={a} x1={T - 4} x2={T + (a % 10 === 0 ? 10 : 6)} y1={p} y2={p} stroke={C.tick} /> : <line key={a} y1={T - 4} y2={T + (a % 10 === 0 ? 10 : 6)} x1={p} x2={p} stroke={C.tick} />);
+    ticks.push(
+      vertical ? (
+        <line key={a} x1={T - 4} x2={T + (a % 10 === 0 ? 10 : 6)} y1={p} y2={p} stroke={C.tick} />
+      ) : (
+        <line key={a} y1={T - 4} y2={T + (a % 10 === 0 ? 10 : 6)} x1={p} x2={p} stroke={C.tick} />
+      ),
+    );
   }
   if (vertical) {
     // + (subir) para cima
@@ -207,15 +200,9 @@ export function AngleBar(props: { actual: number; cmd: number; max: number; neg:
         <line x1={T - 12} x2={T + 12} y1={mid} y2={mid} stroke={C.text} />
         {ticks}
         <polygon points={`${T + 14},${mid - cm} ${T + 22},${mid - cm - 6} ${T + 22},${mid - cm + 6}`} fill={C.cmd} />
-        <text x={W - 4} y={12} fontSize="10" textAnchor="end" fill={C.ok}>
-          {props.pos}
-        </text>
-        <text x={W - 4} y={H - 4} fontSize="10" textAnchor="end" fill={C.warn}>
-          {props.neg}
-        </text>
-        <text x={T + 26} y={mid + 4} fontSize="12" fill={C.text} fontFamily="var(--mono)">
-          {fmt(props.actual, 1)}°
-        </text>
+        <text x={W - 4} y={12} fontSize="10" textAnchor="end" fill={C.ok}>{props.pos}</text>
+        <text x={W - 4} y={H - 4} fontSize="10" textAnchor="end" fill={C.warn}>{props.neg}</text>
+        <text x={T + 26} y={mid + 4} fontSize="12" fill={C.text} fontFamily="var(--mono)">{fmt(props.actual, 1)}°</text>
       </svg>
     );
   }
@@ -226,15 +213,9 @@ export function AngleBar(props: { actual: number; cmd: number; max: number; neg:
       <line y1={T - 12} y2={T + 12} x1={mid} x2={mid} stroke={C.text} />
       {ticks}
       <polygon points={`${mid + cm},${T - 10} ${mid + cm - 6},${T - 18} ${mid + cm + 6},${T - 18}`} fill={C.cmd} />
-      <text x={4} y={H - 4} fontSize="10" fill={C.warn}>
-        {props.neg}
-      </text>
-      <text x={W - 4} y={H - 4} fontSize="10" textAnchor="end" fill={C.ok}>
-        {props.pos}
-      </text>
-      <text x={mid} y={H - 3} fontSize="11" textAnchor="middle" fill={C.text} fontFamily="var(--mono)">
-        {fmt(props.actual, 1)}°
-      </text>
+      <text x={4} y={H - 4} fontSize="10" fill={C.warn}>{props.neg}</text>
+      <text x={W - 4} y={H - 4} fontSize="10" textAnchor="end" fill={C.ok}>{props.pos}</text>
+      <text x={mid} y={H - 3} fontSize="11" textAnchor="middle" fill={C.text} fontFamily="var(--mono)">{fmt(props.actual, 1)}°</text>
     </svg>
   );
 }
@@ -261,35 +242,24 @@ export function Dial(props: { value: number; min: number; max: number; label: st
     const [x2, y2] = pt(v, R - 8);
     const [xt, yt] = pt(v, R - 20);
     ticks.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={C.tick} />);
-    ticks.push(
-      <text key={'t' + i} x={xt} y={yt + 4} fontSize="9.5" textAnchor="middle" fill={C.tick} fontFamily="var(--mono)">
-        {Math.round(v)}
-      </text>,
-    );
+    ticks.push(<text key={'t' + i} x={xt} y={yt + 4} fontSize="9.5" textAnchor="middle" fill={C.tick} fontFamily="var(--mono)">{Math.round(v)}</text>);
   }
   const [nx, ny] = pt(props.value, R - 6);
   return (
     <svg viewBox={`0 0 ${S} ${S * 0.86}`} className="svgbox" style={{ maxWidth: S }}>
       <circle cx={c} cy={c} r={c - 2} fill={C.bg} stroke={C.line} />
       <path d={arc(props.min, props.max, R)} stroke={C.line} strokeWidth="4" fill="none" />
-      {props.zones?.map((z, i) => (
-        <path key={i} d={arc(z.from, z.to, R)} stroke={z.color} strokeWidth="4" fill="none" />
-      ))}
+      {props.zones?.map((z, i) => <path key={i} d={arc(z.from, z.to, R)} stroke={z.color} strokeWidth="4" fill="none" />)}
       {ticks}
-      {props.cmd !== undefined &&
-        (() => {
-          const [cx1, cy1] = pt(props.cmd!, R + 2);
-          return <circle cx={cx1} cy={cy1} r="4" fill={C.cmd} />;
-        })()}
+      {props.cmd !== undefined && (() => {
+        const [cx1, cy1] = pt(props.cmd!, R + 2);
+        return <circle cx={cx1} cy={cy1} r="4" fill={C.cmd} />;
+      })()}
       <line x1={c} y1={c} x2={nx} y2={ny} stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
       <circle cx={c} cy={c} r="5" fill={C.accent} />
       {/* valor sempre no mesmo tamanho; em nós o equivalente em km/h vai para a legenda (antes "0.0 nós (0.0 km/h)" saía do mostrador) */}
-      <text x={c} y={c + 26} textAnchor="middle" fontSize="16" fontWeight="700" fill={C.text} fontFamily="var(--mono)">
-        {fmt(props.value, props.digits ?? 0)}
-      </text>
-      <text x={c} y={c + 40} textAnchor="middle" fontSize="10" fill={C.tick}>
-        {props.unit === 'nós' ? `${props.label} · nós (${fmt(props.value * 1.852, 1)} km/h)` : `${props.label} (${props.unit})`}
-      </text>
+      <text x={c} y={c + 26} textAnchor="middle" fontSize="16" fontWeight="700" fill={C.text} fontFamily="var(--mono)">{fmt(props.value, props.digits ?? 0)}</text>
+      <text x={c} y={c + 40} textAnchor="middle" fontSize="10" fill={C.tick}>{props.unit === 'nós' ? `${props.label} · nós (${fmt(props.value * 1.852, 1)} km/h)` : `${props.label} (${props.unit})`}</text>
     </svg>
   );
 }

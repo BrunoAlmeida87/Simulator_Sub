@@ -34,12 +34,7 @@ const BASES: Record<Exclude<Base, 'nenhum'>, { url: string; att: string; label: 
   tatico: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© colaboradores do OpenStreetMap', label: 'Tático (escuro)', dark: true, maxZoom: 19 },
   mapa: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© colaboradores do OpenStreetMap', label: 'Mapa', maxZoom: 19 },
   relevo: { url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', att: '© OpenStreetMap · SRTM · estilo © OpenTopoMap (CC-BY-SA)', label: 'Relevo', sub: ['a', 'b', 'c'], maxZoom: 17 },
-  satelite: {
-    url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg',
-    att: 'Sentinel-2 cloudless — s2maps.eu, EOX IT Services GmbH (dados Copernicus 2020)',
-    label: 'Satélite',
-    maxZoom: 16,
-  },
+  satelite: { url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg', att: 'Sentinel-2 cloudless — s2maps.eu, EOX IT Services GmbH (dados Copernicus 2020)', label: 'Satélite', maxZoom: 16 },
 };
 
 const KIND_STYLE: Record<string, { color: string; shape: 'square' | 'circle'; label: string }> = {
@@ -63,10 +58,7 @@ function ownIcon(): L.DivIcon {
 
 function contactIcon(kind: string): L.DivIcon {
   const st = KIND_STYLE[kind];
-  const shape =
-    st.shape === 'square'
-      ? `<rect x="5" y="5" width="16" height="16" fill="none" stroke="${st.color}" stroke-width="2.4" transform="rotate(45 13 13)"/>`
-      : `<circle cx="13" cy="13" r="8" fill="none" stroke="${st.color}" stroke-width="2.4"/>`;
+  const shape = st.shape === 'square' ? `<rect x="5" y="5" width="16" height="16" fill="none" stroke="${st.color}" stroke-width="2.4" transform="rotate(45 13 13)"/>` : `<circle cx="13" cy="13" r="8" fill="none" stroke="${st.color}" stroke-width="2.4"/>`;
   return L.divIcon({ className: 'tm-icon', iconSize: [26, 26], iconAnchor: [13, 13], html: `<svg viewBox="0 0 26 26" width="26" height="26">${shape}</svg>` });
 }
 
@@ -194,14 +186,10 @@ export function TacticalMapScreen() {
         }
       g.putImageData(img, 0, 0);
       ovs.push(
-        L.imageOverlay(
-          c.toDataURL(),
-          [
-            [bounds.lat0, bounds.lon0],
-            [bounds.lat1, bounds.lon1],
-          ],
-          { opacity: 0.9, interactive: false },
-        ).addTo(m),
+        L.imageOverlay(c.toDataURL(), [
+          [bounds.lat0, bounds.lon0],
+          [bounds.lat1, bounds.lon1],
+        ], { opacity: 0.9, interactive: false }).addTo(m),
       );
     }
     // estaleiro e base naval: os mesmos contornos da física e do 3D
@@ -231,34 +219,11 @@ export function TacticalMapScreen() {
     const m = mapRef.current;
     if (!m) return;
     const fixed: L.Layer[] = [];
-    fixed.push(
-      L.marker(ll(EBN_ITAGUAI), { icon: baseIcon(), title: 'EBN — Estaleiro e Base Naval (Itaguaí)' }).bindTooltip('EBN — Estaleiro e Base Naval<br/>Ilha da Madeira, Itaguaí (RJ)', {
-        direction: 'right',
-        permanent: false,
-      }),
-    );
+    fixed.push(L.marker(ll(EBN_ITAGUAI), { icon: baseIcon(), title: 'EBN — Estaleiro e Base Naval (Itaguaí)' }).bindTooltip('EBN — Estaleiro e Base Naval<br/>Ilha da Madeira, Itaguaí (RJ)', { direction: 'right', permanent: false }));
     fixed.push(L.polygon(EXERCISE_AREA.map(ll), { color: '#ffb347', weight: 1.5, dashArray: '6 6', fill: true, fillOpacity: 0.05 }).bindTooltip('Área de exercícios (fictícia)', { sticky: true }));
     // grade de latitude/longitude a cada 5′
-    for (let lat = -23.75; lat <= -22.5; lat += 1 / 12)
-      fixed.push(
-        L.polyline(
-          [
-            [lat, -44.6],
-            [lat, -43.2],
-          ],
-          { color: '#36506e', weight: 0.6, opacity: 0.55, interactive: false },
-        ),
-      );
-    for (let lon = -44.6; lon <= -43.2; lon += 1 / 12)
-      fixed.push(
-        L.polyline(
-          [
-            [-23.75, lon],
-            [-22.5, lon],
-          ],
-          { color: '#36506e', weight: 0.6, opacity: 0.55, interactive: false },
-        ),
-      );
+    for (let lat = -23.75; lat <= -22.5; lat += 1 / 12) fixed.push(L.polyline([[lat, -44.6], [lat, -43.2]], { color: '#36506e', weight: 0.6, opacity: 0.55, interactive: false }));
+    for (let lon = -44.6; lon <= -43.2; lon += 1 / 12) fixed.push(L.polyline([[-23.75, lon], [-22.5, lon]], { color: '#36506e', weight: 0.6, opacity: 0.55, interactive: false }));
     for (const f of fixed) f.addTo(m);
     return () => {
       for (const f of fixed) m.removeLayer(f);
@@ -423,11 +388,7 @@ export function TacticalMapScreen() {
         </div>
         {mode !== 'nav' && (
           <div className="tmap-hint">
-            {mode === 'rota'
-              ? 'Clique no mapa para acrescentar pontos de passagem.'
-              : mode === 'medir'
-                ? 'Clique em dois pontos para medir distância e marcação.'
-                : 'Clique no mapa para colocar o submarino nesse ponto (a física não muda; só a referência geográfica).'}
+            {mode === 'rota' ? 'Clique no mapa para acrescentar pontos de passagem.' : mode === 'medir' ? 'Clique em dois pontos para medir distância e marcação.' : 'Clique no mapa para colocar o submarino nesse ponto (a física não muda; só a referência geográfica).'}
           </div>
         )}
       </div>
@@ -518,10 +479,7 @@ export function TacticalMapScreen() {
                 })}
             </tbody>
           </table>
-          <div className="note">
-            CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios (não são posições AIS reais) e aparecem como navios na
-            cena 3D. A aba Sonar traz uma demonstração acústica separada.
-          </div>
+          <div className="note">CPA: ponto de maior aproximação, considerando o rumo e a velocidade atuais (em vermelho se menor que 1 mn nos próximos 30 min). Os contatos são fictícios (não são posições AIS reais) e aparecem como navios na cena 3D. A aba Sonar traz uma demonstração acústica separada.</div>
         </Panel>
         <Panel title="Rota (pontos de passagem)">
           <div className="row">
@@ -586,9 +544,7 @@ export function TacticalMapScreen() {
             </button>
           </div>
           <div className="note">
-            Coordenadas aproximadas. Costa do simulador (laranja): dados embutidos do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL) e relevo Terrarium — a mesma da cena 3D e, com a costa ligada, da física. O
-            fundo de mar aberto é o configurado (a batimetria real da baía não é modelada). Fundos gratuitos, sem chave de API: OpenStreetMap, OpenTopoMap, Sentinel-2 (EOX) e sinais náuticos do OpenSeaMap — vêm da
-            internet; sem conexão, fica a grade de 5′.
+            Coordenadas aproximadas. Costa do simulador (laranja): dados embutidos do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL) e relevo Terrarium — a mesma da cena 3D e, com a costa ligada, da física. O fundo de mar aberto é o configurado (a batimetria real da baía não é modelada). Fundos gratuitos, sem chave de API: OpenStreetMap, OpenTopoMap, Sentinel-2 (EOX) e sinais náuticos do OpenSeaMap — vêm da internet; sem conexão, fica a grade de 5′.
           </div>
         </Panel>
       </div>

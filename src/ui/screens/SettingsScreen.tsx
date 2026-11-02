@@ -190,8 +190,8 @@ function SessionPanel() {
       </table>
       <div className="note">
         O arquivo guarda tudo o que é preciso para continuar: posição, profundidade, rumo, velocidade e inclinação; tempo de simulação; níveis dos tanques; bateria, combustível e ar comprimido; equipamentos, bombas e
-        válvulas; telégrafo e lemes; piloto automático e referências; falhas, alarmes e ambiente; e as automações em andamento (manobra rápida, demonstração, roteiro automático, rota). Ao carregar, a simulação fica
-        pausada. Pode ser aberto em outro computador com o simulador {SIM_VERSION} ou mais novo (arquivos de versões anteriores também abrem). Os gráficos do Histórico recomeçam a partir do ponto carregado.
+        válvulas; telégrafo e lemes; piloto automático e referências; falhas, alarmes e ambiente; e as automações em andamento (manobra rápida, demonstração, roteiro automático, rota). Ao carregar, a simulação fica pausada.
+        Pode ser aberto em outro computador com o simulador {SIM_VERSION} ou mais novo (arquivos de versões anteriores também abrem). Os gráficos do Histórico recomeçam a partir do ponto carregado.
       </div>
     </Panel>
   );
@@ -368,13 +368,9 @@ function GraphicsPanel() {
             <span>Intensidade da cor: {Math.round(g.trailOpacity * 100)}%</span>
             <input type="range" min={20} max={100} step={5} value={Math.round(g.trailOpacity * 100)} onChange={(ev) => graphics.set({ trailOpacity: Number(ev.target.value) / 100 })} />
           </label>
-          <button className="btn sm" onClick={() => graphics.set(DEFAULT_TRAIL_STYLE)}>
-            Restaurar aparência da trajetória
-          </button>
+          <button className="btn sm" onClick={() => graphics.set(DEFAULT_TRAIL_STYLE)}>Restaurar aparência da trajetória</button>
         </div>
-        <div className="note">
-          Linha mais visível à distância, com espessura constante ao afastar a câmera. Ajustes salvos no navegador e enviados à segunda janela. Ative Trajetória no painel de Camadas para ver o caminho percorrido.
-        </div>
+        <div className="note">Linha mais visível à distância, com espessura constante ao afastar a câmera. Ajustes salvos no navegador e enviados à segunda janela. Ative Trajetória no painel de Camadas para ver o caminho percorrido.</div>
         <div className="row">
           <span className="subtle" style={{ minWidth: 120 }}>
             Cena e oceano
@@ -487,16 +483,7 @@ function GraphicsPanel() {
         <span className="subtle" style={{ minWidth: 120 }}>
           Navios adicionais
         </span>
-        <input
-          type="range"
-          min={0}
-          max={MAX_TRAFFIC}
-          step={1}
-          value={g.traffic}
-          onChange={(ev) => graphics.set({ traffic: Number(ev.target.value) })}
-          style={{ flex: 1, minWidth: 120 }}
-          aria-label="Quantidade de navios adicionais"
-        />
+        <input type="range" min={0} max={MAX_TRAFFIC} step={1} value={g.traffic} onChange={(ev) => graphics.set({ traffic: Number(ev.target.value) })} style={{ flex: 1, minWidth: 120 }} aria-label="Quantidade de navios adicionais" />
         <span className="mono" style={{ minWidth: 28, textAlign: 'right' }}>
           {g.traffic}
         </span>
@@ -520,12 +507,12 @@ function GraphicsPanel() {
         </label>
       </div>
       <div className="note">
-        Navios adicionais: tráfego fictício em volta da área do cenário (até {MAX_TRAFFIC}), além dos contatos fixos da mesa tática. Cada navio percorre um trecho em água com profundidade para o seu calado (segundo o
-        fundo e a costa simulados), longe da posição inicial do submarino e afastado dos trechos dos outros navios, para não se sobreporem. Aparecem também no mapa tático, com CPA. Só são desenhados até o alcance acima.
+        Navios adicionais: tráfego fictício em volta da área do cenário (até {MAX_TRAFFIC}), além dos contatos fixos da mesa tática. Cada navio percorre um trecho em água com profundidade para o seu calado (segundo o fundo e a
+        costa simulados), longe da posição inicial do submarino e afastado dos trechos dos outros navios, para não se sobreporem. Aparecem também no mapa tático, com CPA. Só são desenhados até o alcance acima.
       </div>
       <div className="note">
-        A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao
-        recarregar a página ela volta para o valor real.
+        A ampliação do trim multiplica só o ângulo de pitch <b>desenhado</b>, para demonstração (na superfície o trim real é de poucos centímetros). Enquanto ligada, todas as cenas mostram o aviso “TRIM AMPLIADO”; ao recarregar a
+        página ela volta para o valor real.
       </div>
       <div className="note">
         Iluminação: <b>Natural</b> escurece a água com a profundidade, como no mar (o casco escuro some no fundo escuro); <b>Clara</b> (padrão) clareia a água, acende uma luz suave junto à câmera e realça o contorno do
@@ -544,31 +531,21 @@ function MarineLifePanel() {
   return (
     <Panel title="Vida marinha e ambiente submarino" tag={<Kind k="visual" />}>
       <div className="col">
-        <label className="field">
-          <span>Movimento ambiente</span>
+        <label className="field"><span>Movimento ambiente</span>
           <select value={g.ambientMotion} onChange={(ev) => graphics.set({ ambientMotion: ev.target.value as typeof g.ambientMotion })}>
-            <option value="desligado">Desligado</option>
-            <option value="suave">Suave (padrão)</option>
-            <option value="moderado">Moderado</option>
+            <option value="desligado">Desligado</option><option value="suave">Suave (padrão)</option><option value="moderado">Moderado</option>
           </select>
         </label>
-        <label className="field">
-          <span>Direção da corrente visual: {g.currentDirection}°</span>
+        <label className="field"><span>Direção da corrente visual: {g.currentDirection}°</span>
           <input type="range" min={0} max={359} step={1} value={g.currentDirection} onChange={(ev) => graphics.set({ currentDirection: Number(ev.target.value) })} />
         </label>
         <div className="note">Rumo para onde a água segue: 0° Norte, 90° Leste. Só visual, sem forças sobre o submarino. Partículas, vegetação e sedimento acompanham o tempo simulado e param em pausa.</div>
-        <label className="field">
-          <span>Densidade do fundo</span>
+        <label className="field"><span>Densidade do fundo</span>
           <select value={g.bottomLifeDensity} onChange={(ev) => graphics.set({ bottomLifeDensity: ev.target.value as typeof g.bottomLifeDensity })}>
-            <option value="desligada">Desligada</option>
-            <option value="discreta">Discreta</option>
-            <option value="moderada">Moderada (padrão)</option>
-            <option value="abundante">Abundante</option>
+            <option value="desligada">Desligada</option><option value="discreta">Discreta</option><option value="moderada">Moderada (padrão)</option><option value="abundante">Abundante</option>
           </select>
         </label>
-        <div className="note">
-          Grupos de rochas e esponjas com áreas livres de areia. Vegetação apenas até 40 m, como aproximação de águas com luz. Objetos decorativos, sem colisão. As opções também valem para a segunda janela.
-        </div>
+        <div className="note">Grupos de rochas e esponjas com áreas livres de areia. Vegetação apenas até 40 m, como aproximação de águas com luz. Objetos decorativos, sem colisão. As opções também valem para a segunda janela.</div>
       </div>
       <label className="field">
         <span>Quantidade de peixes</span>
@@ -590,8 +567,8 @@ function MarineLifePanel() {
         </label>
       </div>
       <div className="note">
-        Peixes soltos e cardumes de peixes pequenos, com tamanhos, cores e trajetórias variados (mais cardumes em “Moderada” e “Abundante”). Os saltos aparecem em locais e intervalos aleatórios; pode levar um tempo até
-        ver um. As preferências ficam salvas e valem também para a segunda janela. A animação acompanha a pausa e a velocidade da simulação.
+        Peixes soltos e cardumes de peixes pequenos, com tamanhos, cores e trajetórias variados (mais cardumes em “Moderada” e “Abundante”). Os saltos aparecem em locais e intervalos aleatórios; pode levar um tempo até ver um.
+        As preferências ficam salvas e valem também para a segunda janela. A animação acompanha a pausa e a velocidade da simulação.
       </div>
     </Panel>
   );
@@ -622,7 +599,8 @@ function saveEnvDefault(d: EnvironmentConfig, part: 'agua' | 'fundo'): void {
   if (part === 'fundo') {
     base.environment.bottom = structuredClone(d.bottom);
     if (d.geo && base.environment.geo) base.environment.geo = { ...base.environment.geo, coast: d.geo.coast, shelfWidth: d.geo.shelfWidth };
-  } else for (const k of ['salinity', 'deepSalinity', 'surfaceTemperature', 'deepTemperature', 'thermoclineDepth', 'thermoclineThickness', 'magneticDeclination'] as const) base.environment[k] = d[k];
+  }
+  else for (const k of ['salinity', 'deepSalinity', 'surfaceTemperature', 'deepTemperature', 'thermoclineDepth', 'thermoclineThickness', 'magneticDeclination'] as const) base.environment[k] = d[k];
   storage.setConfig(base);
 }
 

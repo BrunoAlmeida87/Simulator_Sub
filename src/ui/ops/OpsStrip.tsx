@@ -15,9 +15,7 @@ export function OpsStrip({ e }: { e: SimulationEngine }) {
     ['PITCH', `${fmt(s.sensors.INSP.value, 1)}°`, `equil. ${fmt(o.staticPitchEq, 1)}°`, Math.abs(o.euler.pitch) > e.vessel.limits.maxPitch],
     ['BANDA', `${fmt(s.sensors.INSR.value, 1)}°`, undefined, Math.abs(o.euler.roll) > e.vessel.limits.maxRoll],
     ['BATERIA', `${fmt(s.electrical.soc * 100, 0)} %`, `${fmt(s.electrical.voltage, 0)} V`, s.electrical.soc < 0.25],
-    o.surfaced
-      ? ['RESERVA', `${fmt(o.reserveKg / 1000, 1)} t`, 'flutuabilidade']
-      : ['FLUTUAB.', `${fmt(o.netBuoyancyKg / 1000, 2)} t`, o.netBuoyancyKg > 0 ? 'leve' : o.netBuoyancyKg < 0 ? 'pesado' : 'neutro', Math.abs(o.netBuoyancyKg) > 2000],
+    o.surfaced ? ['RESERVA', `${fmt(o.reserveKg / 1000, 1)} t`, 'flutuabilidade'] : ['FLUTUAB.', `${fmt(o.netBuoyancyKg / 1000, 2)} t`, o.netBuoyancyKg > 0 ? 'leve' : o.netBuoyancyKg < 0 ? 'pesado' : 'neutro', Math.abs(o.netBuoyancyKg) > 2000],
   ];
   return (
     <div className="ops-strip">
@@ -25,13 +23,7 @@ export function OpsStrip({ e }: { e: SimulationEngine }) {
         <div key={k} className={`ops-tile ${warn ? 'warn' : ''}`}>
           <small>{k}</small>
           <b className={k === 'VELOCIDADE' ? 'speed-value' : undefined}>
-            {k === 'VELOCIDADE' ? (
-              <>
-                {v.split(' (')[0]} <span className="speed-equivalent">({v.split(' (')[1]}</span>
-              </>
-            ) : (
-              v
-            )}
+            {k === 'VELOCIDADE' ? <>{v.split(' (')[0]} <span className="speed-equivalent">({v.split(' (')[1]}</span></> : v}
           </b>
           {sub && <span>{sub}</span>}
         </div>
