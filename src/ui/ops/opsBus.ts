@@ -130,6 +130,13 @@ class OpsBus {
   focusSeq = 0;
   /** tanque destacado na cena (conexões realçadas) */
   highlight: string | null = null;
+  /** gaveta de sistemas da Operação aberta? (fechada = trilho com ícones e alertas); abre sozinha ao focar um sistema */
+  drawer: boolean = loadPersisted<boolean>('ops.sysOpen', false);
+  setDrawer(v: boolean): void {
+    this.drawer = v;
+    savePersisted('ops.sysOpen', v);
+    this.emit();
+  }
   private listeners = new Set<() => void>();
 
   subscribe(fn: () => void): () => void {
@@ -164,6 +171,10 @@ class OpsBus {
 
   focus(g: GroupId, target: PickTarget | null = null): void {
     if (g !== 'nav' && !this.isOpen(g)) this.st = { ...this.st, open: [g] };
+    if (g !== 'nav' && !this.drawer) {
+      this.drawer = true;
+      savePersisted('ops.sysOpen', true);
+    }
     this.focusGroup = g;
     this.focusTarget = target;
     this.focusSeq++;

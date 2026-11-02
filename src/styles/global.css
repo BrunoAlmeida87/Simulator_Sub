@@ -507,7 +507,7 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
    indicadores (topo) · cena 3D (sobra) · console inferior fixo | painel lateral com rolagem própria e emergência fixa */
 .ops { --ops-side: 400px; display: grid; grid-template-columns: minmax(0, 1fr) var(--ops-side); gap: 8px; height: calc(100vh - var(--topbar-h, 52px) - var(--nav-h, 34px) - 24px); min-height: 440px; }
 @media (min-width: 1600px) { .ops { --ops-side: 460px; } }
-.ops-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; min-width: 0; min-height: 0; }
+.ops-main { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; min-width: 0; min-height: 0; }
 .ops-view { min-height: 0; position: relative; }
 /* alarme P1/P2 ativo: moldura da cena na cor do alarme (não cobre os cliques) */
 .ops-view.alarm-on::after { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; border: 3px solid var(--alarm); border-radius: var(--radius); }
@@ -1615,3 +1615,61 @@ kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radiu
 .stage-ctl { position: fixed; top: 8px; right: 10px; z-index: 70; display: flex; gap: 8px; align-items: center; max-width: calc(100% - 20px); }
 .stage-ctl > .btn { background: rgba(10, 22, 34, 0.92); }
 .stage-ctl .alarmband { background-color: #2a1013; }
+
+/* ---------- Operação em COCKPIT (ops/CockpitHud.tsx): instrumentos sobre a cena ---------- */
+.ck-top { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none; }
+.ck-heading { display: block; max-width: 46vw; height: auto; }
+.ck-heading .ck-bg { fill: rgba(5, 12, 20, 0.78); stroke: #2c4260; }
+.ck-heading .ck-tick { stroke: #8fa6bf; stroke-width: 1.2; }
+.ck-heading .ck-lbl { fill: #c9d6e3; font: 600 11px var(--mono); }
+.ck-heading .ck-lbl.card { fill: var(--accent); }
+.ck-heading .ck-center { stroke: #fff; stroke-width: 2; }
+.ck-heading .ck-val-bg { fill: #0a121b; stroke: var(--accent); }
+.ck-heading .ck-val { fill: #f3f7fb; font: 700 13px var(--mono); }
+.ck-heading .ck-bug { fill: var(--cmd); }
+.ck-heading .ck-bug-txt { fill: var(--cmd); font: 600 11px var(--mono); }
+.ck-right { position: absolute; right: 10px; top: 44px; z-index: 3; display: flex; flex-direction: column; gap: 5px; width: 136px; pointer-events: none; }
+.ck-tile { background: rgba(5, 12, 20, 0.8); border: 1px solid #2c4260; border-radius: 6px; padding: 4px 8px; display: flex; flex-direction: column; line-height: 1.15; }
+.ck-tile small { font-size: 10.5px; letter-spacing: 0.06em; color: #a9bdd2; }
+.ck-tile b { font: 700 16px var(--mono); color: #f3f7fb; white-space: nowrap; }
+.ck-tile span { font-size: 10.5px; color: #8da3ba; white-space: nowrap; }
+.ck-tile.warn { border-color: var(--warn); }
+.ck-tile.warn small, .ck-tile.warn b { color: var(--warn); }
+@media (max-height: 820px) { .ck-tile span { display: none; } .ck-tile b { font-size: 14.5px; } }
+/* gaveta de sistemas recolhida: trilho com ícones e alertas */
+.ops-side.rail { padding: 6px 4px; align-items: center; gap: 6px; overflow-y: auto; }
+.rail-open { writing-mode: vertical-rl; transform: rotate(180deg); font: 600 12px var(--sans); letter-spacing: 0.06em; color: #cfe3f5; background: #132235; border: 1px solid #2c4260; border-radius: 6px; padding: 10px 4px; cursor: pointer; }
+.rail-open:hover { background: #1a2e45; border-color: var(--accent); }
+.rail-g { position: relative; width: 36px; height: 36px; flex: none; display: grid; place-items: center; font-size: 16px; border-radius: 7px; cursor: pointer; background: color-mix(in srgb, var(--gc) 12%, #0b131c); border: 1px solid color-mix(in srgb, var(--gc) 40%, transparent); }
+.rail-g:hover { background: color-mix(in srgb, var(--gc) 26%, #0b131c); }
+.rail-g.warn { border-color: var(--warn); }
+.rail-g.alarm { border-color: var(--alarm); box-shadow: inset 0 0 0 1px var(--alarm); }
+.rail-dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--warn); border: 2px solid #0a121b; }
+.rail-g.alarm .rail-dot { background: var(--alarm); }
+/* console com o sopro de emergência como 5º cartão */
+.ops-console:not(.compact) { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr) minmax(0, 1.15fr) minmax(0, 0.6fr) minmax(0, 0.8fr); }
+.ops-console > .ops-emer { align-self: stretch; align-content: center; }
+.ops-compact-row { display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+.ops-compact-row > .ops-console.compact { flex: 1; min-width: 0; }
+.ops-compact-row > .ops-emer { flex: none; max-width: 360px; }
+@media (max-width: 1100px) {
+  .ops.sys-closed { grid-template-columns: 1fr; }
+  .ops-side.rail { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; }
+  .rail-open { writing-mode: horizontal-tb; transform: none; padding: 6px 10px; }
+  .ck-top { top: 44px; }
+  .ck-right { width: 118px; }
+  .ops-console:not(.compact) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* sopro de emergência no console: título em cima, botão embaixo (cabe em 1366) */
+.ops-console > .ops-emer { grid-template-columns: minmax(0, 1fr); }
+.ops-console > .ops-emer > button { grid-column: 1; grid-row: auto; justify-self: start; }
+@media (max-width: 760px) {
+  /* celular: instrumentos numa faixa embaixo da cena (a régua de profundidade fica à esquerda) */
+  .ck-right { top: auto; bottom: 8px; left: 108px; right: 8px; width: auto; flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .ck-tile { flex: 1 1 calc(33% - 4px); padding: 2px 6px; }
+  .ck-tile span { display: none; }
+  .ck-tile small { font-size: 9.5px; }
+  .ck-tile b { font-size: 13px; }
+  .ck-top { top: 50px; }
+  .ops-console:not(.compact) { grid-template-columns: minmax(0, 1fr); }
+}

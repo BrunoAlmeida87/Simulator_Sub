@@ -13,6 +13,7 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import type { CommandRecord } from '../../sim/core/state';
 import { TELEGRAPH } from '../components/Controls';
 import { PlaneLever } from '../components/PlaneLever';
+import { EmergencyBox } from '../components/EmergencyBlow';
 import { maneuver } from '../maneuvers';
 import { route } from '../routeNav';
 import { fmt } from '../format';
@@ -325,6 +326,8 @@ export function OpsConsole({ e }: { e: SimulationEngine }) {
       <GovCard e={e} />
       <ApCard e={e} />
       <ManCard />
+      {/* sopro de emergência sempre à mão, no console (a gaveta de sistemas pode estar recolhida) */}
+      <EmergencyBox e={e} />
     </div>
   );
 }
@@ -505,4 +508,4 @@ export function TakeoverToast({ e }: { e: SimulationEngine }) {
 }
 
 // sopro de emergência: componente comum a todas as telas (components/EmergencyBlow.tsx)
-export { EmergencyBox } from '../components/EmergencyBlow';
+export { EmergencyBox };
