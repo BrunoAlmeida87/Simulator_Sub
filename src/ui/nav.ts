@@ -38,6 +38,15 @@ export type ScreenId = (typeof SCREEN_IDS)[number];
 
 export type NavGroupId = 'operacao' | 'sistemas' | 'apresentacao' | 'analise' | 'ajustes' | 'sala';
 
+/** modo de uma tela: outra tela que aparece como aba pequena ao lado dela (só quando ela está aberta) */
+export interface NavMode {
+  id: ScreenId;
+  label: string;
+  /** tecla de atalho (0–8) */
+  key?: string;
+  hint: string;
+}
+
 export interface NavScreen {
   id: ScreenId;
   label: string;
@@ -45,6 +54,10 @@ export interface NavScreen {
   key?: string;
   /** dica (title) */
   hint: string;
+  /** rótulo desta própria tela entre os modos (ex.: “Cockpit”) */
+  modeLabel?: string;
+  /** outras telas que são MODOS desta (ex.: Operação → Instrumentos, Posto de governo) */
+  modes?: NavMode[];
 }
 
 export interface NavGroup {
@@ -63,9 +76,17 @@ export const NAV_GROUPS: NavGroup[] = [
     short: 'Operação',
     hint: 'Pilotar o submarino: central de operação, instrumentos, governo e mapa',
     screens: [
-      { id: 'pilotagem', key: '0', label: 'Operação', hint: 'Central de operação: cena 3D, console de governo e todos os sistemas em grupos' },
-      { id: 'comando', key: '1', label: 'Central de comando', hint: 'Instrumentos: profundidade, rumo, atitude, velocidade, lemes, telégrafo e piloto automático' },
-      { id: 'governo', label: 'Governo', hint: 'Painel de governo: manche, alavancas, telégrafo e piloto' },
+      {
+        id: 'pilotagem',
+        key: '0',
+        label: 'Operação',
+        modeLabel: 'Cockpit',
+        hint: 'Cockpit: cena 3D com os instrumentos por cima, console de governo e gaveta de sistemas',
+        modes: [
+          { id: 'comando', key: '1', label: 'Instrumentos', hint: 'Instrumentos: profundidade, rumo, atitude, velocidade, lemes, telégrafo e piloto automático' },
+          { id: 'governo', label: 'Posto de governo', hint: 'Painel de governo: manche, alavancas, telégrafo e piloto' },
+        ],
+      },
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
       { id: 'sonar', label: 'Sonar', hint: 'Estação visual: TMA interativo, cascata, escuta e pulso 3D' },
       { id: 'armas', label: 'Armas', hint: 'Sala de torpedos: lançamento automático ou passo a passo, tubo em 3D, submarino inimigo, torpedo de combate e míssil SM39 (Exocet) contra fragata ou alvo em terra' },
@@ -77,13 +98,24 @@ export const NAV_GROUPS: NavGroup[] = [
     short: 'Sistemas',
     hint: 'Visão geral dos sistemas e telas de detalhe: lastro, trim, propulsão, energia, segurança',
     screens: [
-      { id: 'sistemas', label: 'Visão geral', hint: 'Cartões com o estado de cada sistema e atalhos para as telas de detalhe' },
+      {
+        id: 'sistemas',
+        label: 'Visão geral',
+        modeLabel: 'Estado',
+        hint: 'Cartões com o estado de cada sistema e atalhos para as telas de detalhe',
+        modes: [{ id: 'auxiliares', label: 'Arquitetura', hint: 'Ar comprimido, hidráulica, elétrica e compartimentos: arquitetura e estado' }],
+      },
       { id: 'lastro', key: '2', label: 'Lastro e compensação', hint: 'TLP, garrafas de ar AP, coletor e circuito de compensação' },
       { id: 'trim', key: '3', label: 'Trim e banda', hint: 'Distribuição de massas, G e B, transferências de trim e banda' },
-      { id: 'propulsao', key: '4', label: 'Propulsão e energia', hint: 'Linha de eixo, hélice, bateria, cargas, diesel-geradores e snorkel' },
-      { id: 'energia', label: 'Fluxo de energia', hint: 'Balanço elétrico como diagrama de fluxo' },
+      {
+        id: 'propulsao',
+        key: '4',
+        label: 'Propulsão e energia',
+        modeLabel: 'Linha de eixo',
+        hint: 'Linha de eixo, hélice, bateria, cargas, diesel-geradores e snorkel',
+        modes: [{ id: 'energia', label: 'Fluxo de energia', hint: 'Balanço elétrico como diagrama de fluxo' }],
+      },
       { id: 'seguranca', key: '5', label: 'Segurança', hint: 'Alarmes, registro, sensores redundantes e injeção de falhas' },
-      { id: 'auxiliares', label: 'Sistemas auxiliares', hint: 'Ar comprimido, hidráulica, elétrica e compartimentos: arquitetura e estado' },
     ],
   },
   {
@@ -92,11 +124,21 @@ export const NAV_GROUPS: NavGroup[] = [
     short: 'Apresentar',
     hint: 'Conduzir demonstrações: modo apresentação, estúdio de apresentações, cena 3D e biblioteca de cenários',
     screens: [
-      { id: 'apresentacao', label: 'Apresentação', hint: 'Cena, tanques, forças e indicadores juntos, com situações de aula e câmera lenta' },
+      {
+        id: 'apresentacao',
+        label: 'Apresentação',
+        modeLabel: 'Situações',
+        hint: 'Cena, tanques, forças e indicadores juntos, com situações de aula e câmera lenta',
+        modes: [{ id: 'v3d', key: '6', label: 'Cena livre', hint: 'Câmeras, corte com os tanques, vetores de força e camadas' }],
+      },
       { id: 'estudio', label: 'Estúdio', hint: 'Criar e apresentar as suas apresentações, etapa por etapa: texto, visualização, ações e gatilhos para avançar' },
-      { id: 'modelos', label: 'Modelos 3D', hint: 'Galeria dos modelos Blender: frota completa ou rebocadores separados' },
-      { id: 'v3d', key: '6', label: 'Visualização 3D', hint: 'Câmeras, corte com os tanques, vetores de força e camadas' },
-      { id: 'cenarios', label: 'Cenários', hint: 'Biblioteca: condições iniciais, situações de aula e roteiros automáticos' },
+      {
+        id: 'cenarios',
+        label: 'Cenários',
+        modeLabel: 'Biblioteca',
+        hint: 'Biblioteca: condições iniciais, situações de aula e roteiros automáticos',
+        modes: [{ id: 'modelos', label: 'Galeria 3D', hint: 'Galeria dos modelos Blender: frota completa ou rebocadores separados' }],
+      },
     ],
   },
   {
@@ -105,8 +147,14 @@ export const NAV_GROUPS: NavGroup[] = [
     short: 'Análise',
     hint: 'Gráficos do histórico e testes de validação da física',
     screens: [
-      { id: 'historico', key: '7', label: 'Histórico', hint: 'Gráficos sincronizados, marcas dos comandos, antes × depois e CSV' },
-      { id: 'validacao', label: 'Validação', hint: 'Testes de validação física executados no navegador' },
+      {
+        id: 'historico',
+        key: '7',
+        label: 'Histórico',
+        modeLabel: 'Gráficos',
+        hint: 'Gráficos sincronizados, marcas dos comandos, antes × depois e CSV',
+        modes: [{ id: 'validacao', label: 'Validação', hint: 'Testes de validação física executados no navegador' }],
+      },
     ],
   },
   {
@@ -129,31 +177,49 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 const GROUP_OF = new Map<ScreenId, NavGroup>();
-const SCREEN_OF = new Map<ScreenId, NavScreen>();
+const SCREEN_OF = new Map<ScreenId, NavScreen | NavMode>();
+/** modo → tela principal de que ele faz parte */
+const PRIMARY_OF = new Map<ScreenId, NavScreen>();
 for (const g of NAV_GROUPS)
   for (const s of g.screens) {
     GROUP_OF.set(s.id, g);
     SCREEN_OF.set(s.id, s);
+    PRIMARY_OF.set(s.id, s);
+    for (const m of s.modes ?? []) {
+      GROUP_OF.set(m.id, g);
+      SCREEN_OF.set(m.id, m);
+      PRIMARY_OF.set(m.id, s);
+    }
   }
 
 export const isScreenId = (x: unknown): x is ScreenId => typeof x === 'string' && SCREEN_OF.has(x as ScreenId);
 
-/** grupo a que pertence uma tela */
+/** grupo a que pertence uma tela (ou um modo) */
 export const groupOf = (s: ScreenId): NavGroup => GROUP_OF.get(s) ?? NAV_GROUPS[0];
 
-/** rótulo de uma tela (sem o ⚙ decorativo) */
-export const screenLabel = (s: ScreenId): string => (SCREEN_OF.get(s)?.label ?? s).replace(/^⚙\s*/, '');
+/** tela principal (item da navegação) de uma tela ou modo */
+export const primaryOf = (s: ScreenId): NavScreen => PRIMARY_OF.get(s) ?? NAV_GROUPS[0].screens[0];
+
+/** todas as telas de um item da navegação: ela mesma e os seus modos */
+export const viewsOf = (s: NavScreen): ScreenId[] => [s.id, ...(s.modes ?? []).map((m) => m.id)];
+
+/** rótulo de uma tela (sem o ⚙ decorativo); um modo leva o nome da tela principal na frente */
+export const screenLabel = (s: ScreenId): string => {
+  const p = PRIMARY_OF.get(s);
+  const own = (SCREEN_OF.get(s)?.label ?? s).replace(/^⚙\s*/, '');
+  return p && p.id !== s ? `${p.label.replace(/^⚙\s*/, '')} · ${own}` : own;
+};
 
 /** tela aberta por uma tecla 0–8 (as mesmas de antes da reorganização) */
 export function screenForKey(k: string): ScreenId | null {
-  for (const g of NAV_GROUPS) for (const s of g.screens) if (s.key === k) return s.id;
+  for (const g of NAV_GROUPS) for (const s of g.screens) for (const v of [s, ...(s.modes ?? [])]) if (v.key === k) return v.id;
   return null;
 }
 
-/** tela a abrir ao clicar num grupo: a última usada nele, senão a primeira */
+/** tela a abrir ao clicar num grupo: a última usada nele (tela ou modo), senão a primeira */
 export function groupTarget(g: NavGroup, last: Partial<Record<NavGroupId, string>>): ScreenId {
   const l = last[g.id];
-  return l && g.screens.some((s) => s.id === l) ? (l as ScreenId) : g.screens[0].id;
+  return l && g.screens.some((s) => viewsOf(s).includes(l as ScreenId)) ? (l as ScreenId) : g.screens[0].id;
 }
 
 /** sistema do alarme → tela onde ele é tratado (marca discreta na navegação) */
@@ -195,7 +261,18 @@ export function alarmMarks(alarms: { def: { system: string; priority: number }; 
 export function groupMark(g: NavGroup, marks: Map<ScreenId, NavMark>): NavMark | undefined {
   let m: NavMark | undefined;
   for (const s of g.screens) {
-    const x = marks.get(s.id);
+    const x = screenMark(s, marks);
+    if (x === 'alarm') return 'alarm';
+    if (x) m = x;
+  }
+  return m;
+}
+
+/** pior marca de um item da navegação (a tela e os seus modos) */
+export function screenMark(s: NavScreen, marks: Map<ScreenId, NavMark>): NavMark | undefined {
+  let m: NavMark | undefined;
+  for (const id of viewsOf(s)) {
+    const x = marks.get(id);
     if (x === 'alarm') return 'alarm';
     if (x) m = x;
   }

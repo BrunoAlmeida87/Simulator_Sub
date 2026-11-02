@@ -5,11 +5,11 @@
  * divisórias entre os grupos e entre as telas, para identificar de relance.
  * Celular: uma linha só (grupo ▾ + telas do grupo); o ▾ abre o mapa de todas as telas.
  */
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { useSim } from '../store';
 import { visibleAlarms } from '../../sim/systems/alarms';
 import { usePersisted } from '../persist';
-import { NAV_GROUPS, alarmMarks, groupMark, groupOf, groupTarget, type NavGroup, type NavGroupId, type NavMark, type ScreenId } from '../nav';
+import { NAV_GROUPS, alarmMarks, groupMark, groupOf, groupTarget, screenMark, viewsOf, type NavGroup, type NavGroupId, type NavMark, type ScreenId } from '../nav';
 
 const ICON_PATHS: Record<NavGroupId, string[]> = {
   // timão
@@ -121,14 +121,31 @@ export function NavBar({ screen, setScreen, navRef }: { screen: ScreenId; setScr
           </span>
         </button>
         <div className="nav2-row" ref={rowRef}>
-          {cur.screens.map((s) => (
-            <button key={s.id} className={screen === s.id ? 'active' : ''} aria-current={screen === s.id ? 'page' : undefined} onClick={() => setScreen(s.id)} title={`${s.hint}${s.key ? ` (tecla ${s.key})` : ''}`}>
-              {s.key && <span className="n">{s.key}</span>}
-              {s.label}
-              <Dot m={marks.get(s.id)} />
-            </button>
-          ))}
-          {cur.screens.length === 1 && <span className="nav2-hint">{cur.hint}</span>}
+          {cur.screens.map((s) => {
+            const on = viewsOf(s).includes(screen);
+            return (
+              <Fragment key={s.id}>
+                <button className={on ? 'active' : ''} aria-current={screen === s.id ? 'page' : on ? 'true' : undefined} onClick={() => setScreen(s.id)} title={`${s.hint}${s.key ? ` (tecla ${s.key})` : ''}`}>
+                  {s.key && <span className="n">{s.key}</span>}
+                  {s.label}
+                  <Dot m={screenMark(s, marks)} />
+                </button>
+                {/* modos da tela ativa: abas pequenas ao lado dela (ex.: Operação → Cockpit · Instrumentos · Posto de governo) */}
+                {on && s.modes && (
+                  <span className="nav2-modes" role="group" aria-label={`Modos de ${s.label}`}>
+                    {[{ id: s.id, label: s.modeLabel ?? s.label, key: undefined as string | undefined, hint: s.hint }, ...s.modes].map((m) => (
+                      <button key={m.id} className={screen === m.id ? 'on' : ''} aria-current={screen === m.id ? 'page' : undefined} onClick={() => setScreen(m.id)} title={`${m.hint}${m.key ? ` (tecla ${m.key})` : ''}`}>
+                        {m.key && <span className="n">{m.key}</span>}
+                        {m.label}
+                        <Dot m={marks.get(m.id)} />
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </Fragment>
+            );
+          })}
+          {cur.screens.length === 1 && !cur.screens[0].modes && <span className="nav2-hint">{cur.hint}</span>}
         </div>
         <span className="nav2-keys" title="Teclas 0–8: telas numeradas · Espaço: executar/pausar · I: modo engenharia">
           teclas 0–8
@@ -146,21 +163,23 @@ export function NavBar({ screen, setScreen, navRef }: { screen: ScreenId; setScr
                   <Dot m={groupMark(g, marks)} />
                 </h4>
                 <div className="items">
-                  {g.screens.map((s) => (
-                    <button
-                      key={s.id}
-                      className={screen === s.id ? 'active' : ''}
-                      aria-current={screen === s.id ? 'page' : undefined}
-                      onClick={() => {
-                        setScreen(s.id);
-                        setMenu(false);
-                      }}
-                    >
-                      {s.key && <span className="n">{s.key}</span>}
-                      {s.label}
-                      <Dot m={marks.get(s.id)} />
-                    </button>
-                  ))}
+                  {g.screens.flatMap((s) =>
+                    [{ id: s.id, label: s.label, key: s.key, mode: false }, ...(s.modes ?? []).map((m) => ({ id: m.id, label: m.label, key: m.key, mode: true }))].map((v) => (
+                      <button
+                        key={v.id}
+                        className={`${screen === v.id ? 'active' : ''} ${v.mode ? 'mode' : ''}`}
+                        aria-current={screen === v.id ? 'page' : undefined}
+                        onClick={() => {
+                          setScreen(v.id);
+                          setMenu(false);
+                        }}
+                      >
+                        {v.key && <span className="n">{v.key}</span>}
+                        {v.mode ? `↳ ${v.label}` : v.label}
+                        <Dot m={marks.get(v.id)} />
+                      </button>
+                    )),
+                  )}
                 </div>
               </section>
             ))}

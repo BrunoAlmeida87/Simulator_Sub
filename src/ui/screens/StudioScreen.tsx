@@ -30,7 +30,7 @@ import { serializeEngine, deserializeEngine } from '../../sim/persistence';
 import { applyCommand, withCommandSource } from '../../sim/commands';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { SceneLayers } from '../../render3d/layers';
-import { NAV_GROUPS } from '../nav';
+import { NAV_GROUPS, screenLabel, viewsOf } from '../nav';
 import { baseConfig } from '../store';
 import { RichText, PresCardView, PresHudView, hudSide } from '../components/PresCard';
 import { isPanelWindow } from '../sync';
@@ -68,7 +68,8 @@ const SETTINGS = '__config';
 
 const SCREEN_OPTIONS: [StepScreen, string][] = [
   ['palco', 'Palco do Estúdio (cena 3D com o cartão)'],
-  ...NAV_GROUPS.flatMap((g) => g.screens.filter((s) => s.id !== 'estudio').map((s) => [s.id, `${g.label} › ${s.label.replace(/^⚙\s*/, '')}`] as [StepScreen, string])),
+  // telas e os seus modos (ex.: Operação › Instrumentos), na ordem da navegação
+  ...NAV_GROUPS.flatMap((g) => g.screens.flatMap((s) => viewsOf(s)).filter((id) => id !== 'estudio').map((id) => [id, `${g.label} › ${screenLabel(id)}`] as [StepScreen, string])),
 ];
 
 const RUN_OPTIONS: [RunMode, string, string][] = [

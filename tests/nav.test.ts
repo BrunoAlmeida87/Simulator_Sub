@@ -1,12 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { NAV_GROUPS, SCREEN_IDS, alarmMarks, groupMark, groupOf, groupTarget, isScreenId, screenForKey } from '../src/ui/nav';
+import { NAV_GROUPS, SCREEN_IDS, alarmMarks, groupMark, groupOf, groupTarget, isScreenId, primaryOf, screenForKey, screenLabel } from '../src/ui/nav';
 
 describe('navegação em dois níveis (grupos → telas)', () => {
-  const all = NAV_GROUPS.flatMap((g) => g.screens.map((s) => s.id));
+  // cada tela aparece uma vez: como item da navegação ou como modo de um item
+  const all = NAV_GROUPS.flatMap((g) => g.screens.flatMap((s) => [s.id, ...(s.modes ?? []).map((m) => m.id)]));
 
   it('toda tela aparece exatamente uma vez', () => {
     for (const id of SCREEN_IDS) expect(all.filter((x) => x === id).length, id).toBe(1);
     expect(all.length).toBe(SCREEN_IDS.length);
+  });
+
+  it('menos itens na navegação: telas parecidas viram modos de uma tela só', () => {
+    const items = NAV_GROUPS.flatMap((g) => g.screens);
+    expect(items.length).toBeLessThanOrEqual(16);
+    expect(primaryOf('comando').id).toBe('pilotagem');
+    expect(primaryOf('governo').id).toBe('pilotagem');
+    expect(primaryOf('energia').id).toBe('propulsao');
+    expect(groupOf('validacao').id).toBe('analise');
+    expect(groupOf('comando').id).toBe('operacao');
+    expect(screenLabel('comando')).toBe('Operação · Instrumentos');
+    expect(groupTarget(groupOf('comando'), { operacao: 'governo' })).toBe('governo');
   });
 
   it('Sala de comando é a última (último item do último grupo)', () => {
