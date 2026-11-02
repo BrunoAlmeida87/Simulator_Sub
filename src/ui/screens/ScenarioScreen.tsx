@@ -10,6 +10,7 @@ import { TourList } from '../components/TourCard';
 import { SCENARIOS, LOAD_LABELS, buildScenario, type LoadCondition } from '../../sim/scenarios';
 import { pres, PRESETS } from '../presentation';
 import { useUi } from '../uiContext';
+import { replaceUndo } from '../undo';
 import { usePersisted } from '../persist';
 import { presLibrary } from '../presBuilder/library';
 import { presPlayer } from '../presBuilder/player';
@@ -48,17 +49,20 @@ export function ScenarioScreen() {
   const coast = useMemo(() => Object.fromEntries(SCENARIOS.map((s) => [s.id, coastOf(s.id)])), []);
   const scenarioName = (id: string) => SCENARIOS.find((s) => s.id === id)?.name ?? id;
 
+  // a simulação anterior fica guardada para “Desfazer” (undo.ts); sem nada a perder, a mensagem é a de sempre
   const start = (id: string) => {
-    runner.running = false;
-    runner.replaceEngine(buildScenario(id, baseConfig(), { load, precompensated: pre }));
-    ui.toast(`Cenário carregado (pausado). Pressione ▶ para iniciar.`);
+    const offered = replaceUndo.run('Cenário carregado', () => {
+      runner.running = false;
+      runner.replaceEngine(buildScenario(id, baseConfig(), { load, precompensated: pre }));
+    });
+    if (!offered) ui.toast(`Cenário carregado (pausado). Pressione ▶ para iniciar.`);
     ui.setScreen('comando');
   };
   const openSituation = (id: string) => {
     const p = PRESETS.find((x) => x.id === id);
     if (!p) return;
-    pres.prepare(runner, p);
-    ui.toast(`Situação de aula preparada (pausado). Pressione ▶ Executar.`);
+    const offered = replaceUndo.run('Situação de aula preparada', () => pres.prepare(runner, p));
+    if (!offered) ui.toast(`Situação de aula preparada (pausado). Pressione ▶ Executar.`);
     ui.setScreen('apresentacao');
   };
   return (

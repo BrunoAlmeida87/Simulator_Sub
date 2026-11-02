@@ -1,6 +1,7 @@
 /** Aplicação: barra superior, navegação em dois níveis (grupos → telas, ver nav.ts) e modo engenharia. */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { UiContext, useUi, type ScreenId } from './uiContext';
+import { UiContext, useUi, type ScreenId, type ToastOptions } from './uiContext';
+import { replaceUndo, UNDO_MS } from './undo';
 import { baseConfig, cmd, runner, useSim } from './store';
 import { buildScenario } from '../sim/scenarios';
 import { visibleAlarms, PRIORITY_LABEL } from '../sim/systems/alarms';
@@ -48,6 +49,7 @@ import { StudioScreen } from './screens/StudioScreen';
 import { PresFloating } from './components/PresFloating';
 import { presPlayer } from './presBuilder/player';
 import { isScreenId, screenForKey, screenLabel } from './nav';
+import { BUTTON_SELECTOR, classifyFocus, focusFromKeyboard, installFocusTracking, shortcutAction } from './keyFocus';
 
 function ScenarioPicker({ current }: { current: string }) {
   const [sel, setSel] = useState(current);
@@ -61,7 +63,7 @@ function ScenarioPicker({ current }: { current: string }) {
           </option>
         ))}
       </select>
-      <button className="btn" onClick={() => loadScenario(sel)} title="Carrega o cenário (pausado)">
+      <button className="btn" onClick={() => loadScenario(sel)} title="Carrega o cenário (pausado). Por 10 s é possível desfazer.">
         Carregar
       </button>
     </span>
@@ -95,18 +97,6 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
         <button className="btn ph-more" disabled={runner.running} onClick={() => runner.stepOnce(50)} title="Avançar 1 s">
           +1 s
         </button>
-        <button
-          className="btn warn ph-more"
-          onClick={() => {
-            demo.stop(runner);
-            maneuver.cancel(runner);
-            runner.running = false;
-            runner.replaceEngine(buildScenario(s.scenarioId, baseConfig()));
-          }}
-          title="Reiniciar o cenário atual"
-        >
-          ↺ Reiniciar
-        </button>
         <span className="ph-wrap ph-more">
           <SimSpeedButtons />
         </span>
@@ -117,6 +107,21 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
         <span className="ph-wrap ph-more">
           <ScenarioPicker current={s.scenarioId} />
         </span>
+        {/* junto do cenário (longe de +1 passo/+1 s); a simulação anterior fica guardada para “Desfazer” */}
+        <button
+          className="btn warn ph-more"
+          onClick={() =>
+            replaceUndo.run('Cenário reiniciado', () => {
+              demo.stop(runner);
+              maneuver.cancel(runner);
+              runner.running = false;
+              runner.replaceEngine(buildScenario(s.scenarioId, baseConfig()));
+            })
+          }
+          title="Reiniciar o cenário atual (pausado). Por 10 s é possível desfazer."
+        >
+          ↺ Reiniciar
+        </button>
         <RecIndicator />
         {isPanelWindow ? (
           <>
@@ -210,8 +215,10 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
                 className="btn sm"
                 onClick={(ev) => {
                   ev.stopPropagation();
-                  cmd({ type: 'ack', id: 'ALL' });
+                  // só o alarme exibido; os demais continuam aguardando leitura (Operação › Alarmes, Segurança)
+                  cmd({ type: 'ack', id: top.def.id });
                 }}
+                title={unack.length > 1 ? `Reconhece este alarme. Os outros ${unack.length - 1} ficam na lista de alarmes (Operação › Alarmes ou Segurança).` : 'Reconhece este alarme'}
               >
                 Reconhecer
               </button>
@@ -257,18 +264,36 @@ export function App() {
   });
   const [eng, setEngState] = useState<boolean>(prefs.eng);
   const [inspect, setInspect] = useState<string | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ msg: string; action?: ToastOptions['action'] } | null>(null);
   const [showProcedure, setShowProcedure] = useState(false);
   const [resume, setResume] = useState(() => (isPanelWindow ? null : storage.getAutosave()));
   const topRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<number>(0);
 
-  const toast = (m: string) => {
-    setToastMsg(m);
+  const toast = (m: string, opts: ToastOptions = {}) => {
+    setToastMsg({ msg: m, action: opts.action });
     window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToastMsg(null), 3500);
+    toastTimer.current = window.setTimeout(() => setToastMsg(null), opts.ms ?? 3500);
   };
+
+  // troca da simulação inteira (reiniciar, carregar cenário…): mensagem com “Desfazer” (undo.ts)
+  useEffect(() => {
+    replaceUndo.onOffer = (o) =>
+      toast(`${o.label} (pausado). A simulação anterior foi guardada.`, {
+        ms: UNDO_MS,
+        action: {
+          label: '↶ Desfazer',
+          run: () => {
+            if (replaceUndo.undo()) toast('Simulação anterior restaurada (pausada). Pressione ▶ para continuar.');
+            else toast('Não há mais o que desfazer (o prazo de 10 s passou).');
+          },
+        },
+      });
+    return () => {
+      replaceUndo.onOffer = null;
+    };
+  }, []);
   const setEng = (v: boolean) => {
     setEngState(v);
     if (v) toast('Modo engenharia: clique em tanques, válvulas, bombas, lemes ou instrumentos.');
@@ -339,12 +364,18 @@ export function App() {
     return () => window.clearInterval(id);
   }, []);
 
-  // atalhos de teclado
+  // atalhos de teclado (valem também depois de um clique num botão; ver keyFocus.ts)
+  useEffect(() => installFocusTracking(), []);
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       const t = ev.target as HTMLElement;
-      if (screen === 'modelos' || (t && t.closest('button'))) return;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+      if (screen === 'modelos') return;
+      const focus = classifyFocus(t, focusFromKeyboard());
+      if (shortcutAction(focus, ev.key) === 'nativo') return;
+      // botão focado por clique: perde o foco antes de Espaço, senão o navegador repete o último clique
+      const releaseButton = () => {
+        if (focus === 'botao-mouse') (t.closest(BUTTON_SELECTOR) as HTMLElement | null)?.blur();
+      };
       const s = runner.engine.state;
       const k = ev.key.toLowerCase();
       // apresentação do Estúdio: → / Page Down próxima, ← / Page Up anterior, Espaço pausa (controles remotos de slides)
@@ -362,6 +393,7 @@ export function App() {
         }
         if (k === ' ') {
           ev.preventDefault();
+          releaseButton();
           presPlayer.pause(runner);
           return;
         }
@@ -370,6 +402,7 @@ export function App() {
       if (screen === 'sala' && 'wasdqe'.includes(k) && k.length === 1) return;
       if (k === ' ') {
         ev.preventDefault();
+        releaseButton();
         runner.running = !runner.running;
         runner.notify();
       } else if (k === 'a' || k === 'd') cmd({ type: 'surface', id: 'rudder', angle: s.surfaces.rudder.cmd + (k === 'd' ? 5 : -5) });
@@ -468,7 +501,23 @@ export function App() {
         )}
         {screen !== 'estudio' && <PresFloating onStage={() => setScreen('estudio')} />}
         {isPanelWindow && <PanelWait />}
-        {toastMsg && <div className="toast">{toastMsg}</div>}
+        {toastMsg && (
+          <div className="toast" role="status">
+            <span>{toastMsg.msg}</span>
+            {toastMsg.action && (
+              <button
+                className="btn sm"
+                onClick={() => {
+                  const a = toastMsg.action!;
+                  setToastMsg(null);
+                  a.run();
+                }}
+              >
+                {toastMsg.action.label}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </UiContext.Provider>
   );

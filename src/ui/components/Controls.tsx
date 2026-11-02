@@ -9,6 +9,7 @@ import { AngleBar } from './gauges';
 import { fmt } from '../format';
 import { KindTag } from './Readout';
 import { useInspectable } from '../uiContext';
+import { EmergencyBox } from './EmergencyBlow';
 
 export function SurfaceControl({ e, id, vertical }: { e: SimulationEngine; id: 'bow' | 'stern' | 'rudder'; vertical?: boolean }) {
   const fin = e.vessel.fins.find((f) => f.id === id)!;
@@ -242,14 +243,8 @@ export function QuickBallast({ e }: { e: SimulationEngine }) {
             Fechar sopro
           </button>
         </div>
-        <div className="row" role="group" aria-label="Sopro de emergência">
-          <button className="btn danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
-            SOPRO DE EMERGÊNCIA
-          </button>
-          <button className="btn" onClick={() => cmd({ type: 'emergencyBlow', open: false })}>
-            Fechar emergência
-          </button>
-        </div>
+        {/* mesma tampa de proteção da Operação: um clique sozinho nunca dispara o sopro */}
+        <EmergencyBox e={e} />
       </div>
       <div className="row subtle">
         <span>

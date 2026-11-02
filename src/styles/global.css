@@ -347,7 +347,8 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .spin { transform-box: fill-box; transform-origin: center; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .banner { background: rgba(54, 197, 240, 0.1); border: 1px solid var(--accent2); border-radius: 6px; padding: 8px 12px; margin: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.toast { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: #142236; border: 1px solid var(--accent2); padding: 8px 14px; border-radius: 6px; z-index: 80; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); }
+.toast { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: calc(100% - 20px); background: #142236; border: 1px solid var(--accent2); padding: 8px 14px; border-radius: 6px; z-index: 80; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); }
+.toast .btn { flex: none; }
 .procedure li { margin: 3px 0; }
 .procedure li.done { color: var(--ok); }
 .procedure li.cur { color: var(--warn); font-weight: 600; }

@@ -7,6 +7,8 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { cmd, runner } from '../store';
 import type { SimulationEngine } from '../../sim/core/engine';
 import { Telegraph, SurfaceControl, NumSet } from '../components/Controls';
+import { EmergencyBox } from '../components/EmergencyBlow';
+import { replaceUndo } from '../undo';
 import { TransferControls } from '../screens/TrimHeelScreen';
 import { TrimDemoPanel } from '../components/TrimDemo';
 import { TourList } from '../components/TourCard';
@@ -117,19 +119,7 @@ function LastroBody({ e, inOps }: GroupBodyProps) {
             Fechar sopro
           </button>
         </div>
-        {inOps ? (
-          v.ballast.tanks.some((t) => s.ballast[t.id].emergencyBlow.cmd > 0.5) && <span className="badge warn">SOPRO DE EMERGÊNCIA ATIVO (rodapé do painel)</span>
-        ) : (
-          <div className="btngroup" role="group" aria-label="Sopro de emergência">
-            <button className="btn sm danger" onClick={() => cmd({ type: 'emergencyBlow' })}>
-              SOPRO DE EMERGÊNCIA
-            </button>
-            <button className="btn sm" onClick={() => cmd({ type: 'emergencyBlow', open: false })}>
-              Fechar emergência
-            </button>
-            {v.ballast.tanks.some((t) => s.ballast[t.id].emergencyBlow.cmd > 0.5) && <span className="badge warn">EMERGÊNCIA ATIVA</span>}
-          </div>
-        )}
+        {inOps ? v.ballast.tanks.some((t) => s.ballast[t.id].emergencyBlow.cmd > 0.5) && <span className="badge warn">SOPRO DE EMERGÊNCIA ATIVO (rodapé do painel)</span> : <EmergencyBox e={e} />}
       </div>
       <table className="t ops-t">
         <thead>
@@ -597,12 +587,15 @@ function AmbienteBody({ e }: { e: SimulationEngine }) {
   );
 }
 
+/** carrega um cenário (pausado); a simulação anterior fica guardada para “Desfazer” (undo.ts) */
 export function loadScenario(id: string): void {
-  demo.stop(runner);
-  maneuver.cancel(runner);
-  if (tours.active) tours.stop(runner);
-  runner.running = false;
-  runner.replaceEngine(buildScenario(id, baseConfig()));
+  replaceUndo.run('Cenário carregado', () => {
+    demo.stop(runner);
+    maneuver.cancel(runner);
+    if (tours.active) tours.stop(runner);
+    runner.running = false;
+    runner.replaceEngine(buildScenario(id, baseConfig()));
+  });
 }
 
 // ------------------------------------------------------------ catálogo

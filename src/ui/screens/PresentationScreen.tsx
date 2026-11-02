@@ -27,6 +27,7 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtTime, fmtSpeed, fmtKnots } from '../format';
 import { OverlayCtl } from '../components/OverlayCtl';
 import { useUi } from '../uiContext';
+import { replaceUndo } from '../undo';
 import type { LayerKey } from '../components/LayerPanel';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 
@@ -236,7 +237,11 @@ export function PresentationScreen() {
                 </option>
               ))}
             </select>
-            <button className="btn ok" onClick={() => pres.prepare(runner, preset)} title="Carrega a situação, a câmera e as camadas sugeridas (pausado)">
+            <button
+              className="btn ok"
+              onClick={() => replaceUndo.run('Situação de aula preparada', () => pres.prepare(runner, preset))}
+              title="Carrega a situação, a câmera e as camadas sugeridas (pausado). Por 10 s é possível desfazer."
+            >
               Preparar
             </button>
           </div>

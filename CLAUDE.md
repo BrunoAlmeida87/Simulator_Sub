@@ -126,6 +126,9 @@ src/ui/               INTERFACE (React)
                       tela: screens/StudioScreen.tsx; cartão: components/PresCard.tsx (palco, PresFloating e 2ª janela)
   demo.ts, presentation.ts, checklist.ts, routeNav.ts
   persist.ts          usePersisted: preferências de UI no localStorage (prefixo 'sx1.ui.')
+  keyFocus.ts         atalhos × foco: depois de clicar num botão os atalhos valem (Espaço não repete o clique); Tab+Espaço aciona
+  undo.ts             replaceUndo: “Desfazer” (10 s) para Reiniciar/Carregar/Iniciar cenário/Preparar situação (captureSession)
+  components/EmergencyBlow.tsx  sopro de emergência com tampa — o único controle de sopro de emergência das telas
 scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível
 tests/                validation.test.ts, presentation.test.ts, units.test.ts
 docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, VALIDACAO

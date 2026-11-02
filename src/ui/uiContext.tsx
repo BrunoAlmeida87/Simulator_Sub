@@ -4,6 +4,11 @@ import type { ScreenId } from './nav';
 /** telas: lista e grupos em ./nav.ts */
 export type { ScreenId };
 
+export interface ToastOptions {
+  action?: { label: string; run: () => void };
+  ms?: number;
+}
+
 export interface UiState {
   screen: ScreenId;
   setScreen: (s: ScreenId) => void;
@@ -11,7 +16,8 @@ export interface UiState {
   setEng: (v: boolean) => void;
   inspect: string | null;
   setInspect: (id: string | null) => void;
-  toast: (msg: string) => void;
+  /** mensagem curta; action = botão na mensagem (ex.: “Desfazer”), ms = tempo na tela */
+  toast: (msg: string, opts?: ToastOptions) => void;
   showProcedure: boolean;
   setShowProcedure: (v: boolean) => void;
 }
