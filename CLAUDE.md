@@ -129,6 +129,9 @@ src/ui/               INTERFACE (React)
   keyFocus.ts         atalhos × foco: depois de clicar num botão os atalhos valem (Espaço não repete o clique); Tab+Espaço aciona
   undo.ts             replaceUndo: “Desfazer” (10 s) para Reiniciar/Carregar/Iniciar cenário/Preparar situação (captureSession)
   components/EmergencyBlow.tsx  sopro de emergência com tampa — o único controle de sopro de emergência das telas
+  components/AlarmBand.tsx  faixa de alarme fixa (2ª linha da barra, todas as telas): forma+prioridade+texto, Ver, Reconhecer um
+  alarmUi.ts          prioridade em forma + texto + cor (PRIO_SHAPE, prioBadge, prioText) — usar em toda exibição de alarme
+  instruments.ts      valores INDICADOS para telas de operação (indicatedDepth = média PRF-1/PRF-2); verdadeiro só em engenharia/didáticas
 scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível
 tests/                validation.test.ts, presentation.test.ts, units.test.ts
 docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, VALIDACAO
@@ -149,7 +152,10 @@ docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, V
   `SubmarineScene.ts` e expor nas telas (View3D/Pilot/Helm `*_LAYER_KEYS`, Presentation `LAYER_LIST`,
   VisualApp `LAYER_KEYS`). Toda camada precisa poder ser desligada ("Desmarcar todas").
 - **Preferências de visualização** persistem entre abas com `usePersisted`.
-- **Celular:** a interface precisa funcionar em tela estreita (sem rolagem horizontal).
+- **Celular:** a interface precisa funcionar em tela estreita (sem rolagem horizontal). O layout compacto vale por largura (≤ 760 px), com ou sem toque.
+- **Cores de estado reservadas:** vermelho/âmbar/verde (--alarm/--crit, --warn, --ok) só para estado, sempre com forma + texto (alarmUi.ts).
+  Categorias (grupos, sistemas) usam outras cores; ações do instrutor usam .btn.instr / .wx-big.instr (violeta tracejado).
+- **Formatação:** só passar o Prettier em arquivos que já seguem o Prettier na main; nos outros, editar sem reformatar o arquivo inteiro.
 - Mapas: só fontes **gratuitas sem chave de API** (OpenStreetMap, OpenTopoMap, EOX, OpenSeaMap).
 - **Sala de comando:** botão novo num painel = região registrada no desenho (`button`/`lampButton` em `draw.ts`) que chama
   `act.cmd(...)`; o teste `tests/controlRoom.test.ts` executa todas as regiões e confere os comandos. Telas pesadas: manter
