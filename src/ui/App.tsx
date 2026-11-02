@@ -4,7 +4,6 @@ import { UiContext, useUi, type ScreenId, type ToastOptions } from './uiContext'
 import { replaceUndo, UNDO_MS } from './undo';
 import { baseConfig, cmd, runner, useSim } from './store';
 import { buildScenario } from '../sim/scenarios';
-import { visibleAlarms, PRIORITY_LABEL } from '../sim/systems/alarms';
 import { captureSession, restoreSession } from './session';
 import { storage } from './storage';
 import { fmt, fmtTime, fmtSpeed } from './format';
@@ -37,13 +36,14 @@ import { Inspector } from './inspector/Inspector';
 import { ProcedurePanel } from './components/Procedure';
 import { demo } from './demo';
 import { maneuver } from './maneuvers';
-import { opsBus, ALARM_GROUP } from './ops/opsBus';
+import { opsBus } from './ops/opsBus';
 import { loadScenario } from './ops/OpsGroups';
 import { SCENARIOS } from '../sim/scenarios';
 import { link } from './link';
 import { isPanelWindow, openPanelWindow, openVisualWindow, panelIndex } from './sync';
 import { loadPersisted, savePersisted } from './persist';
 import { NavBar } from './components/NavBar';
+import { AlarmBand } from './components/AlarmBand';
 import { SystemsOverview } from './screens/SystemsOverview';
 import { StudioScreen } from './screens/StudioScreen';
 import { PresFloating } from './components/PresFloating';
@@ -74,9 +74,6 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
   const e = useSim(8);
   const s = e.state;
   const o = e.outputs;
-  const vis = visibleAlarms(s);
-  const unack = vis.filter((a) => !a.acked);
-  const top = unack[0] ?? vis[0];
   const ui = useUi();
   const id = useIdentity();
   // celular: controles secundários recolhidos atrás de "☰" (no PC tudo fica visível, como sempre)
@@ -157,84 +154,57 @@ function TopBar({ topRef }: { topRef: React.RefObject<HTMLDivElement> }) {
           {phMore ? '✕' : '☰'}
         </button>
       </div>
-      <div className="strip">
-        <div className="kv">
-          <small>PROF (m)</small>
-          <b>{fmt(0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value), 1)}</b>
-        </div>
-        <div className="kv">
-          <small>VELOCIDADE</small>
-          <b>{fmtSpeed(s.sensors.DVLU.value)}</b>
-        </div>
-        <div className="kv">
-          <small>RUMO</small>
-          <b>{fmt(s.sensors.GIRO.value, 0)}°</b>
-        </div>
-        <div className="kv">
-          <small>PITCH</small>
-          <b>{fmt(s.sensors.INSP.value, 1)}°</b>
-        </div>
-        <div className="kv">
-          <small>BANDA</small>
-          <b>{fmt(s.sensors.INSR.value, 1)}°</b>
-        </div>
-        {o.surfaced ? (
-          <div className="kv" title="Reserva de flutuabilidade: peso adicional necessário para submergir por completo">
-            <small>RESERVA</small>
-            <b>{fmt(o.reserveKg / 1000, 1)} t</b>
+      {/* 2ª linha, igual em todas as telas: faixa de alarme, indicadores (fora da Operação) e modos */}
+      <div className="topbar-row2">
+        <AlarmBand e={e} />
+        <div className="strip">
+          <div className="kv">
+            <small>PROF (m)</small>
+            <b>{fmt(0.5 * (s.sensors.PRF1.value + s.sensors.PRF2.value), 1)}</b>
           </div>
-        ) : (
-          <div className="kv" title="Flutuabilidade líquida calculada (+ positiva)">
-            <small>FLUTUAB.</small>
-            <b style={{ color: Math.abs(o.netBuoyancyKg) > 2000 ? '#f5b041' : undefined }}>{fmt(o.netBuoyancyKg / 1000, 2)} t</b>
+          <div className="kv">
+            <small>VELOCIDADE</small>
+            <b>{fmtSpeed(s.sensors.DVLU.value)}</b>
           </div>
-        )}
-        <div className="kv">
-          <small>BATERIA</small>
-          <b>{fmt(s.electrical.soc * 100, 0)}%</b>
+          <div className="kv">
+            <small>RUMO</small>
+            <b>{fmt(s.sensors.GIRO.value, 0)}°</b>
+          </div>
+          <div className="kv">
+            <small>PITCH</small>
+            <b>{fmt(s.sensors.INSP.value, 1)}°</b>
+          </div>
+          <div className="kv">
+            <small>BANDA</small>
+            <b>{fmt(s.sensors.INSR.value, 1)}°</b>
+          </div>
+          {o.surfaced ? (
+            <div className="kv" title="Reserva de flutuabilidade: peso adicional necessário para submergir por completo">
+              <small>RESERVA</small>
+              <b>{fmt(o.reserveKg / 1000, 1)} t</b>
+            </div>
+          ) : (
+            <div className="kv" title="Flutuabilidade líquida calculada (+ positiva). ▲ acima de 2 t em módulo">
+              <small>FLUTUAB.</small>
+              <b className={Math.abs(o.netBuoyancyKg) > 2000 ? 'warnc' : undefined}>
+                {Math.abs(o.netBuoyancyKg) > 2000 ? '▲ ' : ''}
+                {fmt(o.netBuoyancyKg / 1000, 2)} t
+              </b>
+            </div>
+          )}
+          <div className="kv">
+            <small>BATERIA</small>
+            <b>{fmt(s.electrical.soc * 100, 0)}%</b>
+          </div>
         </div>
-      </div>
-      <div
-        className="annunciator"
-        onClick={() => {
-          // alarme → sistema afetado na central de operação
-          ui.setScreen('pilotagem');
-          opsBus.focus(top ? (ALARM_GROUP[top.def.system] ?? 'alarmes') : 'alarmes');
-        }}
-        style={{ cursor: 'pointer' }}
-        title="Abrir o sistema afetado na tela Operação"
-      >
-        {top ? (
-          <>
-            <span className={`badge ${top.def.priority <= 2 ? 'alarm' : 'warn'} ${!top.acked && top.active ? 'blink' : ''}`}>
-              {PRIORITY_LABEL[top.def.priority]} {unack.length > 1 ? `+${unack.length - 1}` : ''}
-            </span>
-            <span className={`msg prio${top.def.priority}`}>{top.def.text}</span>
-            {unack.length > 0 && (
-              <button
-                className="btn sm"
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  // só o alarme exibido; os demais continuam aguardando leitura (Operação › Alarmes, Segurança)
-                  cmd({ type: 'ack', id: top.def.id });
-                }}
-                title={unack.length > 1 ? `Reconhece este alarme. Os outros ${unack.length - 1} ficam na lista de alarmes (Operação › Alarmes ou Segurança).` : 'Reconhece este alarme'}
-              >
-                Reconhecer
-              </button>
-            )}
-          </>
-        ) : (
-          <span className="badge ok">SEM ALARMES</span>
-        )}
-      </div>
-      <div className="row ph-more topbar-modes" style={{ gap: 6 }}>
-        <button className={`btn ${ui.eng ? 'on' : ''}`} onClick={() => ui.setEng(!ui.eng)} title="Modo engenharia (I)">
-          ⓘ Engenharia
-        </button>
-        <button className={`btn ${ui.showProcedure ? 'on' : ''}`} onClick={() => ui.setShowProcedure(!ui.showProcedure)}>
-          Procedimento
-        </button>
+        <div className="row ph-more topbar-modes" style={{ gap: 6 }}>
+          <button className={`btn ${ui.eng ? 'on' : ''}`} onClick={() => ui.setEng(!ui.eng)} title="Modo engenharia (I)">
+            ⓘ Engenharia
+          </button>
+          <button className={`btn ${ui.showProcedure ? 'on' : ''}`} onClick={() => ui.setShowProcedure(!ui.showProcedure)}>
+            Procedimento
+          </button>
+        </div>
       </div>
     </div>
   );

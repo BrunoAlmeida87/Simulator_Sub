@@ -16,6 +16,8 @@ import { seaSections } from '../components/SeaControls';
 import { DepthTape } from '../components/gauges';
 import type { ViewMode } from '../../render3d/SubmarineScene';
 import { navStatus } from '../navStatus';
+import { visibleAlarms } from '../../sim/systems/alarms';
+import { prioBadge, prioText } from '../alarmUi';
 import { ManeuverStatus } from '../components/ManeuverStatus';
 import { GROUP_TITLE, GROUP_ICON, GROUP_COLOR, GROUP_SECTIONS, GROUP_SHORT, SIDE_GROUPS, type GroupId } from '../ops/opsBus';
 import { GROUPS, groupAlarm } from '../ops/OpsGroups';
@@ -195,6 +197,8 @@ export function PilotScreen() {
   const ap = e.state.autopilot;
   const st = navStatus(e);
   const L = e.vessel.limits;
+  // alarme ativo de prioridade 1–2: borda da cena na cor do alarme e selo junto do estado de navegação
+  const sceneAlarm = visibleAlarms(e.state).find((a) => a.active && a.def.priority <= 2);
 
   // console compacto: automático quando falta altura (só no layout de duas colunas), ou escolhido
   const opsRef = useRef<HTMLDivElement>(null);
@@ -227,7 +231,7 @@ export function PilotScreen() {
     <div className="ops" ref={opsRef} style={curW !== null ? ({ '--ops-side': `${curW}px` } as CSSProperties) : undefined}>
       <div className="ops-main">
         <OpsStrip e={e} />
-        <div className="ops-view">
+        <div className={`ops-view ${sceneAlarm ? `alarm-on lvl-${prioBadge(sceneAlarm.def.priority)}` : ''}`}>
           <Scene3D
             quality={quality}
             view={view}
@@ -255,6 +259,11 @@ export function PilotScreen() {
               <span className={`badge ${st.cls}`} style={{ fontSize: 13, padding: '3px 10px' }}>
                 {st.label}
               </span>
+              {sceneAlarm && (
+                <span className={`badge ${prioBadge(sceneAlarm.def.priority)}`} style={{ fontSize: 12.5, padding: '3px 10px' }}>
+                  {prioText(sceneAlarm.def.priority)} · {sceneAlarm.def.text}
+                </span>
+              )}
               <span className="subtle">Clique num tanque, leme, hélice, mastro, bateria ou válvula para abrir os controles.</span>
             </div>
             <OverlayCtl

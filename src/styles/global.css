@@ -65,17 +65,30 @@ code, .mono { font-family: var(--mono); }
 .clock { font-family: var(--mono); font-size: 14px; color: var(--text); min-width: 74px; text-align: right; }
 .strip { display: flex; gap: 4px 12px; flex-wrap: wrap; flex: 1; justify-content: center; }
 .strip .kv { display: flex; flex-direction: column; align-items: center; min-width: 58px; }
-/* até 2560 px os indicadores ficam numa segunda linha (espremidos ao lado dos controles, viravam uma coluna alta) */
-@media (max-width: 2560px) {
-  .strip { order: 10; flex: 1 1 560px; justify-content: flex-start; gap: 4px 18px; padding-top: 2px; border-top: 1px solid #172536; }
-  .strip .kv { flex-direction: row; gap: 6px; align-items: baseline; min-width: 0; }
-  /* Engenharia e Procedimento ao lado dos indicadores: a barra fica com duas linhas */
-  .topbar-modes { order: 11; align-self: stretch; padding-top: 2px; border-top: 1px solid #172536; }
-}
+/* 2ª linha da barra, em TODAS as telas: faixa de alarme + indicadores + modos. Mesma altura sempre:
+   a navegação não muda de posição ao trocar de tela (antes descia 39 px fora da Operação). */
+.topbar-row2 { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; min-width: 0; min-height: 30px; padding-top: 4px; border-top: 1px solid #172536; }
+.topbar-row2 .strip { flex: 1 1 420px; justify-content: flex-start; gap: 4px 18px; }
+.topbar-row2 .strip .kv { flex-direction: row; gap: 6px; align-items: baseline; min-width: 0; }
+.topbar-row2 .topbar-modes { margin-left: auto; }
+.warnc { color: var(--warn); }
 @media (max-width: 1250px) { .brand span { display: none; } }
-/* tela Operação: os indicadores já estão na faixa da tela; a barra superior fica numa linha */
+/* tela Operação: os indicadores já estão na faixa da tela (a linha fica com a faixa de alarme e os modos) */
 .scr-pilotagem .topbar .strip { display: none; }
-.scr-pilotagem .topbar .topbar-modes { order: 0; border-top: 0; padding-top: 0; align-self: center; }
+/* faixa de alarme (components/AlarmBand.tsx) */
+.alarmband { flex: 0 1 auto; min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 6px 0 4px; border-radius: 5px; border: 1px solid transparent; }
+.alarmband.ok { padding: 0; }
+.alarmband .badge { flex: none; font-size: 11.5px; padding: 2px 7px; }
+.alarmband .ab-msg { font-size: 13px; font-weight: 600; color: #f3f7fb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 52ch; }
+.alarmband .ab-meta { font-size: 11.5px; color: #c3d0dd; white-space: nowrap; }
+.alarmband .ab-more { flex: none; font: 600 11.5px/1.5 var(--mono); color: var(--text); background: rgba(255, 255, 255, 0.1); border-radius: 3px; padding: 0 5px; cursor: help; }
+.alarmband .btn { flex: none; }
+.alarmband.lvl-crit { background: #3a0a14; border-color: var(--crit); }
+.alarmband.lvl-alarm { background: #2a1013; border-color: rgba(255, 82, 87, 0.75); }
+.alarmband.lvl-warn { background: #29200f; border-color: rgba(245, 176, 65, 0.65); }
+.alarmband.lvl-info { background: #0f2230; border-color: rgba(54, 197, 240, 0.5); }
+.alarmband.lvl-crit.unack, .alarmband.lvl-alarm.unack { box-shadow: 0 0 0 1px rgba(255, 82, 87, 0.35), 0 0 14px rgba(255, 45, 85, 0.25); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (max-width: 1700px) { .scr-pilotagem .brand span { display: none; } }
 @media (max-width: 760px) {
   .topbar { position: static; }
@@ -269,8 +282,6 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .formgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px 12px; }
 
 /* ---------- alarmes ---------- */
-.annunciator { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
-.annunciator .msg { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; }
 .blink { animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { to { visibility: hidden; } }
 /* menos movimento (preferência do sistema): o alarme fica realçado fixo em vez de piscar */
@@ -502,7 +513,10 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .ops { --ops-side: 400px; display: grid; grid-template-columns: minmax(0, 1fr) var(--ops-side); gap: 8px; height: calc(100vh - var(--topbar-h, 52px) - var(--nav-h, 34px) - 24px); min-height: 440px; }
 @media (min-width: 1600px) { .ops { --ops-side: 460px; } }
 .ops-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; min-width: 0; min-height: 0; }
-.ops-view { min-height: 0; }
+.ops-view { min-height: 0; position: relative; }
+/* alarme P1/P2 ativo: moldura da cena na cor do alarme (não cobre os cliques) */
+.ops-view.alarm-on::after { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; border: 3px solid var(--alarm); border-radius: var(--radius); }
+.ops-view.alarm-on.lvl-crit::after { border-color: var(--crit); border-width: 4px; }
 .ops-view .view3d { height: 100%; min-height: 220px; }
 .ops-side { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; background: #0a121b; border: 1px solid #22344a; border-radius: 6px; padding: 6px; }
 .ops-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
@@ -828,7 +842,8 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
  * novos não existem para o layout (display: contents). */
 .phone-only { display: none !important; }
 .ph-wrap, .wide-diagram { display: contents; }
-@media (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (max-height: 520px) {
+/* também em janela estreita sem toque (meia tela, monitor vertical, “＋ Tela” estreita) */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 520px) {
   .phone-only { display: inline-flex !important; }
   /* cabeçalho compacto: nome, executar/pausar, relógio e ☰ (o resto abre no ☰); rola com a página */
   .topbar { position: static; gap: 6px 8px; padding: 6px 8px; }
@@ -843,12 +858,14 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
   .simctl > .btn:first-child { order: 0; }
   .simctl > .clock { order: 1; }
   .simctl > .ph-toggle { order: 2; }
-  .strip { order: 10; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 4px 14px; padding-top: 3px; border-top: 1px solid #172536; scrollbar-width: none; }
+  .topbar-row2 { gap: 4px 10px; }
+  .topbar-row2 .strip { order: 2; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 4px 14px; padding-top: 3px; border-top: 1px solid #172536; scrollbar-width: none; }
   .strip::-webkit-scrollbar { display: none; }
   .strip .kv { flex: none; flex-direction: row; gap: 5px; align-items: baseline; min-width: 0; }
-  .annunciator { order: 11; flex-basis: 100%; }
-  .annunciator .msg { max-width: none; flex: 1; min-width: 0; }
-  .topbar.ph-collapsed .annunciator:has(> .badge.ok) { display: none; }
+  .alarmband { order: 1; flex: 1 1 100%; flex-wrap: wrap; padding: 3px 6px; }
+  .alarmband .ab-msg { max-width: none; flex: 1; min-width: 0; }
+  .topbar.ph-collapsed .alarmband.ok { display: none; }
+  .topbar.ph-collapsed .topbar-row2:has(> .alarmband.ok) { border-top: 0; min-height: 0; padding-top: 0; }
   /* navegação: uma linha só — grupo ▾ (abre o mapa de todas as telas) + telas do grupo, com rolagem lateral */
   .nav2 { top: 0; }
   .nav2-groups, .nav2-keys, .nav2-hint { display: none; }

@@ -1,4 +1,5 @@
 import { SCENE_LAYER_KEYS } from '../render3d/layers';
+import { prioBadge, prioText } from './alarmUi';
 /**
  * JANELA DE VISUALIZAÇÃO (segundo monitor): só a cena, os indicadores e a
  * narração. Não roda física — espelha a janela de controle pelo
@@ -90,7 +91,11 @@ export function VisualApp() {
         {!hideUi && (
           <div className="visual-status">
             <span className={`badge ${connected ? 'ok' : 'warn'}`}>{connected ? 'Espelhando a janela de controle' : 'Sem conexão'}</span>
-            {ov?.alarm && <span className={`badge ${ov.alarm.priority <= 2 ? 'alarm blink' : 'warn'}`}>{ov.alarm.text}</span>}
+            {ov?.alarm && (
+              <span className={`badge ${prioBadge(ov.alarm.priority)} ${ov.alarm.priority <= 2 ? 'blink' : ''}`}>
+                {prioText(ov.alarm.priority)} · {ov.alarm.text}
+              </span>
+            )}
             {ov?.rec && <span className="badge info">{ov.rec}</span>}
             {presOv && (
               <button className={`badge ${followPres ? 'ok' : 'off'} st-follow`} onClick={() => setFollowPres(!followPres)} title="Seguir a câmera e as camadas de cada etapa da apresentação (clique para alternar)">
