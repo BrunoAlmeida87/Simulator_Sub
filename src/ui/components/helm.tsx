@@ -86,8 +86,9 @@ export interface YokeProps {
 
 /**
  * Manche: horizontal = leme de direção (BB ← → BE); vertical = lemes de ré
- * (empurrar para cima = DESCER, puxar para baixo = SUBIR), como no posto de
- * governo. A peça mostra o comandado; o anel verde mostra os lemes reais.
+ * (para cima = SUBIR, para baixo = DESCER — a mesma regra das alavancas das
+ * outras telas; o manche 3D da Sala de comando segue o físico: empurrar = descer).
+ * A peça mostra o comandado; o anel verde mostra os lemes reais.
  */
 export function Yoke(p: YokeProps) {
   const [drag, setDrag] = useState<{ r: number; s: number } | null>(null);
@@ -95,7 +96,7 @@ export function Yoke(p: YokeProps) {
   const handlers = useDrag(
     (fx, fy) => {
       const r = Math.round(fx * p.rudderMax);
-      const s = Math.round(fy * p.sternMax); // para baixo (puxar) = + = SUBIR
+      const s = Math.round(-fy * p.sternMax); // para cima = + = SUBIR
       setDrag({ r, s });
       send.push({ r, s }, `${r}|${s}`);
     },
@@ -111,9 +112,9 @@ export function Yoke(p: YokeProps) {
   const c = W / 2;
   const k = (W / 2 - 22) / 1;
   const cx = c + (r / p.rudderMax) * k;
-  const cy = c + (s / p.sternMax) * k;
+  const cy = c - (s / p.sternMax) * k;
   const rx = c + (p.rudderReal / p.rudderMax) * k;
-  const ry = c + (p.sternReal / p.sternMax) * k;
+  const ry = c - (p.sternReal / p.sternMax) * k;
   const rot = (r / p.rudderMax) * 50;
   return (
     <svg viewBox={`0 0 ${W} ${W}`} className="helm-yoke" {...handlers} role="slider" aria-label="Manche: leme de direção e lemes de ré" aria-valuetext={`leme ${r}°, lemes de ré ${s}°`}>
@@ -127,10 +128,10 @@ export function Yoke(p: YokeProps) {
       <line x1={c} y1={14} x2={c} y2={W - 14} className="helm-axis" />
       <line x1={14} y1={c} x2={W - 14} y2={c} className="helm-axis" />
       <text x={c} y={30} className="helm-lbl" textAnchor="middle">
-        ▲ empurrar · DESCER
+        ▲ SUBIR
       </text>
       <text x={c} y={W - 20} className="helm-lbl" textAnchor="middle">
-        ▼ puxar · SUBIR
+        ▼ DESCER
       </text>
       <text x={22} y={c - 8} className="helm-lbl">
         ◀ BB
@@ -210,8 +211,24 @@ export function Lever(p: LeverProps) {
   const v = drag ?? p.value;
   const col = p.color ?? CMD;
   const tx = p.detents ? 52 : W / 2;
+  // teclado: ↑/↓ movem a alavanca na direção da tela (um detente, ou 1 unidade); Page Up/Down 5
+  const onKey = (ev: React.KeyboardEvent) => {
+    const up = ev.key === 'ArrowUp' || ev.key === 'PageUp';
+    if (!up && ev.key !== 'ArrowDown' && ev.key !== 'PageDown') return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const sign = (up ? 1 : -1) * (p.maxOnTop === false ? -1 : 1);
+    if (p.snap && p.detents?.length) {
+      const vals = [...p.detents.map((d) => d.v)].sort((a, b) => a - b);
+      const i = vals.reduce((best, d, k) => (Math.abs(d - p.value) < Math.abs(vals[best] - p.value) ? k : best), 0);
+      p.onSet(vals[Math.max(0, Math.min(vals.length - 1, i + sign))]);
+    } else {
+      const step = ev.key.startsWith('Page') ? 5 : 1;
+      p.onSet(Math.max(p.min, Math.min(p.max, Math.round(p.value + sign * step))));
+    }
+  };
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="helm-lever" style={{ maxHeight: H }} {...handlers} role="slider" aria-label={p.ariaLabel} aria-valuenow={v} aria-valuemin={p.min} aria-valuemax={p.max}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="helm-lever" style={{ maxHeight: H }} {...handlers} role="slider" tabIndex={0} onKeyDown={onKey} aria-label={p.ariaLabel} aria-valuenow={v} aria-valuemin={p.min} aria-valuemax={p.max}>
       <rect x={tx - 9} y={top - 8} width={18} height={bot - top + 16} rx={9} className="helm-track" />
       {p.topLabel && (
         <text x={tx} y={14} className="helm-lbl" textAnchor="middle">

@@ -12,6 +12,7 @@ import { loadPersisted, usePersisted } from '../persist';
 import type { SimulationEngine } from '../../sim/core/engine';
 import type { CommandRecord } from '../../sim/core/state';
 import { TELEGRAPH } from '../components/Controls';
+import { PlaneLever } from '../components/PlaneLever';
 import { maneuver } from '../maneuvers';
 import { route } from '../routeNav';
 import { fmt } from '../format';
@@ -178,9 +179,15 @@ function GovCard({ e }: { e: SimulationEngine }) {
         <span className="con-note">ordem · real</span>
       </h3>
       <FinRow e={e} id="rudder" />
-      <FinRow e={e} id="bow" />
-      <FinRow e={e} id="stern" />
-      <div className="con-note">Toque num leme passa o canal do piloto a MAN · clique no valor zera</div>
+      {/* lemes horizontais: alavancas verticais — para cima = SUBIR, para baixo = DESCER */}
+      <div className="con-planes" title="Toque num leme passa o canal do piloto a MAN">
+        <div className={opsBus.focusTarget?.kind === 'fin' && opsBus.focusTarget.id === 'bow' ? 'focus' : ''}>
+          <PlaneLever e={e} id="bow" height={84} owner={<OwnerTag o={finOwner(e, 'bow')} short />} />
+        </div>
+        <div className={opsBus.focusTarget?.kind === 'fin' && opsBus.focusTarget.id === 'stern' ? 'focus' : ''}>
+          <PlaneLever e={e} id="stern" height={84} owner={<OwnerTag o={finOwner(e, 'stern')} short />} />
+        </div>
+      </div>
     </section>
   );
 }

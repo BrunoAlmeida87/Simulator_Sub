@@ -156,9 +156,8 @@ export function HelmScreen() {
                 real={bw.actual}
                 min={-fin('bow').maxDeflection}
                 max={fin('bow').maxDeflection}
-                maxOnTop={false}
-                topLabel="DESCER"
-                bottomLabel="SUBIR"
+                topLabel="SUBIR"
+                bottomLabel="DESCER"
                 unit="°"
                 ariaLabel="Lemes de vante"
                 height={240}

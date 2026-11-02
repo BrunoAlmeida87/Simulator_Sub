@@ -4,6 +4,7 @@ import { Panel } from '../components/Panel';
 import { Readout, KindTag } from '../components/Readout';
 import { Attitude, Compass, DepthTape, Dial } from '../components/gauges';
 import { AutopilotPanel, QuickBallast, SurfaceControl, Telegraph } from '../components/Controls';
+import { PlaneLever } from '../components/PlaneLever';
 import { SituationView } from '../components/SituationView';
 import { VerticalExplain } from '../components/Explain';
 import { toKnots } from '../../sim/units';
@@ -29,7 +30,15 @@ export function CommandCenter() {
             <Readout label="Profundidade ordenada" value={ap.depthMode === 'AUTO' ? ap.depthSet : '—'} unit={ap.depthMode === 'AUTO' ? 'm' : ''} digits={0} kind="CMD" />
             <Readout label="Taxa vertical (+ desce)" value={o.depthRateCalc} unit="m/s" digits={2} kind="CALC" truth={o.verticalSpeed} status={Math.abs(o.verticalSpeed) > L.maxVerticalSpeed ? 'warn' : ''} />
             <Readout label="Pressão externa" value={sn.PEXT.value} unit="bar" digits={2} kind="MED" inspect="sensor:PEXT" />
-            <Readout label="Altitude s/ fundo" value={sn.ECO.valid ? sn.ECO.value : 'S/ ECO'} unit="m" kind="MED" truth={o.altitude} status={o.altitude < L.minAltitudeCrit ? 'alarm' : o.altitude < L.minAltitudeWarn ? 'warn' : ''} inspect="sensor:ECO" />
+            <Readout
+              label="Altitude s/ fundo"
+              value={sn.ECO.valid ? sn.ECO.value : 'S/ ECO'}
+              unit="m"
+              kind="MED"
+              truth={o.altitude}
+              status={o.altitude < L.minAltitudeCrit ? 'alarm' : o.altitude < L.minAltitudeWarn ? 'warn' : ''}
+              inspect="sensor:ECO"
+            />
           </div>
         </div>
       </Panel>
@@ -75,19 +84,16 @@ export function CommandCenter() {
         </div>
       </Panel>
       <Panel title="Lemes horizontais e de direção" inspect="fin:stern" className="span2">
-        <div className="row" style={{ alignItems: 'flex-start' }}>
-          <div style={{ flex: '1 1 260px' }}>
-            <SurfaceControl e={e} id="bow" />
-          </div>
-          <div style={{ flex: '1 1 260px' }}>
-            <SurfaceControl e={e} id="stern" />
-          </div>
-          <div style={{ flex: '1 1 260px' }}>
+        {/* lemes horizontais em alavancas verticais (cima = SUBIR); o de direção continua deitado (esquerda = BB, direita = BE) */}
+        <div className="planes-big">
+          <PlaneLever e={e} id="bow" height={150} name="Vante (vela)" />
+          <PlaneLever e={e} id="stern" height={150} />
+          <div style={{ flex: '1 1 260px', minWidth: 0 }}>
             <SurfaceControl e={e} id="rudder" />
           </div>
         </div>
         <div className="note">
-          Efetividade dos lemes ∝ U². Velocidade atual {fmtSpeed(s.body.vel.x, 1)} ⇒ força relativa a 6 nós (11.1 km/h): <b className="mono">{fmt(((s.body.vel.x / 3.087) ** 2) * 100, 0)} %</b>.
+          Efetividade dos lemes ∝ U². Velocidade atual {fmtSpeed(s.body.vel.x, 1)} ⇒ força relativa a 6 nós (11.1 km/h): <b className="mono">{fmt((s.body.vel.x / 3.087) ** 2 * 100, 0)} %</b>.
         </div>
       </Panel>
       <Panel title="Controle automático (PID conceitual)" inspect="autopilot" className="span2">
