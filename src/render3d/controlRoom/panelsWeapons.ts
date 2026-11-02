@@ -23,7 +23,8 @@ import { ENEMY_SURFACE_D, isHostileId, kindOf, missileActive } from '../../sim/s
 /** cores das etapas do passo a passo: fundo, borda (tom), texto */
 const STEP_STYLE: Record<ManualStep['state'], { fill: string; fg: string; tone: 'ok' | 'danger' | 'warn' | 'neutral' }> = {
   liberado: { fill: '#167a3e', fg: '#ffffff', tone: 'ok' },
-  bloqueado: { fill: '#3a1418', fg: '#f4c7c9', tone: 'danger' },
+  // bloqueada = neutra (a lâmpada não é de perigo; o motivo aparece no texto)
+  bloqueado: { fill: '#1b2531', fg: '#b9c6d4', tone: 'neutral' },
   andamento: { fill: '#6d4609', fg: '#fff3d6', tone: 'warn' },
   feito: { fill: '#10302e', fg: '#9fe3da', tone: 'neutral' },
 };

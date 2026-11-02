@@ -19,7 +19,8 @@ import { bankPressure, emergencyBlowActive } from '../../sim/systems/hpAir';
 import { solveNeutralCompensation } from '../../sim/equilibrium';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import type { SensorFailMode, ValveState } from '../../sim/core/state';
-import { visibleAlarms, PRIORITY_LABEL } from '../../sim/systems/alarms';
+import { visibleAlarms } from '../../sim/systems/alarms';
+import { prioBadge, prioText } from '../alarmUi';
 import { SEA_STATES } from '../../sim/environment/waves';
 import { SCENARIOS, buildScenario } from '../../sim/scenarios';
 import { fmt, fmtSpeed } from '../format';
@@ -448,9 +449,7 @@ function AlarmesBody({ e }: GroupBodyProps) {
             {vis.map((a) => (
               <tr key={a.def.id}>
                 <td>
-                  <span className={`badge ${a.def.priority <= 2 ? 'alarm' : 'warn'} ${a.active && !a.acked ? 'blink' : ''}`}>
-                    {PRIO_SHAPE[a.def.priority]} {PRIORITY_LABEL[a.def.priority]}
-                  </span>
+                  <span className={`badge ${prioBadge(a.def.priority)} ${a.active && !a.acked ? 'blink' : ''}`}>{prioText(a.def.priority)}</span>
                 </td>
                 <td>
                   {a.def.text}
@@ -508,7 +507,8 @@ function FalhasBody({ e }: GroupBodyProps) {
         </select>
         {def?.param && <input type="number" style={{ width: 60 }} placeholder={String(def.param.default)} value={param} onChange={(ev) => setParam(ev.target.value)} title={`${def.param.label} (${def.param.unit})`} />}
         <button
-          className="btn sm danger"
+          className="btn sm instr"
+          title="Ação do instrutor: injeta a falha escolhida"
           onClick={() => def && cmd({ type: 'failure', target: def.target, active: true, param: def.modes ? (def.modes[0] as SensorFailMode) : def.param ? Number(param || def.param.default) : undefined })}
         >
           Injetar
@@ -520,7 +520,7 @@ function FalhasBody({ e }: GroupBodyProps) {
           <b className="subtle">Falhas ativas</b>
           {active.map((c) => (
             <div key={c.target} className="row">
-              <span className="badge alarm">FALHA</span> {c.name}
+              <span className="badge instr">FALHA INJETADA</span> {c.name}
               <button className="btn sm" onClick={() => cmd({ type: 'failure', target: c.target, active: false })}>
                 Remover
               </button>
@@ -611,8 +611,13 @@ export interface GroupDef {
   Body: (p: GroupBodyProps) => ReactNode;
 }
 
-/** forma da prioridade (não depende só da cor) */
-export const PRIO_SHAPE: Record<number, string> = { 1: '⬢', 2: '◆', 3: '▲', 4: '●' };
+/** forma da prioridade (não depende só da cor) — ver alarmUi.ts */
+export { PRIO_SHAPE } from '../alarmUi';
+
+/** há alarme ativo de prioridade 1–2 tratado neste grupo? (o grupo Alarmes recebe todos) */
+export function groupAlarm(e: SimulationEngine, id: GroupId): boolean {
+  return visibleAlarms(e.state).some((a) => a.active && a.def.priority <= 2 && (id === 'alarmes' || ALARM_GROUP[a.def.system] === id));
+}
 
 export const GROUPS: Record<GroupId, GroupDef> = {
   nav: {

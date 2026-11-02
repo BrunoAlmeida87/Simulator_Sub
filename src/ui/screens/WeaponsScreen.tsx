@@ -47,7 +47,7 @@ const PHASE: Record<TorpedoRun['phase'], [string, string]> = {
   explodiu: ['EXPLODIU', 'alarm'],
   perdido: ['AFUNDOU', 'off'],
 };
-const STEP_ICON: Record<ManualStep['state'], string> = { feito: '✓', andamento: '…', liberado: '›', bloqueado: '' };
+const STEP_ICON: Record<ManualStep['state'], string> = { feito: '✓', andamento: '…', liberado: '›', bloqueado: '🔒' };
 const MPHASE: Record<MissileRun['phase'], [string, string]> = {
   capsula: ['CÁPSULA SUBINDO', 'info'],
   superficie: ['ROMPEU A SUPERFÍCIE', 'info'],
@@ -214,7 +214,11 @@ export function WeaponsScreen() {
                   </span>
                   <span className="wx-tube-txt">
                     <b>
-                      <i className={`wx-dot tone-${vw.tone}`} /> Tubo {x.n} <span className={`wx-kind k-${st.weapon ? kindOf(st) : 'vazio'}`}>{tubeKindName(st)}</span>
+                      <i className={`wx-dot tone-${vw.tone}`} /> Tubo {x.n}{' '}
+                      <span className="wx-side" title={x.side === 'BE' ? 'Boreste' : 'Bombordo'}>
+                        {x.side}
+                      </span>{' '}
+                      <span className={`wx-kind k-${st.weapon ? kindOf(st) : 'vazio'}`}>{tubeKindName(st)}</span>
                     </b>
                     <small>{vw.status}</small>
                   </span>
@@ -532,14 +536,14 @@ export function WeaponsScreen() {
               </div>
               <div className="row mt8">
                 <button
-                  className="wx-big enemy"
+                  className="wx-big instr"
                   onClick={() => cmd({ type: 'hostile', action: 'add', kind: 'fragata', range: hostCfg.range, bearing: hostCfg.bearing, course: hostCfg.course, speed: hostCfg.speed * KT })}
                   title="Uma fragata classe Tamandaré (alvo fictício) na distância e marcação escolhidas"
                 >
                   Colocar fragata
                 </button>
                 <button
-                  className="wx-big"
+                  className="wx-big instr"
                   onClick={() => cmd({ type: 'hostile', action: 'add', kind: 'terra', range: hostCfg.landRange, bearing: hostCfg.bearing })}
                   title="Instalação fictícia no primeiro ponto em terra na marcação escolhida (cenários com costa)"
                 >
@@ -634,7 +638,7 @@ export function WeaponsScreen() {
             </div>
             <div className="row mt8">
               <button
-                className="wx-big enemy"
+                className="wx-big instr"
                 onClick={() => cmd({ type: 'enemy', action: 'add', range: enemyCfg.range, bearing: enemyCfg.bearing, depth: enemyCfg.depth, speed: enemyCfg.speed * KT })}
                 title="O inimigo aparece na distância e marcação escolhidas, cruzando a proa do SX-1"
               >

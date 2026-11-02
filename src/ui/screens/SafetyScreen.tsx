@@ -2,7 +2,8 @@
 import { useMemo, useState } from 'react';
 import { cmd, useSim } from '../store';
 import { Panel } from '../components/Panel';
-import { ALARM_DEFS, PRIORITY_LABEL, visibleAlarms } from '../../sim/systems/alarms';
+import { ALARM_DEFS, visibleAlarms } from '../../sim/systems/alarms';
+import { prioBadge, prioText } from '../alarmUi';
 import { SENSOR_DEFS } from '../../sim/systems/sensors';
 import { failureCatalog, isFailureActive } from '../../sim/commands';
 import { fmt, fmtTime } from '../format';
@@ -26,7 +27,15 @@ export function SafetyScreen() {
   const L = e.vessel.limits;
   return (
     <div className="grid g2">
-      <Panel title={`Alarmes ativos / não reconhecidos (${vis.length})`} right={<button className="btn sm" onClick={() => cmd({ type: 'ack', id: 'ALL' })}>Reconhecer todos</button>} className="span-all">
+      <Panel
+        title={`Alarmes ativos / não reconhecidos (${vis.length})`}
+        right={
+          <button className="btn sm" onClick={() => cmd({ type: 'ack', id: 'ALL' })}>
+            Reconhecer todos
+          </button>
+        }
+        className="span-all"
+      >
         {vis.length === 0 ? (
           <div className="okc">Nenhum alarme ativo.</div>
         ) : (
@@ -44,22 +53,42 @@ export function SafetyScreen() {
             <tbody>
               {vis.map((a) => (
                 <tr key={a.def.id} className={`alarmrow ${a.acked ? '' : 'unack'}`}>
-                  <td className={`prio${a.def.priority}`}>
-                    <span className={!a.acked && a.active ? 'blink' : ''}>●</span> {PRIORITY_LABEL[a.def.priority]}
+                  <td>
+                    <span className={`badge ${prioBadge(a.def.priority)} ${!a.acked && a.active ? 'blink' : ''}`}>{prioText(a.def.priority)}</span>
                   </td>
                   <td className="num">{fmtTime(a.since)}</td>
                   <td>{a.def.system}</td>
                   <td>{a.def.text}</td>
                   <td>{a.active ? (a.acked ? 'ATIVO · RECONHECIDO' : 'ATIVO') : 'NORMALIZADO'}</td>
-                  <td>{!a.acked && <button className="btn sm" onClick={() => cmd({ type: 'ack', id: a.def.id })}>Reconhecer</button>}</td>
+                  <td>
+                    {!a.acked && (
+                      <button className="btn sm" onClick={() => cmd({ type: 'ack', id: a.def.id })}>
+                        Reconhecer
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </Panel>
-      <Panel title="Registro cronológico de eventos" right={<div className="seg">{(['todos', 'alarmes', 'comandos'] as const).map((f) => <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>{f}</button>)}</div>}>
+      <Panel
+        title="Registro cronológico de eventos"
+        right={
+          <div className="seg">
+            {(['todos', 'alarmes', 'comandos'] as const).map((f) => (
+              <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
+                {f}
+              </button>
+            ))}
+          </div>
+        }
+      >
         <div className="scroll" style={{ maxHeight: 420 }}>
+          {log.length === 0 && (
+            <div className="subtle empty-state">Nenhum evento ainda. Alarmes e comandos aparecem aqui, do mais recente para o mais antigo, assim que a simulação for executada ou um comando for dado.</div>
+          )}
           <table className="t">
             <tbody>
               {log.map((l, i) => (
@@ -124,8 +153,11 @@ export function SafetyScreen() {
           Modo avançado: ruído e atraso nos sensores
         </label>
       </Panel>
-      <Panel title="Injeção de falhas (ambiente controlado)" className="span-all">
-        <div className="note">As falhas afetam a física e a lógica: uma bomba em falha não move água, uma válvula travada não muda de posição, sem hidráulica os lemes param, um rombo admite água conforme a pressão externa. Limites e respostas são exclusivamente educacionais.</div>
+      <Panel title="Injeção de falhas (ambiente controlado)" right={<span className="badge instr">INSTRUTOR</span>} className="span-all instr-panel">
+        <div className="note">
+          As falhas afetam a física e a lógica: uma bomba em falha não move água, uma válvula travada não muda de posição, sem hidráulica os lemes param, um rombo admite água conforme a pressão externa. Limites e
+          respostas são exclusivamente educacionais.
+        </div>
         <div className="grid">
           {groups.map((g) => (
             <div key={g} className="panel">
@@ -145,18 +177,25 @@ export function SafetyScreen() {
                             <td style={{ whiteSpace: 'nowrap' }}>
                               {c.param && !active && (
                                 <>
-                                  <input type="number" style={{ width: 54 }} value={params[c.target] ?? String(c.param.default)} onChange={(ev) => setParams({ ...params, [c.target]: ev.target.value })} /> {c.param.unit}{' '}
+                                  <input
+                                    type="number"
+                                    style={{ width: 54 }}
+                                    aria-label={`${c.name}: ${c.param.label} (${c.param.unit})`}
+                                    value={params[c.target] ?? String(c.param.default)}
+                                    onChange={(ev) => setParams({ ...params, [c.target]: ev.target.value })}
+                                  />{' '}
+                                  {c.param.unit}{' '}
                                 </>
                               )}
                               {c.modes && !active && (
-                                <select value={params[c.target] ?? c.modes[0]} onChange={(ev) => setParams({ ...params, [c.target]: ev.target.value })}>
+                                <select aria-label={`${c.name}: modo da falha`} value={params[c.target] ?? c.modes[0]} onChange={(ev) => setParams({ ...params, [c.target]: ev.target.value })}>
                                   {c.modes.map((m) => (
                                     <option key={m}>{m}</option>
                                   ))}
                                 </select>
                               )}{' '}
                               <button
-                                className={`btn sm ${active ? 'danger on' : ''}`}
+                                className={`btn sm instr ${active ? 'on' : ''}`}
                                 onClick={() =>
                                   cmd({
                                     type: 'failure',
@@ -182,12 +221,32 @@ export function SafetyScreen() {
       <Panel title="Limites fictícios configurados (educacionais)">
         <table className="t">
           <tbody>
-            <tr><td>Profundidade operacional</td><td className="num">{L.operatingDepth} m</td></tr>
-            <tr><td>Profundidade de teste</td><td className="num">{L.testDepth} m</td></tr>
-            <tr><td>Pitch máximo</td><td className="num">{L.maxPitch}°</td></tr>
-            <tr><td>Banda máxima</td><td className="num">{L.maxRoll}°</td></tr>
-            <tr><td>Velocidade vertical máxima</td><td className="num">{L.maxVerticalSpeed} m/s</td></tr>
-            <tr><td>Altitude mínima (alerta / crítica)</td><td className="num">{L.minAltitudeWarn} / {L.minAltitudeCrit} m</td></tr>
+            <tr>
+              <td>Profundidade operacional</td>
+              <td className="num">{L.operatingDepth} m</td>
+            </tr>
+            <tr>
+              <td>Profundidade de teste</td>
+              <td className="num">{L.testDepth} m</td>
+            </tr>
+            <tr>
+              <td>Pitch máximo</td>
+              <td className="num">{L.maxPitch}°</td>
+            </tr>
+            <tr>
+              <td>Banda máxima</td>
+              <td className="num">{L.maxRoll}°</td>
+            </tr>
+            <tr>
+              <td>Velocidade vertical máxima</td>
+              <td className="num">{L.maxVerticalSpeed} m/s</td>
+            </tr>
+            <tr>
+              <td>Altitude mínima (alerta / crítica)</td>
+              <td className="num">
+                {L.minAltitudeWarn} / {L.minAltitudeCrit} m
+              </td>
+            </tr>
           </tbody>
         </table>
         <div className="subtle mt8">Editáveis em Cenários → Parâmetros. Catálogo: {ALARM_DEFS.length} alarmes com prioridade, retardo e registro.</div>

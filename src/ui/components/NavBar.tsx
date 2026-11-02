@@ -26,14 +26,17 @@ const ICON_PATHS: Record<NavGroupId, string[]> = {
   sala: ['M9.5 21V6.5A2.5 2.5 0 0 1 12 4h7v4.5h-5.5V21', 'M5 14.5h4.5M5 18h4.5'],
 };
 
-/** cor de cada grupo (ícone, barra do grupo ativo e faixa das telas): diferencia os grupos de relance */
+/**
+ * cor de cada grupo (ícone, barra do grupo ativo e faixa das telas): diferencia os grupos de relance.
+ * Sem vermelho, âmbar ou verde — essas cores ficam para o estado (pontos de alarme na navegação).
+ */
 export const GROUP_COLOR: Record<NavGroupId, string> = {
   operacao: '#36c5f0',
-  sistemas: '#4cd98a',
+  sistemas: '#8fb7ff',
   apresentacao: '#b48cff',
-  analise: '#ffb347',
+  analise: '#e8dfa8',
   ajustes: '#9fb7cf',
-  sala: '#ff7a6b',
+  sala: '#d6a77a',
 };
 const gc = (id: NavGroupId) => ({ '--gc': GROUP_COLOR[id] }) as CSSProperties;
 

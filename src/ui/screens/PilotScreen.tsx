@@ -18,7 +18,7 @@ import type { ViewMode } from '../../render3d/SubmarineScene';
 import { navStatus } from '../navStatus';
 import { ManeuverStatus } from '../components/ManeuverStatus';
 import { GROUP_TITLE, GROUP_ICON, GROUP_COLOR, GROUP_SECTIONS, GROUP_SHORT, SIDE_GROUPS, type GroupId } from '../ops/opsBus';
-import { GROUPS } from '../ops/OpsGroups';
+import { GROUPS, groupAlarm } from '../ops/OpsGroups';
 import { OpsStrip } from '../ops/OpsStrip';
 import { OpsConsole, OpsConsoleCompact, TakeoverToast, EmergencyBox } from '../ops/OpsConsole';
 import { clampSideWidth, isCompact, SIDE_MAX, SIDE_MIN, type ConsoleMode } from '../ops/layout';
@@ -29,6 +29,9 @@ import { viewSection, type ViewOption } from '../components/OverlayMenu';
 import type { LayerKey } from '../components/LayerPanel';
 import { SceneLayerPanel } from '../components/SceneLayerPanel';
 import { defaultLayers, type SceneLayers } from '../../render3d/layers';
+
+/** o sistema pediu menos movimento? (rolagem sem animação) */
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** preferências adicionais da Operação (preserva as chaves já salvas da Pilotagem) */
 const PILOT_LAYER_DEFAULTS = {
@@ -87,23 +90,37 @@ function OpsGroupBox({ id, e }: { id: GroupId; e: SimulationEngine }) {
   const [flash, setFlash] = useState(false);
   useEffect(() => {
     if (ops.focusGroup === id && ops.focusSeq > 0) {
-      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      ref.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'nearest' });
       setFlash(true);
       const t = window.setTimeout(() => setFlash(false), 1400);
       return () => window.clearTimeout(t);
     }
   }, [ops.focusSeq]);
-  const warn = g.warn?.(e);
+  const alarm = groupAlarm(e, id);
+  const warn = !alarm && g.warn?.(e);
   const Body = g.Body;
+  const bodyId = `ops-body-${id}`;
   return (
-    <section ref={ref} className={`ops-group ${open ? 'open' : ''} ${pinned ? 'pinned' : ''} ${flash ? 'flash' : ''} ${warn ? 'warn' : ''}`} style={{ '--gc': GROUP_COLOR[id] } as CSSProperties}>
-      <header onClick={() => ops.toggle(id)} title={pinned ? 'Grupo fixado (desafixe para recolher)' : open ? 'Recolher' : 'Expandir (fecha o outro grupo livre)'}>
-        <span className="chev">{open ? '▾' : '▸'}</span>
-        <span className="ico" aria-hidden>
-          {GROUP_ICON[id]}
-        </span>
-        <b>{GROUP_TITLE[id]}</b>
-        <span className="sum">{g.summary(e)}</span>
+    <section ref={ref} className={`ops-group ${open ? 'open' : ''} ${pinned ? 'pinned' : ''} ${flash ? 'flash' : ''} ${warn ? 'warn' : ''} ${alarm ? 'alarm' : ''}`} style={{ '--gc': GROUP_COLOR[id] } as CSSProperties}>
+      <header>
+        {/* botão de verdade: abre/recolhe também pelo teclado (Tab + Enter/Espaço) */}
+        <button
+          className="ops-toggle"
+          onClick={() => ops.toggle(id)}
+          aria-expanded={open}
+          aria-controls={bodyId}
+          title={pinned ? 'Grupo fixado (desafixe para recolher)' : open ? 'Recolher' : 'Expandir (fecha o outro grupo livre)'}
+        >
+          <span className="chev" aria-hidden>
+            {open ? '▾' : '▸'}
+          </span>
+          <span className="ico" aria-hidden>
+            {GROUP_ICON[id]}
+          </span>
+          <b>{GROUP_TITLE[id]}</b>
+          {alarm && <span className="badge alarm">◆ ALARME</span>}
+          <span className="sum">{g.summary(e)}</span>
+        </button>
         <button
           className={`pin ${pinned ? 'on' : ''}`}
           onClick={(ev) => {
@@ -117,7 +134,7 @@ function OpsGroupBox({ id, e }: { id: GroupId; e: SimulationEngine }) {
         </button>
       </header>
       {open && (
-        <div className="body">
+        <div className="body" id={bodyId}>
           <Body e={e} inOps />
         </div>
       )}
@@ -342,7 +359,13 @@ export function PilotScreen() {
         </div>
         <div className="ops-jump" role="toolbar" aria-label="Ir para o sistema">
           {SIDE_GROUPS.map((g) => (
-            <button key={g} className={`${ops.isOpen(g) ? 'on' : ''} ${GROUPS[g].warn?.(e) ? 'warn' : ''}`} style={{ '--gc': GROUP_COLOR[g] } as CSSProperties} onClick={() => ops.focus(g)} title={GROUP_TITLE[g]}>
+            <button
+              key={g}
+              className={`${ops.isOpen(g) ? 'on' : ''} ${groupAlarm(e, g) ? 'alarm' : GROUPS[g].warn?.(e) ? 'warn' : ''}`}
+              style={{ '--gc': GROUP_COLOR[g] } as CSSProperties}
+              onClick={() => ops.focus(g)}
+              title={GROUP_TITLE[g]}
+            >
               <span aria-hidden>{GROUP_ICON[g]}</span> {GROUP_SHORT[g]}
             </button>
           ))}

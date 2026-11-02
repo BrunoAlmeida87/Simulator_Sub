@@ -41,17 +41,23 @@ export const GROUP_ICON: Record<GroupId, string> = {
   guiados: '🎬',
 };
 
+/**
+ * Cores de CATEGORIA: azuis, verde-água, violetas e areia — nunca vermelho, âmbar ou
+ * verde, que são cores de estado. Alarme ativo no sistema pinta a faixa do grupo de
+ * vermelho (groupAlarm em OpsGroups.tsx); o grupo Alarmes é neutro até haver alarme.
+ * Instrutor (falhas, ambiente, roteiros): família violeta, como os botões .instr.
+ */
 export const GROUP_COLOR: Record<GroupId, string> = {
-  nav: '#4ade80',
+  nav: '#93c5fd',
   lastro: '#3b82f6',
   comp: '#2dd4bf',
   trim: '#b794ff',
   ar: '#7dd3fc',
-  energia: '#fbbf24',
-  alarmes: '#fb7185',
-  falhas: '#f87171',
-  ambiente: '#fb923c',
-  guiados: '#f472b6',
+  energia: '#e8dfa8',
+  alarmes: '#9fb7cf',
+  falhas: '#c4b5fd',
+  ambiente: '#a5b4fc',
+  guiados: '#e9b8f5',
 };
 
 /** nome curto (barra de atalhos do painel) */

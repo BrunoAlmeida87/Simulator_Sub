@@ -8,7 +8,8 @@
   --line2: #2c4260;
   --text: #d8e4f0;
   --muted: #8399b1;
-  --dim: #5a6f86;
+  /* texto terciário: ≥ 4,5:1 sobre --bg e --panel (o antigo #5a6f86 dava 3,4:1) */
+  --dim: #7088a2;
   --accent: #36c5f0;
   --accent2: #1e8fb8;
   --ok: #3ddc84;
@@ -20,8 +21,13 @@
   --air: #c9d6e3;
   --med: #3ddc84;
   --calc: #b48cff;
-  --cmd: #ffb347;
+  /* valor comandado: ciano (como "Comandado" no Governo); âmbar fica só para ATENÇÃO */
+  --cmd: #5fd0f5;
   --verd: #8fb3d9;
+  /* ações do instrutor (falhas, alvos, ambiente): violeta tracejado, separado da operação */
+  --instr: #a98bff;
+  /* Cores de ESTADO — reservadas: --ok (normal), --warn (atenção, P3), --alarm (alarme, P2), --crit (crítico, P1).
+     Categorias (grupos, sistemas) não usam vermelho, âmbar nem verde. Estado sempre vem com forma + texto (alarmUi.ts). */
   --mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --radius: 6px;
@@ -147,31 +153,37 @@ code, .mono { font-family: var(--mono); }
 .eng [data-inspect]:hover { outline: 1px dashed var(--calc); outline-offset: 1px; }
 .subtle { color: var(--muted); font-size: 11.5px; }
 .note { color: var(--muted); font-size: 11.5px; border-left: 2px solid var(--line2); padding: 2px 8px; margin: 6px 0; }
-.future { display: inline-block; font-size: 10px; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 3px; border: 1px dashed var(--dim); color: var(--muted); }
-.badge { display: inline-block; font-size: 10px; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+.future { display: inline-block; font-size: 11px; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 3px; border: 1px dashed var(--dim); color: var(--muted); }
+.badge { display: inline-block; font-size: 11px; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
 .badge.ok { background: rgba(61, 220, 132, 0.14); color: var(--ok); }
 .badge.warn { background: rgba(245, 176, 65, 0.16); color: var(--warn); }
-.badge.alarm { background: rgba(255, 82, 87, 0.18); color: var(--alarm); }
+.badge.alarm { background: rgba(255, 82, 87, 0.18); color: var(--alarm); box-shadow: inset 0 0 0 1px rgba(255, 82, 87, 0.55); }
+/* prioridade 1 (CRÍTICO): fundo sólido — distingue do alarme P2 sem depender do tom de vermelho */
+.badge.crit { background: var(--crit); color: #fff; }
+.badge.instr { background: rgba(169, 139, 255, 0.14); color: #cbb8ff; box-shadow: inset 0 0 0 1px rgba(169, 139, 255, 0.45); }
 .badge.info { background: rgba(54, 197, 240, 0.14); color: var(--accent); }
 .badge.off { background: rgba(127, 147, 168, 0.12); color: var(--muted); }
 
 /* ---------- leituras ---------- */
 .readouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 6px; }
 .ro { background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; min-width: 0; }
-.ro .lbl { display: flex; justify-content: space-between; align-items: center; gap: 4px; color: var(--muted); font-size: 10.5px; }
-.ro .lbl span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ro .lbl { display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; color: var(--muted); font-size: 11px; }
+/* rótulo em até duas linhas (antes era cortado: "Profundidad…", "Rumo verd…") */
+.ro .lbl span { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; overflow-wrap: anywhere; }
 .ro .val { font-family: var(--mono); font-size: 16px; font-weight: 600; white-space: nowrap; }
 .ro .val small { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 3px; }
-.ro .truth { font-family: var(--mono); font-size: 10.5px; color: var(--verd); }
+.ro .truth { font-family: var(--mono); font-size: 11px; color: var(--verd); }
 .ro.warn .val { color: var(--warn); }
 .ro.alarm .val { color: var(--alarm); }
-.kind { font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 2px; letter-spacing: 0.06em; flex-shrink: 0; }
+.kind { font-size: 10px; font-weight: 700; padding: 0 4px; border-radius: 2px; letter-spacing: 0.04em; flex-shrink: 0; line-height: 1.35; }
 .kind.MED { color: var(--med); border: 1px solid rgba(61, 220, 132, 0.45); }
 .kind.CALC { color: var(--calc); border: 1px solid rgba(180, 140, 255, 0.45); }
-.kind.CMD { color: var(--cmd); border: 1px solid rgba(255, 179, 71, 0.45); }
+.kind.CMD { color: var(--cmd); border: 1px dashed rgba(95, 208, 245, 0.6); }
+/* opção “selos de origem só no modo engenharia” (Configurações › Aparência): app.hide-kinds */
+.app.hide-kinds:not(.eng) .kind { display: none; }
 .kind.VERD { color: var(--verd); border: 1px solid rgba(143, 179, 217, 0.45); }
 table.t { width: 100%; border-collapse: collapse; font-size: 12px; }
-table.t th { text-align: left; color: var(--muted); font-weight: 500; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--line); padding: 4px 6px; }
+table.t th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--line); padding: 4px 6px; }
 table.t td { border-bottom: 1px solid #18263a; padding: 4px 6px; vertical-align: middle; }
 table.t td.num { font-family: var(--mono); text-align: right; white-space: nowrap; }
 table.t tr.sel td { background: rgba(54, 197, 240, 0.07); }
@@ -189,6 +201,12 @@ table.t tr.sel td { background: rgba(54, 197, 240, 0.07); }
 .btn.danger { border-color: rgba(255, 82, 87, 0.65); color: #ffd6d7; }
 .btn.danger.on, .btn.danger:hover:not(:disabled) { background: rgba(255, 82, 87, 0.22); }
 .btn.warn { border-color: rgba(245, 176, 65, 0.65); }
+/* ação do instrutor: altera o cenário de fora (falhas, alvos, inimigo) — não é operação do navio */
+.btn.instr { border: 1px dashed var(--instr); color: #e6dcff; background: color-mix(in srgb, var(--instr) 9%, #17263a); }
+.btn.instr:hover:not(:disabled), .btn.instr.on { background: color-mix(in srgb, var(--instr) 22%, #17263a); border-color: #c4b0ff; }
+/* foco pelo teclado: o mesmo anel em todos os controles (o padrão do navegador era 1 px e some no tema escuro) */
+:where(button, a, select, input, textarea, summary, [role='button'], [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:where(.nav2 button, .ops-grip, .mini-num input):focus-visible { outline-offset: -2px; }
 .btn.sm { padding: 3px 7px; font-size: 11px; }
 .btn.lg { padding: 8px 14px; font-size: 13px; }
 .btngroup { display: inline-flex; flex-wrap: wrap; gap: 4px; }
@@ -255,6 +273,12 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .annunciator .msg { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; }
 .blink { animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { to { visibility: hidden; } }
+/* menos movimento (preferência do sistema): o alarme fica realçado fixo em vez de piscar */
+@media (prefers-reduced-motion: reduce) {
+  .blink { animation: none; text-decoration: underline; text-underline-offset: 3px; }
+  .ops-group, .ops-console { transition: none !important; }
+  * { scroll-behavior: auto !important; }
+}
 .prio1 { color: var(--crit); }
 .prio2 { color: var(--alarm); }
 .prio3 { color: var(--warn); }
@@ -281,7 +305,8 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 /* ---------- 3D ---------- */
 .view3d { position: relative; height: calc(100vh - 120px); min-height: 380px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #02060b; }
 .view3d canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-.hud { position: absolute; pointer-events: none; font-family: var(--mono); font-size: 12px; text-shadow: 0 1px 2px #000; }
+/* fundo próprio: legível também sobre o céu claro do dia (antes só tinha sombra no texto) */
+.hud { position: absolute; pointer-events: none; font-family: var(--mono); font-size: 12px; text-shadow: 0 1px 2px #000; background: rgba(5, 12, 20, 0.72); border-radius: 5px; padding: 4px 8px; }
 .hud.tl { top: 8px; left: 10px; }
 .hud .line { white-space: nowrap; }
 .overlay-ctl { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; pointer-events: auto; }
@@ -375,7 +400,7 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .pilot-view .view3d { height: calc(100vh - var(--topbar-h, 52px) - var(--nav-h, 34px) - 30px); min-height: 360px; }
 .pilot-ctl { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .pilot-tape { position: absolute; left: 8px; bottom: 10px; width: 92px; opacity: 0.9; pointer-events: none; }
-.pilot-hud { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 240px); display: flex; flex-direction: column; gap: 6px; pointer-events: none; background: rgba(5, 12, 20, 0.6); border-radius: 6px; padding: 6px 8px; }
+.pilot-hud { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 240px); display: flex; flex-direction: column; gap: 6px; pointer-events: none; background: rgba(5, 12, 20, 0.8); border-radius: 6px; padding: 6px 8px; }
 .pilot-nums { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--mono); text-shadow: 0 1px 2px #000; }
 .pilot-nums span { display: flex; gap: 5px; align-items: baseline; }
 .pilot-nums small { color: #9fb7cf; font-size: 10px; }
@@ -495,7 +520,10 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .ops-jump button:hover { background: color-mix(in srgb, var(--gc) 25%, #0b131c); }
 .ops-jump button.on { border-color: var(--gc); background: color-mix(in srgb, var(--gc) 22%, #0b131c); }
 .ops-jump button.warn { border-color: var(--warn); color: var(--warn); }
+.ops-jump button.alarm { border-color: var(--alarm); color: #ffc2c4; background: color-mix(in srgb, var(--alarm) 16%, #0b131c); }
 .ops-group > header { display: flex; align-items: center; gap: 7px; padding: 5px 8px; cursor: pointer; user-select: none; }
+.ops-group > header .ops-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0; margin: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ops-group > header .ops-toggle .badge { flex: none; }
 .ops-group > header:hover { background: rgba(255, 255, 255, 0.03); }
 .ops-group > header b { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .ops-group > header .sum { flex: 1; min-width: 0; font-family: var(--mono); font-size: 11px; color: #9fb7cf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
@@ -503,7 +531,11 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .ops-group .pin { background: transparent; border: 1px solid #2c4260; border-radius: 3px; cursor: pointer; color: #6f86a0; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; padding: 0 4px; line-height: 16px; }
 .ops-group .pin.on { color: #36c5f0; border-color: #36c5f0; }
 .ops-group.pinned { border-color: var(--gc, #36c5f0); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gc, #36c5f0) 35%, transparent); }
+.ops-group.warn { border-left-color: var(--warn); }
 .ops-group.warn > header .sum { color: var(--warn); }
+/* alarme ativo (P1/P2) no sistema: faixa e resumo em vermelho; o nome do grupo mantém a cor da categoria */
+.ops-group.alarm { border-left-color: var(--alarm); box-shadow: inset 0 0 0 1px rgba(255, 82, 87, 0.35); }
+.ops-group.alarm > header .sum { color: #ffb3b5; }
 .ops-group.flash, .ops-console.flash { box-shadow: 0 0 0 2px #36c5f0, 0 0 18px rgba(54, 197, 240, 0.45); }
 .ops-group > .body { padding: 6px 6px 8px; border-top: 1px solid #1a2a3d; overflow-x: auto; }
 .ops-t td { padding: 3px 4px; vertical-align: middle; }
@@ -574,8 +606,8 @@ tr.focus, div.focus, .row.focus { outline: 2px solid #36c5f0; outline-offset: 1p
 .mini-num { display: flex; align-items: center; height: 24px; border: 1px solid #2c4260; border-radius: 4px; background: #08121c; padding: 0 4px; gap: 2px; }
 .mini-num input { width: 100%; min-width: 0; border: 0; background: transparent; color: #7cc4ff; font: 600 12.5px var(--mono); text-align: right; padding: 0; }
 .mini-num input:focus { outline: none; }
-.mini-num:focus-within { border-color: #36c5f0; }
-.mini-num u { text-decoration: none; color: #5f7690; font-size: 10px; }
+.mini-num:focus-within { border-color: #36c5f0; box-shadow: 0 0 0 1px #36c5f0; }
+.mini-num u { text-decoration: none; color: var(--dim); font-size: 10.5px; }
 .mini-num.dim input { color: #6f86a0; }
 .con-mv { display: flex; flex-direction: column; gap: 4px; }
 .con-mv button { width: 100%; text-align: left; height: 26px; }
@@ -1352,7 +1384,8 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .wx-step.st-liberado:hover { background: #1c5a3b; }
 .wx-step.st-liberado.is-fire { border-color: #d0513a; background: #5e2016; }
 .wx-step.st-liberado.is-fire:hover { background: #73291d; }
-.wx-step.st-bloqueado { border-color: #5d2a2f; border-left-color: var(--wx-no); background: #23141a; color: #d9b5b8; }
+/* bloqueada = neutra (cadeado e motivo); vermelho fica para perigo e falha */
+.wx-step.st-bloqueado { border-color: #2a3a4c; border-left-color: #51647a; background: #111a24; color: #a9b8c8; }
 .wx-step.st-andamento { border-color: #6b4f19; border-left-color: var(--wx-busy); background: #2e2410; color: #f3e2bd; }
 .wx-step.st-feito { border-color: #1f4744; border-left-color: var(--wx-done); background: #12211f; color: #9fcfc8; }
 .wx-step.st-feito .wx-num { background: var(--wx-done); color: #04201d; }
@@ -1462,3 +1495,10 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .label-hidden-list li span { min-width: 0; overflow-wrap: anywhere; }
 .label-hidden-list button { flex-shrink: 0; }
 .room-pip .room-pip-opts { display: block; position: absolute; z-index: 20; top: 42px; right: 4px; width: min(420px, calc(100% - 8px)); max-height: calc(100% - 50px); overflow: auto; background: #0b1622; border: 1px solid var(--line2); padding: 10px; }
+
+/* ---------- revisão de interface (etapas 2–5): instrutor, estados vazios, tubos ---------- */
+.wx-big.instr { border: 1px dashed var(--instr); background: color-mix(in srgb, var(--instr) 12%, #15283d); color: #ece4ff; }
+.wx-big.instr:hover:not(:disabled) { background: color-mix(in srgb, var(--instr) 24%, #15283d); border-color: #c4b0ff; }
+.wx-side { font: 600 10.5px/1.3 var(--mono); color: var(--muted); border: 1px solid var(--line2); border-radius: 3px; padding: 0 4px; }
+.empty-state { padding: 10px 4px; max-width: 70ch; }
+.panel.instr-panel { border-style: dashed; border-color: color-mix(in srgb, var(--instr) 55%, var(--line)); }
