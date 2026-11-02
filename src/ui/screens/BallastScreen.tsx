@@ -118,7 +118,19 @@ export function Diagram({ e }: { e: SimulationEngine }) {
           );
         })}
         <Pipe d={`M${bankX(0) - 22},332 H${bankX(v.hpAir.banks.length - 1)} M560,350 V332`} flow={s.hpAir.compressorRunning ? 1 : 0} color="#d9cf8f" width={2} />
-        <g onClick={() => cmd({ type: 'compressor', run: !s.hpAir.compressorCmd })} style={{ cursor: 'pointer' }}>
+        <g
+          onClick={() => cmd({ type: 'compressor', run: !s.hpAir.compressorCmd })}
+          role="button"
+          tabIndex={0}
+          aria-label={`Compressor ${s.hpAir.compressorRunning ? 'em carga' : 'parado'}: ${s.hpAir.compressorCmd ? 'desligar' : 'ligar'}`}
+          onKeyDown={(ev) => {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+              ev.preventDefault();
+              cmd({ type: 'compressor', run: !s.hpAir.compressorCmd });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <title>Compressor: recarga dos dois circuitos por retenções, sem equalização entre reservas</title>
           <rect x="480" y="350" width="160" height="30" rx="4" fill="#0a121b" stroke={s.hpAir.compressorRunning ? '#3ddc84' : '#8399b1'} />
           <text x="560" y="369" textAnchor="middle" fontSize="11" fill="#d9cf8f">

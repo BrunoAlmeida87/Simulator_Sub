@@ -535,7 +535,7 @@ label.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer
 .ops-jump button.on { border-color: var(--gc); background: color-mix(in srgb, var(--gc) 22%, #0b131c); }
 .ops-jump button.warn { border-color: var(--warn); color: var(--warn); }
 .ops-jump button.alarm { border-color: var(--alarm); color: #ffc2c4; background: color-mix(in srgb, var(--alarm) 16%, #0b131c); }
-.ops-group > header { display: flex; align-items: center; gap: 7px; padding: 5px 8px; cursor: pointer; user-select: none; }
+.ops-group > header { display: flex; align-items: center; gap: 7px; padding: 5px 8px; user-select: none; }
 .ops-group > header .ops-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0; margin: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .ops-group > header .ops-toggle .badge { flex: none; }
 .ops-group > header:hover { background: rgba(255, 255, 255, 0.03); }
@@ -1540,7 +1540,9 @@ input[type='color'] { width: 34px; height: 24px; padding: 0 2px; border: 1px sol
 .hi-contrast .ops-tile small { font-size: 11.5px; color: var(--muted); }
 .hi-contrast .ops-tile b { font-size: 19px; }
 /* abas internas de Configurações */
-.settings-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.settings-tabs { display: inline-flex; flex-wrap: wrap; margin: 2px 0 10px; }
+.settings-tabs button { padding: 6px 12px; font-size: 12.5px; }
+.sysov-extra { margin-top: 10px; }
 /* seletor de cenário: largo o bastante para o nome (antes cortava em 170 px: “Superfície — pronto pa”) */
 .scenario-pick { max-width: 250px; }
 @media (max-width: 1500px) { .scenario-pick { max-width: 190px; } }

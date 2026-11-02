@@ -62,7 +62,7 @@ export function RecordingPanel() {
       <div className="row">
         {rec.mode !== 'gravando' ? (
           <>
-            <input type="text" placeholder="Nome da gravação (opcional)" value={name} onChange={(ev) => setName(ev.target.value)} style={{ flex: '1 1 180px', minWidth: 0 }} disabled={rec.mode === 'reproduzindo'} />
+            <input type="text" aria-label="Nome da gravação" placeholder="Nome da gravação (opcional)" value={name} onChange={(ev) => setName(ev.target.value)} style={{ flex: '1 1 180px', minWidth: 0 }} disabled={rec.mode === 'reproduzindo'} />
             <button
               className="btn danger"
               disabled={rec.mode === 'reproduzindo'}

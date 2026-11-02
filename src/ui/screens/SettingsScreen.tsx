@@ -96,7 +96,7 @@ function SessionPanel() {
         </span>
       </div>
       <div className="row mt8">
-        <input type="text" placeholder="Nome da sessão (opcional)" value={name} onChange={(ev) => setName(ev.target.value)} style={{ flex: '1 1 200px', minWidth: 0 }} />
+        <input type="text" aria-label="Nome da sessão" placeholder="Nome da sessão (opcional)" value={name} onChange={(ev) => setName(ev.target.value)} style={{ flex: '1 1 200px', minWidth: 0 }} />
         <button
           className="btn"
           onClick={() => {

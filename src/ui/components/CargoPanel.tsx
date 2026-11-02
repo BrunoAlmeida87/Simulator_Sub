@@ -597,7 +597,7 @@ export function CargoPanel({ e }: { e: SimulationEngine }) {
                 <button className="btn sm" onClick={() => setDraft({ ...draft, quantity: Math.max(1, Math.round(draft.quantity) - 1) })} aria-label="Diminuir quantidade">
                   −
                 </button>
-                <input type="number" min={1} step={1} value={draft.quantity} onChange={(ev) => setDraft({ ...draft, quantity: Number(ev.target.value) })} style={{ width: 56 }} />
+                <input type="number" aria-label="Quantidade" min={1} step={1} value={draft.quantity} onChange={(ev) => setDraft({ ...draft, quantity: Number(ev.target.value) })} style={{ width: 56 }} />
                 <button className="btn sm" onClick={() => setDraft({ ...draft, quantity: Math.round(draft.quantity) + 1 })} aria-label="Aumentar quantidade">
                   +
                 </button>

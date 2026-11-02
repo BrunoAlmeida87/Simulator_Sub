@@ -110,7 +110,7 @@ export function TransferControls({ e, sys }: { e: SimulationEngine; sys: 'trim' 
       </div>
       <div className="row">
         <b>Sequência:</b>
-        <input type="number" value={kg} min={10} step={50} onChange={(ev) => setKg(Number(ev.target.value))} /> kg
+        <input type="number" aria-label="Quantidade a transferir (kg)" value={kg} min={10} step={50} onChange={(ev) => setKg(Number(ev.target.value))} /> kg
         <button className="btn" onClick={() => cmd({ type: 'dosing', system: sys, mode: 'transferir', kg, dir: 'AtoB' })}>
           {lblA} → {lblB}
         </button>

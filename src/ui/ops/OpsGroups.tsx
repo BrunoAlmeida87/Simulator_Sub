@@ -136,7 +136,7 @@ function LastroBody({ e, inOps }: GroupBodyProps) {
             const st = s.ballast[t.id];
             const f = st.water / t.volume;
             return (
-              <tr key={t.id} className={isFocus(t.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: t.id })} style={{ cursor: 'pointer' }}>
+              <tr key={t.id} className={isFocus(t.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: t.id })} onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && (ev.preventDefault(), opsBus.select({ kind: 'tank', id: t.id }))} tabIndex={0} title="Clique ou Enter: destacar o tanque na cena" style={{ cursor: 'pointer' }}>
                 <td>
                   <b>{t.id.replace('TLP', 'TLP-')}</b>
                   <div className="subtle">{st.pAir > 0.5e5 ? `${(st.pAir / 1e5).toFixed(2)} bar ar` : st.water >= t.volume - 0.05 ? 'sem ar' : '—'}</div>
@@ -199,7 +199,7 @@ function CompBody({ e }: { e: SimulationEngine }) {
             const vol = tankVolume(b.st);
             const short = b.heel ? (b.heel === 'A' ? 'TB-BB' : 'TB-BE') : b.id;
             return (
-              <tr key={b.id} className={isFocus(b.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: b.id })} style={{ cursor: 'pointer' }}>
+              <tr key={b.id} className={isFocus(b.id) ? 'focus' : ''} onClick={() => opsBus.select({ kind: 'tank', id: b.id })} onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && (ev.preventDefault(), opsBus.select({ kind: 'tank', id: b.id }))} tabIndex={0} title="Clique ou Enter: destacar o tanque na cena" style={{ cursor: 'pointer' }}>
                 <td>
                   <b>{short}</b> <span className="subtle">{b.heel ? 'banda · ramal ' + b.valveId : b.cfg.name.replace(/^TC(-\d)?\s*/, '')}</span>
                 </td>
