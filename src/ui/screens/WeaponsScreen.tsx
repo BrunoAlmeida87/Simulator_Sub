@@ -13,7 +13,7 @@
  * SM39 no tubo, os dados de tiro passam a ser os do míssil (alvo de superfície ou em terra, exercício ou combate,
  * subida e desvio da cápsula); fragatas classe Tamandaré e alvos em terra (fictícios) entram pelo painel de alvos.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cmd, useSim } from '../store';
 import { Panel } from '../components/Panel';
 import { Readout } from '../components/Readout';
@@ -124,6 +124,38 @@ export function WeaponsScreen() {
   const [tsPreset, setTsPreset] = useState<{ key: number; p: TubeStagePreset } | undefined>(undefined);
   const [enemyCfg, setEnemyCfg] = usePersisted('armas.inimigo', { range: 3000, bearing: 20, depth: 60, speed: 5 });
   const [hostCfg, setHostCfg] = usePersisted('armas.alvoSuperficie', { range: 25000, bearing: 20, course: 90, speed: 15, landRange: 8000, landBearing: 0 });
+  // tamanho livre das visualizações: largura da coluna da esquerda (%), alturas do tubo 3D e da vista 3D, tela cheia
+  const [leftPct, setLeftPct] = usePersisted('armas.larguraEsq', 40);
+  const [tubeH, setTubeH] = usePersisted('armas.alturaTubo3d', 440);
+  const [sceneH, setSceneH] = usePersisted('armas.alturaVista3d', 460);
+  const [full, setFull] = useState<'tubo' | 'cena' | null>(null);
+  const colsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!full) return;
+    const k = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setFull(null);
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [full]);
+  const dragSplit = (ev: React.PointerEvent) => {
+    const box = colsRef.current;
+    if (!box) return;
+    ev.preventDefault();
+    const r = box.getBoundingClientRect();
+    const move = (m: PointerEvent) => setLeftPct(Math.round(Math.max(22, Math.min(62, ((m.clientX - r.left) / r.width) * 100))));
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  const fullBtn = (id: 'tubo' | 'cena') => (
+    <button className="btn sm" onClick={() => setFull(full === id ? null : id)} title={full === id ? 'Sair da tela cheia (Esc)' : 'Tela cheia (Esc sai)'} aria-pressed={full === id}>
+      {full === id ? '✕ Sair' : '⛶ Tela cheia'}
+    </button>
+  );
   const [loadKind, setLoadKind] = usePersisted<WeaponKind>('armas.carregar', 'sm39');
   const targets = useTargets(e);
   const ctx = useMemo(() => seaCtx(e), [e, s.t]);
@@ -228,8 +260,8 @@ export function WeaponsScreen() {
         </div>
       </section>
 
-      <div className="wx-cols">
-        <div className="wx-col">
+      <div className="wx-cols" ref={colsRef} style={{ '--wx-left': `${leftPct}%` } as React.CSSProperties}>
+        <div className="wx-col wx-col-left">
           {/* ---------- lançamento */}
           <Panel
             title={`Tubo ${tc.n} (${tc.side === 'BE' ? 'boreste' : 'bombordo'}) — ${t.weapon ? (kindOf(t) === 'sm39' ? 'míssil SM39 na cápsula VSM' : 'torpedo F21') : 'vazio'}`}
@@ -428,7 +460,7 @@ export function WeaponsScreen() {
                   {combat ? 'Ogiva de combate (165 kg): um impacto destrói o alvo.' : 'Exercício: sai da rota a 1,5 km e cai no mar ao lado do alvo.'}
                 </div>
               )}
-              <p className="subtle">
+              <p className="note">
                 Sequência: a cápsula VSM sai do tubo, acende o motor e sobe; rompe a superfície, ejeta o nariz; a ~20 m o míssil se separa, abre as asas e acende o acelerador; depois voa rente ao mar a Mach 0,93 até o
                 alvo.
               </p>
@@ -507,7 +539,7 @@ export function WeaponsScreen() {
 
           {/* ---------- alvos de superfície e em terra */}
           {hasMissile && (
-            <Panel title="Alvos de superfície e em terra (fictícios)" className="wx-enemy">
+            <Panel title="Alvos de superfície e em terra (fictícios)" className="wx-enemy" fold="armas.painel.superficie">
               <div className="wx-fields">
                 <label className="wx-field">
                   <span>
@@ -592,7 +624,7 @@ export function WeaponsScreen() {
                 );
               })}
               {!hostiles.length && (
-                <p className="subtle">
+                <p className="note">
                   Coloque uma fragata (ou um alvo em terra, nos cenários com costa), carregue um SM39 no tubo, mire e dispare. O alvo em terra fica no primeiro ponto de terra na marcação escolhida, a partir de{' '}
                   {km(hostCfg.landRange)}.
                 </p>
@@ -601,7 +633,7 @@ export function WeaponsScreen() {
           )}
 
           {/* ---------- inimigo */}
-          <Panel title="Submarino inimigo (alvo fictício)" className="wx-enemy">
+          <Panel title="Submarino inimigo (alvo fictício)" className="wx-enemy" fold="armas.painel.inimigo">
             <div className="wx-fields">
               <label className="wx-field">
                 <span>
@@ -684,13 +716,29 @@ export function WeaponsScreen() {
                 </div>
               );
             })}
-            {!enemies.length && <p className="subtle">Insira um submarino inimigo, clique em Mirar (escolhe a arma de combate) e dispare. A arma desce à cota dele e explode pela espoleta de proximidade.</p>}
+            {!enemies.length && <p className="note">Insira um submarino inimigo, clique em Mirar (escolhe a arma de combate) e dispare. A arma desce à cota dele e explode pela espoleta de proximidade.</p>}
           </Panel>
         </div>
 
+        <div
+          className="wx-split"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Largura das colunas"
+          aria-valuenow={leftPct}
+          tabIndex={0}
+          title="Arraste para dar mais espaço ao 3D ou aos dados (duplo clique: padrão)"
+          onPointerDown={dragSplit}
+          onDoubleClick={() => setLeftPct(40)}
+          onKeyDown={(ev) => {
+            if (ev.key === 'ArrowLeft') setLeftPct(Math.max(22, leftPct - 2));
+            if (ev.key === 'ArrowRight') setLeftPct(Math.min(62, leftPct + 2));
+          }}
+        />
+
         <div className="wx-col">
           {/* ---------- tubo em 3D */}
-          <Panel title="Tubo em 3D — etapa a etapa" className="wx-stage">
+          <Panel title="Tubo em 3D — etapa a etapa" className={`wx-stage ${full === 'tubo' ? 'wx-full' : ''}`} right={fullBtn('tubo')}>
             <TubeStage3D
               tube={tc.n}
               cut={tsCut}
@@ -700,7 +748,7 @@ export function WeaponsScreen() {
               preset={tsPreset}
               hidden={tsHidden}
               onHide={(id) => setTsHidden([...tsHidden.filter((x) => x !== id), id])}
-              style={{ height: 440 }}
+              style={{ height: full === 'tubo' ? 'calc(100vh - 150px)' : tubeH }}
             >
               <div className="wx-stage-bar">
                 {(
@@ -731,6 +779,7 @@ export function WeaponsScreen() {
                 </div>
               )}
             </TubeStage3D>
+            {full !== 'tubo' && <HeightGrip h={tubeH} set={setTubeH} def={440} />}
             <div className="wx-toggles">
               <Toggle on={tsCut} set={setTsCut} label="Corte" title="Meio tubo aberto (desligado: tubo de vidro)" />
               <Toggle on={tsFlows} set={setTsFlows} label="Fluxos" title="Escoamento nas tubulações e bolhas" />
@@ -742,7 +791,7 @@ export function WeaponsScreen() {
           </Panel>
 
           {/* ---------- vista 3D */}
-          <Panel title="Vista 3D" className="weapons-3d">
+          <Panel title="Vista 3D" className={`weapons-3d ${full === 'cena' ? 'wx-full' : ''}`} right={fullBtn('cena')}>
             <div className="wx-cams">
               {(
                 [
@@ -773,7 +822,17 @@ export function WeaponsScreen() {
               <Toggle on={cut} set={setCut} label="Corte (armas nos tubos)" />
               <Toggle on={lbl3d} set={setLbl3d} label="Identificações" />
             </div>
-            <Scene3D view={view} viewKey={camKey} layers={layers} cutaway={cut} persistKey="armas" syncVisual={false} style={{ height: 460, position: 'relative' }} />
+            <Scene3D
+              view={view}
+              viewKey={camKey}
+              layers={layers}
+              cutaway={cut}
+              persistKey="armas"
+              syncVisual={false}
+              className="wx-view"
+              style={{ height: full === 'cena' ? 'calc(100vh - 170px)' : sceneH, position: 'relative' }}
+            />
+            {full !== 'cena' && <HeightGrip h={sceneH} set={setSceneH} def={460} />}
             <p className="subtle">
               Arraste para girar em volta do torpedo, do míssil ou do alvo (a câmera continua acompanhando), roda para aproximar. Clique de novo no botão da câmera para voltar ao enquadramento padrão. Clique numa
               identificação para ocultá-la. Míssil cinematográfica: planos automáticos (cápsula subindo, saída da água, perseguição rasante, passagem e impacto).
@@ -1176,5 +1235,39 @@ function TacticalPlot({ e, targets, sel }: { e: SimulationEngine; targets: Targe
         submarino inimigo e fragata (▲) · ■ alvo em terra · ✱ explosão.
       </p>
     </div>
+  );
+}
+
+/** alça embaixo de uma visualização: arrastar muda a altura (duplo clique volta ao padrão; setas também) */
+function HeightGrip({ h, set, def }: { h: number; set: (v: number) => void; def: number }) {
+  const lim = (v: number) => Math.round(Math.max(240, Math.min(1600, v)));
+  const down = (ev: React.PointerEvent) => {
+    ev.preventDefault();
+    const y0 = ev.clientY;
+    const h0 = h;
+    const move = (m: PointerEvent) => set(lim(h0 + m.clientY - y0));
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div
+      className="wx-grip"
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Altura da visualização"
+      aria-valuenow={h}
+      tabIndex={0}
+      title="Arraste para mudar a altura (duplo clique: padrão)"
+      onPointerDown={down}
+      onDoubleClick={() => set(def)}
+      onKeyDown={(ev) => {
+        if (ev.key === 'ArrowUp') set(lim(h - 20));
+        if (ev.key === 'ArrowDown') set(lim(h + 20));
+      }}
+    />
   );
 }
