@@ -89,11 +89,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
       { id: 'sonar', label: 'Sonar', hint: 'Estação visual: TMA interativo, cascata, escuta e pulso 3D' },
-      {
-        id: 'armas',
-        label: 'Armas',
-        hint: 'Console de armas numa tela: tubo, cena 3D e tiro; passo a passo ou automático, disparo com tampa; torpedo F21 e míssil SM39 (Exocet) contra submarino inimigo, fragata ou alvo em terra',
-      },
+      { id: 'armas', label: 'Armas', hint: 'Sala de torpedos: lançamento automático ou passo a passo, tubo em 3D, submarino inimigo, torpedo de combate e míssil SM39 (Exocet) contra fragata ou alvo em terra' },
     ],
   },
   {

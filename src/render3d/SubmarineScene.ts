@@ -39,7 +39,6 @@ import { CargoVis } from './CargoVis';
 import { TorpedoVis, torpedoPose } from './TorpedoVis';
 import { EnemyVis, enemyScenePos, focusEnemy } from './EnemyVis';
 import { MissileVis, focusHostile, focusMissile, hostileScenePos, missilePose } from './MissileVis';
-import { WEAPON_LABEL, weaponFollow } from './weaponFocus';
 import { directMissileCam, newCine } from './missileCam';
 import { PitchAngle } from './PitchAngle';
 import { Ensign } from './Ensign';
@@ -901,10 +900,7 @@ export class SubmarineScene {
     const tMis = Math.max(-1, ...(ws?.missiles ?? []).map((r) => r.tFire));
     const tTorp = Math.max(-1, ...(ws?.runs ?? []).map((r) => r.tFire));
     const dirOf = (c: number) => new THREE.Vector3(Math.sin((c * Math.PI) / 180), 0, -Math.cos((c * Math.PI) / 180));
-    // alvo escolhido na tela Armas (botão Câmera): ele manda
-    const want = weaponFollow.target;
-    const wantFoe = !!want && foe?.id === want;
-    if (host && !wantFoe && (host.id === want || !foe || tMis > tTorp || (tMis < 0 && tTorp < 0 && (ws?.hostiles?.length ?? 0) > 0 && !(ws?.enemies ?? []).some((x) => x.sunk === null)))) {
+    if (host && (!foe || tMis > tTorp || (tMis < 0 && tTorp < 0 && (ws?.hostiles?.length ?? 0) > 0 && !(ws?.enemies ?? []).some((x) => x.sunk === null)))) {
       const p = hostileScenePos(host, pn, pe).add(new THREE.Vector3(0, host.type === 'terra' ? 6 : 8, 0));
       return host.type === 'terra' ? { pos: p, dir: dirOf(host.course), back: 230, side: 120, up: 90, host: true } : { pos: p, dir: dirOf(host.course), back: 170, side: 80, up: 38, host: true };
     }
@@ -2007,15 +2003,6 @@ export class SubmarineScene {
       lbl.push({ id: 'sub', text: `${e.outputs.depthKeel.toFixed(1)} m · ${fmtSpeed(e.state.body.vel.x, 1)}`, ...psub });
       const pb = proj(new THREE.Vector3(0, -bottom, 0));
       lbl.push({ id: 'bot', text: `fundo ${bottom.toFixed(0)} m (altitude ${e.outputs.altitude.toFixed(0)} m)`, ...pb });
-    }
-    // vistas de arma: só a arma, os alvos hostis, as explosões e os navios que são alvo de alguma arma;
-    // a câmera cinematográfica do míssil fica limpa, sem rótulos
-    if (this.view === 'missilCine') return [];
-    if (this.view === 'torpedo' || this.view === 'missil' || this.view === 'alvo') {
-      const ws = e.state.weapons;
-      const aimed = new Set<string>();
-      for (const r of [...(ws?.runs ?? []), ...(ws?.missiles ?? [])]) if (r.target) aimed.add('ship' + r.target);
-      return lbl.filter((l) => WEAPON_LABEL.test(l.id) || aimed.has(l.id));
     }
     return lbl;
   }

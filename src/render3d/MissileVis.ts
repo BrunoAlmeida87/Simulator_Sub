@@ -22,7 +22,6 @@ import { FRIGATE, LAND_SITE, missileActive } from '../sim/systems/missiles';
 import { Bubbles } from './TorpedoVis';
 import { loadSubModel } from './subModel';
 import type { Label3D } from './SubmarineScene';
-import { weaponFollow } from './weaponFocus';
 
 export const SM39_PARTS = { root: 'SM39_VSM', casing: 'VSM_Casco', nose: 'VSM_Nariz', missile: 'SM39', body: 'SM39_Corpo', surfaces: 'SM39_Superficies' } as const;
 
@@ -472,8 +471,6 @@ export interface MissileFocus {
 /** Míssil acompanhado pelas vistas: o último lançado ainda em voo (ou o último de todos). */
 export function focusMissile(e: SimulationEngine): MissileRun | null {
   const list = e.state.weapons?.missiles ?? [];
-  const chosen = weaponFollow.id ? list.find((r) => r.id === weaponFollow.id) : undefined;
-  if (chosen) return chosen;
   let best: MissileRun | null = null;
   for (const r of list) if (missileActive(r) && (!best || r.tFire >= best.tFire)) best = r;
   return best ?? list[list.length - 1] ?? null;
@@ -484,8 +481,6 @@ export function focusHostile(e: SimulationEngine): Hostile | null {
   const ws = e.state.weapons;
   const list = ws?.hostiles ?? [];
   if (!list.length) return null;
-  const chosen = weaponFollow.target ? list.find((k) => k.id === weaponFollow.target) : undefined;
-  if (chosen) return chosen;
   const ms = [...(ws?.missiles ?? [])].sort((a, b) => b.tFire - a.tFire);
   for (const r of ms) {
     const x = list.find((k) => k.id === r.target || k.id === r.hit?.target);

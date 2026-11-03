@@ -15,7 +15,6 @@ import type { SimulationEngine } from '../sim/core/engine';
 import type { EnemySub, Explosion } from '../sim/core/state';
 import { Bubbles } from './TorpedoVis';
 import type { Label3D } from './SubmarineScene';
-import { weaponFollow } from './weaponFocus';
 
 const L = 62; // comprimento (m)
 const D = 6.6; // diâmetro (m)
@@ -30,8 +29,6 @@ export function focusEnemy(e: SimulationEngine): EnemySub | null {
   const ws = e.state.weapons;
   const list = ws?.enemies ?? [];
   if (!list.length) return null;
-  const chosen = weaponFollow.target ? list.find((k) => k.id === weaponFollow.target) : undefined;
-  if (chosen) return chosen;
   const runs = [...(ws?.runs ?? [])].sort((a, b) => b.tFire - a.tFire);
   for (const r of runs) {
     const x = list.find((k) => k.id === r.target || k.id === r.hit?.target);

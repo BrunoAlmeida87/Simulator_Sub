@@ -24,7 +24,6 @@ import { torpedo as fallbackTorpedo } from './CargoVis';
 import { loadSubModel } from './subModel';
 import { Bubbles, torpedoModelUrl } from './TorpedoVis';
 import { sm39ModelUrl } from './MissileVis';
-import { kindOf } from '../sim/systems/missiles';
 
 export type TubeLabelGroup = 'pecas' | 'valvulas' | 'valores';
 export type TubeStagePreset = 'tres4' | 'lado' | 'boca' | 'culatra' | 'cima';
@@ -77,20 +76,6 @@ function dotTexture(): THREE.Texture {
 
 const FLOW_N = 26;
 
-/** identificações mostradas por inteiro em cada etapa (as outras viram um ponto) */
-const FOCUS_LABELS: Partial<Record<TubeAction, string[]>> = {
-  alimentar: ['arma'],
-  alagar: ['alagamento', 'suspiro', 'tca', 'tca-volume'],
-  equalizar: ['equalizacao', 'mar-pressao'],
-  abrirPorta: ['porta', 'mar-pressao'],
-  fogo: ['garrafa', 'garrafa-pressao', 'embolo', 'porta', 'arma'],
-  fecharPorta: ['porta'],
-  drenar: ['drenagem', 'suspiro', 'tca', 'tca-volume'],
-  abrirCulatra: ['culatra'],
-  carregar: ['culatra', 'arma'],
-  fecharCulatra: ['culatra'],
-};
-
 export class TubeStage {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -98,9 +83,6 @@ export class TubeStage {
   private controls: OrbitControls;
   private raf = 0;
   private ro: ResizeObserver;
-  /** desenha só quando aparece na tela (rolado para fora ou em outra aba do palco: parado) */
-  private io: IntersectionObserver | null = null;
-  private onScreen = true;
   private labelsEl: HTMLDivElement;
   private dot = dotTexture();
   private clock = new THREE.Clock();
@@ -181,12 +163,6 @@ export class TubeStage {
     this.controls.maxDistance = 45;
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(container);
-    if (typeof IntersectionObserver !== 'undefined') {
-      this.io = new IntersectionObserver((es) => {
-        for (const x of es) this.onScreen = x.isIntersecting;
-      });
-      this.io.observe(container);
-    }
     this.resize();
     loadSubModel(torpedoModelUrl(), this.renderer)
       .then((src) => {
@@ -267,7 +243,6 @@ export class TubeStage {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
-    this.io?.disconnect();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -551,9 +526,9 @@ export class TubeStage {
     add(
       'arma',
       'pecas',
-      () => (st()?.weapon ? new THREE.Vector3(stowedWeaponX(w, this.weaponLength()) - w.breechX + (st()!.eject ?? 0), 0.42, 0.1) : null),
+      () => (st()?.weapon ? new THREE.Vector3(stowedWeaponX(w) - w.breechX + (st()!.eject ?? 0), 0.42, 0.1) : null),
       () => {
-        const name = st() && kindOf(st()!) === 'sm39' && w.missile ? 'SM39 na cápsula VSM' : 'Arma F21';
+        const name = st()?.kind === 'sm39' && w.missile ? 'SM39 na cápsula VSM' : 'Arma F21';
         return st()?.energized ? `${name} (alimentada)` : name;
       },
     );
@@ -567,7 +542,7 @@ export class TubeStage {
     add('drenagem', 'valvulas', v3(2.8, -0.52, -0.12), () => `Drenagem: ${vs(st()!.drain)}`);
     add('suspiro', 'valvulas', v3(0.7, 0.56, -0.12), () => `Suspiro: ${vs(st()!.vent)}`);
     add('equalizacao', 'valvulas', v3(L - 1.0, 0.56, -0.12), () => `Equalização: ${vs(st()!.equalize)}`);
-    add('tubo-valores', 'valores', v3(L * 0.62, rO + 0.85, 0), () => `Tubo ${(st()!.pressure / 1e5).toFixed(1)} bar · água ${Math.round((100 * st()!.water) / Math.max(1, tv().fullWater))} %`, 'big');
+    add('tubo-valores', 'valores', v3(L * 0.45, rO + 0.3, 0), () => `Tubo ${(st()!.pressure / 1e5).toFixed(1)} bar · água ${Math.round((100 * st()!.water) / Math.max(1, tv().fullWater))} %`, 'big');
     add('mar-pressao', 'valores', v3(L + 1.6, 1.2, 0), () => `Mar ${(tv().seaPressure / 1e5).toFixed(1)} bar`, 'big');
     add('garrafa-pressao', 'valores', v3(-0.85, 0.85, -0.55), () => `${tv().flaskBar.toFixed(0)} bar`);
     add('tca-volume', 'valores', v3(1.8, -0.95, 0.55), () => {
@@ -576,23 +551,11 @@ export class TubeStage {
     });
   }
 
-  /** comprimento da arma no tubo (F21 ou cápsula do SM39) */
-  private weaponLength(): number {
-    const e = this.getEngine();
-    const w = e.vessel.weapons!;
-    const t = e.state.weapons?.tubes.find((k) => k.n === this.tube);
-    return t && kindOf(t) === 'sm39' && w.missile ? w.missile.length : w.weapon.length;
-  }
-
   private placeLabels(): void {
     const W = this.container.clientWidth;
     const H = this.container.clientHeight;
-    const key = this.focus ? FOCUS_LABELS[this.focus] : undefined;
     for (const l of this.lbls) {
       const on = this.opts.labels[l.group] && !this.hidden.has(l.id);
-      // com uma etapa em foco, as outras identificações viram um ponto (o nome aparece ao passar o mouse)
-      const dot = !!key && !key.includes(l.id) && l.id !== 'tubo-valores';
-      if (l.el.classList.contains('ts-dot') !== dot) l.el.classList.toggle('ts-dot', dot);
       const p = on ? l.at() : null;
       if (!p) {
         l.el.style.display = 'none';
@@ -606,8 +569,6 @@ export class TubeStage {
       l.el.style.display = '';
       const t = l.text();
       if (l.el.textContent !== t) l.el.textContent = t;
-      const tip = dot ? `${t} — clique para ocultar` : 'Clique para ocultar esta identificação';
-      if (l.el.title !== tip) l.el.title = tip;
       l.el.style.transform = `translate(${((q.x + 1) / 2) * W}px, ${((1 - q.y) / 2) * H}px) translate(-50%, -100%)`;
     }
   }
@@ -633,7 +594,7 @@ export class TubeStage {
   private loop = (): void => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.loop);
-    if (document.hidden || !this.onScreen || this.container.clientWidth < 2) return;
+    if (document.hidden || this.container.clientWidth < 2) return;
     const dt = Math.min(0.1, this.clock.getDelta());
     const tw = this.clock.elapsedTime;
     const e = this.getEngine();
@@ -743,8 +704,8 @@ export class TubeStage {
     // destaque da etapa atual
     const fa = this.focus;
     const at: Partial<Record<TubeAction, [THREE.Vector3, number]>> = {
-      alimentar: [new THREE.Vector3(stowedWeaponX(w, this.weaponLength()) - w.breechX, 0, 0), 0.5],
-      carregar: [new THREE.Vector3(stowedWeaponX(w, this.weaponLength()) - w.breechX, 0, 0), 0.5],
+      alimentar: [new THREE.Vector3(stowedWeaponX(w) - w.breechX, 0, 0), 0.5],
+      carregar: [new THREE.Vector3(stowedWeaponX(w) - w.breechX, 0, 0), 0.5],
       alagar: [new THREE.Vector3(1.1, -0.52, -0.12), 0.22],
       drenar: [new THREE.Vector3(2.8, -0.52, -0.12), 0.22],
       equalizar: [new THREE.Vector3(L - 1.0, 0.56, -0.12), 0.22],
@@ -759,7 +720,7 @@ export class TubeStage {
     if (h) {
       this.halo.position.copy(h[0]);
       const s = h[1] * (1 + 0.12 * Math.sin(tw * 5));
-      this.halo.scale.set(fa === 'alimentar' || fa === 'carregar' ? this.weaponLength() / 2 : s, s, s);
+      this.halo.scale.set(fa === 'alimentar' || fa === 'carregar' ? w.weapon.length / 2 : s, s, s);
       this.halo.rotation.x = tw * 0.6;
     }
     this.controls.update();
