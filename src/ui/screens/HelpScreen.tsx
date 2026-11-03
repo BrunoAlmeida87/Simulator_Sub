@@ -61,6 +61,7 @@ export function HelpScreen() {
             <tr><td><code>Espaço</code></td><td>Executar / pausar</td></tr>
             <tr><td><code>A</code> / <code>D</code></td><td>Leme de direção −5° / +5°</td></tr>
             <tr><td><code>W</code> / <code>S</code></td><td>Lemes de ré SUBIR / DESCER 5°</td></tr>
+            <tr><td><code>F</code></td><td>Modo palco: esconde a barra e a navegação</td></tr>
             <tr><td><code>Q</code> / <code>E</code></td><td>Lemes de vante DESCER / SUBIR 5°</td></tr>
             <tr><td><code>+</code> / <code>−</code></td><td>Telégrafo ±10 rpm</td></tr>
             <tr><td><code>0</code>…<code>8</code></td><td>Telas numeradas: 0 Operação … 8 Sala de comando (o número aparece na navegação)</td></tr>

@@ -101,7 +101,13 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       panelsWeapons.ts (painel de lançamento de armas no console tático)
 src/ui/               INTERFACE (React)
   App.tsx             barra superior, telas (screens) e atalhos de teclado
-  nav.ts              NAVEGAÇÃO: SCREEN_IDS/ScreenId, grupos NAV_GROUPS (grupo → telas, teclas 0–8), marcas de alarme
+  nav.ts              NAVEGAÇÃO: SCREEN_IDS/ScreenId, grupos NAV_GROUPS (grupo → telas, teclas 0–8), marcas de alarme;
+                      MODOS: uma tela pode ter `modes` (outras telas como abas ao lado dela: Operação → Instrumentos, Posto de governo…;
+                      primaryOf/viewsOf/screenMark); tela nova pode entrar como modo de uma existente
+  components/TopBar.tsx  barra superior numa linha (executar, relógio, velocidade, faixa de alarme, indicadores, menus Cenário ▾ e ☰)
+                      e modo palco (tecla F; App.tsx: estado stage)
+  ops/CockpitHud.tsx  cockpit da Operação: fita de rumo e coluna de instrumentos sobre a cena; gaveta de sistemas = opsBus.drawer
+  components/PlaneLever.tsx  lemes horizontais como alavanca vertical (cima = SUBIR) — Operação, Instrumentos, grupo nav
                       (tela nova = id em SCREEN_IDS + entrada num grupo + componente em App.tsx; Sala de comando sempre a última)
   VisualApp.tsx       segunda janela (só visual) — modo dois monitores
   sync.ts             BroadcastChannel 'sx1-sync-v1' entre janelas (mestre envia estado a 30 Hz); janela de tela
