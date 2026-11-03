@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cmd, runner, useSim } from '../store';
 import { usePersisted } from '../persist';
 import { visualOut, isVisualWindow, isPanelWindow } from '../sync';
@@ -6,6 +6,8 @@ import { defaultLayers } from '../../render3d/layers';
 import { observer } from '../../sonar/integration/world';
 import { clamp, values, wrap, type SonarSettings, type TmaMotion } from '../../sonar/types';
 import { estimateMotion, positionAt, seedHypothesis, timeLabel } from '../../sonar/tma/plotModel';
+import { BearingTraces } from '../../sonar/display/BearingTraces';
+import { trackColor } from '../../sonar/display/bearingTraces';
 import { TmaPlot, BearingHistory } from '../../sonar/display/TmaPlot';
 import { Waterfall, InstantSpectrum, type DisplayMode } from '../../sonar/display/Waterfall';
 import { Aural } from '../../sonar/display/Aural';
@@ -19,7 +21,7 @@ export function SonarScreen() {
     s = e.state.sonar!,
     cfg = s.settings;
   const [advanced, setAdvanced] = useState(false),
-    [focus, setFocus] = useState<'tma' | 'pulse' | 'listen'>('tma');
+    [focus, setFocus] = useState<'trails' | 'tma' | 'pulse' | 'listen'>('trails');
   const [mode, setMode] = usePersisted<DisplayMode>('sonar.mode', 'broadband');
   const [gain, setGain] = usePersisted('sonar.gain', 0),
     [seconds, setSeconds] = usePersisted('sonar.seconds', 120);
@@ -38,6 +40,14 @@ export function SonarScreen() {
   const [linesOnly, setLinesOnly] = usePersisted('sonar.pulseLines', false),
     [cameraKey, setCameraKey] = useState(0),
     [epoch, setEpoch] = useState(0);
+  const pendingObservation = useRef<{ id: string; time: number | null } | null>(null);
+  const selectObservation = (id: string, time: number | null) => {
+    if (id === cfg.selected) setSelectedTime(time);
+    else {
+      pendingObservation.current = { id, time };
+      cmd({ type: 'sonar', action: 'settings', patch: { selected: id } });
+    }
+  };
   const set = (patch: Partial<SonarSettings>) => cmd({ type: 'sonar', action: 'settings', patch });
   const selected = s.tracks.find((t) => t.id === cfg.selected);
   const rows = useMemo(() => (selected ? values(selected.history) : []), [selected, s.version]);
@@ -60,7 +70,8 @@ export function SonarScreen() {
     [],
   );
   useEffect(() => {
-    setSelectedTime(null);
+    setSelectedTime(pendingObservation.current?.id === selected?.id ? (pendingObservation.current?.time ?? null) : null);
+    pendingObservation.current = null;
     setEditing(false);
     setManual(selected?.manual ?? '');
     setNotice('');
@@ -160,6 +171,7 @@ export function SonarScreen() {
         <div className="sonar-mode-tabs" aria-label="Área de trabalho">
           {(
             [
+              ['trails', 'Trilhas'],
               ['tma', 'TMA'],
               ['listen', 'Escuta'],
               ['pulse', 'Sonar 3D'],
@@ -190,6 +202,7 @@ export function SonarScreen() {
         </button>
       </div>
       <div className="sonar-workspace">
+        <BearingTraces state={s} now={e.state.t} selectedTime={selectedTime} onSelect={selectObservation} onLive={() => setSelectedTime(null)} />
         <section className="sonar-card tma-card">
           <div className="sonar-card-title">
             <h3>Plotagem TMA</h3>
@@ -362,7 +375,7 @@ export function SonarScreen() {
           <div className="sonar-contact-strip" aria-label="Contatos recebidos">
             {contacts.slice(0, 48).map((t) => (
               <button key={t.id} className={selected?.id === t.id ? 'active' : ''} onClick={() => set({ selected: t.id })}>
-                {t.id}
+                <span style={{ color: trackColor(t.id) }}>● {t.id}</span>
                 <small>
                   {t.bearing.toFixed(0)}°{e.state.t - t.lastSeen > 30 ? ' · antigo' : ''}
                 </small>

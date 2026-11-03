@@ -301,3 +301,31 @@ cota de armazenamento local do navegador pode limitar salvamentos maiores.
 - [Estação TMA, cascata e escuta](img/sonar-visual/estacao.png).
 - [Pulso e retorno em 3D](img/sonar-visual/pulso.png).
 - [Tela estreita](img/sonar-visual/celular.png).
+
+## Histórico multitrilha de marcações
+
+A aba **Trilhas** abre um display dedicado ao acompanhamento de vários contatos,
+com **marcação na horizontal** e **tempo na vertical**. O eixo padrão é
+180° → 0° → 180°, com o norte no centro, grade âmbar e uma cor estável por ID.
+As observações recentes ficam no topo; o passado desce. A mesma cor identifica
+cada contato na legenda, na lista e nas trilhas da cascata de banda larga.
+
+- Clique em uma linha para selecionar o contato e o instante medido. A plotagem
+  TMA e o gráfico individual destacam a mesma observação; o feixe da escuta passa
+  a acompanhar o contato. A legenda também permite selecionar pelo ID.
+- Teclado: Tab alcança trilhas/legenda; Enter ou Espaço seleciona a última medida.
+- **Voltar ao vivo** sai do instante histórico sem alterar o relógio da simulação.
+- Escolha janelas de 30, 60, 120 ou 180 s; o histórico disponível continua limitado
+  às 180 medições já retidas por trilha. **Só selecionado** facilita a inspeção.
+- O eixo pode ser trocado para 0° → 180° → 360°. Cruzamentos pela borda são divididos
+  entre os extremos, sem desenhar uma diagonal falsa pelo centro do gráfico.
+- **Traço suave** aplica uma média angular circular de até cinco observações nos
+  últimos cinco segundos, exclusivamente no desenho. Desligue para ver as medidas
+  sem suavização. O cursor informa o valor original medido; o TMA usa esses dados
+  originais. Lacunas maiores que 10 s interrompem o traço.
+
+Esse display é uma apresentação das marcações usadas pelo TMA, não uma solução
+de posição por si só. Não cria contatos ou curvas demonstrativas na aplicação.
+As capturas [desktop](img/sonar-visual/trilhas.png) e
+[celular](img/sonar-visual/trilhas-celular.png) usam seis trilhas controladas no
+ensaio de interface para tornar simultaneamente visíveis curvas, cores e lacunas.

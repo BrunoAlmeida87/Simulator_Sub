@@ -1,3 +1,4 @@
+import { trackColor } from './bearingTraces';
 import { useEffect, useRef } from 'react';
 import { clamp, values, type SonarState } from '../types';
 export type DisplayMode = 'broadband' | 'lofar' | 'demon';
@@ -59,9 +60,11 @@ export function Waterfall({ state, mode, gain, contrast, seconds, min, max, curs
     for (let i = 0; i <= 4; i++) g.fillText(`−${Math.round((i / 4) * seconds)}s`, 3, top + (i / 4) * height);
     if (mode === 'broadband')
       for (const track of state.tracks) {
-        g.strokeStyle = track.id === state.settings.selected ? '#ffd36b' : '#73cbdc';
+        g.strokeStyle = trackColor(track.id);
+        g.lineWidth = track.id === state.settings.selected ? 2.5 : 1;
         g.beginPath();
-        let started = false;
+        let started = false,
+          previous: { bearing: number; t: number } | null = null;
         for (const m of values(track.history)) {
           if (latest - m.t > seconds || m.bearing < min || m.bearing > max) {
             started = false;
@@ -69,9 +72,10 @@ export function Waterfall({ state, mode, gain, contrast, seconds, min, max, curs
           }
           const x = x0 + ((m.bearing - min) / (max - min)) * width,
             y = top + ((latest - m.t) / seconds) * height;
-          if (!started) g.moveTo(x, y);
+          if (!started || (previous && (Math.abs(m.bearing - previous.bearing) > 180 || m.t - previous.t > 10))) g.moveTo(x, y);
           else g.lineTo(x, y);
           started = true;
+          previous = m;
         }
         g.stroke();
         if (track.bearing >= min && track.bearing <= max) {
@@ -79,6 +83,7 @@ export function Waterfall({ state, mode, gain, contrast, seconds, min, max, curs
           g.fillText(track.id, x0 + ((track.bearing - min) / (max - min)) * width, H - 8);
         }
       }
+    g.lineWidth = 1;
     if (cursor !== null) {
       const x = x0 + ((cursor - min) / (max - min)) * width;
       g.strokeStyle = '#fff1b4';
