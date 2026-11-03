@@ -42,7 +42,7 @@ const MPHASE: Record<string, string> = {
   subida: 'SUBIDA',
   mergulho: 'MERGULHO',
   impacto: 'IMPACTO',
-  passagem: 'PASSAGEM',
+  passagem: 'DESVIO (EXERC.)',
   caindo: 'SEM COMBUST.',
   perdido: 'CAIU',
 };

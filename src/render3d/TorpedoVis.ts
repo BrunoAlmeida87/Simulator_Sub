@@ -18,6 +18,7 @@ import { muzzleX, stowedWeaponX } from '../sim/systems/torpedoTubes';
 import { torpedo as fallbackTorpedo } from './CargoVis';
 import { loadSubModel } from './subModel';
 import type { Label3D } from './SubmarineScene';
+import { weaponFollow } from './weaponFocus';
 import { sm39ModelUrl } from './MissileVis';
 
 /** corpo (x vante, y boreste, z para baixo) → local do submarino */
@@ -135,6 +136,8 @@ const WIRE_MAX = 600;
 /** Torpedo acompanhado pela vista "Torpedo": o último lançado ainda em corrida (ou o último de todos). */
 export function focusRun(e: SimulationEngine): TorpedoRun | null {
   const runs = e.state.weapons?.runs ?? [];
+  const chosen = weaponFollow.id ? runs.find((r) => r.id === weaponFollow.id) : undefined;
+  if (chosen) return chosen;
   let best: TorpedoRun | null = null;
   for (const r of runs) if (r.phase !== 'recolher' && (!best || r.tFire >= best.tFire)) best = r;
   return best ?? runs[runs.length - 1] ?? null;

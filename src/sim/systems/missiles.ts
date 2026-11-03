@@ -16,9 +16,10 @@
  *  Alvo em terra (licença do simulador: no Exocet a capacidade costeira é do Bloco 3, com GPS): navegação por
  *  pontos até o alvo, subida e mergulho final.
  *
- * Tiro de EXERCÍCIO: o míssil sem ogiva sobe no fim para passar por cima do alvo, registra o acerto e cai no mar
- * no fim do combustível. Tiro de COMBATE (só contra alvos hostis: fragata, submarino inimigo na superfície ou
- * alvo em terra): explosão no impacto; a fragata pega fogo e para (cada míssil causa `damage`; com 1 ela afunda).
+ * Tiro de EXERCÍCIO: o míssil sem ogiva sai da rota de colisão a 1,5 km do alvo, sobe um pouco e mergulha no mar
+ * ao lado dele (≈ 40 m do costado, no través do lado de onde vem); a queda perto do alvo conta como acerto.
+ * Tiro de COMBATE (só contra alvos hostis: fragata, submarino inimigo na superfície ou alvo em terra): explosão no
+ * impacto; cada míssil causa `damage` (1 = um impacto destrói o navio, que pega fogo, aderna e afunda).
  *
  * Cinemática simples, sem aerodinâmica do míssil; tudo no referencial NED (d = cota, negativa no ar).
  * Os alvos hostis (state.weapons.hostiles) são acrescentados pelo comando 'hostile'.
@@ -57,6 +58,12 @@ export const ENEMY_SURFACE_D = 1.8;
 export const FRIGATE = { L: 107.2, B: 15.95, H: 22, draft: 5.2, maxSpeed: 26 * KN };
 /** Instalação em terra (alvo fictício): planta e altura (m). */
 export const LAND_SITE = { L: 46, B: 34, H: 14 };
+/** Exercício: distância do costado (m) em que o míssil sem ogiva cai no mar, no través do alvo. */
+export const EXERCISE_MISS = 40;
+/** Exercício: a queda conta como acerto até esta distância do costado (m). */
+export const EXERCISE_HIT = 150;
+/** Exercício: distância ao alvo (m) em que o míssil sai da rota de colisão. */
+const EXERCISE_BREAK = 1500;
 
 /** Alvo possível do míssil: navio do quadro tático, fragata, submarino inimigo na superfície ou alvo em terra. */
 export interface MissileTarget {
@@ -370,17 +377,28 @@ function flight(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRun): v
   if (r.phase === 'acelerador') hCmd = M.climbAlt;
   else if (r.phase === 'busca') hCmd = tgDist < 9000 ? sea + 2 : M.cruiseAlt;
   else if (r.phase === 'terminal') hCmd = sea;
-  else if (r.phase === 'passagem') hCmd = (tg ? tg.alt : 0) + 18;
+  else if (r.phase === 'passagem') hCmd = sea + 14;
   else if (r.phase === 'subida') hCmd = (tg?.alt ?? 0) + M.popUpAlt;
-  // exercício: sobe no fim para passar por cima do alvo
-  if (!combat && tg && r.phase === 'terminal' && tgDist < 900) setPhase(r, 'passagem', t);
+  // exercício: sai da rota de colisão, sobe um pouco e vai cair no mar ao lado do alvo
+  if (!combat && tg && !land && r.phase === 'terminal' && tgDist < EXERCISE_BREAK) {
+    setPhase(r, 'passagem', t);
+    exercisePoint(r, tg);
+    ctx.log(`Míssil ${r.id}: exercício — sai da rota de colisão a ${(tgDist / 1000).toFixed(1)} km para cair no mar a ${EXERCISE_MISS} m do costado de ${tg.name} (${r.exSide! > 0 ? 'boreste' : 'bombordo'} dele)`, LOG);
+  }
   // relevo à frente (sobre terra o míssil sobe para passar por cima)
   const ahead = (k: number) => Math.max(0, -env.bottomDepthAt(r.n + Math.cos(r.heading * DEG) * k, r.e + Math.sin(r.heading * DEG) * k));
   const relief = Math.max(ahead(0), ahead(300), ahead(800), ahead(1500));
-  if (relief > 0 && r.phase !== 'mergulho') hCmd = Math.max(hCmd, relief + 45);
+  if (relief > 0 && r.phase !== 'mergulho' && r.phase !== 'passagem') hCmd = Math.max(hCmd, relief + 45);
+  // ---- exercício: ponto de queda ao lado do alvo (no través, do lado de onde o míssil vem)
+  const ex = !combat && tg && (r.phase === 'passagem' || (land && r.phase === 'mergulho')) ? exercisePoint(r, tg) : null;
+  const exDist = ex ? Math.hypot(ex.n - r.n, ex.e - r.e) : Infinity;
   // ---- ângulo de trajetória
   let pitchCmd: number;
-  if (r.phase === 'mergulho' && tg) {
+  if (ex && (land || exDist < 280)) {
+    // mergulho no ponto de queda (mar ou terreno ao lado do alvo)
+    const gEx = land ? Math.max(0, -env.bottomDepthAt(ex.n, ex.e)) : 0;
+    pitchCmd = Math.atan2(gEx - 2 - alt, Math.max(1, exDist)) / DEG;
+  } else if (r.phase === 'mergulho' && tg) {
     const dh = Math.hypot(tg.n - r.n, tg.e - r.e);
     pitchCmd = Math.atan2(tg.alt + 4 - alt, Math.max(1, dh)) / DEG;
   } else {
@@ -388,13 +406,14 @@ function flight(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRun): v
     pitchCmd = Math.asin(clamp(vzCmd / Math.max(1, r.speed), -0.9, 0.9)) / DEG;
   }
   // perto da água (fora da fase terminal e do mergulho) o míssil nunca aponta para baixo
-  if (alt < 6 && r.phase !== 'terminal' && r.phase !== 'mergulho' && r.phase !== 'passagem') pitchCmd = Math.max(pitchCmd, 8);
+  if (alt < 6 && r.phase !== 'terminal' && r.phase !== 'mergulho' && !(ex && exDist < 280)) pitchCmd = Math.max(pitchCmd, 8);
   // o acelerador (empuxo alto, baixa velocidade) levanta o nariz bem mais rápido que o voo de cruzeiro
-  const pr = r.phase === 'mergulho' ? 2 * M.pitchRate : r.phase === 'acelerador' ? 4 * M.pitchRate : M.pitchRate;
+  const pr = r.phase === 'mergulho' || r.phase === 'passagem' ? 2 * M.pitchRate : r.phase === 'acelerador' ? 4 * M.pitchRate : M.pitchRate;
   r.pitch += clamp(pitchCmd - r.pitch, -pr * dt, pr * dt);
   // ---- rumo ordenado
   let hdgCmd = r.heading;
-  if (tg && (r.phase === 'terminal' || r.phase === 'passagem' || r.phase === 'subida' || r.phase === 'mergulho' || (land && r.phase !== 'acelerador'))) {
+  if (ex && tg) hdgCmd = leadCourse(r, { ...tg, n: ex.n, e: ex.e });
+  else if (tg && (r.phase === 'terminal' || r.phase === 'passagem' || r.phase === 'subida' || r.phase === 'mergulho' || (land && r.phase !== 'acelerador'))) {
     hdgCmd = leadCourse(r, tg);
   } else if (r.aim) hdgCmd = wrap360(Math.atan2(r.aim.e - r.e, r.aim.n - r.n) / DEG);
   const tr = r.phase === 'acelerador' ? M.turnRate * 0.6 : M.turnRate;
@@ -416,6 +435,20 @@ function flight(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRun): v
   void ws;
 }
 
+/**
+ * Exercício: ponto de queda no través do alvo, a EXERCISE_MISS do costado, no bordo de onde o míssil vem
+ * (o bordo fica fixo na primeira chamada, para o ponto não pular de um lado para o outro).
+ */
+function exercisePoint(r: MissileRun, tg: NonNullable<MissileRun['tgt']>): { n: number; e: number } {
+  const c = tg.course * DEG;
+  if (r.exSide === undefined) {
+    const across = -(r.n - tg.n) * Math.sin(c) + (r.e - tg.e) * Math.cos(c);
+    r.exSide = across >= 0 ? 1 : -1;
+  }
+  const off = r.exSide * ((tg.beam ?? 16) / 2 + EXERCISE_MISS);
+  return { n: tg.n - Math.sin(c) * off, e: tg.e + Math.cos(c) * off };
+}
+
 /** Rumo de interceptação do alvo (perseguição com avanço), limitado ao alcance de cálculo. */
 function leadCourse(r: MissileRun, tg: NonNullable<MissileRun['tgt']>): number {
   const rn = tg.n - r.n;
@@ -435,7 +468,7 @@ function guide(M: MissileSpec, s: SimState, env: Environment, origin: LatLon, r:
     const dn = x.n - r.n;
     const de = x.e - r.e;
     const range = Math.hypot(dn, de);
-    r.tgt = { n: x.n, e: x.e, course: x.course, speed: x.speed, name: x.name, range, bearing: wrap360(Math.atan2(de, dn) / DEG), alt: x.ground };
+    r.tgt = { n: x.n, e: x.e, course: x.course, speed: x.speed, name: x.name, range, bearing: wrap360(Math.atan2(de, dn) / DEG), alt: x.ground, beam: x.B };
     r.closest = Math.min(r.closest, range);
   };
   if (land) {
@@ -505,36 +538,29 @@ function guide(M: MissileSpec, s: SimState, env: Environment, origin: LatLon, r:
   }
 }
 
-/** Impacto (combate) ou passagem sobre o alvo (exercício). Retorna true quando o voo termina. */
-function checkImpact(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRun, combat: boolean): boolean {
-  const tg = r.tgt!;
-  const x = missileTargets(ctx.env, r.origin ?? ctx.env.cfg.geo?.origin ?? DEFAULT_ORIGIN, s.t, r.traffic, s.weapons).find((k) => k.id === r.target);
-  if (!x) return false;
+/** Posição relativa ao alvo no referencial dele: ao longo do rumo, no través e altura acima da água/terreno (m). */
+function relTo(r: MissileRun, x: MissileTarget): { along: number; across: number; h: number } {
   const dn = r.n - x.n;
   const de = r.e - x.e;
   const c = x.course * DEG;
-  const along = dn * Math.cos(c) + de * Math.sin(c);
-  const across = -dn * Math.sin(c) + de * Math.cos(c);
-  const h = -r.d - x.ground;
-  const inPlan = Math.abs(along) < x.L / 2 + 2 && Math.abs(across) < x.B / 2 + 2;
-  if (combat) {
-    if (inPlan && h < x.H) {
-      impact(M, s, ctx, r, x, { along, across, h: Math.max(1, h) });
-      return true;
-    }
-    return false;
+  return { along: dn * Math.cos(c) + de * Math.sin(c), across: -dn * Math.sin(c) + de * Math.cos(c), h: -r.d - x.ground };
+}
+
+/** Distância (m) do ponto ao costado do alvo (0 = dentro da planta). */
+function hullDistance(rel: { along: number; across: number }, x: MissileTarget): number {
+  return Math.hypot(Math.max(0, Math.abs(rel.along) - x.L / 2), Math.max(0, Math.abs(rel.across) - x.B / 2));
+}
+
+/** Impacto do míssil de combate. Retorna true quando o voo termina (o de exercício cai no mar ao lado: end()). */
+function checkImpact(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRun, combat: boolean): boolean {
+  if (!combat) return false;
+  const x = missileTargets(ctx.env, r.origin ?? ctx.env.cfg.geo?.origin ?? DEFAULT_ORIGIN, s.t, r.traffic, s.weapons).find((k) => k.id === r.target);
+  if (!x) return false;
+  const rel = relTo(r, x);
+  if (hullDistance(rel, x) < 2 && rel.h < x.H) {
+    impact(M, s, ctx, r, x, { ...rel, h: Math.max(1, rel.h) });
+    return true;
   }
-  if (inPlan && !r.hit) {
-    r.hit = { t: s.t, dist: Math.hypot(along, across), target: x.id, name: x.name, alt: h };
-    const hst = s.weapons?.hostiles?.find((k) => k.id === x.id);
-    if (hst) hst.hits += 1;
-    ctx.log(`Míssil ${r.id}: ACERTO (exercício) — passou por cima de ${x.name} a ${h.toFixed(0)} m de altura`, LOG);
-    if (x.kind === 'terra') {
-      end(s, ctx, r, null, 'terra');
-      return true;
-    }
-  }
-  void tg;
   return false;
 }
 
@@ -567,10 +593,27 @@ function impact(M: MissileSpec, s: SimState, ctx: StepContext, r: MissileRun, x:
   ctx.log(`Míssil ${r.id}: IMPACTO em ${x.name}`, LOG);
 }
 
-/** fim do voo no mar ou em terra (sem alvo): a arma de combate explode */
+/** fim do voo no mar ou em terra (sem alvo): a arma de combate explode; a de exercício perto do alvo conta acerto */
 function end(s: SimState, ctx: StepContext, r: MissileRun, _x: null, where: 'mar' | 'terra'): void {
   const ws = s.weapons!;
   r.speed = 0;
+  if (r.presets.warhead !== 'combate' && r.target && !r.hit) {
+    const x = missileTargets(ctx.env, r.origin ?? ctx.env.cfg.geo?.origin ?? DEFAULT_ORIGIN, s.t, r.traffic, ws).find((k) => k.id === r.target);
+    const rel = x ? relTo(r, x) : null;
+    const dist = x && rel ? hullDistance(rel, x) : Infinity;
+    if (x && rel && dist <= EXERCISE_HIT) {
+      r.hit = { t: s.t, dist, target: x.id, name: x.name, alt: 0 };
+      const hst = ws.hostiles?.find((k) => k.id === x.id);
+      if (hst) hst.hits += 1;
+      const e = ws.enemies?.find((k) => k.id === x.id);
+      if (e) e.hits = (e.hits ?? 0) + 1;
+      r.endReason = `caiu ${where === 'mar' ? 'no mar' : 'em terra'} a ${dist.toFixed(0)} m do ${x.kind === 'terra' ? 'alvo' : 'costado'} (exercício)`;
+      r.d = where === 'mar' ? 0 : r.d;
+      setPhase(r, 'perdido', s.t);
+      ctx.log(`Míssil ${r.id}: ACERTO (exercício) — caiu ${where === 'mar' ? 'no mar' : 'em terra'} a ${dist.toFixed(0)} m ${x.kind === 'terra' ? 'de' : 'do costado de'} ${x.name}`, LOG);
+      return;
+    }
+  }
   r.endReason ??= where === 'mar' ? 'caiu no mar' : 'caiu em terra';
   if (r.presets.warhead === 'combate' && where === 'terra') ws.explosions = [...(ws.explosions ?? []), { id: r.id, t: s.t, n: r.n, e: r.e, d: r.d, target: null, kind: 'missil' as const }].slice(-8);
   r.d = where === 'mar' ? 0 : r.d;

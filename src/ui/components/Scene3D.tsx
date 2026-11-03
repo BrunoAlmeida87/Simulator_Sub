@@ -65,6 +65,11 @@ export interface Scene3DProps {
   hudKeys?: boolean;
   /** botão "Descer" no painel do passadiço */
   onBridgeExit?: () => void;
+  /**
+   * Ação no clique de uma identificação (tela Armas: mirar no alvo). `hint` devolve a dica da identificação
+   * (null = comportamento normal: o clique oculta a identificação).
+   */
+  labelAction?: { hint: (id: string) => string | null; run: (id: string) => void };
 }
 
 /** painel do passadiço com a visada compartilhada desta janela (ou a recebida pela prop, só leitura) */
@@ -102,6 +107,8 @@ export function Scene3D(props: Scene3DProps) {
     let raf = 0;
     let disposed = false;
     let ro: ResizeObserver | null = null;
+    let io: IntersectionObserver | null = null;
+    let onScreen = true;
     let unsub: (() => void) | null = null;
     import('../../render3d/SubmarineScene')
       .then(({ SubmarineScene }) => {
@@ -127,6 +134,13 @@ export function Scene3D(props: Scene3DProps) {
         if (!sceneRef.current) return;
         ro = new ResizeObserver(() => sceneRef.current?.resize());
         ro.observe(box.current);
+        // fora da tela (rolada, aba escondida do palco): não desenha
+        if (typeof IntersectionObserver !== 'undefined') {
+          io = new IntersectionObserver((es) => {
+            for (const x of es) onScreen = x.isIntersecting;
+          });
+          io.observe(box.current);
+        }
         // novo motor (reinício/carregamento de estado): reconstrói a cena
         unsub = runner.onEngineReplaced(() => {
           sceneRef.current?.dispose();
@@ -177,8 +191,10 @@ export function Scene3D(props: Scene3DProps) {
               visualOut.drone = droneOn ? sc.drone : null;
             }
             sc.realisticFog = opts.current.fog ?? sc.layers.fog;
-            sc.setRenderScale(perf.frame(() => sc.renderStats()));
-            drawLabels(sc.render(), sc.labelBounds);
+            if (onScreen && (box.current?.clientWidth ?? 0) > 1) {
+              sc.setRenderScale(perf.frame(() => sc.renderStats()));
+              drawLabels(sc.render(), sc.labelBounds);
+            }
             if (droneOn) {
               droneCtl.pose = sc.drone;
               if (performance.now() - lastDroneSave > 1000) {
@@ -196,6 +212,7 @@ export function Scene3D(props: Scene3DProps) {
       disposed = true;
       cancelAnimationFrame(raf);
       ro?.disconnect();
+      io?.disconnect();
       unsub?.();
       const sc = sceneRef.current;
       if (sc && opts.current.persistKey && sc.viewMode === 'livre') savePersisted(`cam.${opts.current.persistKey}`, sc.getCameraPose());
@@ -221,7 +238,7 @@ export function Scene3D(props: Scene3DProps) {
     }
     const origin = host.getBoundingClientRect();
     const obstacles: LabelRect[] = [];
-    box.current?.querySelectorAll<HTMLElement>('.lbl-restore, .overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter').forEach((el) => {
+    box.current?.querySelectorAll<HTMLElement>('.lbl-restore, .overlay-ctl, .visual-ctl, .visual-status, .hud, .pilot-hud, .pilot-tape, .pres-hud, .pres-bottom, .pilot-start, .trimgain-banner, .pc-card, .pc-sub, .pc-title-card, .pc-hud, .st-bar, .fps-meter, .wx-pip').forEach((el) => {
       const r = el.getBoundingClientRect();
       if (r.width && r.height) obstacles.push({ x0: r.left - origin.left - 4, x1: r.right - origin.left + 4, y0: r.top - origin.top - 4, y1: r.bottom - origin.top + 4 });
     });
@@ -237,12 +254,14 @@ export function Scene3D(props: Scene3DProps) {
         el.tabIndex = 0;
         el.setAttribute('role', 'button');
         el.dataset.labelId = l.id;
-        el.title = 'Clique para ocultar esta identificação. Restaure em Camadas → Identificações ocultadas.';
+        el.title = opts.current.labelAction?.hint(l.id) ?? 'Clique para ocultar esta identificação. Restaure em Camadas → Identificações ocultadas.';
         // Consome os eventos antes que alcancem a câmera ou a seleção de componentes.
         el.onpointerdown = (event) => event.stopPropagation();
         el.onpointerup = (event) => event.stopPropagation();
         el.onclick = (event) => {
           event.stopPropagation();
+          const act = opts.current.labelAction;
+          if (act?.hint(l.id)) return act.run(l.id);
           labelPreferences.hide(l.id, el.firstElementChild?.textContent ?? l.id);
         };
         el.onkeydown = (event) => {

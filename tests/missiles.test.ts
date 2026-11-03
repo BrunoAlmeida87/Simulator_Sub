@@ -60,7 +60,9 @@ describe('míssil SM39', () => {
     expect(r.vsm.tNose).not.toBeNull();
     expect(r.hit?.target).toBe(f.id);
     expect(f.tHit).not.toBeNull();
-    expect(f.damage).toBeGreaterThan(0.4);
+    // um míssil de combate destrói a fragata
+    expect(f.damage).toBeGreaterThanOrEqual(1);
+    expect(f.sunk).not.toBeNull();
     expect((ws.explosions ?? []).some((x) => x.kind === 'missil')).toBe(true);
     expect(maxAlt).toBeLessThan(80);
     expect(skim).toBeLessThan(8);
@@ -75,29 +77,47 @@ describe('míssil SM39', () => {
     expect(Math.abs(e.outputs.mp.mass - m0)).toBeLessThan(80);
   });
 
-  it('dois impactos afundam a fragata', async () => {
+  it('um impacto de combate destrói a fragata: ela afunda', async () => {
     const e = buildScenario('ataque_exocet');
     const ws = e.state.weapons!;
     const f = ws.hostiles![0];
-    for (const tube of [5, 6]) applyCommand(e, { type: 'tube', tube, action: 'disparar', presets: { target: f.id, warhead: 'combate', ...fire } });
+    applyCommand(e, { type: 'tube', tube: 5, action: 'disparar', presets: { target: f.id, warhead: 'combate', ...fire } });
     await runAsync(e, 600, () => f.sunk !== null);
     expect(f.sunk).not.toBeNull();
+    expect(ws.missiles!.filter((r) => r.phase === 'impacto')).toHaveLength(1);
     await runAsync(e, 200);
     expect(f.sink).toBeGreaterThan(3);
   });
 
-  it('exercício: passa por cima da fragata, registra o acerto, sem explosão', async () => {
+  it('exercício: sai da rota de colisão e cai no mar ao lado da fragata, sem explosão nem dano', async () => {
     const e = buildScenario('ataque_exocet');
     const ws = e.state.weapons!;
     const f = ws.hostiles![0];
     applyCommand(e, { type: 'tube', tube: 6, action: 'disparar', presets: { target: f.id, warhead: 'exercicio', ...fire } });
-    await runAsync(e, 400, () => !!ws.missiles?.[0]?.hit);
+    const seen = new Set<MissilePhase>();
+    await runAsync(
+      e,
+      400,
+      () => ws.missiles?.[0]?.phase === 'perdido',
+      () => {
+        const r = ws.missiles?.[0];
+        if (r) seen.add(r.phase);
+      },
+    );
     const r = ws.missiles![0];
+    expect(seen.has('passagem')).toBe(true);
+    expect(r.phase).toBe('perdido');
+    expect(r.d).toBe(0);
     expect(r.hit?.target).toBe(f.id);
-    expect(r.hit!.alt).toBeGreaterThan(2);
+    // caiu no mar perto do costado (≈ 40 m), sem tocar no navio
+    expect(r.hit!.dist).toBeGreaterThan(10);
+    expect(r.hit!.dist).toBeLessThan(120);
+    expect(r.endReason).toMatch(/caiu no mar a \d+ m do costado/);
     expect(ws.explosions ?? []).toHaveLength(0);
     expect(f.hits).toBe(1);
     expect(f.damage).toBe(0);
+    expect(f.sunk).toBeNull();
+    expect(f.tHit).toBeNull();
   });
 
   it('combate só contra alvo hostil; submarino submerso recusado', () => {
@@ -137,6 +157,21 @@ describe('míssil SM39', () => {
     );
     expect(seen.has('mergulho')).toBe(true);
     expect(h.sunk).not.toBeNull();
+  });
+
+  it('alvo em terra no exercício: cai ao lado da instalação, que fica inteira', async () => {
+    const e = buildScenario('exocet_terra');
+    const ws = e.state.weapons!;
+    const h = ws.hostiles!.find((k) => k.type === 'terra')!;
+    applyCommand(e, { type: 'tube', tube: 5, action: 'disparar', presets: { target: h.id, warhead: 'exercicio' } });
+    await runAsync(e, 300, () => ws.missiles?.[0]?.phase === 'perdido');
+    const r = ws.missiles![0];
+    expect(r.phase).toBe('perdido');
+    expect(r.hit?.target).toBe(h.id);
+    expect(r.hit!.dist).toBeLessThan(150);
+    expect(h.sunk).toBeNull();
+    expect(h.hits).toBe(1);
+    expect(ws.explosions ?? []).toHaveLength(0);
   });
 
   it('troca de arma: o F21 volta à reserva e o SM39 entra no tubo', async () => {

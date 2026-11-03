@@ -92,7 +92,8 @@ Ordens de grandeza públicas (MBDA, CSIS Missile Threat, EDR Magazine). Cinemát
 | Manobra | guinada 9 °/s; ângulo de trajetória 10 °/s | |
 | Alcance | 50 km de voo depois da separação | depois cai no mar |
 | Alvo em terra | subida a 5 km do alvo até 180 m acima do terreno; mergulho a ≈ 1,3 km | licença do simulador (no Exocet, Bloco 3 com GPS) |
-| Dano | 0,55 por impacto de ogiva | fragata: incêndio e para; com dano ≥ 1 afunda (dois mísseis); alvo em terra: destruído com um |
+| Dano | 1 por impacto de ogiva (`damage`) | um míssil de combate destrói o alvo: a fragata explode, pega fogo, aderna e afunda; o alvo em terra é destruído |
+| Exercício | sai da rota de colisão a 1,5 km; cai no mar a 40 m do costado (`EXERCISE_MISS`), no través do lado de onde vem | conta acerto se cair a até 150 m do costado (`EXERCISE_HIT`); sem explosão nem dano |
 | Fragata (alvo) | classe Tamandaré: 107,2 × 15,95 m, calado 5,2 m, até 26 nós | manobra evasiva (proa para o míssil, toda força) com o míssil em busca/terminal a < 9 km |
 | Submarino inimigo na superfície | cota 1,8 m (`depth: 0` no comando `enemy`) | único alvo submarino aceito pelo míssil |
 

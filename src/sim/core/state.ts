@@ -469,7 +469,7 @@ export interface MissileRun {
   /** ponto de busca da navegação inercial (posição prevista do alvo no lançamento) */
   aim: { n: number; e: number } | null;
   /** alvo travado pelo autodiretor (ou o ponto do alvo em terra) */
-  tgt: { n: number; e: number; course: number; speed: number; name: string; range: number; bearing: number; alt: number } | null;
+  tgt: { n: number; e: number; course: number; speed: number; name: string; range: number; bearing: number; alt: number; beam?: number } | null;
   /** autodiretor ligado */
   seeker: boolean;
   /** cápsula VSM: posição, rumo, ângulo, velocidade; instantes do rompimento, da ejeção do nariz, da separação e da queda */
@@ -485,6 +485,8 @@ export interface MissileRun {
   trackTimer: number;
   guideTimer: number;
   origin?: { lat: number; lon: number };
+  /** exercício: bordo do alvo (+1 boreste do rumo dele, −1 bombordo) em que o míssil vai cair no mar */
+  exSide?: 1 | -1;
 }
 
 /** Alvo de superfície ou em terra (fictício): fragata classe Tamandaré ou instalação terrestre. */

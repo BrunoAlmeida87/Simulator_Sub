@@ -401,7 +401,7 @@ export function defaultWeapons(): NonNullable<VesselConfig['weapons']> {
       popUpRange: 5000,
       popUpAlt: 180,
       diveRange: 1300,
-      damage: 0.55,
+      damage: 1,
     },
     missileReserve: 2,
   };
