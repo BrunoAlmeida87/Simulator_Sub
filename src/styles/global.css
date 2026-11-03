@@ -1673,3 +1673,10 @@ kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radiu
   .ck-top { top: 50px; }
   .ops-console:not(.compact) { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- notas explicativas recolhíveis (notes.ts): duas linhas; clique ou Enter abre ---------- */
+.panel .note { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.panel .note.open, .panel .note.no-clamp { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.panel .note[data-clamped] { cursor: pointer; border-left-color: var(--accent2); }
+.panel .note[data-clamped]:not(.open):hover { color: var(--text); }
+@media print { .panel .note { display: block; -webkit-line-clamp: unset; } }

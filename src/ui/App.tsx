@@ -44,6 +44,7 @@ import { PresFloating } from './components/PresFloating';
 import { presPlayer } from './presBuilder/player';
 import { isScreenId, screenForKey, screenLabel } from './nav';
 import { useGraphics } from './graphics';
+import { installCollapsibleNotes } from './notes';
 import { BUTTON_SELECTOR, classifyFocus, focusFromKeyboard, installFocusTracking, shortcutAction } from './keyFocus';
 
 /** aba de cada janela de tela (a janela de controle usa as preferências gerais) */
@@ -180,6 +181,8 @@ export function App() {
     return () => window.clearInterval(id);
   }, []);
 
+  // notas explicativas longas: duas linhas, abrem com clique/Enter (notes.ts)
+  useEffect(() => installCollapsibleNotes(), []);
   // atalhos de teclado (valem também depois de um clique num botão; ver keyFocus.ts)
   useEffect(() => installFocusTracking(), []);
   useEffect(() => {

@@ -137,6 +137,7 @@ src/ui/               INTERFACE (React)
   components/EmergencyBlow.tsx  sopro de emergência com tampa — o único controle de sopro de emergência das telas
   components/AlarmBand.tsx  faixa de alarme fixa (2ª linha da barra, todas as telas): forma+prioridade+texto, Ver, Reconhecer um
   alarmUi.ts          prioridade em forma + texto + cor (PRIO_SHAPE, prioBadge, prioText) — usar em toda exibição de alarme
+  notes.ts            notas (.note) em painéis com 2 linhas; clique/Enter abre (installCollapsibleNotes na App)
   instruments.ts      valores INDICADOS para telas de operação (indicatedDepth = média PRF-1/PRF-2); verdadeiro só em engenharia/didáticas
 scripts/rio/          preparação dos dados do Rio (Copernicus DEM, Sentinel-2) — reprodutível
 tests/                validation.test.ts, presentation.test.ts, units.test.ts
