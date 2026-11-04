@@ -100,7 +100,7 @@ Em **Operação → Console integrado**, uma tela alternativa combina estações
 
 O painel lateral oferece **Governo** (telégrafo e lemes), **Piloto automático** (modo e referência de rumo e profundidade) e **Sistemas** (bateria, tanques e atalhos aos diagramas). Selecione as estações pelo mouse, toque ou pelas setas quando a aba estiver em foco. A vista, as camadas, a estação e a altura da cena ficam salvas separadamente das outras telas. Todos os comandos usam a mesma simulação, histórico, gravação e sincronização; trocar de tela não reinicia o submarino.
 
-Na **Operação → Cockpit**, os cartões sobrepostos, a fita de rumo e a régua de profundidade ficaram mais compactos para liberar espaço na cena, preservando as informações e os alertas.
+Na **Operação → Cockpit**, os cartões sobrepostos, a fita de rumo e a régua de profundidade ficaram mais compactos para liberar espaço na cena, preservando as informações e os alertas. A fita de rumo ocupa 230 px de largura (limitada a 40% da janela em telas estreitas) e fica mais próxima do topo, abaixo dos controles de visualização.
 
 ## Sala de comando (primeira pessoa)
 

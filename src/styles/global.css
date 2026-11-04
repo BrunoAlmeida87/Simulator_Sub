@@ -1695,9 +1695,11 @@ kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radiu
 .scr-pilotagem .ck-tile small { font-size: 9px; }
 .scr-pilotagem .ck-tile b { font-size: 14px; }
 .scr-pilotagem .ck-tile span { font-size: 9px; }
-.scr-pilotagem .ck-heading { width: 290px; }
+.scr-pilotagem .ck-top { top: 32px; }
+.scr-pilotagem .ck-heading { width: 230px; max-width: 40vw; }
 .scr-pilotagem .pilot-tape { width: 78px; }
 @media (max-width: 760px) {
+  .scr-pilotagem .ck-top { top: 44px; }
   .scr-pilotagem .ck-right { width: auto; left: 86px; gap: 3px; }
   .scr-pilotagem .ck-tile { padding: 2px 4px; }
   .scr-pilotagem .ck-tile b { font-size: 12px; }
