@@ -20,7 +20,19 @@ function sectionFloor(env: Environment, origin: Observer, bearing: number, range
 /** Vertical 2D ray: dθ/ds = -cos(θ)/c · dc/dz, depth positive down.
  * No artistic curvature gain. Flat surface, specular sloping-bottom reflection.
  */
-export function traceRay(env: Environment, origin: Observer, bearing: number, angle: number, maxRange: number, frequency = 1000, homogeneous = false, floorAt?: (r: number) => number, record = true): Ray {
+export function traceRay(
+  env: Environment,
+  origin: Observer,
+  bearing: number,
+  angle: number,
+  maxRange: number,
+  frequency = 1000,
+  homogeneous = false,
+  floorAt?: (r: number) => number,
+  record = true,
+  /** Passo máximo (m) — o laboratório acústico usa passos menores; omitido = comportamento original. */
+  maxStep?: number,
+): Ray {
   const floor = floorAt ?? sectionFloor(env, origin, bearing, maxRange);
   let r = 0,
     z = Math.max(0.2, origin.depth),
@@ -29,8 +41,9 @@ export function traceRay(env: Environment, origin: Observer, bearing: number, an
     distance = 0,
     boundaryLoss = 0;
   const points: Ray['points'] = [{ r, z, t, loss: 0 }];
-  const ds = clamp(maxRange / 220, 2, 40);
-  for (let i = 0; i < 600 && r < maxRange && Math.cos(theta) > 0.01; i++) {
+  const ds = maxStep === undefined ? clamp(maxRange / 220, 2, 40) : clamp(maxRange / 220, 1, maxStep);
+  const steps = maxStep === undefined ? 600 : Math.ceil((3 * maxRange) / ds);
+  for (let i = 0; i < steps && r < maxRange && Math.cos(theta) > 0.01; i++) {
     const c = speedAt(env, z, homogeneous);
     const mid = theta - (((Math.cos(theta) * gradientAt(env, z, homogeneous)) / c) * ds) / 2;
     let nr = Math.min(maxRange, r + Math.cos(mid) * ds),

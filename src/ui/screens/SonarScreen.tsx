@@ -12,6 +12,7 @@ import { Aural } from '../../sonar/display/Aural';
 import { PingAudio } from '../../sonar/display/PingAudio';
 import { PulseView } from '../../sonar/visualization/PulseView';
 import { AdvancedSonarScreen } from './AdvancedSonarScreen';
+import { AcousticLab } from '../../sonar/lab/AcousticLab';
 import '../../sonar/display/console.css';
 
 export function SonarScreen() {
@@ -19,7 +20,7 @@ export function SonarScreen() {
     s = e.state.sonar!,
     cfg = s.settings;
   const [advanced, setAdvanced] = useState(false),
-    [focus, setFocus] = useState<'tma' | 'pulse' | 'listen'>('tma');
+    [focus, setFocus] = usePersisted<'lab' | 'tma' | 'pulse' | 'listen'>('sonar.focus', 'lab');
   const [mode, setMode] = usePersisted<DisplayMode>('sonar.mode', 'broadband');
   const [gain, setGain] = usePersisted('sonar.gain', 0),
     [seconds, setSeconds] = usePersisted('sonar.seconds', 120);
@@ -148,30 +149,45 @@ export function SonarScreen() {
         <AdvancedSonarScreen />
       </div>
     );
+  const header = (
+    <header className="sonar-topline">
+      <div>
+        <span className="sonar-eyebrow">SX-1 / ESTAÇÃO ACÚSTICA</span>
+        <h2>
+          Sonar <span>· {focus === 'lab' ? 'laboratório acústico' : 'análise de movimento'}</span>
+        </h2>
+      </div>
+      <div className="sonar-mode-tabs" aria-label="Área de trabalho">
+        <span className="sonar-tab-group">Aprender</span>
+        <button className={focus === 'lab' ? 'active' : ''} aria-pressed={focus === 'lab'} onClick={() => setFocus('lab')}>
+          Laboratório
+        </button>
+        <span className="sonar-tab-group">Operar</span>
+        {(
+          [
+            ['tma', 'TMA'],
+            ['listen', 'Escuta'],
+            ['pulse', 'Sonar 3D'],
+          ] as const
+        ).map(([id, text]) => (
+          <button key={id} className={focus === id ? 'active' : ''} aria-pressed={focus === id} onClick={() => setFocus(id)}>
+            {text}
+          </button>
+        ))}
+        <button onClick={() => setAdvanced(true)}>Avançado ↗</button>
+      </div>
+    </header>
+  );
+  if (focus === 'lab')
+    return (
+      <div className="sonar-station focus-lab">
+        {header}
+        <AcousticLab />
+      </div>
+    );
   return (
     <div className={`sonar-station focus-${focus}`}>
-      <header className="sonar-topline">
-        <div>
-          <span className="sonar-eyebrow">SX-1 / ESTAÇÃO ACÚSTICA</span>
-          <h2>
-            Sonar <span>· análise de movimento</span>
-          </h2>
-        </div>
-        <div className="sonar-mode-tabs" aria-label="Área de trabalho">
-          {(
-            [
-              ['tma', 'TMA'],
-              ['listen', 'Escuta'],
-              ['pulse', 'Sonar 3D'],
-            ] as const
-          ).map(([id, text]) => (
-            <button key={id} className={focus === id ? 'active' : ''} aria-pressed={focus === id} onClick={() => setFocus(id)}>
-              {text}
-            </button>
-          ))}
-          <button onClick={() => setAdvanced(true)}>Avançado ↗</button>
-        </div>
-      </header>
+      {header}
       <div className="sonar-statusbar">
         <span className={powered && runner.running ? 'sonar-live' : ''}>
           ● {!cfg.enabled ? 'Sonar desligado' : !e.state.electrical.energized ? 'Sem energia' : runner.running ? 'Escuta em andamento' : 'Simulação pausada'}

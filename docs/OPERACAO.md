@@ -710,6 +710,32 @@ Use **Camadas do controle** na 2ª janela para espelhar a seleção e o replay.
 Perfis ambientais, memória, funcionamento offline e todas as aproximações estão
 no [guia completo do sonar](SONAR.md).
 
+### Laboratório acústico
+
+**Operação → Sonar** abre no **Laboratório** (grupo *Aprender*): um corte vertical do
+mar (distância × profundidade) onde se vê o som andar. **EMITIR PING** solta a frente
+de onda (ciano), que se curva nas camadas de temperatura, reflete na superfície e no
+fundo e, ao tocar o alvo, volta como eco (rosa). Linhas fracas marcam onde a frente
+estava a cada segundo. O fundo colorido é a intensidade do som (mais claro = mais
+forte); a área hachurada é a **zona de sombra**, onde o som direto não chega.
+
+- **Arraste** o seu submarino (para cima/baixo), o alvo (qualquer direção) e a
+  termoclina (↕ no perfil de velocidade do som, à direita). Tudo é recalculado na hora.
+- **Experimentos prontos:** Água uniforme, Esconder-se abaixo da camada, Canal de
+  superfície, Ping abaixo da camada, Águas rasas e **Mar do simulador agora** (perfil
+  de temperatura, fundo sob o navio e profundidade atuais).
+- **Eco e distância** mostra o tempo de ida, o tempo do eco, a conta
+  *c × t ÷ 2* e a força do eco pela equação do sonar (fonte − 2 × perda + alvo −
+  ruído − reverberação), com o limiar de 6 dB. O texto do alvo diz se o eco é
+  detectável (● verde), fraco (▲ âmbar) ou inexistente (✕ vermelho).
+- Botões **Frente de onda**, **Raios**, **Intensidade do som** e **Zona de sombra**
+  ligam e desligam cada camada; o ponteiro sobre a água mede distância, profundidade
+  e perda. Velocidade da animação: tempo real, ½ ou ¼; **Som** toca o ping e o eco.
+
+O laboratório usa o mesmo traçador de raios do sonar com fundo plano e não altera a
+simulação. Os modos de operação (TMA, Escuta, Sonar 3D, Avançado) continuam no grupo
+*Operar*.
+
 ### Estação visual de sonar
 
 Em **Operação → Sonar**, use **TMA** para plotagem interativa, **Escuta** para

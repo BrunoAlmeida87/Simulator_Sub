@@ -90,7 +90,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       { id: 'console', label: 'Console integrado', hint: 'Estações de governo, piloto e sistemas com cena 3D ampliável e instrumentos de navegação' },
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
-      { id: 'sonar', label: 'Sonar', hint: 'Estação visual: TMA interativo, cascata, escuta e pulso 3D' },
+      { id: 'sonar', label: 'Sonar', hint: 'Laboratório acústico (ondas, eco e zona de sombra), TMA, cascata, escuta e pulso 3D' },
       { id: 'armas', label: 'Armas', hint: 'Sala de torpedos: lançamento automático ou passo a passo, tubo em 3D, submarino inimigo, torpedo de combate e míssil SM39 (Exocet) contra fragata ou alvo em terra' },
     ],
   },

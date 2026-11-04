@@ -1,5 +1,33 @@
 # Sonar integrado — arquitetura, operação e limites
 
+## Laboratório acústico (aba de entrada)
+
+A tela abre no **Laboratório** (`src/sonar/lab/`), feito para aprender e apresentar:
+um corte vertical com a frente de onda do ping, os raios, a intensidade do som, a
+zona de sombra, o eco e o perfil de velocidade do som. Submarino, alvo e termoclina
+são arrastáveis; seis experimentos prontos (incluindo o mar atual da simulação).
+
+**Física.** `model.ts` chama o mesmo `traceRay` do sonar (com passo menor) num
+ambiente próprio: perfil de temperatura em tanh do `Environment` (tabelado),
+salinidade 35, fundo plano. O leque tem 181 raios entre ±85°, mais densos perto da
+horizontal (os que ficam presos nas camadas). A **frente de onda** liga os pontos
+dos raios no mesmo instante. A **intensidade** usa tubos de raios: a energia entre
+dois raios vizinhos se espalha pela largura do tubo (água uniforme → 20·log r;
+tubos que se abrem → perda maior; cáusticas limitadas a 6 dB acima do esférico),
+somada às perdas de absorção e reflexão do `traceRay` (1 dB na superfície, 5 dB no
+fundo). As reflexões são tratadas pelo método das imagens (profundidade
+"desdobrada"), contando as batidas de cada raio. **Zona de sombra** = água sem
+caminho que não passe pelo fundo com perda até 10 dB acima do espalhamento
+esférico. O **eco** é a frente traçada a partir do alvo; o tempo do eco é 2 × o
+tempo do caminho mais forte; a distância exibida é *c(submarino) × t ÷ 2*; a força
+do eco usa os mesmos termos de `sensors/active.ts` (210 − 2·perda + 15 − 55 − 10,
+limiar 6 dB).
+
+**Limites.** Corte 2D com fundo plano e superfície lisa; ray tracing geométrico
+(sem difração: a sombra é absoluta para o som direto); o alvo é um ponto. Enquanto
+se arrasta, o cálculo usa 91 raios (rascunho) e volta aos 181 ao soltar. Testes em
+`tests/sonarLab.test.ts`.
+
 ## Estação visual: TMA, cascata e pulso
 
 A tela principal foi reorganizada para operação simples, com três disposições:
