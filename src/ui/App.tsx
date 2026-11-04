@@ -9,6 +9,7 @@ import { fmtTime } from './format';
 import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
 import { HelmScreen } from './screens/HelmScreen';
+import { IntegratedConsoleScreen } from './screens/IntegratedConsoleScreen';
 import { ControlRoomScreen } from './screens/ControlRoomScreen';
 import { PresentationScreen } from './screens/PresentationScreen';
 import { TacticalMapScreen } from './screens/TacticalMapScreen';
@@ -245,6 +246,7 @@ export function App() {
   const screens: Record<ScreenId, ReactNode> = {
     pilotagem: <PilotScreen />,
     governo: <HelmScreen />,
+    console: <IntegratedConsoleScreen />,
     sala: <ControlRoomScreen />,
     apresentacao: <PresentationScreen />,
     estudio: <StudioScreen />,

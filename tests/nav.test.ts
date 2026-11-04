@@ -12,7 +12,8 @@ describe('navegação em dois níveis (grupos → telas)', () => {
 
   it('menos itens na navegação: telas parecidas viram modos de uma tela só', () => {
     const items = NAV_GROUPS.flatMap((g) => g.screens);
-    expect(items.length).toBeLessThanOrEqual(16);
+    // O Console integrado acrescenta uma aba independente às 16 existentes.
+    expect(items.length).toBeLessThanOrEqual(17);
     expect(primaryOf('comando').id).toBe('pilotagem');
     expect(primaryOf('governo').id).toBe('pilotagem');
     expect(primaryOf('energia').id).toBe('propulsao');

@@ -1,0 +1,21 @@
+.scene-viewport { display: flex; flex: none; flex-direction: column; min-width: 0; min-height: 240px; overflow: hidden; border: 1px solid var(--line2); border-radius: 8px; background: #0b1520; }
+.scene-viewport-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 7px 10px; background: #111f2e; flex: none; }
+.scene-viewport-tools > b { font-size: 11px; letter-spacing: .06em; margin-right: auto; color: #bed3e5; }
+.scene-viewport-tools label { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.scene-viewport-tools input[type='range'] { width: 100px; }
+.scene-viewport-tools output { min-width: 46px; font-family: var(--mono); }
+.scene-viewport-canvas { position: relative; flex: 1; min-height: 0; }
+.scene-viewport .scene-viewport-canvas > .view3d { height: 100%; min-height: 0; border: 0; border-radius: 0; }
+.scene-viewport-grip { flex: none; height: 16px; display: grid; place-items: center; cursor: ns-resize; touch-action: none; background: #111f2e; }
+.scene-viewport-grip::after { content: ''; width: 48px; height: 3px; border-radius: 3px; background: #52758e; }
+.scene-viewport-grip:hover::after, .scene-viewport-grip:focus-visible::after { background: var(--accent); }
+.scene-viewport-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.scene-viewport.is-expanded { position: fixed; inset: 8px; z-index: 80; height: auto; box-shadow: 0 0 0 12px #06101b; }
+@media (max-width: 760px) {
+  .scene-viewport-tools { gap: 6px; padding: 6px; }
+  .scene-viewport-tools > b { font-size: 10px; }
+  .scene-viewport-tools label { order: 2; flex-basis: 100%; }
+  .scene-viewport-tools input[type='range'] { flex: 1; width: auto; }
+  .scene-viewport-grip { height: 22px; }
+  .scene-viewport.is-expanded { inset: 4px; }
+}

@@ -1689,6 +1689,21 @@ kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radiu
   .ops-console:not(.compact) { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* HUD da Operação mais discreto; as outras telas mantêm as suas dimensões. */
+.scr-pilotagem .ck-right { width: 116px; gap: 3px; }
+.scr-pilotagem .ck-tile { padding: 3px 6px; border-radius: 4px; }
+.scr-pilotagem .ck-tile small { font-size: 9px; }
+.scr-pilotagem .ck-tile b { font-size: 14px; }
+.scr-pilotagem .ck-tile span { font-size: 9px; }
+.scr-pilotagem .ck-heading { width: 290px; }
+.scr-pilotagem .pilot-tape { width: 78px; }
+@media (max-width: 760px) {
+  .scr-pilotagem .ck-right { width: auto; left: 86px; gap: 3px; }
+  .scr-pilotagem .ck-tile { padding: 2px 4px; }
+  .scr-pilotagem .ck-tile b { font-size: 12px; }
+  .scr-pilotagem .pilot-tape { width: 64px; }
+}
+
 /* ---------- notas explicativas recolhíveis (notes.ts): duas linhas; clique ou Enter abre ---------- */
 .panel .note { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .panel .note.open, .panel .note.no-clamp { display: block; -webkit-line-clamp: unset; overflow: visible; }
