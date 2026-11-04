@@ -12,6 +12,7 @@ import './HelmScreen.css';
 import { cmd, useSim } from '../store';
 import { usePersisted } from '../persist';
 import { Scene3D } from '../components/Scene3D';
+import { ResizableScene } from '../components/ResizableScene';
 import { useQuality } from '../graphics';
 import { Compass, Attitude, DepthTape, Dial } from '../components/gauges';
 import { Yoke, Lever, Knob, TELEGRAPH_DETENTS, HELM_COLORS } from '../components/helm';
@@ -82,7 +83,7 @@ export function HelmScreen() {
         <div><span>Inclinação / banda</span><strong>{fmt(o.euler.pitch, 1)}° <small>/ {fmt(o.euler.roll, 1)}°</small></strong></div>
         <div><span>Piloto automático</span><strong className="gov-authority">Rumo: {ap.headingMode === 'AUTO' ? 'AUTO' : 'MANUAL'}<br />Prof.: {ap.depthMode === 'AUTO' ? 'AUTO' : 'MANUAL'}</strong></div>
       </div>
-      {showScene && <div className="helm-view" id="gov-scene">
+      {showScene && <ResizableScene id="gov-scene" persistKey="helm">
         {/* syncVisual false: esta cena não define a 2ª janela, que segue a última cena 3D completa */}
         <Scene3D quality={quality} view={view} persistKey="helm" syncVisual={false} layers={lay}>
           <OverlayCtl
@@ -102,7 +103,7 @@ export function HelmScreen() {
             <b>{id.name}</b> · {fmt(indicatedDepth(e), 1)} m · {fmtSpeed(s.body.vel.x, 1)} · rumo {fmt(o.euler.heading, 0)}°
           </div>
         </Scene3D>
-      </div>}
+      </ResizableScene>}
       <div className="helm-console">
         <section className="helm-sec gov">
           <header>

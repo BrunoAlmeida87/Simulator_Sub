@@ -18,7 +18,7 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 
 | Grupo | Telas (tecla) |
 |---|---|
-| **Operação** | Operação (0) — modos *Cockpit*, *Instrumentos* (1, a antiga Central de comando) e *Posto de governo* (o antigo Governo) —, Mapa tático, Sonar, Armas |
+| **Operação** | Operação (0) — modos *Cockpit*, *Instrumentos* (1, a antiga Central de comando) e *Posto de governo* (o antigo Governo) —, Console integrado, Mapa tático, Sonar, Armas |
 | **Sistemas** | Visão geral — modos *Estado* e *Arquitetura* (antigos Sistemas auxiliares) —, Lastro e compensação (2), Trim e banda (3), Propulsão e energia (4) — modos *Linha de eixo* e *Fluxo de energia* —, Segurança (5) |
 | **Apresentação** | Apresentação — modos *Situações* e *Cena livre* (6, a antiga Visualização 3D) —, Estúdio, Cenários — modos *Biblioteca* e *Galeria 3D* (antigos Modelos 3D) |
 | **Análise** | Histórico (7) — modos *Gráficos* e *Validação* |
@@ -85,12 +85,22 @@ As outras abas continuam servindo para diagramas maiores, histórico e detalhes 
 
 ## Painel de governo (aba Governo)
 
+**Tamanho da cena:** o Posto de governo começa com uma área 3D maior. Use **Altura** ou arraste a alça abaixo da cena para ajustar de 240 a 1200 px; a escolha fica salva no navegador. Com a alça em foco, ↑/↓ ajustam 20 px e Home restaura a altura padrão; duplo clique na alça ou **Restaurar altura** também restaura. **Ampliar 3D** ocupa a janela, mantendo a câmera e a simulação; **Restaurar 3D** ou **Esc** volta ao tamanho escolhido. **Recolher cena 3D** continua disponível.
+
 Inspirado no posto de governo de um submarino, com cena 3D (perseguição, lateral, topo ou livre) em cima e três blocos embaixo:
 - **GOVERNO** (azul): **manche** — arrastar para os lados comanda o leme de direção (BB/BE); **para cima, os lemes de ré a SUBIR; para baixo, a DESCER** (a mesma regra das alavancas das outras telas). **Alavanca dos lemes de vante** ao lado, também com SUBIR em cima; as alavancas aceitam ↑/↓ quando em foco. Botões giratórios de **rumo** e **profundidade** ordenados (gire e solte) com MAN/AUTO.
 - **INSTRUMENTOS**: rosa de rumo (com o rumo ordenado), fita de profundidade (com a cota ordenada e o fundo), atitude e velocidade.
 - **POTÊNCIA** (laranja): **alavanca do telégrafo**, que encaixa nas ordens (RÉ TODA … AV TODA), ajuste fino de ±5 rpm, rotação do eixo, potência e empuxo.
 
 A peça que se move mostra o **comandado**; o marcador **verde** mostra a resposta **real** (ângulo dos lemes, rotação do eixo). Funciona com mouse e toque. Os comandos são os mesmos das outras telas (aparecem no histórico, entram na gravação e ficam sincronizados com a Operação); mover o manche com o piloto em AUTO desengaja o canal, como nas outras telas.
+
+## Console integrado
+
+Em **Operação → Console integrado**, uma tela alternativa combina estações de operação naval com instrumentos de cockpit: cena 3D ampla e ajustável, leituras principais de profundidade, velocidade, rumo e eixo, e instrumentos de atitude, rumo, profundidade e velocidade abaixo da cena. Os dados de profundidade, velocidade, rumo e atitude vêm dos mesmos sensores das outras telas.
+
+O painel lateral oferece **Governo** (telégrafo e lemes), **Piloto automático** (modo e referência de rumo e profundidade) e **Sistemas** (bateria, tanques e atalhos aos diagramas). Selecione as estações pelo mouse, toque ou pelas setas quando a aba estiver em foco. A vista, as camadas, a estação e a altura da cena ficam salvas separadamente das outras telas. Todos os comandos usam a mesma simulação, histórico, gravação e sincronização; trocar de tela não reinicia o submarino.
+
+Na **Operação → Cockpit**, os cartões sobrepostos, a fita de rumo e a régua de profundidade ficaram mais compactos para liberar espaço na cena, preservando as informações e os alertas.
 
 ## Sala de comando (primeira pessoa)
 
