@@ -766,3 +766,14 @@
     gap: 12px;
   }
 }
+.sonar-tab-group {
+  align-self: center;
+  color: #6494ac;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 0 2px 0 8px;
+}
+.sonar-tab-group:first-child {
+  margin-left: 0;
+}

@@ -307,6 +307,9 @@ O circuito de compensação permite transferir água entre os tanques de banda B
 
 A visão **Cinematográfica** acompanha o submarino com oscilações discretas de filmagem e amortecimento suave, como opção independente da câmera **Perseguição**.
 
-O sonar oferece **TMA gráfico interativo**, cascata (banda larga, LOFAR e DEMON),
+O sonar abre no **Laboratório acústico**: corte do mar com a frente de onda do ping
+se curvando nas camadas, eco de volta, zona de sombra e perfil de velocidade do som,
+com submarino, alvo e termoclina arrastáveis e experimentos prontos.
+Para operar, oferece **TMA gráfico interativo**, cascata (banda larga, LOFAR e DEMON),
 áudio e pulso 3D com replay. A interface científica permanece em **Avançado**.
 [Guia atual](docs/SONAR.md) · [Sonar avançado original preservado](docs/SONAR_AVANCADO_REFERENCIA.md).

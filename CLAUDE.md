@@ -50,6 +50,9 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
   environment/coast.ts  costa física por regiões (Sepetiba: coastData.ts; Rio: coastDataRio.ts, gerado por scripts/rio)
   traffic.ts          navios adicionais (quantidade em Gráficos), validados contra o fundo simulado
   validation/suite.ts testes de validação física V01…
+src/sonar/lab/        LABORATÓRIO ACÚSTICO (Sonar › Laboratório, aba de entrada): model.ts (leque de raios com o traceRay
+                      do sonar, frente de onda, intensidade por tubos de raios, zona de sombra, eco; não altera a simulação),
+                      draw.ts (canvas), AcousticLab.tsx (arrastar submarino/alvo/termoclina, experimentos); teste tests/sonarLab.test.ts
 src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   SubmarineScene.ts   cena principal: casco, lemes, câmeras, pick(), modo sem água
   subModel.ts         modelo .glb do SX-1 (public/models/sx1-leve|alta.glb): nomes fixos das peças (SUB_PARTS),

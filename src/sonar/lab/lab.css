@@ -1,0 +1,249 @@
+/* Laboratório acústico (Sonar › Laboratório). Fica dentro de .sonar-station e herda botões e campos. */
+.alab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.alab-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.alab-presets button {
+  padding: 7px 12px;
+}
+.alab-hint {
+  margin: 0;
+  color: #8fb0c2;
+}
+.alab-hint b {
+  color: #cfe7f2;
+  font-weight: 600;
+}
+.alab-stage {
+  position: relative;
+  height: clamp(320px, 58vh, 620px);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #061420;
+}
+.alab-stage canvas {
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+.alab-transport {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sonar-station .alab-transport .ping-button {
+  flex: 0 0 auto;
+  padding: 11px 20px;
+}
+.sonar-station .alab-transport input[type='range'] {
+  flex: 1 1 160px;
+  width: auto;
+  min-width: 120px;
+}
+.alab-time {
+  color: #a6dce8;
+  font-variant-numeric: tabular-nums;
+  min-width: 260px;
+}
+.alab-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #8fb0c2;
+}
+.sonar-station .alab-legend button {
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sonar-station .alab-legend button:not(.active) {
+  opacity: 0.6;
+}
+.alab-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+.alab-readout {
+  margin-left: auto;
+  color: #b8d6e4;
+  font-variant-numeric: tabular-nums;
+}
+.alab .sw {
+  display: inline-block;
+  width: 18px;
+  height: 10px;
+  border-radius: 2px;
+}
+.alab .sw.front {
+  height: 3px;
+  background: #8af4ff;
+  box-shadow: 0 0 6px #8af4ff;
+}
+.alab .sw.echo {
+  height: 3px;
+  background: #ff7ad9;
+  box-shadow: 0 0 6px #ff7ad9;
+}
+.alab .sw.ray {
+  height: 1px;
+  background: #a9dbe8;
+}
+.alab .sw.field {
+  background: linear-gradient(90deg, #050e18, #092c40, #145c76, #3a96aa);
+}
+.alab .sw.shadow {
+  background: repeating-linear-gradient(135deg, #0a1320 0 3px, #8a9bb0 3px 4px);
+}
+.alab .sw.thermo {
+  height: 0;
+  border-top: 2px dashed #c9a6ff;
+}
+.alab-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.alab-card {
+  min-width: 0;
+  background: linear-gradient(135deg, #081d2c, #071622);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 12px 15px;
+}
+.alab-card h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: #cfe7f2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.alab-card h3 small {
+  color: #7fa2b5;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.alab-card p {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.alab-note {
+  color: #d8eef7;
+}
+.alab-rule {
+  color: #d9c6ff;
+}
+.alab-status {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #2c5063;
+  background: #061722;
+}
+.alab-status b {
+  margin-right: 4px;
+}
+.alab-status.ok b {
+  color: var(--ok);
+}
+.alab-status.weak b {
+  color: var(--warn);
+}
+.alab-status.none b {
+  color: var(--alarm);
+}
+.alab-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0 0 8px;
+}
+.alab-facts dt {
+  color: #7fa2b5;
+}
+.alab-facts dd {
+  margin: 0;
+  color: #d8eef7;
+}
+.alab-facts small,
+.alab-small {
+  color: #7fa2b5;
+}
+.alab-small {
+  font-size: 12px;
+}
+.alab-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alab-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.alab-slider span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #8fb0c2;
+}
+.alab-slider b {
+  color: #d8eef7;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.sonar-station .alab-slider input[type='range'] {
+  width: 100%;
+}
+.alab-check,
+.alab-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c4dce8;
+}
+.alab-row {
+  justify-content: space-between;
+}
+@media (max-width: 1100px) {
+  .alab-cards {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .alab-controls {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .alab-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .alab-stage {
+    height: clamp(280px, 52vh, 420px);
+  }
+  .alab-time {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+  .alab-readout {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+  .alab-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
