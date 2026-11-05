@@ -22,7 +22,8 @@
     "test:watch": "vitest",
     "validate": "vitest run && vite-node scripts/report.ts",
     "report": "vite-node scripts/report.ts",
-    "modelo:otimizar": "node scripts/blender/otimizar.mjs"
+    "modelo:otimizar": "node scripts/blender/otimizar.mjs",
+    "sinalizacao:assets": "node scripts/sinalizacao/otimizar.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

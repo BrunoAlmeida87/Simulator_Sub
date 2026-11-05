@@ -17,6 +17,7 @@ export const SCREEN_IDS = [
   'mapa',
   'sonar',
   'armas',
+  'sinalizacao',
   'sistemas',
   'lastro',
   'trim',
@@ -92,6 +93,11 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
       { id: 'sonar', label: 'Sonar', hint: 'Laboratório acústico (ondas, eco e zona de sombra), TMA, cascata, escuta e pulso 3D' },
       { id: 'armas', label: 'Armas', hint: 'Sala de torpedos: lançamento automático ou passo a passo, tubo em 3D, submarino inimigo, torpedo de combate e míssil SM39 (Exocet) contra fragata ou alvo em terra' },
+      {
+        id: 'sinalizacao',
+        label: 'Sinalização & Emergência',
+        hint: 'Sinais pirotécnicos de cor, fumaça, luz e fumaça, estrela com paraquedas e boia de emergência: inventário, lançamento, falhas, eventos e acompanhamento em 3D',
+      },
     ],
   },
   {
@@ -238,6 +244,7 @@ export const ALARM_SCREEN: Record<string, ScreenId> = {
   Navegação: 'comando',
   Propulsão: 'propulsao',
   Segurança: 'seguranca',
+  Sinalização: 'sinalizacao',
 };
 
 export type NavMark = 'alarm' | 'warn';

@@ -39,6 +39,7 @@ import { updateNavigation, updateSensors, type TrueValues } from '../systems/sen
 import { cavitationLevel } from '../systems/cavitation';
 import { evaluateAlarms } from '../systems/alarms';
 import { initWeapons, updateWeapons } from '../systems/weapons';
+import { initSignals, updateSignals } from '../systems/signals';
 
 /** rigidez hidrostática (N·m/rad) abaixo da qual o equilíbrio é tratado como instável/indiferente */
 const MIN_STIFFNESS = 1e3;
@@ -124,6 +125,7 @@ export class SimulationEngine {
     this.added = fullAddedMass(config.vessel, this.geom, 1025);
     this.compressibleVolume = this.geom.volume - config.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
     if (config.vessel.weapons && !state.weapons) state.weapons = initWeapons(config.vessel, this.geom.radiusAt);
+    state.signals ??= initSignals(config.vessel);
     this.state = state;
     this.state.sonar ??= initialSonar();
     this.scratch = new Float64Array(this.geom.slices.length);
@@ -274,6 +276,9 @@ export class SimulationEngine {
     const wr = updateWeapons(cfg, s, { ctx, R: this.geom.radiusAt, velNED: this.outputs.velNED, heading: this.outputs.euler.heading });
     strokes += wr.strokes;
     this.launchW = wr.F.x !== 0 ? { F: wr.F, M: wr.M } : null;
+
+    // sinalização pirotécnica e de emergência: lançador e dispositivos liberados (não afetam a dinâmica)
+    updateSignals({ s, v: cfg, env, pos, R, vel: this.outputs.velNED, radiusAt: this.geom.radiusAt, log: ctx.log }, dt);
 
     // 4. tanques internos e alagamento
     const rt = updateTransfer(cfg.trim, s.trim, ctx);

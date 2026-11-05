@@ -42,6 +42,9 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
                       comandos 'tube'/'torpedo'/'enemy'); torpedoTubes.ts (geometria dos tubos retos e das portas da boca)
                       missiles.ts (míssil SM39 na cápsula VSM: tubo com kind 'sm39', voo, autodiretor, impacto;
                       alvos hostis — fragata e alvo em terra — comando 'hostile'); teste tests/missiles.test.ts
+                      signals.ts (SINALIZAÇÃO & EMERGÊNCIA: lançador selecionar→preparar→liberar, inventário, subida,
+                      superfície, luz/fumaça/estrela/boia, falhas F01–F07 no catálogo 'failure' (signal:<id>), comando 'signal';
+                      vessel.signals = defaultSignals()); teste tests/signals.test.ts
   environment/        água do mar, ondas
   commands.ts         ÚNICA via para alterar a simulação (tipo Command + applyCommand)
   scenarios.ts        cenários iniciais (SCENARIOS)
@@ -64,6 +67,10 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
   MissileVis.ts       míssil SM39 (cápsula, nariz, separação, asas por morph, fumaça, impacto), fragata Tamandaré
                       (sx1-fragata.glb, fogo e afundamento) e alvo em terra; modelos de public/models/SM_39VSM.blend e
                       fragata_tamandare.blend (scripts/blender/build_sm39.py, build_fragata.py; npm run modelo:otimizar -- sm39 fragata)
+  SignalVis.ts        sinalização na cena: GLBs de public/models/sinalizacao (biblioteca Kimi, npm run sinalizacao:assets),
+                      clipes, partículas com os sprites (fumaça, bolhas, brilho, água), luzes, ampliação (layers.signalScale),
+                      vistas 'sinal' / 'sinalSuperficie' / 'boia'; SignalPreview.ts = prévia 3D (painel + dispositivo) da tela;
+                      teste tests/signalModels.test.ts
   missileCam.ts       câmera "Míssil cinematográfica" (diretor de planos por fase); a vista "Míssil" segue como a do torpedo
   EnemyVis.ts         submarinos inimigos (casco que se parte e afunda) e explosões (função da idade: 2ª janela igual);
                       vista 'alvo' e órbita livre nas vistas 'torpedo'/'alvo' (SubmarineScene: followUser)
@@ -119,6 +126,8 @@ src/ui/               INTERFACE (React)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
                       SystemsOverview (Sistemas › Visão geral: cartões por sistema)
                       sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
+  screens/SignalsScreen.tsx  tela Sinalização & Emergência (Operação, depois de Armas): estado, seleção com prévia 3D,
+                      lançamento com confirmação, inventário, sinais liberados, boia, falhas, eventos, vista 3D
   screens/WeaponsScreen.tsx  tela Armas (tubos, AUTO/passo a passo, dados de tiro, inimigo, tubo 3D, torpedos, plotagem, 3D)
   ops/                central de operação da tela Operação (id 'pilotagem'): OpsConsole (console inferior, dono do canal,
                       aviso de troca de comando, sopro de emergência com tampa), grupos expansíveis (OpsGroups), opsBus

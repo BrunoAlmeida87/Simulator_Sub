@@ -39,6 +39,7 @@ import { CargoVis } from './CargoVis';
 import { TorpedoVis, torpedoPose } from './TorpedoVis';
 import { EnemyVis, enemyScenePos, focusEnemy } from './EnemyVis';
 import { MissileVis, focusHostile, focusMissile, hostileScenePos, missilePose } from './MissileVis';
+import { SignalVis } from './SignalVis';
 import { directMissileCam, newCine } from './missileCam';
 import { PitchAngle } from './PitchAngle';
 import { Ensign } from './Ensign';
@@ -97,7 +98,13 @@ export type ViewMode = 'sonar' | 'ping'
   | 'torpedo'
   | 'alvo'
   | 'missil'
-  | 'missilCine';
+  | 'missilCine'
+  /** sinalização: acompanha o sinal escolhido (subida, superfície, estrela no ar) */
+  | 'sinal'
+  /** sinalização: acompanha a boia de emergência */
+  | 'boia'
+  /** sinalização: ao nível da água, olhando para os dispositivos flutuando */
+  | 'sinalSuperficie';
 
 /** Linha de visada do periscópio: marcação relativa à proa (°), elevação (°) e campo de visão vertical (°). */
 export interface PeriscopeSight {
@@ -139,6 +146,8 @@ export interface Label3D {
 }
 
 const P = (n: number, e: number, d: number) => new THREE.Vector3(e, -d, -n);
+/** vistas que acompanham os dispositivos da sinalização */
+const SIGNAL_VIEWS = new Set<ViewMode>(['sinal', 'boia', 'sinalSuperficie']);
 
 /** Textura circular suave para partículas (bolhas, neve marinha, espuma). */
 function dotTexture(): THREE.Texture | null {
@@ -245,6 +254,7 @@ export class SubmarineScene {
   private torpedoVis!: TorpedoVis;
   private enemyVis!: EnemyVis;
   private missileVis!: MissileVis;
+  private signalVis!: SignalVis;
   /** diretor da câmera cinematográfica do míssil e a origem flutuante do quadro anterior (cena) */
   private cine = newCine();
   private cineOrigin: THREE.Vector3 | null = null;
@@ -279,6 +289,8 @@ export class SubmarineScene {
   private sunDir = new THREE.Vector3(0.62, 0.22, -0.6).normalize();
   private caustics = { uTime: { value: 0 }, uCaustic: { value: 0 } };
   private wallTime = 0;
+  /** 0 dia … 1 noite (último quadro), para as luzes da sinalização */
+  private lastNight = 0;
   readonly quality: OceanQuality;
   /** fundo do mar e terra (mesma função de profundidade da física), com níveis de detalhe */
   private terrain: TerrainLayer | null = null;
@@ -356,7 +368,7 @@ export class SubmarineScene {
     this.controls.maxDistance = 6000;
     this.controls.addEventListener('start', () => {
       // torpedo e alvo: arrastar gira em volta do objeto sem deixar de acompanhá-lo
-      if (this.view === 'torpedo' || this.view === 'alvo' || this.view === 'missil' || this.view === 'missilCine') {
+      if (this.view === 'torpedo' || this.view === 'alvo' || this.view === 'missil' || this.view === 'missilCine' || SIGNAL_VIEWS.has(this.view)) {
         this.followUser = true;
         return;
       }
@@ -425,6 +437,9 @@ export class SubmarineScene {
     this.scene.add(this.enemyVis.group);
     this.missileVis = new MissileVis(this.dot, this.renderer);
     this.scene.add(this.missileVis.group);
+    this.signalVis = new SignalVis();
+    this.scene.add(this.signalVis.group, this.signalVis.lights);
+    this.sub.add(this.signalVis.local);
     this.scene.add(this.pitchAngle.group);
     this.fx = new SurfaceFx(this.dot, quality === 'baixa' ? 0.5 : 1);
     this.scene.add(this.fx.group);
@@ -1202,6 +1217,12 @@ export class SubmarineScene {
             .add(new THREE.Vector3(0, 3.5, 0));
         return this.baseCameraTarget('perseguicao');
       }
+      case 'sinal':
+      case 'boia':
+      case 'sinalSuperficie': {
+        // sem dispositivo para acompanhar: logo atrás do lançador, olhando para cima e para ré
+        return c.add(fwd.clone().multiplyScalar(-30)).add(stbd.clone().multiplyScalar(14)).add(new THREE.Vector3(0, 8, 0));
+      }
       case 'missil':
       case 'missilCine': {
         const e = this.env();
@@ -1641,7 +1662,8 @@ export class SubmarineScene {
     const torpPose = this.view === 'torpedo' ? torpedoPose(e, pn, pe, a) : null;
     const misPose = this.view === 'missil' || this.view === 'missilCine' ? missilePose(e, pn, pe, a) : null;
     const alvo = this.view === 'alvo' ? this.alvoFocus(e, pn, pe) : null;
-    const followPose = torpPose ?? misPose ?? alvo;
+    const sigPose = this.view === 'sinal' ? this.signalVis.focus : this.view === 'boia' ? this.signalVis.buoyFocus : this.view === 'sinalSuperficie' ? this.signalVis.surfaceFocus : null;
+    const followPose = torpPose ?? misPose ?? alvo ?? sigPose;
     // origem flutuante: deslocamento da cena neste quadro (planos parados da câmera cinematográfica)
     const originNow = new THREE.Vector3(pe, 0, -pn);
     const originShift = this.cineOrigin ? originNow.clone().sub(this.cineOrigin) : new THREE.Vector3();
@@ -1649,7 +1671,7 @@ export class SubmarineScene {
     const following = !!followPose;
     if (eyeView || droneView) this.controls.enabled = false;
     else if (!this.controls.enabled) this.controls.enabled = true;
-    this.controls.minDistance = following ? 1.5 : 4;
+    this.controls.minDistance = sigPose ? 0.3 : following ? 1.5 : 4;
     this.controls.maxDistance = following ? 20000 : 6000;
     let rollUp: THREE.Vector3 | null = null;
     if (droneView) {
@@ -1733,7 +1755,7 @@ export class SubmarineScene {
         const h = new THREE.Vector3(fp.dir.x, 0, fp.dir.z);
         const fh = h.lengthSq() > 1e-6 ? h.normalize() : new THREE.Vector3(0, 0, -1);
         const side = new THREE.Vector3(-fh.z, 0, fh.x);
-        const [back, sideOff, up] = torpPose ? [13, 2.5, 2.8] : misPose ? (capsule ? [10, 4, 1.5] : [26, 6, 4]) : alvo ? [alvo.back, alvo.side, alvo.up] : [85, 30, 16];
+        const [back, sideOff, up] = torpPose ? [13, 2.5, 2.8] : misPose ? (capsule ? [10, 4, 1.5] : [26, 6, 4]) : alvo ? [alvo.back, alvo.side, alvo.up] : sigPose ? [sigPose.back, sigPose.side, sigPose.up] : [85, 30, 16];
         this.camera.position.copy(fp.pos).addScaledVector(torpPose ? fp.dir : fh, -back).addScaledVector(side, sideOff).add(new THREE.Vector3(0, up, 0));
       } else this.camera.position.add(look.clone().sub(this.followPrev));
       this.followPrev = look.clone();
@@ -1827,6 +1849,7 @@ export class SubmarineScene {
     this.ocean.update(e.env.waves, tWave, pn, pe, this.camera.position, deepColor, this.wallTime);
     this.nightSky.update(dl, this.camera.position, !under && !dry0, pal.moonI, this.pal.zenith, this.pal.fog);
     terrain.night = coastOn ? dl.night : 0;
+    this.lastNight = dl.night;
     // drone no alto: a malha do mar se estende até o horizonte (sem borda visível); em todas as vistas o plano próximo
     // acompanha a distância (precisão de profundidade: sem "pintas" entre a água e o mar achatado da costa)
     {
@@ -1911,6 +1934,8 @@ export class SubmarineScene {
         this.envApplied = { model: this.model, tex, k };
       }
     }
+    // sinalização: o mesmo reflexo do céu/água (submerso, os sinais pegam o tom da água)
+    this.signalVis.env = { tex: this.subEnv.texture, k: envIntensity(dry ? 'seco' : under ? 'submerso' : 'acima', dl.day, dl.under) * 1.3 };
     // luzes de navegação (na superfície, do crepúsculo ao amanhecer ou ligadas) e faróis
     {
       this.sub.updateMatrixWorld();
@@ -1978,6 +2003,8 @@ export class SubmarineScene {
     this.torpedoVis.update(e, this.sub, pn, pe, this.layers.torpedoes !== false, showInt, a, step, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
     this.enemyVis.update(e, pn, pe, this.layers.torpedoes !== false, step, this.camera, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
     this.missileVis.update(e, pn, pe, this.layers.torpedoes !== false, step, this.camera, this.renderer.domElement.height, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj, a);
+    this.signalVis.night = this.lastNight;
+    this.signalVis.update(e, this.layers, pn, pe, step, this.renderer.domElement.height, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
     this.pitchAngle.update(!!this.layers.pitchAngle, e, this.sub, lbl, proj);
     this.updateTrimRef(e, lbl, proj);
     // tráfego adicional (quantidade nas Configurações): mesmos navios do mapa tático
@@ -2077,6 +2104,7 @@ export class SubmarineScene {
     this.bottomLife.dispose();
     this.wind.dispose();
     this.ensign.dispose();
+    this.signalVis.dispose();
     this.shipyard?.dispose();
     this.controls.dispose();
     this.renderer.dispose();

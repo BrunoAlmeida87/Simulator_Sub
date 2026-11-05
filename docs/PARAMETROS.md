@@ -97,6 +97,25 @@ Ordens de grandeza públicas (MBDA, CSIS Missile Threat, EDR Magazine). Cinemát
 | Fragata (alvo) | classe Tamandaré: 107,2 × 15,95 m, calado 5,2 m, até 26 nós | manobra evasiva (proa para o míssil, toda força) com o míssil em busca/terminal a < 9 km |
 | Submarino inimigo na superfície | cota 1,8 m (`depth: 0` no comando `enemy`) | único alvo submarino aceito pelo míssil |
 
+## Sinalização pirotécnica e de emergência (`vessel.signals`, `defaultSignals()` em `defaultVessel.ts`)
+
+Valores **fictícios** de simulação (`src/sim/systems/signals.ts`). Os dispositivos não entram no balanço de massa do submarino.
+
+| Item | Valor | Observação |
+|---|---|---|
+| Inventário inicial (`stock`) | vermelho 4, amarelo 4, verde 4, branco 4, fumaça 6, combinado 4, estrela 4, boia 1 | ajustável na tela (manutenção) |
+| Profundidade máxima de liberação (`maxDepth`) | 200 m | preparar/liberar recusados abaixo dela |
+| Preparação (`prepareTime`) | 4 s | |
+| Lançador (`launcherX`) / boia (`buoyX`) | x = 2,6 m (atrás da vela) / x = −9 m (convés de ré), no dorso do casco | ponto de saída = `SIGNAL_RELEASE_ORIGIN` do desenho |
+| Ejeção (`eject`) | 3 m/s para cima do casco (boia: 1,5 m/s) | somada à velocidade do submarino |
+| Subida livre (`ascent`) | sinal 1,8 m/s; boia 1,2 m/s | constantes de tempo: vertical 1,5 s, perda da velocidade horizontal 4 s (`tau`); arrasto pela cinemática orbital das ondas |
+| Duração na superfície (`duration`) | luz 120 s; fumaça 150 s; combinado 180 s; estrela 45 s | apaga nos últimos 15 %; boia sem fim (até o reabastecimento) |
+| Fumaça curta dos sinais de cor (`colorPuff`) | 25 s | |
+| Estrela (`flare`) | ápice 120 m (subida balística); paraquedas abre em 1,5 s; descida 3 m/s | levada pelo vento inteiro |
+| Deriva na superfície (`windDrift`) | 3,5 % do vento | vento do cenário: `WIND_BY_SEA_STATE` (src/sim/environment/wind.ts) |
+| Extinção prematura (F04, `prematureFactor`) | 25 % da duração | |
+| Fumaça degradada (F05, `degradedSmoke`) | 30 % da emissão | |
+
 ## Bombas e válvulas
 
 | Componente | Valor |

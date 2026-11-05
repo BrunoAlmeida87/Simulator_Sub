@@ -312,6 +312,48 @@ export interface VesselConfig {
   internalPressure: number; // Pa (atmosfera interna)
   /** tubos lançadores e armas (opcional: configurações antigas não têm) */
   weapons?: WeaponsConfig;
+  /** sinalização pirotécnica e de emergência (opcional: configurações antigas usam defaultSignals()) */
+  signals?: SignalsConfig;
+}
+
+/** Dispositivos de sinalização (classificação do simulador, não códigos navais reais). */
+export type SignalKind = 'vermelho' | 'amarelo' | 'verde' | 'branco' | 'fumaca' | 'combinado' | 'estrela' | 'boia';
+/** Cores disponíveis nos modelos 3D (variantes da biblioteca). */
+export type SignalColor = 'vermelho' | 'amarelo' | 'verde' | 'branco' | 'laranja';
+
+/**
+ * Sinalização pirotécnica e de emergência — valores FICTÍCIOS de simulação (ordem de grandeza plausível,
+ * nenhum dado de equipamento real). Ver docs/PARAMETROS.md.
+ */
+export interface SignalsConfig {
+  /** inventário inicial a bordo, por dispositivo */
+  stock: Record<SignalKind, number>;
+  /** profundidade máxima de liberação (m) */
+  maxDepth: number;
+  /** tempo de preparação no lançador (s) */
+  prepareTime: number;
+  /** lançador de sinais: posição longitudinal no corpo (m, + a vante), no dorso do casco */
+  launcherX: number;
+  /** alojamento da boia de emergência: posição longitudinal no corpo (m) */
+  buoyX: number;
+  /** velocidade de ejeção do lançador (m/s, para cima em relação ao casco) */
+  eject: number;
+  /** velocidade de subida livre (m/s): cilindro do sinal e boia */
+  ascent: { signal: number; buoy: number };
+  /** constante de tempo para atingir a velocidade de subida / perder a velocidade do submarino (s) */
+  tau: { vertical: number; horizontal: number };
+  /** duração do efeito na superfície (s) */
+  duration: { light: number; smoke: number; combined: number; flare: number };
+  /** fumaça curta dos sinais de cor (s) */
+  colorPuff: number;
+  /** estrela: altura máxima (m) e descida sob o paraquedas (m/s) */
+  flare: { apex: number; descent: number };
+  /** deriva na superfície: fração do vento */
+  windDrift: number;
+  /** extinção prematura: fração da duração normal */
+  prematureFactor: number;
+  /** fumaça degradada: fração da emissão normal */
+  degradedSmoke: number;
 }
 
 /** Um tubo lançador: reto, paralelo ao eixo do casco, com o centro em (y, z) do corpo. */

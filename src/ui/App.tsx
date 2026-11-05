@@ -15,6 +15,7 @@ import { PresentationScreen } from './screens/PresentationScreen';
 import { TacticalMapScreen } from './screens/TacticalMapScreen';
 import { SonarScreen } from './screens/SonarScreen';
 import { WeaponsScreen } from './screens/WeaponsScreen';
+import { SignalsScreen } from './screens/SignalsScreen';
 import { EnergyFlowScreen } from './screens/EnergyFlowScreen';
 import { BallastScreen } from './screens/BallastScreen';
 import { TrimHeelScreen } from './screens/TrimHeelScreen';
@@ -253,6 +254,7 @@ export function App() {
     mapa: <TacticalMapScreen />,
     sonar: <SonarScreen />,
     armas: <WeaponsScreen />,
+    sinalizacao: <SignalsScreen />,
     energia: <EnergyFlowScreen />,
     comando: <CommandCenter />,
     sistemas: <SystemsOverview />,

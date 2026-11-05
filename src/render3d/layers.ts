@@ -74,6 +74,20 @@ export interface SceneLayers {
   pitchAngle: boolean;
   /** torpedos: armas nos tubos (no corte), disparo, corrida com esteira e fio de guiagem */
   torpedoes: boolean;
+  /** sinalização: dispositivos liberados (cilindro subindo, flutuadores, estrela com paraquedas, boia) e o lançador no casco */
+  signals: boolean;
+  /** sinalização: fumaça colorida */
+  signalSmoke: boolean;
+  /** sinalização: luzes, halos e clarões */
+  signalLights: boolean;
+  /** sinalização: bolhas da subida, respingos, anéis e espuma */
+  signalBubbles: boolean;
+  /** sinalização: trajetória ilustrativa da subida */
+  signalTracks: boolean;
+  /** sinalização: ampliação só do desenho dos dispositivos (1 = tamanho real) */
+  signalScale: number;
+  /** sinalização: dispositivo acompanhado pela vista "Sinal" (null = o mais recente) */
+  signalFocus: string | null;
 }
 
 export const defaultLayers = (): SceneLayers => ({
@@ -120,6 +134,13 @@ export const defaultLayers = (): SceneLayers => ({
   depthLines: true,
   pitchAngle: false,
   torpedoes: true,
+  signals: true,
+  signalSmoke: true,
+  signalLights: true,
+  signalBubbles: true,
+  signalTracks: false,
+  signalScale: 1,
+  signalFocus: null,
 });
 
 /** camadas liga/desliga (as demais chaves de SceneLayers são ajustes, não camadas) */
@@ -162,6 +183,11 @@ export const LAYER_INFO: Record<Exclude<BoolLayer, 'hull'>, { label: string; tit
   depthLines: { label: 'Linhas de profundidade', title: 'Linha leve a cada 25 m, com a profundidade, da superfície até o fundo' },
   pitchAngle: { label: 'Ângulo de pitch', title: 'Linha horizontal, eixo do casco e o ângulo θ entre eles (arco graduado a cada grau)' },
   ships: { label: 'Navios', title: 'Contatos da mesa tática como navios no mar' },
+  signals: { label: 'Sinalizadores e boia', title: 'Sinalização de emergência: cilindro subindo, flutuadores de luz e fumaça, estrela com paraquedas, boia de emergência e o lançador no casco' },
+  signalSmoke: { label: 'Fumaça dos sinais', title: 'Fumaça colorida dos sinais de fumaça, combinados e de cor' },
+  signalLights: { label: 'Luzes dos sinais', title: 'Luzes, halos e clarões dos sinais, da estrela e da boia (mais visíveis à noite)' },
+  signalBubbles: { label: 'Bolhas e respingos', title: 'Bolhas da subida, respingo e anel na superfície, espuma em volta dos flutuadores' },
+  signalTracks: { label: 'Trajetória dos sinais', title: 'Linha ilustrativa do caminho de subida de cada dispositivo' },
   torpedoes: { label: 'Torpedos e mísseis', title: 'Armas nos tubos (no corte), disparo, corrida do torpedo com esteira e fio; míssil SM39 (cápsula, voo, fumaça e impacto); fragatas e alvos em terra' },
   presLight: { label: 'Iluminação', title: 'Luzes adicionais de apresentação', mode: true },
   fog: { label: 'Turbidez', title: 'Névoa subaquática conforme a qualidade da água', mode: true },
@@ -202,6 +228,7 @@ export const LAYER_GROUPS: { id: string; label: string; title: string; keys: Exc
     keys: ['labels', 'batteryInfo', 'airInfo', 'trimRef', 'pitchAngle', 'depthLines'],
   },
   { id: 'mar', label: 'Cenário e movimento', title: 'Esteira, vento, navios, torpedos, boias e trajetória', keys: ['wake', 'wind', 'pennant', 'flag', 'ships', 'torpedoes', 'markers', 'trail'] },
+  { id: 'sinal', label: 'Sinalização', title: 'Sinalizadores, fumaça, luzes, bolhas e trajetórias da sinalização de emergência', keys: ['signals', 'signalSmoke', 'signalLights', 'signalBubbles', 'signalTracks'] },
   { id: 'amb', label: 'Ambiente', title: 'Água e iluminação', keys: ['fog', 'noWater', 'presLight'] },
 ];
 

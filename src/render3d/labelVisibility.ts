@@ -5,6 +5,7 @@ export const LABEL_CATEGORIES = [
   ['forces', 'Forças e momentos'], ['cargo', 'Cargas e peso deslocável'],
   ['ships', 'Navios e contatos'], ['places', 'Costa e estaleiro'],
   ['attitude', 'Calados e atitude'], ['weapons', 'Torpedos, mísseis, alvos e explosões'],
+  ['signals', 'Sinalização e boia de emergência'],
   ['environment', 'Vento, superfície e fundo'],
 ] as const;
 export type LabelCategory = (typeof LABEL_CATEGORIES)[number][0];
@@ -27,6 +28,7 @@ export function labelCategory(id: string): LabelCategory {
   if (id.startsWith('cg_') || id === 'dwB') return 'cargo';
   if (id.startsWith('dr') || id.startsWith('pAng')) return 'attitude';
   if (id.startsWith('torp_') || id.startsWith('ini_') || id.startsWith('exp_') || id.startsWith('msl_') || id.startsWith('hst_') || id.startsWith('mexp_')) return 'weapons';
+  if (id.startsWith('sig_')) return 'signals';
   if (/^(f[PERGB]|h(prop|drag|bow|stern|rudder)|dw[PM]|tv|tmN)/.test(id)) return 'forces';
   return 'environment';
 }
