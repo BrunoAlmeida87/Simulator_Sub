@@ -1,0 +1,28 @@
+{
+  "assets": [
+    {
+      "file": "fragata_tamandare.glb",
+      "name": "Fragata Tamandaré"
+    },
+    {
+      "file": "SM_39VSM.glb",
+      "name": "SM39 no lançador vertical"
+    },
+    {
+      "file": "SM39_exocet_collection.glb",
+      "name": "Coleção SM39 Exocet"
+    },
+    {
+      "file": "sm39_exocet.glb",
+      "name": "Míssil SM39 Exocet"
+    },
+    {
+      "file": "sx1-fragata.glb",
+      "name": "Sx1 Fragata"
+    },
+    {
+      "file": "sx1-sm39.glb",
+      "name": "Sx1 Sm39"
+    }
+  ]
+}

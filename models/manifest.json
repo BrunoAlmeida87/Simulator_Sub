@@ -1,0 +1,227 @@
+{
+  "exporter": "5.2.3 LTS",
+  "assets": [
+    {
+      "source": "navio_cargueiro.blend",
+      "sha256": "84fe837114bd4af97bf7e2d438efe480466c84a5ab7b73d1585f6117959e9d60",
+      "file": "carga.glb",
+      "bytes": 12376404,
+      "sourceObjects": 447,
+      "excluded": [
+        "Superficie do mar",
+        "Area",
+        "Area.001",
+        "Area.002",
+        "Camera de apresentacao"
+      ],
+      "bounds": {
+        "min": [
+          -13.200007438659668,
+          -5.30465030670166,
+          -54.57483673095703
+        ],
+        "max": [
+          13.199993133544922,
+          18.05500030517578,
+          54.70000076293945
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    },
+    {
+      "source": "navio_graneleiro.blend",
+      "sha256": "a5d7b09b55c794922e1c823ec1b02477f575c6ffc62423f0dc272c99dfa5ee85",
+      "file": "graneleiro.glb",
+      "bytes": 2784408,
+      "sourceObjects": 283,
+      "excluded": [
+        "Superficie do mar",
+        "Area",
+        "Area.001",
+        "Area.002",
+        "Camera de apresentacao"
+      ],
+      "bounds": {
+        "min": [
+          -14.200006484985352,
+          -5.30465030670166,
+          -48.517356872558594
+        ],
+        "max": [
+          14.199994087219238,
+          21.091297149658203,
+          48.70000076293945
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    },
+    {
+      "source": "rebocador.blend",
+      "sha256": "7cb01864dee221d117c5ccc889d71b9903831624aa08bcc33f42aeba779645cc",
+      "file": "rebocador.glb",
+      "bytes": 493180,
+      "sourceObjects": 50,
+      "excluded": [
+        "RB_Sol",
+        "RB_Cam"
+      ],
+      "bounds": {
+        "min": [
+          -5.5100016593933105,
+          -3.645367383956909,
+          -15.65054988861084
+        ],
+        "max": [
+          5.509999752044678,
+          10.100000381469727,
+          27.829998016357422
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    },
+    {
+      "source": "rebocador_asd.blend",
+      "sha256": "8d086bd7997c23ace16e678e1442a8c1c424d4d76b8486806e725ce3b079c884",
+      "file": "rebocador_asd.glb",
+      "bytes": 465284,
+      "sourceObjects": 53,
+      "excluded": [
+        "Sol",
+        "Cam"
+      ],
+      "bounds": {
+        "min": [
+          -5.560001373291016,
+          -4.684243679046631,
+          -14.658653259277344
+        ],
+        "max": [
+          5.560000419616699,
+          9.199999809265137,
+          14.350000381469727
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    },
+    {
+      "source": "rebocador_convencional.blend",
+      "sha256": "d281e6b6fddd9ff874279891730c2c3ac20c9abc0a3810676fe93806129c2e3a",
+      "file": "rebocador_convencional.glb",
+      "bytes": 570740,
+      "sourceObjects": 58,
+      "excluded": [
+        "Sol",
+        "Cam"
+      ],
+      "bounds": {
+        "min": [
+          -5.5100016593933105,
+          -3.9813592433929443,
+          -15.65054988861084
+        ],
+        "max": [
+          5.509999752044678,
+          10.300000190734863,
+          15.350000381469727
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    },
+    {
+      "source": "rebocador_trator_voith.blend",
+      "sha256": "2f65114f9eac83e1cac0ff0f82c613888340d55971ab945ffb9f7c0ea0dd3ef2",
+      "file": "rebocador_trator_voith.glb",
+      "bytes": 512984,
+      "sourceObjects": 51,
+      "excluded": [
+        "Sol",
+        "Cam"
+      ],
+      "bounds": {
+        "min": [
+          -6.010001182556152,
+          -4.300000190734863,
+          -13.659930229187012
+        ],
+        "max": [
+          6.010000228881836,
+          10.600000381469727,
+          13.350000381469727
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    },
+    {
+      "source": "rebocadores_frota.blend",
+      "sha256": "c851b6c26cdf52d7dbf774713deedb795573f27fb33f46b08c9c088d7ebf3603",
+      "file": "rebocadores_frota.glb",
+      "bytes": 1554592,
+      "sourceObjects": 162,
+      "excluded": [
+        "Sol",
+        "Cam",
+        "Sol.001",
+        "Cam.001",
+        "Sol.002",
+        "Cam.002",
+        "Sol.003",
+        "Cam.003"
+      ],
+      "bounds": {
+        "min": [
+          -86.00999450683594,
+          -4.684243679046631,
+          -15.65054988861084
+        ],
+        "max": [
+          5.509999752044678,
+          10.600000381469727,
+          15.350000381469727
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    },
+    {
+      "source": "torpedo_f21.blend",
+      "sha256": "96570cbb630578a9be3e5d91cc80ef99086c7d17946f73eba624351ccc7a5112",
+      "file": "torpedo_f21.glb",
+      "bytes": 914204,
+      "sourceObjects": 60,
+      "excluded": [
+        "Area",
+        "Area.001",
+        "Area.002",
+        "Camera principal"
+      ],
+      "bounds": {
+        "min": [
+          -0.26900041103363037,
+          -0.26899999380111694,
+          -3.0
+        ],
+        "max": [
+          0.2737003564834595,
+          0.26899999380111694,
+          3.4000000953674316
+        ]
+      },
+      "forward": "-Z",
+      "up": "+Y",
+      "waterline": 0
+    }
+  ]
+}
