@@ -122,6 +122,15 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Luzes de navegação e faróis não interferem na física nem nos sensores; os faróis não espalham luz fora dos feixes desenhados.
 - Submarinos atracados no estaleiro: decorativos (sem colisão).
 
+## Sinalização de emergência
+
+- Valores e significados fictícios; a sequência da tela não reproduz o procedimento de nenhum equipamento real.
+- Subida por constante de tempo (sem hidrodinâmica do dispositivo); a única "corrente" é a água mexida pelas ondas; na superfície a deriva é uma fração do vento do cenário.
+- Os dispositivos (poucos quilos) não alteram a massa nem o trim do submarino.
+- A estrela tem trajetória ilustrativa (subida balística a um ápice fixo e descida constante sob o paraquedas).
+- A transmissão da boia é só uma indicação de estado (sem protocolo nem recepção).
+- Fumaça, bolhas, respingos e halos são sprites (sem simulação volumétrica); a fumaça não interage com a luz do sol.
+
 ## Sonar
 
 O sonar integrado usa assinaturas genéricas sintéticas e raios em corte 2D,

@@ -4,7 +4,7 @@
  * modernos (ordem de grandeza pública: ~70 m, ~6,2 m de diâmetro,
  * ~1.750 t submerso). NENHUM valor corresponde a um navio real.
  */
-import type { SimConfig, VesselConfig, ValveConfig, PumpConfig } from './types';
+import type { SimConfig, VesselConfig, ValveConfig, PumpConfig, SignalsConfig } from './types';
 import { defaultEnvironment } from '../environment/environment';
 
 const BAR = 1e5;
@@ -320,6 +320,30 @@ export function defaultVessel(): VesselConfig {
     contact: { stiffness: 2.0e6, damping: 1.5e6, friction: 0.35 },
     internalPressure: 101325,
     weapons: defaultWeapons(),
+    signals: defaultSignals(),
+  };
+}
+
+/**
+ * Sinalização pirotécnica e de emergência (valores fictícios de simulação): lançador de sinais no dorso do casco,
+ * logo atrás da vela, e alojamento da boia de emergência no convés de ré. Inventário configurável.
+ */
+export function defaultSignals(): SignalsConfig {
+  return {
+    stock: { vermelho: 4, amarelo: 4, verde: 4, branco: 4, fumaca: 6, combinado: 4, estrela: 4, boia: 1 },
+    maxDepth: 200,
+    prepareTime: 4,
+    launcherX: 2.6,
+    buoyX: -9,
+    eject: 3,
+    ascent: { signal: 1.8, buoy: 1.2 },
+    tau: { vertical: 1.5, horizontal: 4 },
+    duration: { light: 120, smoke: 150, combined: 180, flare: 45 },
+    colorPuff: 25,
+    flare: { apex: 120, descent: 3 },
+    windDrift: 0.035,
+    prematureFactor: 0.25,
+    degradedSmoke: 0.3,
   };
 }
 

@@ -71,6 +71,12 @@ export const ALARM_DEFS: AlarmDef[] = [
   { id: 'SNORKEL_HEAD', priority: 3, text: 'Válvula de cabeça do snorkel fechada com diesel comandado', delay: 2, system: 'Propulsão', cond: (c) => Object.values(c.s.electrical.generators).some((g) => g.status === 'SEM AR') },
   { id: 'SURF_JAM', priority: 2, text: 'Leme travado', delay: 0, system: 'Governo', cond: (c) => Object.values(c.s.surfaces).some((x) => x.jammed), detail: (c) => Object.entries(c.s.surfaces).filter(([, x]) => x.jammed).map(([k]) => k).join(', ') },
   { id: 'NEG_BUOY', priority: 3, text: 'Flutuabilidade negativa elevada (> 5 t)', delay: 5, system: 'Lastro', cond: (c) => c.netBuoyancyKg < -5000 && c.depthTrue > 15 },
+  { id: 'SIG_FAULT', priority: 3, text: 'Falha na sinalização de emergência', delay: 0, system: 'Sinalização',
+    cond: (c) => !!c.s.signals && (c.s.signals.launcher.state === 'falha' || c.s.signals.runs.some((r) => r.fault !== null && r.fault !== 'extinção prematura' && (r.phase === 'falha' || r.tx === 'falha'))),
+    detail: (c) => { const ss = c.s.signals!; return ss.launcher.state === 'falha' ? 'lançador em falha — reset necessário' : ss.runs.filter((r) => r.fault !== null && (r.phase === 'falha' || r.tx === 'falha')).map((r) => `${r.id}: ${r.fault}`).join(', '); } },
+  { id: 'SIG_BUOY', priority: 4, text: 'Boia de emergência na água', delay: 0, system: 'Sinalização',
+    cond: (c) => !!c.s.signals?.runs.some((r) => r.kind === 'boia'),
+    detail: (c) => { const b = c.s.signals!.runs.find((r) => r.kind === 'boia')!; return b.phase === 'ativo' ? (b.tx === 'ok' ? 'transmitindo (fictício)' : 'transmissão em falha') : b.phase; } },
   { id: 'SENSOR_FAIL', priority: 3, text: 'Sensor em falha', delay: 0, system: 'Instrumentação', cond: (c) => Object.values(c.s.sensors).some((x) => x.failMode !== 'normal'), detail: (c) => Object.entries(c.s.sensors).filter(([, x]) => x.failMode !== 'normal').map(([k, x]) => `${k} (${x.failMode})`).join(', ') },
 ];
 

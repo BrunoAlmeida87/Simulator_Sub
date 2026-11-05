@@ -14,7 +14,9 @@ import { sensorDef } from './systems/sensors';
 import { defaultGeo, type BottomConfig, type EnvironmentConfig, type GeoConfig } from './environment/environment';
 import { hostileCommand, type HostileAction, type HostileParams } from './systems/missiles';
 import { enemyCommand, seaPressureAtTube, torpedoCommand, tubeCommand, weaponTargets, type EnemyAction, type EnemyParams, type TorpedoAction, type TubeAction, type TubeCmdCtx } from './systems/weapons';
-import type { TubePresets } from './core/state';
+import type { SignalFault, TubePresets } from './core/state';
+import type { SignalColor, SignalKind } from './config/types';
+import { SIGNAL_FAULTS, signalCommand, type SignalAction } from './systems/signals';
 import { makeDepthOf } from './core/context';
 import { qToMat3 } from './core/math';
 import { DEFAULT_ORIGIN, type LatLon } from './geo';
@@ -88,7 +90,9 @@ export type Command =
   | { type: 'torpedo'; id: string; action: TorpedoAction; target?: string | null; course?: number; depth?: number }
   | ({ type: 'enemy'; action: EnemyAction } & EnemyParams)
   /** alvos de superfície (fragata classe Tamandaré) e em terra para o míssil SM39 */
-  | ({ type: 'hostile'; action: HostileAction } & HostileParams);
+  | ({ type: 'hostile'; action: HostileAction } & HostileParams)
+  /** sinalização pirotécnica e de emergência: selecionar, preparar, liberar, cancelar, reset e manutenção do inventário */
+  | { type: 'signal'; action: SignalAction; kind?: SignalKind; color?: SignalColor; count?: number };
 
 const SYS_NAME: Record<FluidSystem, string> = { compensation: 'Compensação', trim: 'Trim', heel: 'Banda' };
 
@@ -504,6 +508,9 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     case 'hostile':
       hostileCommand({ s, env: e.env, heading: e.outputs.euler.heading, log: (text, group) => e.log(text, group) }, c.action, c);
       break;
+    case 'signal':
+      signalCommand({ s, v, env: e.env, pos: s.body.pos, R: qToMat3(s.body.quat), vel: e.outputs.velNED, radiusAt: e.geom.radiusAt, log: (text, group) => e.log(text, group) }, c.action, c);
+      break;
   }
 }
 
@@ -564,6 +571,7 @@ export function failureCatalog(e: SimulationEngine): FailureDef[] {
   for (const id of ['PRF1', 'PRF2', 'GIRO', 'AGM', 'INSP', 'INSR', 'DVLU', 'ECO']) {
     list.push({ target: `sensor:${id}`, name: sensorDef(id).name, group: 'Sensores', effect: 'Leitura degradada; o controle automático usa a leitura (não o valor real).', modes: ['congelado', 'deriva', 'zero', 'ruido'] });
   }
+  for (const f of SIGNAL_FAULTS) list.push({ target: `signal:${f.id}`, name: `${f.code} — ${f.name}`, group: 'Sinalização', effect: f.effect });
   return list;
 }
 
@@ -596,6 +604,8 @@ export function isFailureActive(e: SimulationEngine, target: string): boolean {
       return s.flooding[a].breachArea > 0;
     case 'sensor':
       return s.sensors[a].failMode !== 'normal';
+    case 'signal':
+      return !!s.signals?.faults[a as SignalFault];
   }
   return false;
 }
@@ -656,6 +666,14 @@ function applyFailure(e: SimulationEngine, target: string, active: boolean, para
       s.sensors[a].drift = 0;
       label = `Sensor ${a}${active ? ` (${param ?? 'congelado'})` : ''}`;
       break;
+    case 'signal': {
+      const f = SIGNAL_FAULTS.find((x) => x.id === a);
+      if (!f || !s.signals) return;
+      s.signals.faults[f.id] = active;
+      label = `Sinalização ${f.code} (${f.name})`;
+      e.log(`FALHA ${active ? 'INJETADA' : 'REMOVIDA'}: ${label}`, 'Sinalização');
+      return;
+    }
   }
   e.log(`FALHA ${active ? 'INJETADA' : 'REMOVIDA'}: ${label}`, 'Falhas');
 }

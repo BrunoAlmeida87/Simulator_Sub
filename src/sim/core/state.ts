@@ -306,6 +306,72 @@ export interface SimState {
   trimRef?: { a: number; b: number };
   /** tubos lançadores, compensação das armas e torpedos lançados (ausente em salvamentos antigos) */
   weapons?: WeaponsState;
+  /** sinalização pirotécnica e de emergência (ausente em salvamentos antigos: criada pelo motor) */
+  signals?: SignalsState;
+}
+
+/** Estado do lançador de sinais (o fluxo da tela: selecionar → preparar → liberar). */
+export type LauncherState = 'ocioso' | 'selecionado' | 'preparando' | 'pronto' | 'liberado' | 'falha' | 'cancelado';
+
+/**
+ * Fase de um dispositivo liberado: saindo do lançador → subindo → na superfície (flutuando, antes de ativar) →
+ * ativo (boia: transmitindo) → extinto; ou falha (não subiu, não ativou).
+ */
+export type SignalPhase = 'liberado' | 'subindo' | 'superficie' | 'ativo' | 'extinto' | 'falha';
+
+/** Falhas de treinamento do sistema de sinalização (comando 'failure', alvo `signal:<id>`). */
+export type SignalFault = 'release' | 'ascent' | 'activation' | 'premature' | 'smoke' | 'buoyRelease' | 'buoyTx';
+
+export interface SignalRun {
+  id: string;
+  kind: import('../config/types').SignalKind;
+  color: import('../config/types').SignalColor;
+  /** instante da liberação (s de simulação) */
+  tRel: number;
+  /** posição NED (m; d = profundidade, negativa no ar) e velocidade (m/s) */
+  n: number;
+  e: number;
+  d: number;
+  vn: number;
+  ve: number;
+  vd: number;
+  phase: SignalPhase;
+  tPhase: number;
+  /** profundidade de liberação (m) */
+  depth0: number;
+  tSurf: number | null;
+  tAct: number | null;
+  tEnd: number | null;
+  /** duração planejada do efeito (s) */
+  life: number;
+  /** falha que atingiu este dispositivo (texto) */
+  fault: string | null;
+  /** fração da emissão de fumaça (1 normal; menor com fumaça degradada) */
+  smokeK: number;
+  /** estrela: altura (m), velocidade vertical (m/s, + subindo), abertura do paraquedas (0…1) e deriva no ar
+   *  em relação ao flutuador (m, n/e) */
+  flare: { alt: number; vz: number; chute: number; dn: number; de: number } | null;
+  /** boia: indicação fictícia de transmissão */
+  tx: 'off' | 'ok' | 'falha';
+  /** trajetória (amostras a cada ~1 s na subida) */
+  track: { n: number; e: number; d: number }[];
+}
+
+export interface SignalsState {
+  /** dispositivos a bordo, por tipo */
+  inventory: Record<import('../config/types').SignalKind, number>;
+  launcher: {
+    state: LauncherState;
+    kind: import('../config/types').SignalKind | null;
+    color: import('../config/types').SignalColor | null;
+    /** instante em que entrou no estado atual (s) */
+    t: number;
+  };
+  runs: SignalRun[];
+  /** falhas de treinamento ativas (persistem até serem removidas) */
+  faults: Partial<Record<SignalFault, boolean>>;
+  /** contador para os identificadores */
+  count: number;
 }
 
 /** Sequência automática em curso num tubo. */

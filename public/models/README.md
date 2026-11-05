@@ -62,3 +62,13 @@ aos modelos importados. Em falha de carregamento, mantém o modelo simplificado.
 Tamandaré, radar giratório) saem de `SM_39VSM.blend` e `fragata_tamandare.blend` desta pasta pelos scripts
 `scripts/blender/build_sm39.py` e `build_fragata.py` e são comprimidos com `npm run modelo:otimizar -- sm39 fragata`.
 São lidos por `src/render3d/MissileVis.ts` (contrato conferido em `tests/missileModels.test.ts`).
+
+## Sinalização de emergência (`sinalizacao/`)
+
+Os 24 GLBs de `public/models/sinalizacao/` (variantes de cor do cilindro subaquático, dos flutuadores de luz e de
+fumaça e da estrela; paraquedas, sinal combinado, boia de emergência, moldura do lançador e painel de controle) vêm
+da biblioteca externa *Submarine Signalling 3D* (`kimi/workspace/submarine_signalling_3d`, gerada no Blender) e são
+copiados e otimizados (texturas em WebP, nós auxiliares e clipes preservados) por `npm run sinalizacao:assets --
+"<pasta da biblioteca>"`, que também copia os sprites usados pelos efeitos para `public/textures/sinalizacao/`.
+Ficam numa subpasta para não entrarem na galeria. São lidos por `src/render3d/SignalVis.ts` e
+`src/render3d/SignalPreview.ts` (contrato conferido em `tests/signalModels.test.ts`).
