@@ -129,6 +129,69 @@ export class WaveField {
     }
   }
 
+  /**
+   * Mesma amostra de `sample` para `count` pontos igualmente espaçados ao longo de uma reta
+   * (as fatias do casco): ponto i em (n0 + i·dn, e0 + i·de, z0 + i·dz). Como a fase de cada
+   * componente cresce linearmente ao longo da reta, cos/sen do ponto seguinte saem por rotação
+   * (sem chamar cos/sen por ponto) e e^{−kz} por razão constante enquanto z > 0. A ordem de soma
+   * das componentes em cada ponto é a mesma de `sample` (resultado igual a menos de arredondamento).
+   * Saídas em arrays de tamanho ≥ count (sobrescritos).
+   */
+  sampleLine(
+    n0: number,
+    e0: number,
+    z0: number,
+    dn: number,
+    de: number,
+    dz: number,
+    count: number,
+    t: number,
+    out: { eta: Float64Array; vn: Float64Array; ve: Float64Array; vz: Float64Array; an: Float64Array; ae: Float64Array; az: Float64Array },
+  ): void {
+    const { eta, vn, ve, vz, an, ae, az } = out;
+    for (let i = 0; i < count; i++) eta[i] = vn[i] = ve[i] = vz[i] = an[i] = ae[i] = az[i] = 0;
+    for (const c of this.components) {
+      const th0 = c.k * (c.dn * n0 + c.de * e0) - c.w * t + c.phi;
+      const dth = c.k * (c.dn * dn + c.de * de);
+      const cd = Math.cos(dth),
+        sd = Math.sin(dth);
+      let cs = Math.cos(th0),
+        sn = Math.sin(th0);
+      const ratio = Math.exp(-c.k * dz);
+      let ex = -1; // e^{−k·z} do ponto anterior (−1 = recalcular)
+      const aw0 = c.a * c.w;
+      for (let i = 0; i < count; i++) {
+        if (i > 0) {
+          const nc = cs * cd - sn * sd;
+          sn = sn * cd + cs * sd;
+          cs = nc;
+        }
+        eta[i] += c.a * cs;
+        const z = z0 + i * dz;
+        let dec: number;
+        if (z <= 0) {
+          dec = 1; // z limitado a 0 (como em `sample`)
+          ex = -1;
+        } else {
+          if (c.k * z > 9) {
+            ex = -1;
+            continue;
+          }
+          dec = ex >= 0 ? ex * ratio : Math.exp(-c.k * z);
+          ex = dec;
+        }
+        const aw = aw0 * dec;
+        vn[i] += aw * cs * c.dn;
+        ve[i] += aw * cs * c.de;
+        vz[i] -= aw * sn;
+        const aw2 = aw * c.w;
+        an[i] += aw2 * sn * c.dn;
+        ae[i] += aw2 * sn * c.de;
+        az[i] += aw2 * cs;
+      }
+    }
+  }
+
   /** Elevação da superfície η (m, + para cima) em (Norte, Leste) no instante t. */
   elevation(n: number, e: number, t: number): number {
     let h = 0;

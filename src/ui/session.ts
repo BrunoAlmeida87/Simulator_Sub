@@ -35,7 +35,11 @@ export interface SessionAutomation {
  * Captura a sessão completa atual. forFile = arquivo para baixar/compartilhar
  * (inclui a imagem do emblema personalizado; no navegador ela já está guardada).
  */
-export function captureSession(name: string, forFile = false): SaveFile {
+/**
+ * Sessão atual. forFile: arquivo (com o emblema). compact: para o armazenamento do navegador
+ * (histórico da cascata do sonar reduzido — ver serializeEngine).
+ */
+export function captureSession(name: string, forFile = false, compact = false): SaveFile {
   const automation: SessionAutomation = {
     maneuver: maneuver.snapshot(),
     demo: demo.snapshot(),
@@ -44,12 +48,17 @@ export function captureSession(name: string, forFile = false): SaveFile {
     checklist: checklist.snapshot(),
     studio: presPlayer.snapshot(),
   };
-  return serializeEngine(runner.engine, name, {
-    timeScale: runner.timeScale,
-    automation: automation as Record<string, unknown>,
-    identity: forFile ? identity.get() : { ...identity.get(), emblemImage: undefined },
-    ui: { mapOrigin: mapOrigin.get() },
-  });
+  return serializeEngine(
+    runner.engine,
+    name,
+    {
+      timeScale: runner.timeScale,
+      automation: automation as Record<string, unknown>,
+      identity: forFile ? identity.get() : { ...identity.get(), emblemImage: undefined },
+      ui: { mapOrigin: mapOrigin.get() },
+    },
+    compact && !forFile,
+  );
 }
 
 export interface RestoreReport {

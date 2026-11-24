@@ -9,6 +9,7 @@
  * visada do periscópio.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { IDLE_HZ, renderIdle } from '../renderIdle';
 import { cmd, runner, useSim } from '../store';
 import { usePersisted, loadPersisted, savePersisted } from '../persist';
 import { useUi } from '../uiContext';
@@ -363,8 +364,18 @@ export function ControlRoomScreen() {
         ro = new ResizeObserver(() => sc.resize());
         ro.observe(box.current);
         setReady(true);
+        let lastDrawn = 0;
         const loop = () => {
-          const scale = perf.frame(() => sc.renderStats());
+          // simulação pausada e ninguém mexendo: poucos quadros por segundo (renderIdle.ts)
+          const now = performance.now();
+          const idle = renderIdle(now);
+          if (idle && now - lastDrawn < 1000 / IDLE_HZ) {
+            raf = requestAnimationFrame(loop);
+            return;
+          }
+          lastDrawn = now;
+          if (idle) perf.pause();
+          const scale = idle ? sc.renderStats().scale : perf.frame(() => sc.renderStats());
           if (!periRef.current && !bridgeRef.current) {
             sc.setRenderScale(scale);
             sc.periBearing = sightRef.current.bearing;

@@ -8,7 +8,7 @@ import { RenderPerf, formatPerf, type RenderScaleSetting, type RenderStats } fro
 import { graphics, useGraphics } from '../graphics';
 
 /** Controle do desempenho de uma cena: chame `frame()` a cada quadro, antes de desenhar; ele devolve a escala de resolução. */
-export function useRenderPerf(): { frame: (stats: () => RenderStats) => number; meterRef: React.RefObject<HTMLDivElement>; show: boolean } {
+export function useRenderPerf(): { frame: (stats: () => RenderStats) => number; pause: () => void; meterRef: React.RefObject<HTMLDivElement>; show: boolean } {
   const g = useGraphics();
   const perf = useRef(new RenderPerf());
   const meterRef = useRef<HTMLDivElement>(null);
@@ -23,7 +23,8 @@ export function useRenderPerf(): { frame: (stats: () => RenderStats) => number; 
     }
     return r.scale;
   }, []);
-  return { frame, meterRef, show: g.fpsMeter };
+  const pause = useCallback(() => perf.current.pause(), []);
+  return { frame, pause, meterRef, show: g.fpsMeter };
 }
 
 export function FpsMeter({ meterRef }: { meterRef: React.RefObject<HTMLDivElement> }) {

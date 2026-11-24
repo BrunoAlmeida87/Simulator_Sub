@@ -146,6 +146,11 @@ export class RenderPerf {
   private lastSetting: RenderScaleSetting | null = null;
   scale = 1;
 
+  /** quadros espaçados de propósito (economia com pausa): o intervalo até o próximo não conta como quadro lento */
+  pause(): void {
+    this.last = 0;
+  }
+
   /** devolve a escala de resolução a aplicar neste quadro e diz (updated) se o medidor tem valores novos */
   frame(now: number, setting: RenderScaleSetting): { scale: number; updated: boolean } {
     const dt = this.last ? now - this.last : 0;

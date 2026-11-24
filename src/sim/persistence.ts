@@ -19,6 +19,7 @@ import { createState } from './core/initialState';
 import { defaultSimConfig } from './config/defaultVessel';
 import { upgradeEmergencyAir } from './config/emergencyAir';
 import { SIM_VERSION } from './version';
+import { push, ring, values } from '../sonar/types';
 
 export const SAVE_FORMAT = 'sx1-simulador';
 export const SAVE_VERSION = 2;
@@ -87,7 +88,23 @@ export function decodeNonFinite<T>(v: T): T {
 }
 
 // ------------------------------------------------------------ gravação
-export function serializeEngine(e: SimulationEngine, name: string, session?: SessionExtras): SaveFile {
+/** quadros do histórico do sonar mantidos num salvamento compacto (a cascata recomeça com eles) */
+export const COMPACT_SONAR_FRAMES = 30;
+
+/**
+ * Estado para salvamento COMPACTO (armazenamento do navegador): o histórico da cascata do sonar
+ * (só exibição, ~1 MB em 10 min) fica com os últimos quadros e o áudio do último segundo sai.
+ * Nada disso entra no cálculo dos passos seguintes; arquivos (.json) continuam completos.
+ */
+function compactState(s: SimState): SimState {
+  const so = s.sonar;
+  if (!so) return s;
+  const h = ring<(typeof so.history.data)[number]>(so.history.capacity);
+  for (const f of values(so.history).slice(-COMPACT_SONAR_FRAMES)) push(h, f);
+  return { ...s, sonar: { ...so, history: h, audioSamples: [] } };
+}
+
+export function serializeEngine(e: SimulationEngine, name: string, session?: SessionExtras, compact = false): SaveFile {
   return encodeNonFinite<SaveFile>({
     format: SAVE_FORMAT,
     version: SAVE_VERSION,
@@ -97,7 +114,7 @@ export function serializeEngine(e: SimulationEngine, name: string, session?: Ses
     scenarioId: e.state.scenarioId,
     simVersion: SIM_VERSION,
     config: e.config,
-    state: e.state,
+    state: compact ? compactState(e.state) : e.state,
     session,
   });
 }

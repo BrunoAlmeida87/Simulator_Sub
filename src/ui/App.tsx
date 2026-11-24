@@ -1,35 +1,13 @@
 /** Aplicação: barra superior, navegação em dois níveis (grupos → telas, ver nav.ts) e modo engenharia. */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { UiContext, type ScreenId, type ToastOptions } from './uiContext';
 import { replaceUndo, UNDO_MS } from './undo';
 import { cmd, runner, useSim } from './store';
 import { captureSession, restoreSession } from './session';
 import { storage } from './storage';
 import { fmtTime } from './format';
-import { CommandCenter } from './screens/CommandCenter';
 import { PilotScreen } from './screens/PilotScreen';
-import { HelmScreen } from './screens/HelmScreen';
-import { IntegratedConsoleScreen } from './screens/IntegratedConsoleScreen';
-import { ControlRoomScreen } from './screens/ControlRoomScreen';
-import { PresentationScreen } from './screens/PresentationScreen';
-import { TacticalMapScreen } from './screens/TacticalMapScreen';
-import { SonarScreen } from './screens/SonarScreen';
-import { WeaponsScreen } from './screens/WeaponsScreen';
-import { SignalsScreen } from './screens/SignalsScreen';
-import { EnergyFlowScreen } from './screens/EnergyFlowScreen';
-import { BallastScreen } from './screens/BallastScreen';
-import { TrimHeelScreen } from './screens/TrimHeelScreen';
-import { PropulsionScreen } from './screens/PropulsionScreen';
-import { SafetyScreen } from './screens/SafetyScreen';
-import { ModelsScreen } from './screens/ModelsScreen';
-import { View3DScreen } from './screens/View3DScreen';
-import { HistoryScreen } from './screens/HistoryScreen';
-import { ScenarioScreen } from './screens/ScenarioScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
 import { recorder } from './recorder';
-import { AuxSystemsScreen } from './screens/AuxSystemsScreen';
-import { ValidationScreen } from './screens/ValidationScreen';
-import { HelpScreen } from './screens/HelpScreen';
 import { Inspector } from './inspector/Inspector';
 import { ProcedurePanel } from './components/Procedure';
 import { opsBus } from './ops/opsBus';
@@ -40,14 +18,67 @@ import { NavBar } from './components/NavBar';
 import { TopBar } from './components/TopBar';
 import { visibleAlarms } from '../sim/systems/alarms';
 import { AlarmBand } from './components/AlarmBand';
-import { SystemsOverview } from './screens/SystemsOverview';
-import { StudioScreen } from './screens/StudioScreen';
 import { PresFloating } from './components/PresFloating';
 import { presPlayer } from './presBuilder/player';
 import { isScreenId, screenForKey, screenLabel } from './nav';
 import { useGraphics } from './graphics';
 import { installCollapsibleNotes } from './notes';
 import { BUTTON_SELECTOR, classifyFocus, focusFromKeyboard, installFocusTracking, shortcutAction } from './keyFocus';
+
+/**
+ * Telas carregadas sob demanda (cada uma vira um arquivo separado no build): a primeira carga
+ * traz só a Operação; as outras chegam quando são abertas pela primeira vez.
+ */
+const HelmScreen = lazy(() => import('./screens/HelmScreen').then((m) => ({ default: m.HelmScreen })));
+const IntegratedConsoleScreen = lazy(() => import('./screens/IntegratedConsoleScreen').then((m) => ({ default: m.IntegratedConsoleScreen })));
+const ControlRoomScreen = lazy(() => import('./screens/ControlRoomScreen').then((m) => ({ default: m.ControlRoomScreen })));
+const PresentationScreen = lazy(() => import('./screens/PresentationScreen').then((m) => ({ default: m.PresentationScreen })));
+const TacticalMapScreen = lazy(() => import('./screens/TacticalMapScreen').then((m) => ({ default: m.TacticalMapScreen })));
+const SonarScreen = lazy(() => import('./screens/SonarScreen').then((m) => ({ default: m.SonarScreen })));
+const WeaponsScreen = lazy(() => import('./screens/WeaponsScreen').then((m) => ({ default: m.WeaponsScreen })));
+const SignalsScreen = lazy(() => import('./screens/SignalsScreen').then((m) => ({ default: m.SignalsScreen })));
+const EnergyFlowScreen = lazy(() => import('./screens/EnergyFlowScreen').then((m) => ({ default: m.EnergyFlowScreen })));
+const BallastScreen = lazy(() => import('./screens/BallastScreen').then((m) => ({ default: m.BallastScreen })));
+const TrimHeelScreen = lazy(() => import('./screens/TrimHeelScreen').then((m) => ({ default: m.TrimHeelScreen })));
+const PropulsionScreen = lazy(() => import('./screens/PropulsionScreen').then((m) => ({ default: m.PropulsionScreen })));
+const SafetyScreen = lazy(() => import('./screens/SafetyScreen').then((m) => ({ default: m.SafetyScreen })));
+const ModelsScreen = lazy(() => import('./screens/ModelsScreen').then((m) => ({ default: m.ModelsScreen })));
+const View3DScreen = lazy(() => import('./screens/View3DScreen').then((m) => ({ default: m.View3DScreen })));
+const HistoryScreen = lazy(() => import('./screens/HistoryScreen').then((m) => ({ default: m.HistoryScreen })));
+const ScenarioScreen = lazy(() => import('./screens/ScenarioScreen').then((m) => ({ default: m.ScenarioScreen })));
+const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
+const AuxSystemsScreen = lazy(() => import('./screens/AuxSystemsScreen').then((m) => ({ default: m.AuxSystemsScreen })));
+const ValidationScreen = lazy(() => import('./screens/ValidationScreen').then((m) => ({ default: m.ValidationScreen })));
+const HelpScreen = lazy(() => import('./screens/HelpScreen').then((m) => ({ default: m.HelpScreen })));
+const StudioScreen = lazy(() => import('./screens/StudioScreen').then((m) => ({ default: m.StudioScreen })));
+const CommandCenter = lazy(() => import('./screens/CommandCenter').then((m) => ({ default: m.CommandCenter })));
+const SystemsOverview = lazy(() => import('./screens/SystemsOverview').then((m) => ({ default: m.SystemsOverview })));
+
+/** falha ao carregar uma tela (ex.: site atualizado enquanto a aba estava aberta, ou sem rede) */
+class ScreenBoundary extends Component<{ children: ReactNode; screen: string }, { err: string | null }> {
+  state = { err: null as string | null };
+  static getDerivedStateFromError(ex: unknown) {
+    return { err: ex instanceof Error ? ex.message : String(ex) };
+  }
+  componentDidUpdate(prev: { screen: string }) {
+    if (prev.screen !== this.props.screen && this.state.err) this.setState({ err: null });
+  }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return (
+      <div className="panel" style={{ margin: 16 }}>
+        <div className="body">
+          <b>Não foi possível abrir esta tela.</b> {this.state.err}
+          <div style={{ marginTop: 8 }}>
+            <button className="btn" onClick={() => location.reload()}>
+              Recarregar o simulador
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
 
 /** aba de cada janela de tela (a janela de controle usa as preferências gerais) */
 const PANEL_SCREEN_KEY = `tela${panelIndex}.screen`;
@@ -177,8 +208,10 @@ export function App() {
   // salvamento automático
   useEffect(() => {
     if (isPanelWindow) return; // quem salva é a janela de controle
+    // compacto (sem a cascata inteira do sonar) e no tempo ocioso do navegador, para não travar um quadro
+    const idle = (fn: () => void) => (typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 3000 }) : window.setTimeout(fn, 0));
     const id = window.setInterval(() => {
-      if (runner.running) storage.setAutosave(captureSession('Salvamento automático'));
+      if (runner.running) idle(() => storage.setAutosave(captureSession('Salvamento automático', false, true)));
     }, 20000);
     return () => window.clearInterval(id);
   }, []);
@@ -308,7 +341,11 @@ export function App() {
           </div>
         )}
         <main className="main">
-          <div className="screen">{screens[screen]}</div>
+          <div className="screen">
+            <ScreenBoundary screen={screen}>
+              <Suspense fallback={<div className="screen-loading">Carregando a tela…</div>}>{screens[screen]}</Suspense>
+            </ScreenBoundary>
+          </div>
           {eng && inspect && <Inspector />}
         </main>
         {showProcedure && (

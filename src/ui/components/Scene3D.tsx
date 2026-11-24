@@ -1,5 +1,6 @@
 /** Componente React que hospeda a cena Three.js (lida do estado da simulação). */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { IDLE_HZ, renderIdle } from '../renderIdle';
 import { runner } from '../store';
 import type { BridgeSight, Label3D, PeriscopeSight, SubmarineScene, ViewMode } from '../../render3d/SubmarineScene';
 import type { OceanQuality } from '../../render3d/Ocean';
@@ -134,8 +135,17 @@ export function Scene3D(props: Scene3DProps) {
         });
         let lastSave = 0;
         let lastDroneSave = 0;
+        let lastDrawn = 0;
         const loop = () => {
           const sc = sceneRef.current;
+          // simulação pausada e ninguém mexendo: desenha poucos quadros por segundo (renderIdle.ts)
+          const now = performance.now();
+          const idle = renderIdle(now) && opts.current.view !== 'drone';
+          if (idle && now - lastDrawn < 1000 / IDLE_HZ) {
+            raf = requestAnimationFrame(loop);
+            return;
+          }
+          lastDrawn = now;
           if (sc && opts.current.persistKey && sc.viewMode === 'livre' && performance.now() - lastSave > 1000) {
             lastSave = performance.now();
             savePersisted(`cam.${opts.current.persistKey}`, sc.getCameraPose());
@@ -177,7 +187,8 @@ export function Scene3D(props: Scene3DProps) {
               visualOut.drone = droneOn ? sc.drone : null;
             }
             sc.realisticFog = opts.current.fog ?? sc.layers.fog;
-            sc.setRenderScale(perf.frame(() => sc.renderStats()));
+            if (idle) perf.pause();
+            else sc.setRenderScale(perf.frame(() => sc.renderStats()));
             drawLabels(sc.render(), sc.labelBounds);
             if (droneOn) {
               droneCtl.pose = sc.drone;

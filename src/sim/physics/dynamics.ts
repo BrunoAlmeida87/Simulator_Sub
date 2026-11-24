@@ -87,7 +87,7 @@ export interface WaveCache {
   az: Float64Array;
   depth: Float64Array;
 }
-const SAMPLE = { eta: 0, vn: 0, ve: 0, vz: 0, an: 0, ae: 0, az: 0 };
+const LINE = { eta: new Float64Array(0), vn: new Float64Array(0), ve: new Float64Array(0), vz: new Float64Array(0), an: new Float64Array(0), ae: new Float64Array(0), az: new Float64Array(0) };
 
 /**
  * Elevação local e cinemática das ondas em cada fatia (referencial do corpo).
@@ -99,18 +99,25 @@ export function computeWaveCache(geom: HullGeometry, env: Environment, pos: Vec3
   if (!wf.active || pos.z > wf.cutoffDepth + diameter) return null;
   const nS = geom.slices.length;
   const wb: WaveCache = reuse && reuse.eta.length === nS ? reuse : { eta: new Float64Array(nS), vy: new Float64Array(nS), vz: new Float64Array(nS), ay: new Float64Array(nS), az: new Float64Array(nS), depth: new Float64Array(nS) };
+  // fatias igualmente espaçadas (buildHullGeometry): amostra as ondas de uma vez ao longo do eixo
+  const x0 = geom.slices[0].x;
+  const dx = nS > 1 ? geom.slices[1].x - x0 : 0;
+  if (LINE.eta.length < nS) for (const k of Object.keys(LINE) as (keyof typeof LINE)[]) LINE[k] = new Float64Array(nS);
+  wf.sampleLine(pos.x + R[0] * x0, pos.y + R[3] * x0, pos.z + R[6] * x0, R[0] * dx, R[3] * dx, R[6] * dx, nS, t, LINE);
   for (let i = 0; i < nS; i++) {
-    const x = geom.slices[i].x;
-    const n = pos.x + R[0] * x;
-    const e = pos.y + R[3] * x;
-    const zc = pos.z + R[6] * x;
-    wf.sample(n, e, zc, t, SAMPLE);
-    wb.eta[i] = SAMPLE.eta;
-    wb.vy[i] = R[1] * SAMPLE.vn + R[4] * SAMPLE.ve + R[7] * SAMPLE.vz;
-    wb.vz[i] = R[2] * SAMPLE.vn + R[5] * SAMPLE.ve + R[8] * SAMPLE.vz;
-    wb.ay[i] = R[1] * SAMPLE.an + R[4] * SAMPLE.ae + R[7] * SAMPLE.az;
-    wb.az[i] = R[2] * SAMPLE.an + R[5] * SAMPLE.ae + R[8] * SAMPLE.az;
-    wb.depth[i] = zc + SAMPLE.eta;
+    const zc = pos.z + R[6] * geom.slices[i].x;
+    const vn = LINE.vn[i],
+      ve = LINE.ve[i],
+      vz = LINE.vz[i],
+      an = LINE.an[i],
+      ae = LINE.ae[i],
+      az = LINE.az[i];
+    wb.eta[i] = LINE.eta[i];
+    wb.vy[i] = R[1] * vn + R[4] * ve + R[7] * vz;
+    wb.vz[i] = R[2] * vn + R[5] * ve + R[8] * vz;
+    wb.ay[i] = R[1] * an + R[4] * ae + R[7] * az;
+    wb.az[i] = R[2] * an + R[5] * ae + R[8] * az;
+    wb.depth[i] = zc + LINE.eta[i];
   }
   return wb;
 }

@@ -14,7 +14,7 @@ documentação em **português do Brasil**.
 
 ## Comandos
 - `npm run dev` — servidor local
-- `npm test` — testes (validação física + apresentação), ~20 s
+- `npm test` — testes (validação física + apresentação), ~2,5 min (70 arquivos; rodar só os afetados com `npx vitest run tests/x.test.ts`)
 - `npm run build` — typecheck + build de produção
 - `npm run typecheck`
 - Formatação: Prettier com `--single-quote --print-width 220` (não usar o padrão de aspas duplas).
@@ -110,7 +110,7 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       periscope.ts (óptica do periscópio: horizonte, contatos à vista, estadímetro)
                       panelsWeapons.ts (painel de lançamento de armas no console tático)
 src/ui/               INTERFACE (React)
-  App.tsx             barra superior, telas (screens) e atalhos de teclado
+  App.tsx             barra superior, telas (screens, carregadas sob demanda com React.lazy) e atalhos de teclado
   nav.ts              NAVEGAÇÃO: SCREEN_IDS/ScreenId, grupos NAV_GROUPS (grupo → telas, teclas 0–8), marcas de alarme;
                       MODOS: uma tela pode ter `modes` (outras telas como abas ao lado dela: Operação → Instrumentos, Posto de governo…;
                       primaryOf/viewsOf/screenMark); tela nova pode entrar como modo de uma existente
@@ -144,6 +144,7 @@ src/ui/               INTERFACE (React)
                       tela: screens/StudioScreen.tsx; cartão: components/PresCard.tsx (palco, PresFloating e 2ª janela)
   demo.ts, presentation.ts, checklist.ts, routeNav.ts
   persist.ts          usePersisted: preferências de UI no localStorage (prefixo 'sx1.ui.')
+  renderIdle.ts       economia de desenho com a simulação pausada e sem interação (4 Hz nas cenas 3D e na Sala)
   keyFocus.ts         atalhos × foco: depois de clicar num botão os atalhos valem (Espaço não repete o clique); Tab+Espaço aciona
   undo.ts             replaceUndo: “Desfazer” (10 s) para Reiniciar/Carregar/Iniciar cenário/Preparar situação (captureSession)
   components/EmergencyBlow.tsx  sopro de emergência com tampa — o único controle de sopro de emergência das telas

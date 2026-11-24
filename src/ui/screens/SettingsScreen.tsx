@@ -100,7 +100,7 @@ function SessionPanel() {
         <button
           className="btn"
           onClick={() => {
-            const ok = storage.addSave(captureSession(label()));
+            const ok = storage.addSave(captureSession(label(), false, true));
             ui.toast(ok ? 'Sessão salva neste navegador.' : 'Armazenamento do navegador indisponível ou cheio — use “Baixar arquivo”.');
             setName('');
             bump();

@@ -1712,3 +1712,10 @@ kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radiu
 .panel .note[data-clamped] { cursor: pointer; border-left-color: var(--accent2); }
 .panel .note[data-clamped]:not(.open):hover { color: var(--text); }
 @media print { .panel .note { display: block; -webkit-line-clamp: unset; } }
+
+/* tela carregada sob demanda (App.tsx: Suspense) */
+.screen-loading {
+  padding: 24px;
+  color: var(--muted, #8aa);
+  font-size: 13px;
+}

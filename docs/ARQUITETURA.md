@@ -74,7 +74,7 @@ Disponibilidade de energia e hidráulica: os consumidores usam o estado do barra
 
 ## Desempenho
 
-Um passo custa cerca de 7 avaliações hidrostáticas (RK4 + saídas + rigidezes) de 100 fatias e 4 resoluções implícitas dos TLP. No Node, o motor roda a cerca de 7 000 passos/s, o que permite aceleração de ×20 (1 000 passos/s) com folga. Se a CPU não acompanhar, o executor descarta o excesso de tempo e sinaliza "tempo reduzido", sem perder estabilidade.
+Um passo custa cerca de 7 avaliações hidrostáticas (RK4 + saídas + rigidezes) de 100 fatias e 4 resoluções implícitas dos TLP. No Node, o motor roda a cerca de 4 000–5 800 passos/s conforme o cenário (medido em nov./2026 com sonar e ondas ativos), o que permite aceleração de ×20 (1 000 passos/s) com folga. Os dois maiores custos são o traçado de raios do sonar e as ondas por fatia: a velocidade do som é tabelada por profundidade (uma tabela por `Environment`, `sonar/acoustics/environment.ts`) e as ondas ao longo do casco são amostradas de uma vez (`WaveField.sampleLine`, fase por rotação e decaimento por razão constante). Se a CPU não acompanhar, o executor descarta o excesso de tempo e sinaliza "tempo reduzido", sem perder estabilidade.
 
 ## Subsistema acústico integrado
 
