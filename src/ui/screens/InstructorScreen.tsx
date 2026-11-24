@@ -22,9 +22,24 @@ interface Choice {
 
 /** ações além das falhas do catálogo */
 const EXTRA: Choice[] = [
-  { id: 'x:torpedo', label: 'Ameaça — torpedo de exercício (pela popa)', param: { label: 'distância', def: '5', unit: 'km' }, make: (e, p) => ({ type: 'threat', action: 'launch', range: Number(p) * 1000, bearing: (e.outputs.euler.heading + 180) % 360, warhead: 'exercicio' }) },
-  { id: 'x:torpedoA', label: 'Ameaça — torpedo com avaria (pela popa)', param: { label: 'distância', def: '4', unit: 'km' }, make: (e, p) => ({ type: 'threat', action: 'launch', range: Number(p) * 1000, bearing: (e.outputs.euler.heading + 180) % 360, warhead: 'avaria' }) },
-  { id: 'x:aircraft', label: 'Discrição — aeronave de patrulha', param: { label: 'distância', def: '25', unit: 'km' }, make: (e, p) => ({ type: 'aircraft', action: 'spawn', range: Number(p) * 1000, bearing: (e.outputs.euler.heading + 45) % 360 }) },
+  {
+    id: 'x:torpedo',
+    label: 'Ameaça — torpedo de exercício (pela popa)',
+    param: { label: 'distância', def: '5', unit: 'km' },
+    make: (e, p) => ({ type: 'threat', action: 'launch', range: Number(p) * 1000, bearing: (e.outputs.euler.heading + 180) % 360, warhead: 'exercicio' }),
+  },
+  {
+    id: 'x:torpedoA',
+    label: 'Ameaça — torpedo com avaria (pela popa)',
+    param: { label: 'distância', def: '4', unit: 'km' },
+    make: (e, p) => ({ type: 'threat', action: 'launch', range: Number(p) * 1000, bearing: (e.outputs.euler.heading + 180) % 360, warhead: 'avaria' }),
+  },
+  {
+    id: 'x:aircraft',
+    label: 'Discrição — aeronave de patrulha',
+    param: { label: 'distância', def: '25', unit: 'km' },
+    make: (e, p) => ({ type: 'aircraft', action: 'spawn', range: Number(p) * 1000, bearing: (e.outputs.euler.heading + 45) % 360 }),
+  },
   { id: 'x:current', label: 'Ambiente — corrente para leste', param: { label: 'velocidade', def: '1', unit: 'nós' }, make: (_e, p) => ({ type: 'current', speed: (Number(p) * 1852) / 3600, direction: 90 }) },
   { id: 'x:sea', label: 'Ambiente — estado do mar', param: { label: 'estado', def: '5', unit: '0–6' }, make: (_e, p) => ({ type: 'seaState', value: Math.max(0, Math.min(6, Math.round(Number(p)))) }) },
 ];
@@ -66,7 +81,11 @@ export function InstructorScreen() {
   const pack = () => {
     const at = (dt: number, target: string, label: string, p?: number) => cmd({ type: 'instructor', action: 'add', event: { label, at: s.t + dt, command: { type: 'failure', target, active: true, param: p } } });
     at(60, 'pump:trim', 'Falha da bomba de trim (+60 s)');
-    cmd({ type: 'instructor', action: 'add', event: { label: 'Leme de ré travado ao passar de 80 m', cond: { variable: 'depth', op: '>', value: 80 }, command: { type: 'failure', target: 'surface:stern', active: true } } });
+    cmd({
+      type: 'instructor',
+      action: 'add',
+      event: { label: 'Leme de ré travado ao passar de 80 m', cond: { variable: 'depth', op: '>', value: 80 }, command: { type: 'failure', target: 'surface:stern', active: true } },
+    });
     at(300, 'fire:CM', 'Incêndio na praça de máquinas (+5 min)', 5);
     at(420, 'flooding:CM', 'Alagamento na praça de máquinas (+7 min)', 10);
   };
@@ -75,7 +94,7 @@ export function InstructorScreen() {
     <div className="grid">
       <Panel title="Programar evento" className="span-all">
         <div className="btnrow">
-          <label className="p3-field">
+          <label className="p3-field p3-wide">
             evento
             <select value={ch?.id} onChange={(ev) => (setChoice(ev.target.value), setParam(''))}>
               {choices.map((c) => (
@@ -133,11 +152,21 @@ export function InstructorScreen() {
           </button>
         </div>
         <p className="subtle">
-          Os eventos são avaliados a cada passo pela janela de controle e aplicados como comandos com a origem “instrutor” (histórico, gravação e todas as janelas). Um
-          evento dispara uma vez; “Rearmar” permite repetir. Para retirar a falha depois, use Segurança › Injeção de falhas.
+          Os eventos são avaliados a cada passo pela janela de controle e aplicados como comandos com a origem “instrutor” (histórico, gravação e todas as janelas). Um evento dispara uma vez; “Rearmar” permite repetir.
+          Para retirar a falha depois, use Segurança › Injeção de falhas.
         </p>
       </Panel>
-      <Panel title={`Eventos programados (${ins.events.length})`} className="span-all" right={ins.events.length ? <button className="btn sm instr" onClick={() => cmd({ type: 'instructor', action: 'clear' })}>Remover todos</button> : undefined}>
+      <Panel
+        title={`Eventos programados (${ins.events.length})`}
+        className="span-all"
+        right={
+          ins.events.length ? (
+            <button className="btn sm instr" onClick={() => cmd({ type: 'instructor', action: 'clear' })}>
+              Remover todos
+            </button>
+          ) : undefined
+        }
+      >
         {ins.events.length === 0 ? (
           <p className="subtle">Nenhum evento programado.</p>
         ) : (
@@ -160,7 +189,13 @@ export function InstructorScreen() {
                       {ev.at !== undefined && ev.cond && ' e '}
                       {ev.cond && `${COND_LABEL[ev.cond.variable]} ${ev.cond.op} ${fmt(ev.cond.value, 1)}`}
                     </td>
-                    <td>{ev.fired ? <ToneBadge tone="warn" text={`DISPARADO em ${fmtTime(ev.firedAt ?? 0)}`} /> : <span className="badge info">● AGUARDANDO{ev.at !== undefined && ev.at > s.t ? ` (${fmt(ev.at - s.t, 0)} s)` : ''}</span>}</td>
+                    <td>
+                      {ev.fired ? (
+                        <ToneBadge tone="warn" text={`DISPARADO em ${fmtTime(ev.firedAt ?? 0)}`} />
+                      ) : (
+                        <span className="badge info">● AGUARDANDO{ev.at !== undefined && ev.at > s.t ? ` (${fmt(ev.at - s.t, 0)} s)` : ''}</span>
+                      )}
+                    </td>
                     <td>
                       <span className="btnrow">
                         {ev.fired && (

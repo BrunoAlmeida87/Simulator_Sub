@@ -14,14 +14,15 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 - **Linha de cima — grupos**, com ícone: clicar num grupo abre a **última tela usada** nele (na primeira vez, a primeira tela do grupo). A escolha fica guardada no navegador.
 - **Linha de baixo — telas do grupo atual**. O número cinza antes do nome é a tecla de atalho.
 - **Modos:** telas parecidas são **modos** de uma tela só. Quando a tela está aberta, os modos aparecem como abas pequenas ao lado dela (ex.: *Operação* → **Cockpit · Instrumentos · Posto de governo**). Os links, as teclas e a 2ª janela continuam abrindo cada modo diretamente.
-- **Cores e divisórias**: cada grupo tem uma cor de categoria — Operação ciano, Sistemas azul, Apresentação roxo, Análise areia, Ajustes e guia cinza, Sala de comando bronze (vermelho, âmbar e verde ficam para alarmes). A cor aparece no ícone, na barra do grupo aberto e na faixa da linha de telas (com a tela atual destacada na mesma cor); barras finas separam os grupos e as telas.
+- **Cores e divisórias**: cada grupo tem uma cor de categoria — Operação ciano, Sistemas azul, Apresentação roxo, Análise areia, Laboratórios verde-água, Ajustes e guia cinza, Sala de comando bronze (vermelho, âmbar e verde ficam para alarmes). A cor aparece no ícone, na barra do grupo aberto e na faixa da linha de telas (com a tela atual destacada na mesma cor); barras finas separam os grupos e as telas.
 
 | Grupo | Telas (tecla) |
 |---|---|
-| **Operação** | Operação (0) — modos *Cockpit*, *Instrumentos* (1, a antiga Central de comando) e *Posto de governo* (o antigo Governo) —, Console integrado, Mapa tático, Sonar, Armas |
-| **Sistemas** | Visão geral — modos *Estado* e *Arquitetura* (antigos Sistemas auxiliares) —, Lastro e compensação (2), Trim e banda (3), Propulsão e energia (4) — modos *Linha de eixo* e *Fluxo de energia* —, Segurança (5) |
+| **Operação** | Operação (0) — modos *Cockpit*, *Instrumentos* (1, a antiga Central de comando), *Posto de governo* (o antigo Governo) e *Manobra de porto* —, Console integrado, Mapa tático, Sonar, Armas — modos *Lançamento* e *Ameaças e discrição* —, Sinalização & Emergência |
+| **Sistemas** | Visão geral — modos *Estado* e *Arquitetura* (antigos Sistemas auxiliares) —, Lastro e compensação (2) — modos *Circuitos* e *Pesagem* —, Trim e banda (3), Propulsão e energia (4) — modos *Linha de eixo*, *Fluxo de energia* e *Distribuição* —, Segurança (5) — modos *Alarmes e falhas*, *Controle de avarias*, *Atmosfera* e *Instrutor* |
 | **Apresentação** | Apresentação — modos *Situações* e *Cena livre* (6, a antiga Visualização 3D) —, Estúdio, Cenários — modos *Biblioteca* e *Galeria 3D* (antigos Modelos 3D) |
-| **Análise** | Histórico (7) — modos *Gráficos* e *Validação* |
+| **Análise** | Histórico (7) — modos *Gráficos*, *Validação* e *Debriefing* |
+| **Laboratórios** | Laboratórios — estabilidade (curva GZ e prova de inclinação), flutuabilidade × profundidade, lemes e estol, ar comprimido × profundidade |
 | **Ajustes e guia** | ⚙ Configurações, Guia |
 | **Sala de comando** | Sala de comando (8) — sempre a última |
 
@@ -29,11 +30,12 @@ As telas ficam organizadas em **dois níveis**, por tarefa (como nos simuladores
 - **Lemes horizontais (vante e ré):** em todas as telas são alavancas verticais — **para cima = SUBIR, para baixo = DESCER** (Operação, Central de comando, Governo). Na Sala de comando, os manches 3D seguem o posto real: empurrar = descer.
 - **Atalhos depois de um clique:** os atalhos (Espaço executa/pausa, W/S/A/D/Q/E lemes, +/− telégrafo, 0–8 telas, I engenharia) continuam valendo depois de clicar num botão — Espaço nunca repete o último botão clicado. Só quem chega a um botão pelo **Tab** o aciona com Espaço ou Enter; em campos de texto e seletores a tecla é do campo.
 - **Marcas de alarme:** um ponto vermelho (alarme ativo de prioridade 1–2) ou âmbar (demais alarmes, ou alarme ainda não reconhecido) aparece no grupo e na tela onde o sistema afetado é tratado — por exemplo, falha de bomba em *Sistemas › Lastro e compensação* — e sempre em *Segurança*.
-- **Sistemas › Visão geral:** um cartão por sistema (lastro principal, compensação, trim e banda, ar comprimido, propulsão, energia e snorkel, hidráulica e governo, segurança) com três números principais, o alarme mais grave daquele sistema e o estado (**● NORMAL**, **▲ ATENÇÃO**, **◆ ALARME**). Os botões do cartão abrem a tela de detalhe ou o grupo correspondente na Operação. Abaixo dos cartões: a lista de **alarmes** (com Reconhecer) e os **últimos eventos** (comandos e alarmes; *Registro completo →* abre Segurança). É a visão de conjunto para começar uma explicação ou achar rapidamente o sistema com problema.
+- **Sistemas › Visão geral:** um cartão por sistema (lastro principal, compensação, trim e banda, ar comprimido, propulsão, energia e snorkel, hidráulica e governo, atmosfera interna, controle de avarias, segurança) com três números principais, o alarme mais grave daquele sistema e o estado (**● NORMAL**, **▲ ATENÇÃO**, **◆ ALARME**). Os botões do cartão abrem a tela de detalhe ou o grupo correspondente na Operação. Abaixo dos cartões: a lista de **alarmes** (com Reconhecer) e os **últimos eventos** (comandos e alarmes; *Registro completo →* abre Segurança). É a visão de conjunto para começar uma explicação ou achar rapidamente o sistema com problema.
 - Botões dentro das telas que levam a outra tela (ex.: *📚 Biblioteca* na Apresentação, *Sistema →* de um alarme) continuam funcionando; a navegação acompanha o grupo da tela aberta.
 - **Barra superior:** **uma linha**, igual em todas as telas: nome, **▶ Executar / ❚❚ Pausar**, relógio, velocidade do tempo (**×0,25 a ×20** — abaixo de ×1 é câmera lenta), a **faixa de alarme**, os indicadores principais (fora da Operação, que os mostra sobre a cena), gravação, **Cenário ▾** e **☰**.
   - **Cenário ▾**: escolher e **Carregar**, **↺ Reiniciar** (com Desfazer) e **Biblioteca →**.
   - **☰**: **+1 passo** e **+1 s**, todas as velocidades, **⧉ 2ª janela** e **＋ Tela** (na janela de tela, **⛶ Tela cheia**), **Modo palco**, **ⓘ Engenharia** e **Procedimento**.
+- **Paleta de comandos (Ctrl+K / ⌘K, ou ☰ › 🔎 Buscar):** digite parte do nome (sem acento, várias palavras) para abrir qualquer tela ou modo — também pela dica da tela (ex.: *GPS*, *rebocador*, *avarias*) — ou executar uma ação rápida: executar/pausar, velocidade ×1/×5/×20, reconhecer todos os alarmes, modo palco, içar/arriar snorkel e periscópio, corrigir a posição pelo GPS, lançar despistador, parar máquinas e largar os rebocadores. ↑ ↓ escolhem, Enter abre, Esc fecha; com a paleta aberta os atalhos de teclado ficam suspensos. Ações perigosas (sopro de emergência, reiniciar, trocar de cenário) ficam de fora.
 - **Modo palco (tecla F ou ☰):** esconde a barra e a navegação para apresentar; ficam a tela, a faixa de alarme (só quando há alarme) e **✕ Sair do palco**.
 - **Faixa de alarme:** sempre no mesmo lugar. Sem alarme, mostra **● SEM ALARMES**. Com alarme, mostra o mais grave (os não reconhecidos primeiro): **forma + prioridade + texto** — ⬢ CRÍTICO (fundo vermelho sólido), ◆ ALTO, ▲ MÉDIO, ● INFO —, o sistema, há quanto tempo, **+N** outros alarmes, **Ver** (abre o sistema afetado na Operação) e **Reconhecer** (só este alarme). Um alarme novo também é anunciado por leitores de tela.
 - **Cores:** vermelho, âmbar e verde só indicam **estado** (alarme, atenção, normal) e sempre vêm com forma e texto. Grupos e sistemas usam cores de categoria (azuis, verde-água, violetas, areia). **Violeta tracejado** marca ações do **instrutor** (injetar falhas, colocar alvos e o submarino inimigo). **Ciano tracejado** (selo CMD) marca valores comandados.
@@ -504,6 +506,66 @@ O roteiro automático equivalente fica em **Guia → Demonstração automática*
 | Cota periscópica | Snorkel, diesel-geradores, recarga da bateria e aumento de peso pelo combustível compensado. |
 | Mar grosso | Estado do mar 5 na cota periscópica: o casco joga, as cristas fecham a válvula do snorkel e há sucção para baixo; use o piloto de profundidade. |
 | Alagamento a 120 m | A vazão do rombo diminui à medida que o submarino sobe (√Δp); sopro de emergência, lemes a subir e toda força. |
+| Avariado no fundo (144 m) | Pousado com 18 t de água na praça de máquinas, motor em falha, CO₂ alto: atmosfera e autonomia, boia e sinais, bomba de esgoto que não esgota nessa profundidade, ar AP × profundidade (Laboratório). |
+| Recarga no snorkel sob ameaça aérea | Recarregar a bateria com a aeronave de patrulha a 45 km: taxa de indiscrição, MAGE e recolher o mastro a tempo. |
+| Evasão de torpedo com despistador | Aos 20 s um torpedo de exercício vem pela popa: reduzir o ruído, lançar o despistador, guinar e mudar de cota. |
+| Manobra de porto com rebocadores | Na bacia de Itaguaí com dois rebocadores por boreste: afastar o casco de lado, girar no lugar, largar e sair. |
+
+## Sistemas da Fase 3 (atmosfera, avarias, energia, navegação, discrição, ameaças e porto)
+
+Todos começam **desligados ou neutros**: os cenários antigos se comportam como antes até o operador (ou o instrutor) usar os comandos abaixo. Tudo passa pelos comandos registrados (histórico, gravação, 2ª janela e janelas de tela).
+
+### Segurança › Atmosfera
+- **Composição do ar** em % (O₂, CO₂, H₂) e ppm (CO), com faixas de atenção/alarme: O₂ < 18 % ▲ e < 16 % ◆; CO₂ > 1,5 % ▲ e > 3 % ◆; H₂ > 2 % ◆ e > 3 % ⬢ (limite de explosividade ≈ 4 %); CO > 50 ppm ◆.
+- **Equipamentos:** absorvedores de CO₂, queimadores de H₂, **O₂ de reserva** (estoque em kg) e **ventilador do snorkel**. Absorvedores e queimadores precisam do barramento e do disjuntor HOTEL.
+- **Ventilação** só com a **válvula de cabeça do snorkel aberta**: o ventilador renova o ar (ren./h) e cada diesel em carga renova também.
+- **H₂ da recarga:** recarregar a bateria acima de 80 % de carga libera hidrogênio; sem ventilação e sem queimadores ele sobe.
+- **Autonomia:** horas até O₂ < 17 % ou CO₂ > 3 % com as taxas atuais, sem ventilação. Pessoas a bordo = tripulação (32) + cargas da categoria “pessoas”.
+
+### Segurança › Controle de avarias
+- **Quadro de avarias:** perfil do casco com a água de cada compartimento (até 60 % do volume), incêndios, rombos e portas estanques.
+- **Esgoto:** uma bomba por compartimento. A vazão cai com a pressão do mar (Q = Qₙ·√(1 − Δp/Δp₀)) e **zera abaixo de ≈ 119 m**: perto da superfície esgota muito mais rápido. A coluna *Possível aqui* mostra a vazão na profundidade atual. Energia pelo disjuntor ESG.
+- **Portas estanques** começam **fechadas** (condição de mergulho). Abertas, a água acima de 25 % de enchimento passa para o vizinho até igualar; um incêndio forte (> 70 %) passa pela porta aberta.
+- **Incêndio** (falha *Incêndio — compartimento* em Segurança, ou *Instrutor: iniciar*): cresce com o O₂ do ar, é detectado depois de 8 s acima do limiar (alarme ⬢ INCÊNDIO), consome O₂ e produz CO₂ e CO (Atmosfera). **Combater** gasta agente extintor (600 kg); água no porão acima de 30 % também apaga.
+
+### Segurança › Instrutor
+- **Programar evento:** qualquer falha do catálogo (com o parâmetro, ex.: área do rombo, modo do sensor) ou ação extra (torpedo de exercício pela popa, aeronave de patrulha, corrente, estado do mar), com gatilho **Daqui a N s**, **No instante t** ou **Quando** uma condição vale (profundidade, velocidade, pitch, rumo, carga da bateria, tempo > ou < valor).
+- **Pacote de treinamento:** falha da bomba de trim (+60 s), leme de ré travado ao passar de 80 m, incêndio (+5 min) e alagamento (+7 min) na praça de máquinas.
+- Os eventos ficam **no estado da simulação** (salvos com a sessão) e disparam uma vez, como comandos de origem “instrutor”; **Rearmar** permite repetir. Para retirar a falha, use *Alarmes e falhas*.
+
+### Análise › Histórico › Debriefing
+Nota **indicativa** (0–100) e relatório do exercício: alarmes por prioridade e tempo até o reconhecimento, reação do operador a cada evento do instrutor (primeiro comando depois dele), profundidade/pitch/banda máximos, tempo além da profundidade operacional, erro RMS de cota com o piloto em AUTO e contato com o fundo. **Baixar relatório (.txt)** para a conversa com a equipe. O Histórico ganhou os canais O₂, CO₂, temperatura da bateria e água nos porões.
+
+### Propulsão e energia › Distribuição
+- **Disjuntor por carga** (MEP, BC, BTC, BT, BB, HID, COMP, ESG, HOTEL, NAV): aberto, o equipamento fica sem energia de verdade (bomba para, motor sem torque, hidráulica sem recarga, sonar desligado com NAV) e a carga sai do balanço.
+- **Rejeição automática** (desligada por padrão): com demanda não atendida por 1 s e o barramento energizado, abre a carga ligada de maior número de prioridade (HOTEL 7, COMP 6, bombas 5…, NAV 1 nunca); **Religar rejeitadas**.
+- **Temperatura da bateria:** aquece com I²R e troca calor com o mar (constante de ~11 h); alarmes a 45 °C ▲ e 55 °C ◆. Só indicação nesta versão.
+
+### Lastro e compensação › Pesagem
+O **cálculo de compensação** antes de mergulhar: escolha a profundidade; a tela mostra se o submarino ficaria leve ou pesado lá (TLP cheios, densidade e compressão do casco dessa cota, todas as cargas), quanto admitir/esgotar e quanto transferir no trim e na banda. **Aplicar pelas sequências automáticas** manda as sequências de compensação e transferência. Depois do mergulho, *Previsto × real* compara a flutuabilidade obtida.
+
+### Mapa tático — navegação estimada e corrente
+- O círculo **violeta** em volta da posição estimada é a incerteza indicada (1σ): cresce com a distância (1 %) e o tempo (0,05 m/s) desde a última correção.
+- **Corrigir pelo GPS** só com antena fora d’água (periscópio ou snorkel içados com a cabeça emersa, ou na superfície); **Correção automática** corrige a cada 60 s exposto.
+- **Corrente** (nós, direção para onde vai, maré ±): entra na física — o casco é arrastado sobre o fundo, a hidrodinâmica usa a velocidade em relação à água e o Doppler mede em relação à água, então a posição estimada se afasta da verdadeira. Também arrasta o torpedo inimigo e os despistadores.
+- O mapa mostra a aeronave de patrulha (✈) e o datum marcado por ela, torpedos inimigos (◆) e despistadores.
+
+### Armas › Ameaças e discrição
+- **Exposição:** o que está fora d’água agora e a **taxa de indiscrição** da última hora (barras por minuto).
+- **Ruído irradiado** por fonte (escoamento, eixo, diesel, bombas, compressor, hidráulica, bombas de esgoto), nível irradiado estimado e **alcance de contra-detecção** contra um sonar passivo oponente (círculo violeta na plotagem). A fonte dominante aparece em violeta.
+- **Aeronave de patrulha (exercício, ação do instrutor):** orbita a distância e a marcação dadas; o **MAGE** intercepta o radar antes (alarme ▲) e o radar detecta o mastro exposto com chance que cresce com a proximidade (casco na superfície > snorkel > periscópio, menos com mar alto). Detectado, ela marca o datum e passa a orbitar sobre ele.
+- **Torpedo de exercício contra o SX-1 (instrutor):** distância, marcação e carga (*exercício* só registra; *com avaria* abre um rombo de 60 cm² no compartimento atingido). Busca em zigue-zague para o ponto de lançamento; o autodiretor (±40°, 1,8 km) escolhe o alvo de maior sinal. Alarme ⬢ **TORPEDO EM APROXIMAÇÃO** abaixo de 6 km.
+- **Lançar despistador** (6 a bordo): afunda devagar e emite forte por 4 min. Com o SX-1 silencioso, a arma é seduzida; afaste-se do despistador com guinada e mudança de cota. Camada 3D **Ameaças (exercício)**.
+
+### Operação › Manobra de porto
+Dois rebocadores (proa e popa, 120 kN cada): **Largar / Empurrar / Puxar (cabo)**, bordo **BB/BE**, **tração** (0–100 %, com taxa de subida) e **ângulo** (±60°, + inclina a força para vante). Os dois do mesmo lado deslocam o casco de lado; um só, ou em lados opostos, giram. O cabo solta se o eixo passar de 6 m (mergulhando). A tela mostra a vista de cima com as forças, a força lateral, o momento de guinada e a razão de guinada, além de telégrafo e leme. Camada 3D **Rebocadores** (modelo ASD da galeria, cabo e espuma do hélice).
+
+### Laboratórios
+Experimentos com as mesmas funções da física (sem alterar a simulação, exceto o peso de prova):
+- **Estabilidade:** curva **GZ(φ)** na profundidade atual, GM inicial, BG e ângulo de anulação; **prova de inclinação** embarcando um peso de prova a uma distância lateral (Cargas a bordo) e calculando GM = w·d/(Δ·tg φ) pela banda medida.
+- **Flutuabilidade × profundidade:** N(z) = ρ(z)·V(z) − m com a compressão do casco e o perfil de densidade (comparado com água uniforme): profundidades neutras e a tendência a afundar com a profundidade.
+- **Lemes e estol:** sustentação de cada superfície × ângulo a 2, 5 e 10 nós (força ∝ V², queda depois do estol).
+- **Ar comprimido × profundidade:** massa de ar para soprar o maior TLP e todos eles em cada cota (m = p·V/RT) × reserva nas garrafas.
 
 ## Configurações (aba ⚙)
 
@@ -610,6 +672,10 @@ A página se adapta à tela do celular, em pé ou deitado (telas de toque pequen
 - **Diagramas** (fluxo de energia, lastro, trim, linha de eixo, arquitetura de sistemas): mantêm o texto legível e rolam para o lado (“↔ arraste para o lado”).
 - Para rolar a página, arraste fora da cena 3D: arrastar dentro dela gira a câmera.
 - **Sala de comando**: botões ▲ ▼ ◀ ▶ para andar, arrastar para olhar, toque num posto para se aproximar; o painel da estação abre abaixo da cena. No posto, ◀ ▶ passam de tela em tela (cada tela centralizada); o ⧉ Submarino 3D abre em tamanho maior.
+
+## Uso offline e instalação (site)
+
+No site, o simulador guarda o que já foi aberto para funcionar **sem internet** (service worker): a página, o código e os modelos/texturas já usados. O navegador oferece **Instalar** (ícone na barra de endereço ou “Adicionar à tela inicial” no celular), que abre o SX-1 como aplicativo. Mapas externos (OpenStreetMap etc.) continuam precisando de rede. O executável do Windows não usa esse recurso (já é local).
 
 ## Aplicativo Windows
 

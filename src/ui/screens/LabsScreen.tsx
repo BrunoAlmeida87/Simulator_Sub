@@ -48,7 +48,15 @@ function Chart(props: { series: { name: string; color: string; pts: [number, num
   }
   const X = (x: number) => m.l + ((x - x0) / (x1 - x0 || 1)) * (W - m.l - m.r);
   const Y = (y: number) => H - m.b - ((y - y0) / (y1 - y0)) * (H - m.t - m.b);
-  const ticks = (a: number, b: number) => Array.from({ length: 5 }, (_, i) => a + ((b - a) * i) / 4);
+  // marcas em passos "redondos" (1, 2 ou 5 × 10ⁿ)
+  const ticks = (a: number, b: number) => {
+    const raw = (b - a) / 4 || 1;
+    const p10 = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 5, 10].map((k) => k * p10).find((k) => k >= raw) ?? raw;
+    const out: number[] = [];
+    for (let v = Math.ceil(a / step) * step; v <= b + step * 1e-6; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return out;
+  };
   return (
     <svg className="p3-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${props.yLabel} × ${props.xLabel}`}>
       {ticks(y0, y1).map((t, i) => (
@@ -61,14 +69,14 @@ function Chart(props: { series: { name: string; color: string; pts: [number, num
       ))}
       {ticks(x0, x1).map((t, i) => (
         <text key={`x${i}`} x={X(t)} y={H - m.b + 12} fontSize={9} textAnchor="middle" fill="var(--muted)">
-          {fmt(t, 0)}
+          {fmt(t, Math.abs(x1 - x0) < 5 ? 1 : 0)}
         </text>
       ))}
       {props.zeroY && <line x1={m.l} x2={W - m.r} y1={Y(0)} y2={Y(0)} stroke="var(--line2)" />}
       {props.marks?.map((mk, i) => (
         <g key={`m${i}`}>
           <line x1={X(mk.x)} x2={X(mk.x)} y1={m.t} y2={H - m.b} stroke="#a98bff" strokeDasharray="4 3" />
-          <text x={X(mk.x) + 3} y={m.t + 10 + i * 11} fontSize={9} fill="#cbb8ff">
+          <text x={X(mk.x) > W - 120 ? X(mk.x) - 3 : X(mk.x) + 3} textAnchor={X(mk.x) > W - 120 ? 'end' : 'start'} y={m.t + 10 + i * 11} fontSize={9} fill="#cbb8ff">
             {mk.label}
           </text>
         </g>
@@ -136,8 +144,8 @@ function Stability({ e }: { e: SimulationEngine }) {
       </Panel>
       <Panel title="Prova de inclinação">
         <p className="subtle">
-          Embarca um peso de prova a uma distância lateral do plano diametral e mede a banda: GM = w·d / (Δ·tg φ). O peso entra pela via normal (cargas a bordo) e muda de
-          verdade a física — avance a simulação até a banda estabilizar.
+          Embarca um peso de prova a uma distância lateral do plano diametral e mede a banda: GM = w·d / (Δ·tg φ). O peso entra pela via normal (cargas a bordo) e muda de verdade a física — avance a simulação até a banda
+          estabilizar.
         </p>
         <div className="btnrow">
           <label className="p3-field">
@@ -151,7 +159,10 @@ function Stability({ e }: { e: SimulationEngine }) {
           <button
             className="btn sm"
             onClick={() =>
-              cmd({ type: 'cargoUpsert', load: { id: 'lab-prova', name: 'Peso de prova (laboratório)', category: 'carga', quantity: 1, unitMass: Math.max(0, w) * 1000, position: { x: 0, y: Math.max(-2.8, Math.min(2.8, dy)), z: 0.5 } } })
+              cmd({
+                type: 'cargoUpsert',
+                load: { id: 'lab-prova', name: 'Peso de prova (laboratório)', category: 'carga', quantity: 1, unitMass: Math.max(0, w) * 1000, position: { x: 0, y: Math.max(-2.8, Math.min(2.8, dy)), z: 0.5 } },
+              })
             }
           >
             {load ? 'Atualizar peso de prova' : 'Embarcar peso de prova'}
@@ -214,8 +225,8 @@ function Buoyancy({ e }: { e: SimulationEngine }) {
         ]}
       />
       <p className="subtle">
-        O casco comprime com a pressão (perde volume) e fica mais pesado ao descer: um equilíbrio instável. A termoclina aumenta a densidade com a profundidade e pode criar
-        uma faixa onde o submarino “assenta”. Mude a compensação ou o ambiente (Configurações) e veja a curva se deslocar.
+        O casco comprime com a pressão (perde volume) e fica mais pesado ao descer: um equilíbrio instável. A termoclina aumenta a densidade com a profundidade e pode criar uma faixa onde o submarino “assenta”. Mude a
+        compensação ou o ambiente (Configurações) e veja a curva se deslocar.
       </p>
     </Panel>
   );
@@ -242,7 +253,7 @@ function Fins({ e }: { e: SimulationEngine }) {
   );
   if (!fin) return null;
   const U = Math.abs(e.state.body.vel.x);
-  const here = finForce(fin, (e.state.surfaces[fin.id]?.actual ?? 0) * (fin.commandSign * Math.PI) / 180, { x: U, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, rho, 1);
+  const here = finForce(fin, ((e.state.surfaces[fin.id]?.actual ?? 0) * (fin.commandSign * Math.PI)) / 180, { x: U, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, rho, 1);
   return (
     <Panel title="Sustentação de uma superfície de governo">
       <div className="btnrow">
@@ -254,7 +265,16 @@ function Fins({ e }: { e: SimulationEngine }) {
           ))}
         </div>
       </div>
-      <Chart series={series} xLabel="ângulo (°)" yLabel="sustentação (kN)" zeroY marks={[{ x: fin.stallAngle, label: `estol ${fin.stallAngle}°` }, { x: -fin.stallAngle, label: '' }]} />
+      <Chart
+        series={series}
+        xLabel="ângulo (°)"
+        yLabel="sustentação (kN)"
+        zeroY
+        marks={[
+          { x: fin.stallAngle, label: `estol ${fin.stallAngle}°` },
+          { x: -fin.stallAngle, label: '' },
+        ]}
+      />
       <KV
         rows={[
           ['Área / alongamento', `${fmt(fin.area, 1)} m² / ${fmt(fin.aspectRatio, 1)}`],
@@ -263,8 +283,8 @@ function Fins({ e }: { e: SimulationEngine }) {
         ]}
       />
       <p className="subtle">
-        A força cresce com o quadrado da velocidade (de 5 para 10 nós, 4×). Passando do ângulo de estol a sustentação cai e o arrasto sobe: aumentar mais o leme piora. Em
-        baixa velocidade os lemes quase não têm efeito — por isso a compensação e o trim precisam deixar o submarino equilibrado.
+        A força cresce com o quadrado da velocidade (de 5 para 10 nós, 4×). Passando do ângulo de estol a sustentação cai e o arrasto sobe: aumentar mais o leme piora. Em baixa velocidade os lemes quase não têm efeito —
+        por isso a compensação e o trim precisam deixar o submarino equilibrado.
       </p>
     </Panel>
   );
@@ -309,8 +329,8 @@ function Air({ e }: { e: SimulationEngine }) {
         ]}
       />
       <p className="subtle">
-        m = p·V/(R·T): a 100 m (≈ 11 bar) o mesmo volume de água pede 11× mais ar que na superfície. Por isso o sopro de emergência é dimensionado para a profundidade e
-        um submarino pesado no fundo pode não conseguir subir só com ar.
+        m = p·V/(R·T): a 100 m (≈ 11 bar) o mesmo volume de água pede 11× mais ar que na superfície. Por isso o sopro de emergência é dimensionado para a profundidade e um submarino pesado no fundo pode não conseguir
+        subir só com ar.
       </p>
     </Panel>
   );

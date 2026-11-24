@@ -116,6 +116,65 @@ Valores **fictícios** de simulação (`src/sim/systems/signals.ts`). Os disposi
 | Extinção prematura (F04, `prematureFactor`) | 25 % da duração | |
 | Fumaça degradada (F05, `degradedSmoke`) | 30 % da emissão | |
 
+## Sistemas da Fase 3 (`src/sim/config/extSystems.ts`)
+
+Valores **fictícios** de simulação (ordem de grandeza plausível). Cada bloco é opcional na configuração; salvamentos antigos recebem estes padrões.
+
+### Atmosfera interna (`vessel.atmosphere`)
+| Item | Valor | Observação |
+|---|---|---|
+| Volume de ar livre / temperatura | 900 m³ / 22 °C | um volume único (sem compartimentos) |
+| Tripulação (`crew`) | 32 | + cargas da categoria “pessoas” |
+| Consumo de O₂ / produção de CO₂ por pessoa | 9,7·10⁻⁶ / 1,16·10⁻⁵ kg/s | ≈ 0,84 / 1,0 kg por dia |
+| Absorvedores de CO₂ (`scrubberRate`) | 0,05 kg/s × fração de CO₂ | equilíbrio ≈ 0,7 % com 32 pessoas |
+| O₂ de reserva | 400 kg a 0,004 kg/s | |
+| H₂ da recarga (`h2PerAh`, `gassingSoc`) | 1,3·10⁻³ kg/A·h acima de 80 % de carga | cresce linearmente até 100 % |
+| Queimadores de H₂ (`recombinerRate`) | 0,02 kg/s × fração de H₂ | |
+| Ventilação pelo snorkel | ventilador 6 ren./h; cada diesel em carga 10 ren./h | só com a válvula de cabeça aberta |
+
+### Controle de avarias (`vessel.damage`)
+| Item | Valor | Observação |
+|---|---|---|
+| Bombas de esgoto (BE1 CV, BE2 CC, BE3 CM) | 0,03 m³/s (108 m³/h), Δp₀ = 12 bar, 18 kW | Q = Qₙ·√(1 − Δp/Δp₀): zera abaixo de ≈ 119 m |
+| Portas estanques | PE1 (CV/CC, x = 10 m), PE2 (CC/CM, x = −4 m); soleira 25 % do enchimento; 400 kg/s por unidade de diferença | começam fechadas |
+| Incêndio | crescimento 0,02 1/s (logístico, × fator do O₂); detecção acima de 5 % por 8 s; combate −0,06 1/s; por intensidade 1: O₂ −0,02, CO₂ +0,025, CO +0,002 kg/s; agente 600 kg a 1 kg/s | água > 30 % do enchimento apaga |
+
+### Distribuição elétrica (`vessel.distribution`)
+| Item | Valor | Observação |
+|---|---|---|
+| Prioridades (rejeição) | NAV 1 (nunca), HID 2, MEP 3, BC/ESG 4, BTC/BT/BB 5, COMP 6, HOTEL 7 | maior número sai primeiro |
+| Retardo da rejeição | 1 s de demanda não atendida | só com o barramento energizado |
+| Bateria (térmico) | C = 2,4·10⁸ J/K, troca 6 kW/K com o mar, 25 °C inicial; alarmes 45/55 °C | só indicação |
+
+### Discrição (`vessel.stealth`)
+| Item | Valor | Observação |
+|---|---|---|
+| Aeronave de patrulha | 90 m/s, 300 m de altitude, órbita de 6 km (2 km sobre o datum) | ação do instrutor |
+| Radar contra mastro / MAGE | 22 km / 60 km | taxa de detecção 0,08/s × fator do alvo × (1 − r/R)² / (1 + 0,4·mar) |
+| Fator do alvo | casco na superfície 3; snorkel 1; periscópio 0,4 | somam |
+| Nível irradiado estimado | ruído próprio + 64 dB | ilustrativo |
+| Sonar do oponente (contra-detecção) | DI 15 dB, DT 8 dB; TL = 20·log r + 0,07 dB/km | |
+
+### Ameaça (`vessel.threat`)
+| Item | Valor | Observação |
+|---|---|---|
+| Torpedo de exercício | busca 15 m/s, ataque 22 m/s, guinada 10°/s, cota 4 m/s, autonomia 20 km | |
+| Autodiretor | cone ±40°, alcance 1,8 km; maior sinal = nível − 20·log r | |
+| Impacto | distância ao eixo < raio + 9 m; com avaria: rombo de 60 cm² | |
+| Despistadores | 6 a bordo, 152 dB, 240 s, afundam 0,4 m/s | |
+| Alarme de torpedo | < 6 km | |
+
+### Rebocadores (`vessel.tugs`)
+| Item | Valor | Observação |
+|---|---|---|
+| R1 (proa, x = 27 m), R2 (popa, x = −26 m) | 120 kN de tração cada; taxa 10 %/s | força horizontal no costado, à meia altura |
+| Cabo solta | eixo abaixo de 6 m | |
+
+### Corrente marinha (`environment.current`)
+| Item | Valor | Observação |
+|---|---|---|
+| Padrão | 0 m/s (sem corrente) | velocidade + maré·sen(2πt/T), T = 12,42 h; uniforme |
+
 ## Bombas e válvulas
 
 | Componente | Valor |

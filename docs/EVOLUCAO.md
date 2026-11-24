@@ -205,3 +205,18 @@ Resolução atual (perfil alto): malha do terreno 20 m (anel próximo, 6 km), 60
 - **Conteúdo:** novos locais pelo pipeline de `scripts/rio`, tráfego com comportamento, modo instrutor, modo multiusuário em rede.
 
 Ordem de prioridade: artefatos → escala de resolução/FPS → teste visual → sensação de escala → sombras e pós-processamento → Worker → terreno e estaleiro → palco, gravação e falhas.
+
+## 9. Rodada de revisão geral e Fase 3 (nov./2026)
+
+Revisão completa pedida pelo Bruno ("implementar tudo"). Feito, com testes (`tests/phase3.test.ts`, `tests/debrief.test.ts`) e capturas no navegador:
+
+- **Desempenho (medido):** física 2,2× mais rápida por passo (≈ 2.300 → 5.000 passos/s) com a velocidade do som tabelada e as ondas do casco amostradas por recorrência; salvamento automático e no navegador compactos (a cascata do sonar ia a ~1,2 MB em 10 min) e no tempo ocioso; telas carregadas sob demanda (arquivo principal 1,7 MB → 0,94 MB); cenas 3D a 4 Hz com a simulação pausada e sem interação.
+- **Sistemas novos** (todos desligados por padrão; cenários existentes iguais): atmosfera interna, controle de avarias (esgoto, portas, incêndio), distribuição elétrica (disjuntores, rejeição, temperatura da bateria), corrente marinha na física e navegação com correção por GPS, discrição (indiscrição, aeronave × MAGE, contra-detecção), torpedo inimigo e despistadores, rebocadores e instrutor (eventos programados).
+- **Telas:** Atmosfera, Controle de avarias e Instrutor (modos de Segurança), Distribuição, Ameaças e discrição, Manobra de porto, Pesagem, Debriefing e o grupo **Laboratórios**; paleta Ctrl+K; uso offline/instalação (PWA).
+- **Cenários acrescentados:** avariado no fundo (144 m), recarga no snorkel sob ameaça aérea, evasão de torpedo e manobra de porto com rebocadores.
+
+Pendências e ideias para as próximas rodadas:
+- A temperatura da bateria ainda não afeta tensão/capacidade (Peukert e envelhecimento seguem fora).
+- O torpedo inimigo não aparece como contato no sonar; integrar com `src/sonar` (detecção pelo ruído da arma).
+- Atmosfera por compartimento (fumaça do incêndio isolada pelas portas) e escape/resgate (DISSUB com veículo de resgate).
+- Física em Web Worker e divisão do `SubmarineScene.ts` continuam como na seção 6.

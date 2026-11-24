@@ -5,7 +5,8 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 **Escopo da validação.** Os testes verificam sinais, simetrias, balanços de massa e energia nas sequências ensaiadas e regressões conhecidas (ver `docs/VALIDACAO.md`). Eles **não** provam conservação de massa e energia em todas as condições nem fidelidade quantitativa de engenharia: os coeficientes não são calibrados em tanque, CFD ou dados de mar. O SX-1 é fictício.
 
 ## Ambiente
-- **Ondas lineares (Airy):** espectro de Pierson–Moskowitz com 24 componentes em águas profundas e espalhamento direcional cos². Não há quebra de onda, interação onda–onda, correntes ou vento. O “chop” de Gerstner no 3D é só visual; a física usa a elevação linear das mesmas componentes.
+- **Ondas lineares (Airy):** espectro de Pierson–Moskowitz com 24 componentes em águas profundas e espalhamento direcional cos². Não há quebra de onda, interação onda–onda nem vento na física.
+- **Corrente (opcional, padrão zero):** uniforme no espaço e na coluna d’água (sem cisalhamento), com parcela de maré senoidal. A hidrodinâmica do casco, dos lemes e o avanço da hélice usam a velocidade em relação à água; o corpo rígido usa a absoluta (massa adicional com a velocidade relativa, sem o termo de aceleração da corrente, que é constante). As armas do SX-1 e os sinais não são arrastados pela corrente; o torpedo inimigo e os despistadores, sim. O “chop” de Gerstner no 3D é só visual; a física usa a elevação linear das mesmas componentes.
 - A força de onda é por fatias (empuxo com a elevação local + inércia de Froude–Krylov + massa adicional Ca = 1); não há difração nem radiação de ondas pelo casco. A sucção média perto da superfície aparece como efeito de segunda ordem desse modelo, não calibrada.
 - Perfis de temperatura e salinidade dependem só da profundidade (estratificação horizontal).
 - A densidade usada no empuxo é a do nível do eixo, uniforme ao longo do casco.
@@ -46,8 +47,8 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 - Hidráulica: a pressão é um estado com taxa de recarga e consumo equivalente (sem volume do acumulador nem balanço de energia). Válvulas marcadas como não hidráulicas (sopro de emergência e isolamento das ampolas) movem sem a planta.
 
 ## Energia e propulsão
-- Bateria com circuito equivalente linear (sem Peukert, sem temperatura, sem envelhecimento).
-- Barramento único; sem disjuntores por carga nem rejeição de cargas por prioridade. A demanda não atendida (sobrecarga da bateria ou barramento desenergizado) é registrada, mas as cargas continuam operando no passo em que faltou energia; só a propulsão é limitada no passo seguinte.
+- Bateria com circuito equivalente linear (sem Peukert e sem envelhecimento). A temperatura é calculada (I²R e troca com o mar) só para indicação e alarme: não altera tensão, resistência nem capacidade.
+- Barramento único, com disjuntor por carga e rejeição automática opcional por prioridade (sem seletividade nem curto-circuito). A demanda não atendida (sobrecarga da bateria ou barramento desenergizado) é registrada, mas as cargas continuam operando no passo em que faltou energia; só a propulsão é limitada no passo seguinte.
 - Recarga plena até 90 % de SoC e reduzida linearmente a zero em 100 %; a bateria vazia aceita recarga. A eficiência de recarga (0,92) reduz o ganho de SoC, mas o balanço "químico" integra V_oc·I.
 - Geradores sem consumo em vazio, eficiência em carga parcial nem rampa de carga; se o combustível acabar no meio de um passo, a energia daquele passo não é reduzida.
 - Sem regeneração: a potência negativa do eixo é dissipada.
@@ -56,12 +57,14 @@ O simulador prioriza a coerência física e lógica entre os sistemas, mas usa m
 ## Instrumentação e controle
 - Sensores com ruído gaussiano, atraso de 1ª ordem e falhas típicas (congelado, deriva, zero, ruído). Sem modelos detalhados de giroscópio e INS.
 - A profundidade usada pelo piloto é a média dos dois profundímetros, **sem votação nem tolerância a falhas**: um canal congelado ou zerado conduz o piloto (útil para treinar a falha). A navegação estimada usa a velocidade vertical verdadeira, e q/r são usados como taxas de pitch/rumo (pequenos ângulos). Os alarmes usam grandezas verdadeiras, não as medições.
-- O Doppler usa velocidade em relação à água, que é igual à velocidade sobre o fundo porque não há correntes.
+- O Doppler usa velocidade em relação à água; com corrente ela difere da velocidade sobre o fundo e a posição estimada deriva. A incerteza indicada (1 % da distância + 0,05 m/s × tempo) é um modelo simples, sem filtro de Kalman; a correção por GPS é instantânea (σ = 10 m).
 - Piloto automático PID com ganhos fixos escalonados por U². Não é um controlador de navio real. Em marcha a ré o pitch ordenado pela malha de profundidade se inverte (ż ≈ −u·sen θ), com passagem contínua entre 0 e −0,5 m/s; a sintonia foi feita avante. Não há filtro de ondas: na cota periscópica com mar, os lemes de ré acompanham o caturro de cada onda (ângulo pequeno, mas em movimento contínuo).
 
 ## Segurança
 - Limites, alarmes e respostas são **exclusivamente educacionais** e não correspondem a procedimentos ou valores de embarcação real.
-- O alagamento não pode ser esgotado (sistema de esgoto previsto para a Fase 3); o rombo pode ser "reparado" pela tela de falhas.
+- O alagamento pode ser esgotado pelas bombas de esgoto (curva simplificada √(1 − Δp/Δp₀), sem perdas de tubulação nem bomba de reserva); o rombo pode ser "reparado" pela tela de falhas.
+- Portas estanques: a água passa por diferença de enchimento acima de uma soleira (sem coluna d’água real nem inclinação do casco).
+- Incêndio: intensidade única por compartimento (sem propagação por cabos/dutos, fumaça visível nem temperatura nos equipamentos); o combate usa um agente genérico sem massa.
 
 ## Peso deslocável
 - A carga de 30 t sobre trilho (da qual se escolhe quanto deslocar, sem mudar a massa total) é um recurso didático da embarcação fictícia (massa pontual; o carro não tem dinâmica própria além da velocidade limitada).
@@ -149,3 +152,19 @@ O replay visual pode atrasar-se em relação aos ecos já recebidos pelo TMA.
 No TMA, a hipótese manual não tem confiança estatística atribuída; a incerteza
 automática é indicativa. Duas posições ativas espaçadas permitem ajuste de
 velocidade constante, mas não resolvem troca de trilhas ou manobras do alvo.
+
+## Atmosfera interna
+
+- Um único volume de ar (sem compartimentos nem gradientes); temperatura e umidade fixas; pressão interna constante (o diesel com a válvula de cabeça fechada não cria vácuo: ele para).
+- Consumo e produção por pessoa constantes (sem atividade física); absorvedores e queimadores com remoção proporcional à fração do gás; os equipamentos fazem parte da carga fixa de habitabilidade.
+- Os gases não entram no balanço de massa do submarino (poucos quilos).
+
+## Discrição e ameaças
+
+- A aeronave é um exercício: radar com probabilidade de detecção simplificada (sem RCS, horizonte radar nem clutter detalhado); não lança sonoboias nem armas.
+- O nível irradiado é o ruído próprio da escala do sonar + 64 dB (ilustrativo); a contra-detecção usa perda esférica e absorção fixa, sem a propagação por raios do sonar.
+- O torpedo inimigo é cinemático (como o F21) e não aparece como contato no sonar; o despistador é uma fonte pontual de nível fixo. Ao passar pelo despistador a arma volta a buscar.
+
+## Rebocadores
+
+- Força aplicada diretamente no costado (sem dinâmica própria do rebocador, interação de casco nem esteira do hélice sobre o submarino); a tração tem só taxa de variação.

@@ -242,7 +242,11 @@ describe('instrutor', () => {
   it('dispara um evento por tempo e outro por condição, uma vez cada, e salva com a sessão', () => {
     const e = sub();
     applyCommand(e, { type: 'instructor', action: 'add', event: { label: 'Falha da bomba de trim', at: 3, command: { type: 'failure', target: 'pump:trim', active: true } } });
-    applyCommand(e, { type: 'instructor', action: 'add', event: { label: 'Leme travado ao passar de 51 m', cond: { variable: 'depth', op: '>', value: -1 }, command: { type: 'failure', target: 'surface:stern', active: true } } });
+    applyCommand(e, {
+      type: 'instructor',
+      action: 'add',
+      event: { label: 'Leme travado ao passar de 51 m', cond: { variable: 'depth', op: '>', value: -1 }, command: { type: 'failure', target: 'surface:stern', active: true } },
+    });
     const restored = deserializeEngine(serializeEngine(e, 'x'));
     expect(restored.state.instructor!.events.length).toBe(2);
     run(e, 5);
@@ -252,5 +256,36 @@ describe('instrutor', () => {
     run(e, 2);
     expect(e.state.trim.pump.failed).toBe(false); // não dispara de novo
     expect(e.state.commands.some((c) => c.text.startsWith('INSTRUTOR'))).toBe(true);
+  });
+});
+
+describe('cenários novos da Fase 3', () => {
+  it('avariado no fundo: pousado, pesado, atmosfera degradada e bomba de esgoto sem vazão', () => {
+    const e = sub('avaria_fundo');
+    run(e, 30);
+    expect(e.state.contact).toBe(true);
+    expect(atmospherePercent(e.state)!.co2).toBeGreaterThan(2);
+    applyCommand(e, { type: 'bilge', id: 'BE3', on: true });
+    run(e, 5);
+    expect(e.state.damage!.pumps.BE3.flow).toBe(0);
+    expect(Math.abs(e.outputs.massAudit)).toBeLessThan(1);
+  });
+
+  it('evasão de torpedo: o evento do instrutor lança a arma aos 20 s', () => {
+    const e = sub('evasao_torpedo');
+    run(e, 21);
+    expect(e.state.threat!.torpedoes.length).toBe(1);
+    expect(e.state.alarms.runtime.TORPEDO.active).toBe(true);
+  });
+
+  it('snorkel sob ameaça aérea e porto com rebocadores começam prontos', () => {
+    const a = sub('snorkel_aeronave');
+    expect(a.state.stealth!.aircraft).not.toBeNull();
+    const p = sub('porto_rebocadores');
+    expect(p.state.tugs!.tugs.R1.mode).toBe('empurrar');
+    applyCommand(p, { type: 'tug', id: 'ALL', cmd: 0.8 });
+    run(p, 40);
+    expect(Math.abs(p.state.tugs!.F.y)).toBeGreaterThan(1e4);
+    expect(p.state.contact).toBe(false);
   });
 });

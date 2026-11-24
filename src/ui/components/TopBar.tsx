@@ -181,6 +181,18 @@ export function TopBar({ topRef, stage, setStage }: { topRef: React.RefObject<HT
         {(close) => (
           <div className="tb-more-pop">
             <section>
+              <button
+                className="btn"
+                onClick={() => {
+                  close();
+                  window.dispatchEvent(new Event('sx1-palette'));
+                }}
+                title="Buscar e abrir qualquer tela ou ação rápida (Ctrl+K)"
+              >
+                🔎 Buscar tela ou ação <kbd>Ctrl+K</kbd>
+              </button>
+            </section>
+            <section>
               <h4>Tempo</h4>
               <div className="row" style={{ gap: 6 }}>
                 <button className="btn" disabled={runner.running} onClick={() => runner.stepOnce(1)} title="Avançar um passo fixo">

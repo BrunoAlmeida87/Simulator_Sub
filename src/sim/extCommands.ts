@@ -174,7 +174,7 @@ export function extCommand(e: SimulationEngine, c: ExtCommand): void {
         break;
       }
       const range = Math.max(1000, Math.min(20000, c.range ?? 6000));
-      const bearing = c.bearing ?? ((e.outputs.euler.heading + 120) % 360);
+      const bearing = c.bearing ?? (e.outputs.euler.heading + 120) % 360;
       const tp = launchHostileTorpedo(v, s, range, bearing, c.warhead ?? 'exercicio');
       log(`TORPEDO (exercício${tp.warhead === 'avaria' ? ', com avaria' : ''}) lançado contra o SX-1 a ${(range / 1000).toFixed(1)} km, marcação ${bearing.toFixed(0)}°`, 'Ameaça');
       break;
@@ -207,10 +207,11 @@ export function extCommand(e: SimulationEngine, c: ExtCommand): void {
         ins.events = [];
         log('Instrutor: eventos programados removidos', 'Instrutor');
       } else if (c.action === 'rearm') {
-        for (const ev of ins.events) if (!c.id || ev.id === c.id) {
-          ev.fired = false;
-          ev.firedAt = undefined;
-        }
+        for (const ev of ins.events)
+          if (!c.id || ev.id === c.id) {
+            ev.fired = false;
+            ev.firedAt = undefined;
+          }
       }
       break;
     }

@@ -19,7 +19,7 @@ function Board({ e }: { e: SimulationEngine }) {
   const px = (x: number) => ((x + L / 2) / L) * W;
   const dmg = v.damage ?? defaultDamage();
   return (
-    <svg className="p3-svg" viewBox={`0 0 ${W} ${H + 60}`} role="img" aria-label="Quadro de avarias: perfil do casco com os compartimentos">
+    <svg className="p3-svg" viewBox={`0 0 ${W} ${H + 74}`} style={{ maxWidth: 860, margin: '0 auto' }} role="img" aria-label="Quadro de avarias: perfil do casco com os compartimentos">
       <text x={4} y={14} fontSize={11} fill="var(--muted)">
         ← ré
       </text>
@@ -93,15 +93,15 @@ export function DamageControlScreen() {
       <Panel title="Quadro de avarias" className="span-all">
         <Board e={e} />
         <p className="subtle">
-          Água no porão (azul) até o máximo de 60 % do volume do compartimento, incêndios e portas estanques. As portas começam fechadas (condição de mergulho);
-          abertas, a água acima de {fmt(d.doorSill * 100, 0)} % de enchimento passa para o compartimento vizinho e um incêndio forte pode se propagar.
+          Água no porão (azul) até o máximo de 60 % do volume do compartimento, incêndios e portas estanques. As portas começam fechadas (condição de mergulho); abertas, a água acima de {fmt(d.doorSill * 100, 0)} % de
+          enchimento passa para o compartimento vizinho e um incêndio forte pode se propagar.
         </p>
       </Panel>
 
-      <Panel title="Esgoto do porão">
+      <Panel title="Esgoto do porão" className="span2">
         <p className="subtle">
-          A bomba descarrega ao mar contra a pressão externa: Q = Qₙ·√(1 − Δp/Δp₀). Com Δp₀ = {fmt(d.bilgePumps[0]?.shutoff / 1e5, 0)} bar ela deixa de esgotar abaixo de ≈{' '}
-          {fmt(cutoff, 0)} m — perto da superfície esgota muito mais rápido. Energia: disjuntor ESG {powered ? '(fechado)' : '— ABERTO ou sem barramento'}.
+          A bomba descarrega ao mar contra a pressão externa: Q = Qₙ·√(1 − Δp/Δp₀). Com Δp₀ = {fmt(d.bilgePumps[0]?.shutoff / 1e5, 0)} bar ela deixa de esgotar abaixo de ≈ {fmt(cutoff, 0)} m — perto da superfície esgota
+          muito mais rápido. Energia: disjuntor ESG {powered ? '(fechado)' : '— ABERTO ou sem barramento'}.
         </p>
         <div className="p3-scroll">
           <table className="t p3-table">
@@ -123,8 +123,8 @@ export function DamageControlScreen() {
                 const qmax = bilgeFlow(p.ratedFlow, p.shutoff, dp);
                 return (
                   <tr key={p.id}>
-                    <td>
-                      {p.name} <span className="subtle">({p.compartment})</span>
+                    <td title={p.name}>
+                      <b>{p.id}</b> <span className="subtle">{p.compartment}</span>
                     </td>
                     <td>
                       <OnOff on={!!ps?.cmd && powered} onText="ESGOTANDO" offText={ps?.cmd ? 'SEM ENERGIA' : 'PARADA'} />

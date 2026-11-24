@@ -47,9 +47,7 @@ function TopView({ e }: { e: SimulationEngine }) {
           <g key={t.id}>
             <rect x={hx - 7} y={hy - 12} width={14} height={24} rx={4} fill="#3a556f" stroke="#9fc3e0" />
             {ts.mode === 'puxar' && <line x1={cx + side * (D / 2) * k * 1.4} y1={hy} x2={hx} y2={hy} stroke="#d9c58a" strokeDasharray="3 2" />}
-            {len > 1 && (
-              <line x1={cx} y1={hy} x2={cx + fx} y2={hy + fy} stroke="#a98bff" strokeWidth={3} markerEnd="url(#tugArrow)" />
-            )}
+            {len > 1 && <line x1={cx} y1={hy} x2={cx + fx} y2={hy + fy} stroke="#a98bff" strokeWidth={3} markerEnd="url(#tugArrow)" />}
             <text x={hx} y={hy + 26} textAnchor="middle" fontSize={9} fill="var(--text)">
               {t.id}
             </text>
@@ -85,7 +83,10 @@ export function HarborScreen() {
             <div key={t.id} style={{ borderBottom: '1px solid var(--line)', padding: '6px 0' }}>
               <div className="btnrow">
                 <b style={{ flex: '1 1 140px' }}>
-                  {t.name} <span className="subtle">(x = {fmt(t.x, 0)} m, até {fmtForce(t.bollardPull)})</span>
+                  {t.name}{' '}
+                  <span className="subtle">
+                    (x = {fmt(t.x, 0)} m, até {fmtForce(t.bollardPull)})
+                  </span>
                 </b>
                 <OnOff on={ts.connected && ts.level > 0.01} onText={`${ts.mode.toUpperCase()} ${fmt(ts.level * 100, 0)} %`} offText={ts.mode === 'livre' ? 'LARGADO' : 'SEM TRAÇÃO'} />
               </div>
@@ -126,8 +127,8 @@ export function HarborScreen() {
           </button>
         </div>
         <p className="subtle">
-          Empurrando, a força vai do bordo do rebocador para o outro; puxando pelo cabo, para fora. Os dois do mesmo lado deslocam o casco de lado; em lados opostos (ou só
-          um) fazem o casco girar. O ângulo inclina a força para vante (+) ou para ré (−). Só com o submarino na superfície.
+          Empurrando, a força vai do bordo do rebocador para o outro; puxando pelo cabo, para fora. Os dois do mesmo lado deslocam o casco de lado; em lados opostos (ou só um) fazem o casco girar. O ângulo inclina a
+          força para vante (+) ou para ré (−). Só com o submarino na superfície.
         </p>
       </Panel>
       <Panel title="Resultado no casco">

@@ -62,7 +62,15 @@ export function DebriefScreen() {
                   <tr key={i}>
                     <td className="num">{fmtTime(ev.fired)}</td>
                     <td>{ev.label}</td>
-                    <td>{ev.reaction !== null ? <span title={ev.firstCommand ?? ''}>{fmt(ev.reaction, 0)} s — {ev.firstCommand}</span> : <ToneBadge tone="warn" text="SEM REAÇÃO" />}</td>
+                    <td>
+                      {ev.reaction !== null ? (
+                        <span title={ev.firstCommand ?? ''}>
+                          {fmt(ev.reaction, 0)} s — {ev.firstCommand}
+                        </span>
+                      ) : (
+                        <ToneBadge tone="warn" text="SEM REAÇÃO" />
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

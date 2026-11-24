@@ -1738,5 +1738,17 @@ kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radiu
 .p3-field { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .p3-field input[type='range'] { width: min(220px, 60vw); }
 .p3-field input[type='number'] { width: 80px; }
-.p3-field select { max-width: 100%; }
+.p3-field select { max-width: 100%; min-width: 0; }
+.p3-field { max-width: 100%; min-width: 0; }
+.p3-wide { flex: 1 1 100%; }
+.p3-wide select { flex: 1 1 auto; width: 100%; }
 .tm-air { background: transparent; border: 0; color: #e9f8ff; font-size: 18px; line-height: 20px; text-align: center; text-shadow: 0 0 3px #000; }
+
+/* paleta de comandos (components/CommandPalette.tsx, Ctrl+K) */
+.palette-back { position: fixed; inset: 0; background: rgba(2, 6, 11, 0.55); z-index: 90; display: flex; justify-content: center; align-items: flex-start; padding: 10vh 16px 16px; }
+.palette { width: min(620px, 100%); background: var(--bg2, #0e1724); border: 1px solid var(--line2); border-radius: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.palette input { width: 100%; box-sizing: border-box; padding: 12px 14px; font-size: 16px; background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--text); outline: none; }
+.palette ul { list-style: none; margin: 0; padding: 4px 0; max-height: 52vh; overflow-y: auto; }
+.palette li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 14px; cursor: pointer; flex-wrap: wrap; }
+.palette li.sel { background: rgba(54, 197, 240, 0.14); }
+.palette-foot { padding: 6px 14px; border-top: 1px solid var(--line); font-size: 11px; }

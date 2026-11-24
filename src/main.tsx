@@ -58,3 +58,11 @@ if (isVisualWindow || isPanelWindow) {
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode>{isVisualWindow ? <VisualApp /> : <App />}</StrictMode>);
+
+// uso offline e instalação como aplicativo (public/sw.js): só no site (http/https), nunca no executável (file://)
+// nem no servidor de desenvolvimento
+if (import.meta.env.PROD && typeof navigator !== 'undefined' && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !isVisualWindow && !isPanelWindow) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+  });
+}

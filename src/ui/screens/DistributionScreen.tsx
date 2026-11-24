@@ -67,8 +67,8 @@ export function DistributionScreen() {
           </table>
         </div>
         <p className="subtle">
-          Disjuntor aberto: o equipamento fica sem energia (bombas param, o motor perde o torque, a hidráulica deixa de recarregar) e a carga sai do balanço. NAV
-          alimenta também o sonar. A rejeição automática só age com o barramento energizado e sobrecarregado.
+          Disjuntor aberto: o equipamento fica sem energia (bombas param, o motor perde o torque, a hidráulica deixa de recarregar) e a carga sai do balanço. NAV alimenta também o sonar. A rejeição automática só age com
+          o barramento energizado e sobrecarregado.
         </p>
       </Panel>
       <Panel title="Temperatura da bateria">

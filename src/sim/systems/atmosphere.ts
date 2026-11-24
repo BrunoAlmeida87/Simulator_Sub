@@ -33,8 +33,13 @@ export function ventilationAch(cfg: VesselConfig, s: SimState, powered: boolean)
   return (s.atmosphere.ventFan && powered ? a.ventAch : 0) + a.dieselAch * diesels;
 }
 
-export function updateAtmosphere(cfg: VesselConfig, s: SimState, dt: number, powered: boolean): void {
-  const at = (s.atmosphere ??= initAtmosphere(cfg));
+/**
+ * Taxas (kg/s, + entrando no ar) sem a ventilação: pessoas, O₂ de reserva (se liberando), absorvedores,
+ * gaseificação da recarga, queimadores e incêndios. Função pura: o passo e as telas usam a mesma conta.
+ */
+export function atmosphereRates(cfg: VesselConfig, s: SimState, powered: boolean): { o2: number; co2: number; h2: number; co: number } {
+  const at = s.atmosphere;
+  if (!at) return { o2: 0, co2: 0, h2: 0, co: 0 };
   const a = cfg.atmosphere ?? defaultAtmosphere();
   const x = atmosphereFractions(at);
   const people = peopleAboard(cfg, s);
@@ -42,13 +47,7 @@ export function updateAtmosphere(cfg: VesselConfig, s: SimState, dt: number, pow
   let dCO2 = people * a.co2Make;
   let dH2 = 0;
   let dCO = 0;
-  // reserva de O₂
-  if (at.o2Release && at.o2Stock > 0) {
-    const r = Math.min(a.o2Rate, at.o2Stock / dt);
-    dO2 += r;
-    at.o2Stock = Math.max(0, at.o2Stock - r * dt);
-    if (at.o2Stock <= 0) at.o2Release = false;
-  }
+  if (at.o2Release && at.o2Stock > 0) dO2 += a.o2Rate;
   if (at.scrubbers && powered) dCO2 -= a.scrubberRate * x.co2;
   // gaseificação no fim da recarga (corrente negativa = recarga)
   const I = s.electrical.current;
@@ -62,6 +61,24 @@ export function updateAtmosphere(cfg: VesselConfig, s: SimState, dt: number, pow
     dO2 -= f.o2Use * fire.intensity * oxy;
     dCO2 += f.co2Make * fire.intensity * oxy;
     dCO += f.coMake * fire.intensity;
+  }
+  return { o2: dO2, co2: dCO2, h2: dH2, co: dCO };
+}
+
+export function updateAtmosphere(cfg: VesselConfig, s: SimState, dt: number, powered: boolean): void {
+  const at = (s.atmosphere ??= initAtmosphere(cfg));
+  const a = cfg.atmosphere ?? defaultAtmosphere();
+  const r = atmosphereRates(cfg, s, powered);
+  let dO2 = r.o2;
+  const dCO2 = r.co2;
+  const dH2 = r.h2;
+  const dCO = r.co;
+  // reserva de O₂: limitada ao que resta no passo
+  if (at.o2Release && at.o2Stock > 0) {
+    const used = Math.min(a.o2Rate, at.o2Stock / dt);
+    dO2 += used - a.o2Rate;
+    at.o2Stock = Math.max(0, at.o2Stock - used * dt);
+    if (at.o2Stock <= 0) at.o2Release = false;
   }
   at.rates = { o2: dO2, co2: dCO2, h2: dH2, co: dCO };
   at.o2 = Math.max(0, at.o2 + dO2 * dt);
@@ -86,12 +103,14 @@ export function updateAtmosphere(cfg: VesselConfig, s: SimState, dt: number, pow
  * Autonomia estimada com as taxas atuais (horas) até O₂ < 17 % ou CO₂ > 3 % (o que vier antes);
  * Infinity se nenhuma das duas piora.
  */
-export function atmosphereEndurance(cfg: VesselConfig, s: SimState): { hours: number; limit: 'O₂' | 'CO₂' | null } {
+export function atmosphereEndurance(cfg: VesselConfig, s: SimState, powered = s.electrical.energized && (s.distribution?.breakers.HOTEL ?? true)): { hours: number; limit: 'O₂' | 'CO₂' | null } {
   const at = s.atmosphere;
   if (!at) return { hours: Infinity, limit: null };
   const n = airMoles(cfg);
-  const tO2 = at.rates.o2 < 0 ? (at.o2 - 0.17 * n * M_O2) / -at.rates.o2 : Infinity;
-  const tCO2 = at.rates.co2 > 0 ? (0.03 * n * M_CO2 - at.co2) / at.rates.co2 : Infinity;
+  // sem ventilação (pior caso submerso): as taxas atuais de consumo e produção
+  const r = atmosphereRates(cfg, s, powered);
+  const tO2 = r.o2 < 0 ? (at.o2 - 0.17 * n * M_O2) / -r.o2 : Infinity;
+  const tCO2 = r.co2 > 0 ? (0.03 * n * M_CO2 - at.co2) / r.co2 : Infinity;
   const t = Math.max(0, Math.min(tO2, tCO2));
   return { hours: t / 3600, limit: !Number.isFinite(t) ? null : tO2 <= tCO2 ? 'O₂' : 'CO₂' };
 }
@@ -102,4 +121,3 @@ export function atmospherePercent(s: SimState): { o2: number; co2: number; h2: n
   const x = atmosphereFractions(s.atmosphere);
   return { o2: x.o2 * 100, co2: x.co2 * 100, h2: x.h2 * 100, coPpm: x.co * 1e6 };
 }
-

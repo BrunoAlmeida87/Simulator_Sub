@@ -157,7 +157,16 @@ export class ThreatVis {
     return v;
   }
 
-  update(e: SimulationEngine, pn: number, pe: number, layers: { threats?: boolean; tugs?: boolean; labels?: boolean }, dtVis: number, elev: (n: number, e: number) => number, labels: Label3D[] | null, proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean }): void {
+  update(
+    e: SimulationEngine,
+    pn: number,
+    pe: number,
+    layers: { threats?: boolean; tugs?: boolean; labels?: boolean },
+    dtVis: number,
+    elev: (n: number, e: number) => number,
+    labels: Label3D[] | null,
+    proj: (v: THREE.Vector3) => { x: number; y: number; visible: boolean },
+  ): void {
     const s = e.state;
     const shift = this.tmp.set(pe - this.lastPe, 0, -(pn - this.lastPn)).clone();
     this.lastPn = pn;
@@ -165,7 +174,7 @@ export class ThreatVis {
     const showThreats = layers.threats !== false;
     // --- torpedos inimigos
     const alive = new Set<string>();
-    for (const tp of showThreats ? s.threat?.torpedoes ?? [] : []) {
+    for (const tp of showThreats ? (s.threat?.torpedoes ?? []) : []) {
       if (tp.phase === 'impacto' || tp.phase === 'fim') continue;
       alive.add(tp.id);
       const v = this.torpVis(tp.id);
@@ -197,7 +206,7 @@ export class ThreatVis {
     }
     // --- despistadores
     const liveD = new Set<string>();
-    for (const dc of showThreats ? s.threat?.decoys ?? [] : []) {
+    for (const dc of showThreats ? (s.threat?.decoys ?? []) : []) {
       liveD.add(dc.id);
       let v = this.decoys.get(dc.id);
       if (!v) {
@@ -239,7 +248,17 @@ export class ThreatVis {
       if (b) b.visible = Math.floor(s.t * 1.5) % 2 === 0;
       if (labels) {
         const p = proj(this.aircraft.position);
-        labels.push({ id: 'thr_air', text: '✈ Aeronave de patrulha', sub: ac.detectedAt != null && s.t - ac.detectedAt < 60 ? '▲ detectou o SX-1' : 'exercício', color: '#e9f8ff', small: true, prio: 1, x: p.x, y: p.y, visible: p.visible });
+        labels.push({
+          id: 'thr_air',
+          text: '✈ Aeronave de patrulha',
+          sub: ac.detectedAt != null && s.t - ac.detectedAt < 60 ? '▲ detectou o SX-1' : 'exercício',
+          color: '#e9f8ff',
+          small: true,
+          prio: 1,
+          x: p.x,
+          y: p.y,
+          visible: p.visible,
+        });
       }
     } else if (this.aircraft) this.aircraft.visible = false;
     // --- rebocadores

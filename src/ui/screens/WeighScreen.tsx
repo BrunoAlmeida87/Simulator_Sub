@@ -55,8 +55,8 @@ export function WeighScreen() {
           </button>
         </div>
         <p className="subtle">
-          Mesmo cálculo da preparação dos cenários: TLP cheios, nivelado, densidade e compressão do casco na profundidade escolhida, com todas as cargas a bordo. O botão
-          manda as sequências de admissão/esgoto e de transferência (telas Lastro e Trim acompanham). {sol.message}
+          Mesmo cálculo da preparação dos cenários: TLP cheios, nivelado, densidade e compressão do casco na profundidade escolhida, com todas as cargas a bordo. O botão manda as sequências de admissão/esgoto e de
+          transferência (telas Lastro e Trim acompanham). {sol.message}
         </p>
       </Panel>
       <Panel title="Previsto × real (depois do mergulho)">

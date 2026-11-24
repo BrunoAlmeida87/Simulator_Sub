@@ -45,7 +45,16 @@ src/sim/              FÍSICA (não depende de UI nem de 3D)
                       signals.ts (SINALIZAÇÃO & EMERGÊNCIA: lançador selecionar→preparar→liberar, inventário, subida,
                       superfície, luz/fumaça/estrela/boia, falhas F01–F07 no catálogo 'failure' (signal:<id>), comando 'signal';
                       vessel.signals = defaultSignals()); teste tests/signals.test.ts
-  environment/        água do mar, ondas
+                      FASE 3 (config/extSystems.ts = parâmetros; core/extState.ts = estado e init; extCommands.ts = comandos;
+                      tudo opcional e desligado por padrão): atmosphere.ts (O₂/CO₂/H₂/CO, autonomia), damage.ts (esgoto limitado
+                      pela pressão, portas estanques, incêndio), distribution.ts (disjuntores por carga: o motor do passo troca
+                      ctx.busPowered por carga; rejeição automática; temperatura da bateria), masts.ts (mastros expostos),
+                      navigation.ts (incerteza e correção por GPS), stealth.ts (indiscrição, aeronave, contra-detecção),
+                      threat.ts (torpedo inimigo e despistadores), tugs.ts (rebocadores: força externa em ForceInputs.tugs),
+                      instructor.ts (eventos programados, disparados no início do passo com origem 'instrutor');
+                      teste tests/phase3.test.ts
+  environment/        água do mar, ondas; corrente marinha opcional (Environment.currentAt; a hidrodinâmica usa a
+                      velocidade relativa à água via ForceInputs.current)
   commands.ts         ÚNICA via para alterar a simulação (tipo Command + applyCommand)
   scenarios.ts        cenários iniciais (SCENARIOS)
   forceVectors.ts     vetores de força para exibição (peso/empuxo/resultante, hélice, lemes, trim)
@@ -72,6 +81,7 @@ src/render3d/         CENA 3D (só LÊ o estado; nunca altera a física)
                       vistas 'sinal' / 'sinalSuperficie' / 'boia'; SignalPreview.ts = prévia 3D (painel + dispositivo) da tela;
                       teste tests/signalModels.test.ts
   missileCam.ts       câmera "Míssil cinematográfica" (diretor de planos por fase); a vista "Míssil" segue como a do torpedo
+  ThreatVis.ts        camadas 'threats' (torpedo inimigo, despistadores, aeronave) e 'tugs' (rebocadores com o GLB da galeria)
   EnemyVis.ts         submarinos inimigos (casco que se parte e afunda) e explosões (função da idade: 2ª janela igual);
                       vista 'alvo' e órbita livre nas vistas 'torpedo'/'alvo' (SubmarineScene: followUser)
   TubeStage.ts        tubo lançador em 3D etapa a etapa (cena própria, tela Armas; UI: components/TubeStage3D.tsx)
@@ -126,6 +136,11 @@ src/ui/               INTERFACE (React)
   screens/            uma tela por aba (Pilot, View3D, Presentation, TacticalMap, EnergyFlow, Ballast, ControlRoom…)
                       SystemsOverview (Sistemas › Visão geral: cartões por sistema)
                       sala: RoomPip (submarino 3D em PiP), RoomPeriscope (visada), periMarks, roomAudio (som e 1MC)
+  screens/ (Fase 3)   AtmosphereScreen, DamageControlScreen, InstructorScreen (modos de Segurança), DistributionScreen (modo de
+                      Propulsão), StealthScreen (modo de Armas: Ameaças e discrição), HarborScreen (modo de Operação: Manobra de porto),
+                      WeighScreen (modo de Lastro: Pesagem), DebriefScreen (modo de Histórico; lógica em ui/debrief.ts),
+                      LabsScreen (grupo Laboratórios); peças comuns em components/StatusBits.tsx
+  components/CommandPalette.tsx  paleta Ctrl+K (telas e ações seguras; atalhos suspensos com ela aberta)
   screens/SignalsScreen.tsx  tela Sinalização & Emergência (Operação, depois de Armas): estado, seleção com prévia 3D,
                       lançamento com confirmação, inventário, sinais liberados, boia, falhas, eventos, vista 3D
   screens/WeaponsScreen.tsx  tela Armas (tubos, AUTO/passo a passo, dados de tiro, inimigo, tubo 3D, torpedos, plotagem, 3D)
@@ -181,6 +196,8 @@ docs/                 OPERACAO, ARQUITETURA, EQUACOES, PARAMETROS, LIMITACOES, V
   `act.cmd(...)`; o teste `tests/controlRoom.test.ts` executa todas as regiões e confere os comandos. Telas pesadas: manter
   o redesenho por `hz` e o orçamento por quadro do `ControlRoomScene.render()`.
 - Ao mudar parâmetros físicos, conferir `npm test` e atualizar `docs/PARAMETROS.md`.
+- **PWA:** `public/sw.js` (service worker) e `public/manifest.webmanifest`; registrado só em produção e em http(s) (nunca no executável).
+  Arquivos em `public/` sem hash no nome são atualizados em segundo plano (o primeiro acesso depois de um deploy pode ver a versão anterior).
 - Ao criar funções visíveis ao usuário, atualizar `docs/OPERACAO.md` (e o README se for recurso novo).
 
 ## Verificação visual

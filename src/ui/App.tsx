@@ -19,6 +19,7 @@ import { TopBar } from './components/TopBar';
 import { visibleAlarms } from '../sim/systems/alarms';
 import { AlarmBand } from './components/AlarmBand';
 import { PresFloating } from './components/PresFloating';
+import { CommandPalette } from './components/CommandPalette';
 import { presPlayer } from './presBuilder/player';
 import { isScreenId, screenForKey, screenLabel } from './nav';
 import { useGraphics } from './graphics';
@@ -123,6 +124,33 @@ export function App() {
   const [showProcedure, setShowProcedure] = useState(false);
   // modo palco (F): sem barra nem navegação — só a tela, os alarmes e um botão para sair
   const [stage, setStage] = useState(false);
+  const [palette, setPaletteState] = useState(false);
+  // a ref muda na hora (antes do React redesenhar): teclas digitadas logo depois do Ctrl+K não viram atalhos
+  const paletteOpen = useRef(false);
+  const setPalette = (v: boolean | ((x: boolean) => boolean)) =>
+    setPaletteState((x) => {
+      const n = typeof v === 'function' ? v(x) : v;
+      paletteOpen.current = n;
+      return n;
+    });
+  // paleta de comandos: Ctrl+K / ⌘K em qualquer tela (mesmo com o foco num campo)
+  useEffect(() => {
+    const onK = (ev: KeyboardEvent) => {
+      if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === 'k') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        paletteOpen.current = !paletteOpen.current;
+        setPalette(paletteOpen.current);
+      }
+    };
+    const onEv = () => setPalette(true);
+    window.addEventListener('keydown', onK, true);
+    window.addEventListener('sx1-palette', onEv);
+    return () => {
+      window.removeEventListener('keydown', onK, true);
+      window.removeEventListener('sx1-palette', onEv);
+    };
+  }, []);
   const [resume, setResume] = useState(() => (isPanelWindow ? null : storage.getAutosave()));
   const topRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
@@ -233,6 +261,8 @@ export function App() {
     const onKey = (ev: KeyboardEvent) => {
       const t = ev.target as HTMLElement;
       if (screen === 'modelos') return;
+      // com a paleta de comandos aberta as teclas são dela (busca), não atalhos
+      if (paletteOpen.current) return;
       const focus = classifyFocus(t, focusFromKeyboard());
       if (shortcutAction(focus, ev.key) === 'nativo') return;
       // botão focado por clique: perde o foco antes de Espaço, senão o navegador repete o último clique
@@ -388,6 +418,7 @@ export function App() {
           </div>
         )}
         {screen !== 'estudio' && <PresFloating onStage={() => setScreen('estudio')} />}
+        <CommandPalette open={palette} onClose={() => setPalette(false)} setScreen={setScreen} toggleStage={() => setStage((x) => !x)} />
         {isPanelWindow && <PanelWait />}
         {toastMsg && (
           <div className="toast" role="status">

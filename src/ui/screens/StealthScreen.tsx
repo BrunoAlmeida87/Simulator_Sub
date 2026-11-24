@@ -16,7 +16,7 @@ import { defaultStealth, defaultThreat } from '../../sim/config/extSystems';
 import { fmt } from '../format';
 import type { SimulationEngine } from '../../sim/core/engine';
 
-const brgTo = (e: SimulationEngine, n: number, ea: number) => (((Math.atan2(ea - e.state.body.pos.y, n - e.state.body.pos.x) * 180) / Math.PI + 360) % 360);
+const brgTo = (e: SimulationEngine, n: number, ea: number) => ((Math.atan2(ea - e.state.body.pos.y, n - e.state.body.pos.x) * 180) / Math.PI + 360) % 360;
 
 /** plotagem tática simples centrada no SX-1 (norte para cima) */
 function Plot({ e, cdr }: { e: SimulationEngine; cdr: number }) {
@@ -42,7 +42,17 @@ function Plot({ e, cdr }: { e: SimulationEngine; cdr: number }) {
           <text {...p(ac.n, ac.e)} fontSize={14} textAnchor="middle" dominantBaseline="middle" fill="#e9f8ff">
             ✈
           </text>
-          {ac.datum && <circle {...(() => { const q = p(ac.datum!.n, ac.datum!.e); return { cx: q.x, cy: q.y }; })()} r={5} fill="none" stroke="var(--warn)" />}
+          {ac.datum && (
+            <circle
+              {...(() => {
+                const q = p(ac.datum!.n, ac.datum!.e);
+                return { cx: q.x, cy: q.y };
+              })()}
+              r={5}
+              fill="none"
+              stroke="var(--warn)"
+            />
+          )}
         </g>
       )}
       {th?.decoys.map((d) => {
@@ -92,18 +102,25 @@ export function StealthScreen() {
   return (
     <div className="grid">
       <Panel title="Exposição e indiscrição">
-        <div className="btnrow">
-          {st.exposed.length ? <ToneBadge tone="warn" text={`EXPOSTO: ${st.exposed.join(', ')}`} /> : <ToneBadge tone="" text="NADA EXPOSTO" />}
-        </div>
-        <LevelRow label="Taxa de indiscrição (última hora)" value={ratio * 100} unit="%" digits={0} max={100} warn={10} alarm={25} note="Fração do tempo com mastro ou casco fora d’água. Recarregar a bateria pelo snorkel aumenta a taxa: esse é o compromisso do submarino convencional." />
+        <div className="btnrow">{st.exposed.length ? <ToneBadge tone="warn" text={`EXPOSTO: ${st.exposed.join(', ')}`} /> : <ToneBadge tone="" text="NADA EXPOSTO" />}</div>
+        <LevelRow
+          label="Taxa de indiscrição (última hora)"
+          value={ratio * 100}
+          unit="%"
+          digits={0}
+          max={100}
+          warn={10}
+          alarm={25}
+          note="Fração do tempo com mastro ou casco fora d’água. Recarregar a bateria pelo snorkel aumenta a taxa: esse é o compromisso do submarino convencional."
+        />
         <svg className="p3-svg" viewBox="0 0 300 40" role="img" aria-label="Exposição por minuto na última hora">
           {st.bins.map((b, i) => {
             const k = (i - st.binIndex - 1 + 120) % 60;
             const hgt = (Math.min(60, b) / 60) * 36;
-            return <rect key={i} x={k * 5} y={38 - hgt} width={4} height={hgt} fill={b > 0 ? 'var(--warn)' : 'var(--line)'} />;
+            return <rect key={i} x={k * 5} y={38 - Math.max(1, hgt)} width={4} height={Math.max(1, hgt)} fill={b > 0 ? '#a98bff' : 'var(--line)'} />;
           })}
         </svg>
-        <div className="subtle">Cada barra = 1 min (a mais recente à direita).</div>
+        <div className="subtle">Cada barra = 1 min (a mais recente à direita); altura = segundos expostos.</div>
       </Panel>
 
       <Panel title="Ruído irradiado e contra-detecção">
@@ -113,7 +130,7 @@ export function StealthScreen() {
               <span>{x.name}</span>
               <b className="num">{fmt(x.level, 0)} dB</b>
             </div>
-            <HBar value={x.level} min={20} max={80} color={x.level >= own - 3 ? 'var(--warn)' : 'var(--accent)'} />
+            <HBar value={x.level} min={20} max={80} color={x.level >= own - 3 ? '#a98bff' : 'var(--accent)'} />
           </div>
         ))}
         <KV
@@ -124,7 +141,7 @@ export function StealthScreen() {
             ['Contra-detecção (oponente DI ' + sc.enemySonar.di + ', DT ' + sc.enemySonar.dt + ')', `${fmt(cdr / 1000, 1)} km`],
           ]}
         />
-        <p className="subtle">Ilustrativo: TL = 20·log r + 0,07 dB/km. Diesel e alta rotação dominam; com o diesel parado e baixa rotação o alcance cai muito.</p>
+        <p className="subtle">Ilustrativo: TL = 20·log r + 0,07 dB/km. A fonte dominante aparece em violeta. Diesel e alta rotação dominam; com o diesel parado e baixa rotação o alcance cai muito.</p>
       </Panel>
 
       <Panel title="Plotagem">
@@ -190,7 +207,7 @@ export function StealthScreen() {
                     <td>{t.phase}</td>
                     <td className="num">{fmt(Math.hypot(t.n - s.body.pos.x, t.e - s.body.pos.y) / 1000, 2)} km</td>
                     <td className="num">{fmt(brgTo(e, t.n, t.e), 0)}°</td>
-                    <td>{t.target === 'sx1' ? '◆ SX-1' : t.target ?? '—'}</td>
+                    <td>{t.target === 'sx1' ? '◆ SX-1' : (t.target ?? '—')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -220,8 +237,8 @@ export function StealthScreen() {
           </button>
         </div>
         <p className="subtle">
-          Autodiretor com cone de ±{tc.torpedo.seekerCone}° e {fmt(tc.torpedo.seekerRange / 1000, 1)} km; escolhe o alvo de maior sinal. Evasão: reduzir o ruído (baixa
-          rotação, diesel parado), lançar o despistador e afastar-se dele com guinada e mudança de cota.
+          Autodiretor com cone de ±{tc.torpedo.seekerCone}° e {fmt(tc.torpedo.seekerRange / 1000, 1)} km; escolhe o alvo de maior sinal. Evasão: reduzir o ruído (baixa rotação, diesel parado), lançar o despistador e
+          afastar-se dele com guinada e mudança de cota.
         </p>
       </Panel>
     </div>

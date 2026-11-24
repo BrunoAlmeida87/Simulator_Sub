@@ -6,6 +6,7 @@ import type { SimulationEngine } from './core/engine';
 import { toKnots } from './units';
 import { bankPressure } from './systems/hpAir';
 import { tankVolume } from './systems/internalTanks';
+import { atmospherePercent } from './systems/atmosphere';
 
 export interface ChannelDef {
   id: string;
@@ -47,6 +48,11 @@ export const CHANNELS: ChannelDef[] = [
   { id: 'power', label: 'Demanda elétrica total', unit: 'kW', kind: 'MED', get: (e) => e.state.electrical.totalLoad / 1000 },
   { id: 'hp', label: 'Pressão AP (grupo 1)', unit: 'bar', kind: 'MED', get: (e) => bankPressure(e.vessel.hpAir, e.vessel.hpAir.banks[0].id, e.state.hpAir.banks[e.vessel.hpAir.banks[0].id].mass) / 1e5 },
   { id: 'rho', label: 'Densidade local', unit: 'kg/m³', kind: 'CALC', get: (e) => e.outputs.rhoLocal },
+  // sistemas da Fase 3
+  { id: 'o2', label: 'O₂ no ar interno', unit: '%', kind: 'VERD', get: (e) => atmospherePercent(e.state)?.o2 ?? NaN },
+  { id: 'co2', label: 'CO₂ no ar interno', unit: '%', kind: 'VERD', get: (e) => atmospherePercent(e.state)?.co2 ?? NaN },
+  { id: 'battT', label: 'Temperatura da bateria', unit: '°C', kind: 'VERD', get: (e) => e.state.distribution?.batteryTemp ?? NaN },
+  { id: 'flood', label: 'Água nos porões', unit: 't', kind: 'VERD', get: (e) => Object.values(e.state.flooding).reduce((a, f) => a + f.water, 0) / 1000 },
 ];
 
 export interface HistorySnapshot {

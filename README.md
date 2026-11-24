@@ -79,6 +79,16 @@ Não é um jogo: as respostas do submarino vêm de um **motor físico independen
 | Ambiente marítimo | ✅ Navios adicionais configuráveis (0–20) em água com calado suficiente e sem sobreposição, no 3D e no mapa; mais peixes; referências discretas de profundidade (faixas de partículas e sombra no fundo); descarga dos diesel-geradores em bolhas atrás da vela, abaixo d'água, e aspiração de ar pelo snorkel; vento aparente discreto (vem da proa com o avanço) e flâmula opcional na vela; camadas do 3D em grupos; 2ª janela com o 3D completo |
 | Rio de Janeiro e iluminação | ✅ Baía de Guanabara e orla do Leme ao Pontal com relevo e imagem de satélite, Cristo Redentor, Ponte Rio–Niterói, nomes dos lugares, navios da região e dois cenários; sol pela hora do dia com amanhecer, pôr do sol e noite com luar e estrelas; luzes de navegação (RIPEAM) no submarino e nos navios; faróis do submarino e água escura; luzes da cidade à noite; dois submarinos atracados no estaleiro de Itaguaí |
 | Navios e costa no 3D | ✅ Contatos da mesa tática como navios 3D na mesma posição; costa de Sepetiba embutida (offline) com terra, orla e fundo costeiro na física; Estaleiro e Base Naval da Ilha da Madeira no lugar real (satélite Sentinel-2), com aterro, quebra-mares, shiplift e bacia dragada na física e no mapa |
+| Atmosfera interna | ✅ O₂, CO₂, H₂ e CO do ar com tripulação, absorvedores, queimadores de H₂ (recarga da bateria), O₂ de reserva, ventilação pelo snorkel, autonomia e alarmes (Segurança › Atmosfera) |
+| Controle de avarias | ✅ Quadro de avarias com bombas de esgoto que perdem vazão com a profundidade, portas estanques com passagem de água e incêndio com detecção, combate e efeito na atmosfera |
+| Distribuição elétrica | ✅ Disjuntor por carga (o equipamento fica sem energia de verdade), rejeição automática por prioridade e temperatura da bateria |
+| Corrente e navegação | ✅ Corrente marinha na física (velocidade relativa à água, maré), posição estimada com incerteza que cresce e correção por GPS com antena fora d’água, no mapa tático |
+| Discrição e ameaças | ✅ Taxa de indiscrição, ruído irradiado por fonte e contra-detecção, aeronave de patrulha com radar × MAGE, torpedo de exercício contra o SX-1 e despistadores (Armas › Ameaças e discrição, mapa e 3D) |
+| Manobra de porto | ✅ Dois rebocadores empurrando ou puxando o casco na superfície (tração, bordo e ângulo), com o modelo 3D da galeria |
+| Laboratórios | ✅ Grupo próprio: curva GZ e prova de inclinação, flutuabilidade × profundidade, lemes e estol, ar comprimido × profundidade |
+| Instrutor e debriefing | ✅ Falhas e ameaças programadas por tempo ou condição (salvas com a sessão) e avaliação pós-exercício com nota indicativa e relatório |
+| Pesagem | ✅ Cálculo de compensação antes de mergulhar (previsto × real) com aplicação pelas sequências automáticas |
+| Paleta de comandos e uso offline | ✅ Ctrl+K abre qualquer tela ou ação rápida; o site funciona offline e pode ser instalado como aplicativo |
 
 **Antecipados das Fases 2 e 3** (funcionais, mas simplificados): banda por tanques laterais, balanço de energia com bateria, diesel-geradores, combustível compensado e compressor; sensores com ruído, atraso e falhas; alarmes com prioridade e registro; gráficos históricos sincronizados; piloto automático PID; injeção de falhas (bombas, válvulas, sensores, energia, hidráulica, alagamento); termoclina; topografia do fundo.
 
@@ -272,8 +282,8 @@ Resumo (lista completa em [docs/LIMITACOES.md](docs/LIMITACOES.md)):
 
 ## Roteiro (Fases 2 e 3)
 
-- **Fase 2:** navegação inercial com deriva, distribuição elétrica com disjuntores e rejeição de cargas, soprador de baixa pressão, mais sensores redundantes e cenários de falhas combinadas.
-- **Fase 3:** ondas e correntes, sucção de superfície, superfície livre nos tanques, atmosfera interna (O₂/CO₂), refrigeração, esgoto, controle de avarias, hidrodinâmica refinada e WebAssembly, se houver ganho comprovado.
+- **Fase 2:** ~~navegação com deriva~~ (feito: incerteza e correção por GPS), ~~distribuição elétrica com disjuntores e rejeição de cargas~~ (feito), soprador de baixa pressão, mais sensores redundantes e cenários de falhas combinadas (o Instrutor já programa falhas em sequência).
+- **Fase 3:** ~~correntes~~ (feito), ~~atmosfera interna (O₂/CO₂)~~ (feito), ~~esgoto e controle de avarias~~ (feito), sucção de superfície, superfície livre nos tanques, refrigeração, hidrodinâmica refinada e WebAssembly, se houver ganho comprovado.
 
 
 ### Galeria de modelos

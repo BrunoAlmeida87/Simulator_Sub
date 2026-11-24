@@ -154,7 +154,9 @@ export function debriefText(r: DebriefReport, title: string): string {
   L.push('Descontos:');
   for (const n of r.notes) L.push(`  ${n}`);
   L.push('');
-  L.push(`Profundidade máxima ${r.maxDepth.toFixed(1)} m · pitch máx. ${r.maxPitch.toFixed(1)}° · banda máx. ${r.maxRoll.toFixed(1)}°${r.depthRms !== null ? ` · erro RMS de cota (piloto) ${r.depthRms.toFixed(2)} m` : ''}`);
+  L.push(
+    `Profundidade máxima ${r.maxDepth.toFixed(1)} m · pitch máx. ${r.maxPitch.toFixed(1)}° · banda máx. ${r.maxRoll.toFixed(1)}°${r.depthRms !== null ? ` · erro RMS de cota (piloto) ${r.depthRms.toFixed(2)} m` : ''}`,
+  );
   L.push(`Alarmes: ${r.alarms.length} (P1 ${r.byPriority[1]}, P2 ${r.byPriority[2]}, P3 ${r.byPriority[3]}, P4 ${r.byPriority[4]}); reconhecimento médio ${r.ackMean !== null ? r.ackMean.toFixed(1) + ' s' : '—'}`);
   L.push('');
   if (r.events.length) {

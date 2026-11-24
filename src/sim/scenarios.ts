@@ -8,6 +8,8 @@ import { createState, type InitialPose } from './core/initialState';
 import { settleAtSurface, solveNeutralCompensation } from './equilibrium';
 import { KNOT } from './units';
 import { hostileCommand } from './systems/missiles';
+import { spawnAircraft } from './systems/stealth';
+import { initInstructor, initTugs } from './core/extState';
 
 export type LoadCondition = 'leve' | 'normal' | 'pesada';
 
@@ -280,6 +282,112 @@ SCENARIOS.push(
     compensationDepth: 13.9,
     post: (e) => {
       hostileCommand({ s: e.state, env: e.env, heading: 0, log: (t, g) => e.log(t, g) }, 'add', { kind: 'terra', range: 4000, bearing: 0 });
+    },
+  },
+);
+
+/**
+ * SISTEMAS DA FASE 3 (acrescentados): submarino avariado no fundo, recarga no snorkel sob ameaça aérea,
+ * evasão de torpedo e manobra de porto com rebocadores. Os cenários acima continuam como eram.
+ */
+SCENARIOS.push(
+  {
+    id: 'avaria_fundo',
+    name: 'Emergência: submarino avariado no fundo (144 m)',
+    description:
+      'Pousado no fundo a 144 m com 18 t de água na praça de máquinas (rombo já vedado), motor principal em falha, bateria a 35 % e ar AP normal reduzido. O CO₂ já subiu e o O₂ caiu. Avaliar a atmosfera e a autonomia, sinalizar a posição, decidir como subir.',
+    objectives: [
+      'Ler a atmosfera (Segurança › Atmosfera): CO₂, O₂ e autonomia; ligar os absorvedores e, se preciso, o O₂ de reserva',
+      'Lançar a boia de emergência e os sinais (Operação › Sinalização & Emergência)',
+      'Tentar esgotar a praça de máquinas e ver por que a bomba não esgota a essa profundidade (Controle de avarias)',
+      'Conferir no Laboratório de ar se a reserva basta para soprar os TLP nessa profundidade; decidir o sopro de emergência',
+    ],
+    env: (c) => {
+      c.environment.bottom = { ...c.environment.bottom, mode: 'uniforme', baseDepth: 144 };
+    },
+    pose: { depth: 140.6, heading: 135, speed: 0 },
+    submerged: true,
+    compensationDepth: 140.6,
+    post: (e) => {
+      const s = e.state;
+      s.flooding.CM.water = 18000;
+      s.propulsion.failed = true;
+      s.electrical.soc = 0.35;
+      for (const b of e.vessel.hpAir.banks) if (b.purpose !== 'emergency') s.hpAir.banks[b.id].mass *= 0.3;
+      const at = s.atmosphere;
+      if (at) {
+        at.co2 *= 55; // ≈ 2,2 %
+        at.o2 *= 0.9; // ≈ 18,9 %
+        at.scrubbers = false;
+      }
+    },
+  },
+  {
+    id: 'snorkel_aeronave',
+    name: 'Recarga no snorkel sob ameaça aérea',
+    description:
+      'Cota periscópica, bateria a 45 %, snorkel içado e diesel-geradores ordenados. Uma aeronave de patrulha (exercício) voa a 45 km com radar. Carregar o máximo possível sem ser detectado: o MAGE intercepta o radar antes de a aeronave ver o mastro.',
+    objectives: [
+      'Partir os geradores e acompanhar a recarga e a taxa de indiscrição (Armas › Ameaças e discrição)',
+      'Ao alarme do MAGE, recolher o snorkel, parar os diesel e descer',
+      'Comparar o alcance de contra-detecção com e sem diesel',
+    ],
+    pose: { depth: 11.9, heading: 270, speed: 4 * KNOT },
+    submerged: true,
+    compensationDepth: 11.9,
+    post: (e) => {
+      const s = e.state;
+      s.electrical.soc = 0.45;
+      s.snorkel.cmd = true;
+      s.snorkel.pos = 1;
+      for (const g of e.vessel.electrical.generators) s.electrical.generators[g.id].cmd = true;
+      spawnAircraft(e.vessel, s, 45000, 60);
+    },
+  },
+  {
+    id: 'evasao_torpedo',
+    name: 'Evasão de torpedo com despistador',
+    description:
+      'Submerso a 80 m, 8 nós, rumo leste. Aos 20 s um torpedo de exercício (com avaria) é lançado contra o SX-1 a 6 km pela popa. Reduzir o ruído, lançar o despistador, guinar e mudar de cota para que a arma se perca.',
+    objectives: [
+      'Reconhecer o alarme de torpedo em aproximação',
+      'Lançar o despistador e afastar-se dele com guinada e mudança de cota, em baixa rotação',
+      'Acompanhar a fase do torpedo (busca, ataque, seduzido) em Armas › Ameaças e discrição e no mapa',
+      'Se houver impacto: controle de avarias e subida de emergência',
+    ],
+    pose: { depth: 80, heading: 90, speed: 8 * KNOT },
+    submerged: true,
+    compensationDepth: 80,
+    post: (e) => {
+      const ins = (e.state.instructor ??= initInstructor());
+      ins.events.push({ id: `E${++ins.seq}`, label: 'Torpedo de exercício pela popa (6 km)', at: 20, command: { type: 'threat', action: 'launch', range: 6000, bearing: 270, warhead: 'avaria' }, fired: false });
+    },
+  },
+  {
+    id: 'porto_rebocadores',
+    name: 'Manobra de porto com rebocadores — Itaguaí',
+    description:
+      'Na bacia do Estaleiro e Base Naval de Itaguaí, na superfície e parado, com dois rebocadores amarrados por boreste (proa e popa). Usar os rebocadores para afastar o casco e girar, e depois sair pela entrada dos quebra-mares com pouca máquina.',
+    objectives: [
+      'Afastar o casco de lado com os dois rebocadores empurrando pelo mesmo bordo (Operação › Manobra de porto)',
+      'Girar no lugar com um rebocador empurrando e o outro puxando',
+      'Largar os rebocadores e sair da bacia com pouca velocidade',
+    ],
+    env: (c) => {
+      c.environment.geo = { origin: { lat: -22.93041, lon: -43.85273 }, coast: true, shelfWidth: 400 };
+      c.environment.bottom = { ...c.environment.bottom, mode: 'uniforme', baseDepth: 30 };
+      if (c.environment.waves) c.environment.waves.seaState = 1;
+    },
+    pose: { depth: 2.2, heading: 214, speed: 0 },
+    submerged: false,
+    compensationDepth: 37,
+    post: (e) => {
+      const st = (e.state.tugs ??= initTugs(e.vessel));
+      for (const t of Object.values(st.tugs)) {
+        t.mode = 'empurrar';
+        t.side = 'BE';
+        t.cmd = 0;
+      }
     },
   },
 );
