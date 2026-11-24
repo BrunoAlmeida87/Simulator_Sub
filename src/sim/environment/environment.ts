@@ -3,7 +3,7 @@
  * pressão hidrostática integrada e topografia simplificada do fundo.
  *
  * Simplificações:
- *  - Sem correntes. Ondas: campo de Airy em águas profundas (waves.ts); as
+ *  - Corrente uniforme opcional (currentAt; sem cisalhamento vertical). Ondas: campo de Airy em águas profundas (waves.ts); as
  *    pressões de embornais/suspiros usam o nível médio (sem a parcela da onda).
  *  - Perfis dependem apenas da profundidade (estratificação horizontal).
  *  - A pressão é obtida integrando dp/dz = ρ(S,T,p)·g a partir da superfície
@@ -65,7 +65,22 @@ export interface EnvironmentConfig {
   waves?: WaveConfig;
   /** referência geográfica e costa — opcional (arquivos antigos: sem costa) */
   geo?: GeoConfig;
+  /** corrente marinha uniforme (opcional; ausente ou velocidade 0 = sem corrente) */
+  current?: CurrentConfig;
 }
+
+/**
+ * Corrente marinha horizontal, uniforme na área e na coluna d'água. A velocidade pode variar com a maré:
+ * v(t) = speed + tidal·sen(2πt/period). direction = para onde a corrente VAI (°, horário a partir do Norte).
+ */
+export interface CurrentConfig {
+  speed: number; // m/s
+  direction: number; // graus
+  tidal: number; // m/s (amplitude da parcela de maré)
+  period: number; // s
+}
+
+export const defaultCurrent = (): CurrentConfig => ({ speed: 0, direction: 90, tidal: 0, period: 44712 });
 
 /** padrão das sessões novas: costa desligada (os cenários existentes foram feitos para mar aberto) */
 export const defaultGeo = (): GeoConfig => ({ origin: { ...DEFAULT_ORIGIN }, coast: false, shelfWidth: 1000 });
@@ -90,9 +105,11 @@ export const defaultEnvironment = (): EnvironmentConfig => ({
   },
   waves: { seaState: 3, direction: 60, seed: 4242 },
   geo: defaultGeo(),
+  current: defaultCurrent(),
 });
 
 const TABLE_STEP = 0.5; // m
+const ZERO_CURRENT = Object.freeze({ x: 0, y: 0, z: 0 }) as { x: number; y: number; z: number };
 const TABLE_MAX = 3000; // m
 
 export class Environment {
@@ -129,6 +146,21 @@ export class Environment {
     w.seaState = seaState;
     if (direction !== undefined) w.direction = direction;
     this.waves.build(w, this.cfg.gravity);
+  }
+
+  /** corrente (m/s, NED: norte, leste, 0) no instante t — uniforme no espaço */
+  currentAt(t: number): { x: number; y: number; z: number } {
+    const c = this.cfg.current;
+    if (!c || (c.speed === 0 && c.tidal === 0)) return ZERO_CURRENT;
+    const v = c.speed + (c.tidal ? c.tidal * Math.sin((2 * Math.PI * t) / Math.max(60, c.period)) : 0);
+    const a = (c.direction * Math.PI) / 180;
+    return { x: v * Math.cos(a), y: v * Math.sin(a), z: 0 };
+  }
+
+  /** há corrente configurada? */
+  get hasCurrent(): boolean {
+    const c = this.cfg.current;
+    return !!c && (c.speed !== 0 || c.tidal !== 0);
   }
 
   /** Temperatura (°C) na profundidade z (m). Perfil com termoclina em tanh. */

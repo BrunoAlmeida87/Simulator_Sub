@@ -1,3 +1,4 @@
+import { defaultAtmosphere, defaultDamage, defaultDistribution, defaultStealth, defaultThreat, defaultTugs } from './extSystems';
 /**
  * Embarcação fictícia "SX-1 Marlim" — submarino convencional diesel-elétrico
  * de casco simples, inspirado conceitualmente em submarinos convencionais
@@ -321,6 +322,12 @@ export function defaultVessel(): VesselConfig {
     internalPressure: 101325,
     weapons: defaultWeapons(),
     signals: defaultSignals(),
+    atmosphere: defaultAtmosphere(),
+    damage: defaultDamage(),
+    distribution: defaultDistribution(),
+    stealth: defaultStealth(),
+    threat: defaultThreat(),
+    tugs: defaultTugs(),
   };
 }
 

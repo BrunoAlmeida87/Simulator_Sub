@@ -22,6 +22,8 @@ const ICON_PATHS: Record<NavGroupId, string[]> = {
   analise: ['M4 4v16h16', 'M7.5 15l3.5-4.5 3 2.5 5-6.5'],
   // ajustes
   ajustes: ['M4 7h9M18 7h2M4 17h3M12 17h8', 'M15.5 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4z', 'M9.5 15a2 2 0 1 0 0 4a2 2 0 1 0 0-4z'],
+  // frasco de laboratório
+  laboratorios: ['M9 3h6M10 3v6.2L4.6 18.4A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.6L14 9.2V3', 'M7.2 15h9.6'],
   // periscópio
   sala: ['M9.5 21V6.5A2.5 2.5 0 0 1 12 4h7v4.5h-5.5V21', 'M5 14.5h4.5M5 18h4.5'],
 };
@@ -35,6 +37,7 @@ export const GROUP_COLOR: Record<NavGroupId, string> = {
   sistemas: '#8fb7ff',
   apresentacao: '#b48cff',
   analise: '#e8dfa8',
+  laboratorios: '#7fd6d0',
   ajustes: '#9fb7cf',
   sala: '#d6a77a',
 };

@@ -12,8 +12,12 @@ describe('navegação em dois níveis (grupos → telas)', () => {
 
   it('menos itens na navegação: telas parecidas viram modos de uma tela só', () => {
     const items = NAV_GROUPS.flatMap((g) => g.screens);
-    // O Console integrado e a Sinalização & Emergência acrescentam abas independentes às 16 existentes.
-    expect(items.length).toBeLessThanOrEqual(18);
+    // O Console integrado, a Sinalização & Emergência e os Laboratórios (grupo próprio) acrescentam abas
+    // independentes às 16 existentes; os demais sistemas da Fase 3 entram como modos (porto, ameaças, avarias…).
+    expect(items.length).toBeLessThanOrEqual(19);
+    expect(primaryOf('avarias').id).toBe('seguranca');
+    expect(primaryOf('discricao').id).toBe('armas');
+    expect(primaryOf('porto').id).toBe('pilotagem');
     expect(primaryOf('comando').id).toBe('pilotagem');
     expect(primaryOf('governo').id).toBe('pilotagem');
     expect(primaryOf('energia').id).toBe('propulsao');

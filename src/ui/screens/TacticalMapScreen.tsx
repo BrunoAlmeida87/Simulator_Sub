@@ -9,6 +9,9 @@
 import { trafficAt, trafficForEnv } from '../../sim/traffic';
 import { graphics, useGraphics } from '../graphics';
 import { useEffect, useReducer, useRef, useState } from 'react';
+import { navUncertainty } from '../../sim/systems/navigation';
+import { mastExposure } from '../../sim/systems/masts';
+import { defaultCurrent } from '../../sim/environment/environment';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { runner, useSim } from '../store';
@@ -258,6 +261,23 @@ export function TacticalMapScreen() {
     const dr = nedToLatLon(origin, st.nav.drNorth, st.nav.drEast);
     L.polyline([ll(pos), ll(dr)], { color: '#c77dff', weight: 1, dashArray: '2 4' }).addTo(g);
     L.circleMarker(ll(dr), { radius: 6, color: '#c77dff', weight: 2, fill: false }).bindTooltip('Posição estimada (navegação estimada)').addTo(g);
+    // incerteza indicada da posição estimada (1σ; cresce com a distância e o tempo desde a última correção)
+    const sigma = navUncertainty(st);
+    if (sigma > 1) L.circle(ll(dr), { radius: sigma, color: '#c77dff', weight: 1, opacity: 0.7, fillOpacity: 0.06, interactive: false }).addTo(g);
+    // aeronave de patrulha (exercício), datum marcado por ela, torpedos contra o SX-1 e despistadores
+    const ac = st.stealth?.aircraft;
+    if (ac) {
+      L.marker(ll(nedToLatLon(origin, ac.n, ac.e)), { icon: L.divIcon({ className: 'tm-air', html: '✈', iconSize: [20, 20], iconAnchor: [10, 10] }), title: 'Aeronave de patrulha (exercício)' }).addTo(g);
+      if (ac.datum) L.circle(ll(nedToLatLon(origin, ac.datum.n, ac.datum.e)), { radius: 2000, color: '#f5b041', weight: 1.2, dashArray: '5 4', fill: false }).bindTooltip('Datum marcado pela aeronave').addTo(g);
+    }
+    for (const tp of st.threat?.torpedoes ?? []) {
+      if (tp.phase === 'fim' || tp.phase === 'impacto') continue;
+      const tl = ll(nedToLatLon(origin, tp.n, tp.e));
+      const h = (tp.heading * Math.PI) / 180;
+      L.polyline([tl, ll(nedToLatLon(origin, tp.n + Math.cos(h) * 600, tp.e + Math.sin(h) * 600))], { color: '#ff5257', weight: 2 }).addTo(g);
+      L.circleMarker(tl, { radius: 5, color: '#ff5257', weight: 2, fillOpacity: 0.9 }).bindTooltip(`◆ Torpedo ${tp.id} (${tp.phase})`, { permanent: true, className: 'tm-tip' }).addTo(g);
+    }
+    for (const dc of st.threat?.decoys ?? []) L.circleMarker(ll(nedToLatLon(origin, dc.n, dc.e)), { radius: 4, color: '#a98bff', weight: 2, fill: false }).bindTooltip(`Despistador ${dc.id}`).addTo(g);
     // círculos de distância
     if (rings)
       for (const r of [1, 2, 5]) {
@@ -445,6 +465,7 @@ export function TacticalMapScreen() {
             </tbody>
           </table>
         </Panel>
+        <NavCurrentPanel />
         <Panel title="Contatos de superfície (fictícios)">
           <table className="t">
             <thead>
@@ -549,5 +570,64 @@ export function TacticalMapScreen() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+/** navegação estimada (incerteza, correção por GPS) e corrente marinha */
+function NavCurrentPanel() {
+  const e = useSim(4);
+  const s = e.state;
+  const nf = s.navFix;
+  const cur = e.config.environment.current ?? defaultCurrent();
+  const [kn, setKn] = useState(() => (cur.speed * 3600) / 1852);
+  const [dir, setDir] = useState(cur.direction);
+  const [tide, setTide] = useState(() => (cur.tidal * 3600) / 1852);
+  const gps = mastExposure(e.vessel, s, e.outputs.surfaced);
+  const toMs = (k: number) => (k * 1852) / 3600;
+  return (
+    <Panel title="Navegação estimada e corrente">
+      <table className="t">
+        <tbody>
+          <tr>
+            <td style={{ color: '#c77dff' }}>Incerteza (1σ)</td>
+            <td className="mono">{fmt(navUncertainty(s), 0)} m</td>
+          </tr>
+          <tr>
+            <td>Última correção</td>
+            <td className="mono">{nf && nf.fixes ? `GPS em t = ${fmt(nf.lastFix, 0)} s (${nf.fixes}×)` : 'nenhuma (posição inicial)'}</td>
+          </tr>
+          <tr>
+            <td>Antena GPS</td>
+            <td>{gps.any ? <span className="badge ok">● FORA D’ÁGUA ({gps.list.join(', ')})</span> : <span className="badge off">○ submersa</span>}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="btnrow">
+        <button className="btn sm" disabled={!gps.any} onClick={() => cmd({ type: 'navFix', now: true })} title="Leva a posição estimada à posição do GPS (só com antena fora d’água)">
+          Corrigir pelo GPS
+        </button>
+        <button className={`btn sm ${nf?.autoFix ? 'on' : ''}`} aria-pressed={!!nf?.autoFix} onClick={() => cmd({ type: 'navFix', auto: !nf?.autoFix })}>
+          Correção automática
+        </button>
+      </div>
+      <div className="btnrow">
+        <label className="p3-field">
+          corrente <input type="number" min={0} max={5} step={0.1} value={Number(kn.toFixed(2))} onChange={(ev) => setKn(Number(ev.target.value))} /> nós
+        </label>
+        <label className="p3-field">
+          para <input type="number" min={0} max={359} step={5} value={dir} onChange={(ev) => setDir(Number(ev.target.value))} />°
+        </label>
+        <label className="p3-field">
+          maré ± <input type="number" min={0} max={3} step={0.1} value={Number(tide.toFixed(2))} onChange={(ev) => setTide(Number(ev.target.value))} /> nós
+        </label>
+        <button className="btn sm" onClick={() => cmd({ type: 'current', speed: toMs(kn), direction: dir, tidal: toMs(tide) })}>
+          Aplicar corrente
+        </button>
+      </div>
+      <p className="subtle">
+        A posição estimada integra o Doppler, que mede a velocidade em relação à água: com corrente, ela se afasta da verdadeira (o círculo violeta mostra a incerteza
+        indicada). Corrija pelo GPS na cota periscópica. A corrente arrasta o próprio navio sobre o fundo e também o torpedo de exercício inimigo e os despistadores (Discrição e ameaças).
+      </p>
+    </Panel>
   );
 }

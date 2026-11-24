@@ -38,6 +38,7 @@ import { TrimVis } from './TrimVis';
 import { CargoVis } from './CargoVis';
 import { TorpedoVis, torpedoPose } from './TorpedoVis';
 import { EnemyVis, enemyScenePos, focusEnemy } from './EnemyVis';
+import { ThreatVis } from './ThreatVis';
 import { MissileVis, focusHostile, focusMissile, hostileScenePos, missilePose } from './MissileVis';
 import { SignalVis } from './SignalVis';
 import { directMissileCam, newCine } from './missileCam';
@@ -253,6 +254,7 @@ export class SubmarineScene {
   private cargoVis!: CargoVis;
   private torpedoVis!: TorpedoVis;
   private enemyVis!: EnemyVis;
+  private threatVis!: ThreatVis;
   private missileVis!: MissileVis;
   private signalVis!: SignalVis;
   /** diretor da câmera cinematográfica do míssil e a origem flutuante do quadro anterior (cena) */
@@ -435,6 +437,8 @@ export class SubmarineScene {
     this.scene.add(this.torpedoVis.world);
     this.enemyVis = new EnemyVis(this.dot);
     this.scene.add(this.enemyVis.group);
+    this.threatVis = new ThreatVis(this.dot);
+    this.scene.add(this.threatVis.group);
     this.missileVis = new MissileVis(this.dot, this.renderer);
     this.scene.add(this.missileVis.group);
     this.signalVis = new SignalVis();
@@ -2002,6 +2006,7 @@ export class SubmarineScene {
     this.torpedoVis.setClip(showInt && this.halfOpen ? this.cutPlane : null);
     this.torpedoVis.update(e, this.sub, pn, pe, this.layers.torpedoes !== false, showInt, a, step, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
     this.enemyVis.update(e, pn, pe, this.layers.torpedoes !== false, step, this.camera, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
+    this.threatVis.update(e, pn, pe, this.layers, step, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
     this.missileVis.update(e, pn, pe, this.layers.torpedoes !== false, step, this.camera, this.renderer.domElement.height, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj, a);
     this.signalVis.night = this.lastNight;
     this.signalVis.update(e, this.layers, pn, pe, step, this.renderer.domElement.height, (n, ee) => e.env.waves.elevation(n, ee, tWave), this.layers.labels ? lbl : null, proj);
@@ -2105,6 +2110,7 @@ export class SubmarineScene {
     this.wind.dispose();
     this.ensign.dispose();
     this.signalVis.dispose();
+    this.threatVis.dispose();
     this.shipyard?.dispose();
     this.controls.dispose();
     this.renderer.dispose();

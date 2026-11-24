@@ -40,6 +40,18 @@ import { cavitationLevel } from '../systems/cavitation';
 import { evaluateAlarms } from '../systems/alarms';
 import { initWeapons, updateWeapons } from '../systems/weapons';
 import { initSignals, updateSignals } from '../systems/signals';
+import { initAtmosphere, initDamage, initDistribution, initInstructor, initNavFix, initStealth, initThreat, initTugs } from './extState';
+import { updateAtmosphere } from '../systems/atmosphere';
+import { updateDamage } from '../systems/damage';
+import { applyBreakers, loadPowered, updateDistribution } from '../systems/distribution';
+import { mastExposure } from '../systems/masts';
+import { updateNavFix } from '../systems/navigation';
+import { RADIATED_OFFSET, updateStealth } from '../systems/stealth';
+import { updateThreat } from '../systems/threat';
+import { updateTugs } from '../systems/tugs';
+import { dueEvents } from '../systems/instructor';
+import { applyCommand, withCommandSource } from '../commands';
+import { ownNoise } from '../../sonar/sources/signatures';
 
 /** rigidez hidrostática (N·m/rad) abaixo da qual o equilíbrio é tratado como instável/indiferente */
 const MIN_STIFFNESS = 1e3;
@@ -116,6 +128,8 @@ export class SimulationEngine {
   private readings: ApReadings;
   /** reação da ejeção de torpedo no passo atual (corpo); null fora do disparo */
   private launchW: { F: Vec3; M: Vec3 } | null = null;
+  /** força dos rebocadores no passo atual (corpo); null sem rebocador atuando */
+  private tugW: { F: Vec3; M: Vec3 } | null = null;
 
   constructor(config: SimConfig, state: SimState) {
     this.config = config;
@@ -126,6 +140,16 @@ export class SimulationEngine {
     this.compressibleVolume = this.geom.volume - config.vessel.ballast.tanks.reduce((a, t) => a + t.volume, 0);
     if (config.vessel.weapons && !state.weapons) state.weapons = initWeapons(config.vessel, this.geom.radiusAt);
     state.signals ??= initSignals(config.vessel);
+    // sistemas da Fase 3 (salvamentos antigos e cenários existentes começam nos valores iniciais)
+    state.atmosphere ??= initAtmosphere(config.vessel);
+    state.damage ??= initDamage(config.vessel);
+    state.distribution ??= initDistribution(config.vessel);
+    state.navFix ??= initNavFix(state.t, state.nav.distance);
+    state.stealth ??= initStealth(state.rng.seed);
+    state.threat ??= initThreat(config.vessel);
+    state.tugs ??= initTugs(config.vessel);
+    state.instructor ??= initInstructor();
+    state.ledger.floodOut ??= 0;
     this.state = state;
     this.state.sonar ??= initialSonar();
     this.scratch = new Float64Array(this.geom.slices.length);
@@ -207,6 +231,8 @@ export class SimulationEngine {
       sliceScratch: this.scratch,
       t: s.t,
       launch: this.launchW ?? undefined,
+      tugs: this.tugW ?? undefined,
+      current: this.env.hasCurrent ? this.env.currentAt(s.t) : undefined,
     };
   }
 
@@ -246,6 +272,12 @@ export class SimulationEngine {
       log: (t, g) => this.log(t, g),
     };
 
+    // 0. eventos programados pelo instrutor (falhas etc.): pela via normal dos comandos
+    this.runInstructor();
+    // disjuntores: cada consumidor só tem energia com o barramento energizado e o seu disjuntor fechado
+    const bus = s.electrical.energized;
+    const pw = (id: Parameters<typeof loadPowered>[1]) => bus && (s.distribution?.breakers[id] ?? true);
+
     // 1–2. controle automático e atuadores
     updateAutopilot(cfg, s, this.readings, dt);
     updateSurfaces(cfg, s, ctx);
@@ -269,7 +301,9 @@ export class SimulationEngine {
     }
     drawFromManifold(cfg.hpAir, s, drawn);
     drawFromManifold(cfg.hpAir, s, emergencyDrawn, 'emergency');
+    ctx.busPowered = pw('COMP');
     const comp = updateCompressor(cfg.hpAir, s, ctx);
+    ctx.busPowered = bus;
     s.ledger.airCompressed += comp.added;
 
     // tubos lançadores, compensação automática das armas e torpedos em corrida
@@ -281,24 +315,36 @@ export class SimulationEngine {
     updateSignals({ s, v: cfg, env, pos, R, vel: this.outputs.velNED, radiusAt: this.geom.radiusAt, log: ctx.log }, dt);
 
     // 4. tanques internos e alagamento
+    ctx.busPowered = pw('BT');
     const rt = updateTransfer(cfg.trim, s.trim, ctx);
+    ctx.busPowered = pw('BB');
     const rh = updateTransfer(cfg.heel, s.heel, ctx);
+    ctx.busPowered = pw('BC');
+    ctx.btcPowered = pw('BTC');
     const rc = updateCompensation(cfg.compensation, s.compensation, ctx, cfg.heel, s.heel);
+    ctx.busPowered = bus;
+    ctx.btcPowered = undefined;
     s.ledger.seaIn += rc.seaIn;
     s.ledger.seaOut += rc.seaOut;
     strokes += rc.strokes + rt.strokes + rh.strokes;
     s.ledger.floodIn += updateFlooding(cfg, s, ctx);
+    // controle de avarias: esgoto, portas estanques e incêndio
+    const dmg = updateDamage(cfg, s, ctx, pw('ESG'));
+    s.ledger.floodOut = (s.ledger.floodOut ?? 0) + dmg.out;
 
     // 5. hidráulica
     ctx.hydraulicDemand += strokes * cfg.hydraulics.consumptionPerStroke;
+    ctx.busPowered = pw('HID');
     const hydPower = updateHydraulics(cfg, s, ctx);
+    ctx.busPowered = bus;
 
     // 6. propulsão
     const propX = -cfg.hull.length / 2 + 0.5;
     const propDepth = ctx.depthOf({ x: propX, y: 0, z: 0 });
     const Rp = cfg.propulsion.propeller.diameter / 2;
     const propImm = Math.max(0, Math.min(1, (propDepth + Rp) / (2 * Rp)));
-    updatePropulsion(cfg.propulsion, s.propulsion, dt, s.body.vel.x, ctx.rhoLocal, ctx.busPowered, s.electrical.propulsionLimit, propImm);
+    const uWater = this.env.hasCurrent ? s.body.vel.x - this.currentBody(R).x : s.body.vel.x;
+    updatePropulsion(cfg.propulsion, s.propulsion, dt, uWater, ctx.rhoLocal, pw('MEP'), s.electrical.propulsionLimit, propImm);
     s.ledger.propellerWork += s.propulsion.propTorque * s.propulsion.omega * dt;
 
     // peso deslocável de demonstração: carro no trilho com velocidade limitada
@@ -321,6 +367,9 @@ export class SimulationEngine {
         l.x += Math.abs(dx) <= stepMax ? dx : Math.sign(dx) * stepMax;
       }
     }
+
+    // rebocadores (manobra de porto): força externa no casco
+    this.tugW = updateTugs(cfg, s, dt);
 
     // 7–8. massa e corpo rígido
     const mp = computeMassProps(cfg, s, this.light, ctx.rhoLocal);
@@ -370,18 +419,51 @@ export class SimulationEngine {
       HOTEL: cfg.electrical.hotelLoad,
       NAV: cfg.electrical.navLoad,
     };
+    if (dmg.power > 0) demands.ESG = dmg.power;
+    applyBreakers(s, demands);
     const er = updateElectrical(cfg.electrical, s, ctx, demands, genAvail, s.propulsion.elecPower);
     void er;
     s.contact = o.forces.contactActive;
+    updateDistribution(cfg, s, dt, ctx.seaTempK - 273.15, ctx.log);
+    // atmosfera interna (absorvedores e queimadores fazem parte da habitabilidade)
+    updateAtmosphere(cfg, s, dt, pw('HOTEL'));
+    // mastros expostos: GPS, discrição e aeronave de patrulha
+    const exposure = mastExposure(cfg, s, o.surfaced);
+    updateNavFix(s, exposure, ctx.log);
+    updateStealth(cfg, s, exposure, dt, this.env.cfg.waves?.seaState ?? 0, ctx.log);
+    // torpedo de exercício contra o SX-1 e despistadores
+    if (s.threat && (s.threat.torpedoes.length || s.threat.decoys.length)) {
+      const tr = updateThreat(cfg, s, dt, ownNoise(s) + RADIATED_OFFSET, ctx.log, this.env.currentAt(s.t));
+      if (tr.breach && s.flooding[tr.breach.compartment]) s.flooding[tr.breach.compartment].breachArea += tr.breach.area;
+    }
 
     // 11. alarmes
     this.evaluateAlarms();
     // balanço de massa
     const L = s.ledger;
-    const expected = L.mass0 + (L.cargoIn ?? 0) - (L.weaponsOut ?? 0) + L.seaIn - L.seaOut + L.floodIn + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
+    const expected = L.mass0 + (L.cargoIn ?? 0) - (L.weaponsOut ?? 0) + L.seaIn - L.seaOut + L.floodIn - (L.floodOut ?? 0) + L.fuelSeawaterIn - L.fuelBurned + L.airCompressed - L.airVented - L.airSpilled;
     o.massAudit = o.mp.internalMass - expected;
     o.energyAudit = L.batteryChemical - L.batteryOut - L.batteryLoss;
     updateSonar(this);
+  }
+
+  /** corrente no referencial do corpo (m/s) no instante atual */
+  currentBody(R: Mat3 = qToMat3(this.state.body.quat)): Vec3 {
+    const c = this.env.currentAt(this.state.t);
+    return mulMat3TVecLocal(R, c);
+  }
+
+  /** dispara os eventos do instrutor que venceram (marca e aplica o comando com a origem "instrutor") */
+  private runInstructor(): void {
+    const due = dueEvents(this);
+    for (const ev of due) {
+      ev.fired = true;
+      ev.firedAt = this.state.t;
+      // em reprodução de gravação o efeito já está gravado: só marca
+      if (this.commandGate) continue;
+      this.log(`INSTRUTOR: ${ev.label}`, 'Instrutor');
+      withCommandSource('instrutor', () => applyCommand(this, ev.command));
+    }
   }
 
   private trueValues(): TrueValues {
@@ -395,8 +477,9 @@ export class SimulationEngine {
       roll: o.euler.roll,
       q: s.body.omega.y * RAD,
       r: s.body.omega.z * RAD,
-      u: s.body.vel.x,
-      v: s.body.vel.y,
+      // Doppler em relação à água (com corrente, a velocidade sobre o fundo é outra)
+      u: this.env.hasCurrent ? s.body.vel.x - this.currentBody().x : s.body.vel.x,
+      v: this.env.hasCurrent ? s.body.vel.y - this.currentBody().y : s.body.vel.y,
       altitude: o.altitude,
       gravity: this.env.cfg.gravity,
       atm: this.env.cfg.atmosphericPressure,

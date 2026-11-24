@@ -17,6 +17,7 @@ import type { SimulationEngine } from '../../sim/core/engine';
 import { fmt, fmtPower, fmtSpeed, fmtTime } from '../format';
 import { opsBus, type GroupId } from '../ops/opsBus';
 import { screenLabel, type ScreenId } from '../nav';
+import { atmosphereEndurance, atmospherePercent } from '../../sim/systems/atmosphere';
 
 interface Kpi {
   label: string;
@@ -156,6 +157,40 @@ const CARDS: SysCard[] = [
         { label: 'Pressão', value: fmt(e.state.hydraulics.pressure / 1e5, 0), unit: 'bar', tone: e.state.hydraulics.pressure < e.vessel.hydraulics.minPressure * 1.25 ? 'warn' : undefined },
         { label: 'Bomba', value: onOff(e.state.hydraulics.pumpOn, 'em carga', 'em espera') },
         { label: 'Lemes', value: jam ? `${jam} travado${jam > 1 ? 's' : ''}` : 'livres', tone: jam ? 'alarm' : undefined },
+      ];
+    },
+  },
+  {
+    id: 'atm',
+    title: 'Atmosfera interna',
+    about: 'O₂, CO₂ e H₂ do ar, purificação e ventilação pelo snorkel',
+    systems: ['Atmosfera'],
+    screens: ['atmosfera'],
+    kpis: (e) => {
+      const p = atmospherePercent(e.state);
+      const end = atmosphereEndurance(e.vessel, e.state);
+      if (!p) return [];
+      return [
+        { label: 'O₂', value: fmt(p.o2, 1), unit: '%', tone: p.o2 < 16 ? 'alarm' : p.o2 < 18 ? 'warn' : undefined },
+        { label: 'CO₂', value: fmt(p.co2, 2), unit: '%', tone: p.co2 > 3 ? 'alarm' : p.co2 > 1.5 ? 'warn' : undefined },
+        { label: 'Autonomia', value: Number.isFinite(end.hours) ? fmt(end.hours, 0) : 'estável', unit: Number.isFinite(end.hours) ? 'h' : undefined },
+      ];
+    },
+  },
+  {
+    id: 'dmg',
+    title: 'Controle de avarias',
+    about: 'Alagamento, esgoto, portas estanques e incêndio',
+    systems: ['Avarias', 'Compartimentos'],
+    screens: ['avarias'],
+    kpis: (e) => {
+      const water = Object.values(e.state.flooding).reduce((a, f) => a + f.water, 0);
+      const fires = Object.values(e.state.damage?.fires ?? {}).filter((f) => f.intensity > 0).length;
+      const open = Object.values(e.state.damage?.doors ?? {}).filter((d) => d.open).length;
+      return [
+        { label: 'Água nos porões', value: fmt(water / 1000, 1), unit: 't', tone: water > 200 ? 'alarm' : undefined },
+        { label: 'Incêndios', value: String(fires), tone: fires ? 'alarm' : undefined },
+        { label: 'Portas abertas', value: String(open), tone: open ? 'warn' : undefined },
       ];
     },
   },

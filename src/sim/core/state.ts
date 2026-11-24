@@ -8,6 +8,7 @@ import type { SonarState } from '../../sonar/types';
  * estado diretamente: a interface envia COMANDOS ao motor.
  */
 import type { Quat, Vec3 } from './math';
+import type { AtmosphereState, DamageState, DistributionState, InstructorState, NavFixState, StealthState, ThreatState, TugsState } from './extState';
 
 export interface CargoLoad {
   id: string;
@@ -247,6 +248,8 @@ export interface Ledger {
   /** energia pedida pelas cargas e a parte não atendida pelo barramento (J); ausentes em salvamentos antigos */
   loadRequested?: number;
   loadUnserved?: number;
+  /** água de alagamento esgotada ao mar pelas bombas de esgoto (kg) */
+  floodOut?: number;
 }
 
 export interface SimState {
@@ -308,6 +311,15 @@ export interface SimState {
   weapons?: WeaponsState;
   /** sinalização pirotécnica e de emergência (ausente em salvamentos antigos: criada pelo motor) */
   signals?: SignalsState;
+  /** sistemas da Fase 3 (core/extState.ts; criados pelo motor quando ausentes) */
+  atmosphere?: AtmosphereState;
+  damage?: DamageState;
+  distribution?: DistributionState;
+  navFix?: NavFixState;
+  stealth?: StealthState;
+  threat?: ThreatState;
+  tugs?: TugsState;
+  instructor?: InstructorState;
 }
 
 /** Estado do lançador de sinais (o fluxo da tela: selecionar → preparar → liberar). */

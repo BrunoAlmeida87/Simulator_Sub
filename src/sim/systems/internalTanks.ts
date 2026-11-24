@@ -274,7 +274,7 @@ export function updateCompensation(cfg: CompensationConfig, st: CompensationStat
     strokes += updateValve(cfg.transfer.isolationValve, tr.valveA, dt, hyd);
     strokes += updateValve(cfg.transfer.isolationValve, tr.valveB, dt, hyd);
     strokes += updateValve(cfg.transfer.directionValve, tr.direction, dt, hyd);
-    updatePumpSpeed(cfg.transfer.pump, tr.pump, dt, ctx.busPowered);
+    updatePumpSpeed(cfg.transfer.pump, tr.pump, dt, ctx.btcPowered ?? ctx.busPowered);
     const endpoints = branches;
     const circuit = buildCompensationCircuit(st, endpoints.map(t => t.cfg.id));
     const a = endpoints.find(t => t.cfg.id === circuit.route?.source);

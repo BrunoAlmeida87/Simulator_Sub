@@ -1,3 +1,4 @@
+import type { AtmosphereConfig, DamageConfig, DistributionConfig, StealthConfig, ThreatConfig, TugsConfig } from './extSystems';
 /**
  * Tipos de configuração da embarcação fictícia e da simulação.
  * Todos os valores são FICTÍCIOS e de ordem de grandeza pública
@@ -314,6 +315,13 @@ export interface VesselConfig {
   weapons?: WeaponsConfig;
   /** sinalização pirotécnica e de emergência (opcional: configurações antigas usam defaultSignals()) */
   signals?: SignalsConfig;
+  /** sistemas da Fase 3 (config/extSystems.ts; ausentes = padrões) */
+  atmosphere?: AtmosphereConfig;
+  damage?: DamageConfig;
+  distribution?: DistributionConfig;
+  stealth?: StealthConfig;
+  threat?: ThreatConfig;
+  tugs?: TugsConfig;
 }
 
 /** Dispositivos de sinalização (classificação do simulador, não códigos navais reais). */

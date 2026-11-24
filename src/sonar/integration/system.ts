@@ -13,7 +13,7 @@ export const receivedAudio = (s: SonarState): Float32Array | undefined => (s.aud
 export function updateSonar(e: SimulationEngine): void {
   const s = (e.state.sonar ??= initialSonar()),
     t = e.state.t;
-  if (!s.settings.enabled || !e.state.electrical.energized) {
+  if (!s.settings.enabled || !e.state.electrical.energized || e.state.distribution?.breakers.NAV === false) {
     s.pending = [];
     return;
   }

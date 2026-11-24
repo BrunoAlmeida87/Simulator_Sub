@@ -52,6 +52,15 @@ const ValidationScreen = lazy(() => import('./screens/ValidationScreen').then((m
 const HelpScreen = lazy(() => import('./screens/HelpScreen').then((m) => ({ default: m.HelpScreen })));
 const StudioScreen = lazy(() => import('./screens/StudioScreen').then((m) => ({ default: m.StudioScreen })));
 const CommandCenter = lazy(() => import('./screens/CommandCenter').then((m) => ({ default: m.CommandCenter })));
+const AtmosphereScreen = lazy(() => import('./screens/AtmosphereScreen').then((m) => ({ default: m.AtmosphereScreen })));
+const DamageControlScreen = lazy(() => import('./screens/DamageControlScreen').then((m) => ({ default: m.DamageControlScreen })));
+const DistributionScreen = lazy(() => import('./screens/DistributionScreen').then((m) => ({ default: m.DistributionScreen })));
+const StealthScreen = lazy(() => import('./screens/StealthScreen').then((m) => ({ default: m.StealthScreen })));
+const HarborScreen = lazy(() => import('./screens/HarborScreen').then((m) => ({ default: m.HarborScreen })));
+const LabsScreen = lazy(() => import('./screens/LabsScreen').then((m) => ({ default: m.LabsScreen })));
+const InstructorScreen = lazy(() => import('./screens/InstructorScreen').then((m) => ({ default: m.InstructorScreen })));
+const DebriefScreen = lazy(() => import('./screens/DebriefScreen').then((m) => ({ default: m.DebriefScreen })));
+const WeighScreen = lazy(() => import('./screens/WeighScreen').then((m) => ({ default: m.WeighScreen })));
 const SystemsOverview = lazy(() => import('./screens/SystemsOverview').then((m) => ({ default: m.SystemsOverview })));
 
 /** falha ao carregar uma tela (ex.: site atualizado enquanto a aba estava aberta, ou sem rede) */
@@ -303,6 +312,15 @@ export function App() {
     auxiliares: <AuxSystemsScreen />,
     validacao: <ValidationScreen />,
     ajuda: <HelpScreen />,
+    atmosfera: <AtmosphereScreen />,
+    avarias: <DamageControlScreen />,
+    distribuicao: <DistributionScreen />,
+    discricao: <StealthScreen />,
+    porto: <HarborScreen />,
+    laboratorios: <LabsScreen />,
+    instrutor: <InstructorScreen />,
+    debriefing: <DebriefScreen />,
+    pesagem: <WeighScreen />,
   };
 
   return (

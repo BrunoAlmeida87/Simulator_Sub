@@ -20,6 +20,7 @@ import { SIGNAL_FAULTS, signalCommand, type SignalAction } from './systems/signa
 import { makeDepthOf } from './core/context';
 import { qToMat3 } from './core/math';
 import { DEFAULT_ORIGIN, type LatLon } from './geo';
+import { extCommand, instructorCommandAllowed, type ExtCommand } from './extCommands';
 
 /** Alterações de ambiente aplicáveis durante a simulação (o estado é mantido). */
 export type EnvironmentPatch = Partial<Pick<EnvironmentConfig, 'salinity' | 'deepSalinity' | 'surfaceTemperature' | 'deepTemperature' | 'thermoclineDepth' | 'thermoclineThickness' | 'magneticDeclination'>> & {
@@ -51,6 +52,7 @@ export type FluidSystem = 'compensation' | 'trim' | 'heel';
 
 export type Command =
   | SonarCommand
+  | ExtCommand
   | { type: 'compensationRoute'; source: string; destination: string }
   | { type: 'compensationTransferPump'; run: boolean }
   | { type: 'compensationDirection'; reverse?: boolean; position?: 'direta' | 'inversa' }
@@ -511,6 +513,23 @@ function applyCommandInner(e: SimulationEngine, c: Command): void {
     case 'signal':
       signalCommand({ s, v, env: e.env, pos: s.body.pos, R: qToMat3(s.body.quat), vel: e.outputs.velNED, radiusAt: e.geom.radiusAt, log: (text, group) => e.log(text, group) }, c.action, c);
       break;
+    case 'instructor':
+      if (c.event && !instructorCommandAllowed(c.event.command)) break;
+      extCommand(e, c);
+      break;
+    case 'atmosphere':
+    case 'bilge':
+    case 'door':
+    case 'fire':
+    case 'loadBreaker':
+    case 'autoShed':
+    case 'current':
+    case 'navFix':
+    case 'aircraft':
+    case 'threat':
+    case 'tug':
+      extCommand(e, c);
+      break;
   }
 }
 
@@ -572,6 +591,9 @@ export function failureCatalog(e: SimulationEngine): FailureDef[] {
     list.push({ target: `sensor:${id}`, name: sensorDef(id).name, group: 'Sensores', effect: 'Leitura degradada; o controle automático usa a leitura (não o valor real).', modes: ['congelado', 'deriva', 'zero', 'ruido'] });
   }
   for (const f of SIGNAL_FAULTS) list.push({ target: `signal:${f.id}`, name: `${f.code} — ${f.name}`, group: 'Sinalização', effect: f.effect });
+  for (const c of v.compartments) {
+    list.push({ target: `fire:${c.id}`, name: `Incêndio — ${c.name}`, group: 'Avarias', effect: 'Fogo cresce com o O₂ do ar, consome O₂ e produz CO₂ e CO; detecção após alguns segundos; combater pelo Controle de avarias.', param: { label: 'Intensidade inicial', default: 5, unit: '%' } });
+  }
   return list;
 }
 
@@ -606,6 +628,8 @@ export function isFailureActive(e: SimulationEngine, target: string): boolean {
       return s.sensors[a].failMode !== 'normal';
     case 'signal':
       return !!s.signals?.faults[a as SignalFault];
+    case 'fire':
+      return (s.damage?.fires[a]?.intensity ?? 0) > 0;
   }
   return false;
 }
@@ -666,6 +690,21 @@ function applyFailure(e: SimulationEngine, target: string, active: boolean, para
       s.sensors[a].drift = 0;
       label = `Sensor ${a}${active ? ` (${param ?? 'congelado'})` : ''}`;
       break;
+    case 'fire': {
+      const f = s.damage?.fires[a];
+      const comp = e.vessel.compartments.find((x) => x.id === a);
+      if (!f || !comp) return;
+      if (active) {
+        f.intensity = Math.max(f.intensity, Math.max(0.01, Math.min(1, Number(param ?? 5) / 100)));
+        f.timer = 0;
+      } else {
+        f.intensity = 0;
+        f.fighting = false;
+        f.detected = false;
+      }
+      label = `Incêndio ${comp.name}${active ? ` (${Number(param ?? 5).toFixed(0)} %)` : ''}`;
+      break;
+    }
     case 'signal': {
       const f = SIGNAL_FAULTS.find((x) => x.id === a);
       if (!f || !s.signals) return;

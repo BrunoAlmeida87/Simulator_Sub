@@ -34,11 +34,20 @@ export const SCREEN_IDS = [
   'validacao',
   'config',
   'ajuda',
+  'atmosfera',
+  'avarias',
+  'distribuicao',
+  'discricao',
+  'porto',
+  'laboratorios',
+  'instrutor',
+  'debriefing',
+  'pesagem',
   'sala',
 ] as const;
 export type ScreenId = (typeof SCREEN_IDS)[number];
 
-export type NavGroupId = 'operacao' | 'sistemas' | 'apresentacao' | 'analise' | 'ajustes' | 'sala';
+export type NavGroupId = 'operacao' | 'sistemas' | 'apresentacao' | 'analise' | 'laboratorios' | 'ajustes' | 'sala';
 
 /** modo de uma tela: outra tela que aparece como aba pequena ao lado dela (só quando ela está aberta) */
 export interface NavMode {
@@ -87,12 +96,19 @@ export const NAV_GROUPS: NavGroup[] = [
         modes: [
           { id: 'comando', key: '1', label: 'Instrumentos', hint: 'Instrumentos: profundidade, rumo, atitude, velocidade, lemes, telégrafo e piloto automático' },
           { id: 'governo', label: 'Posto de governo', hint: 'Painel de governo: manche, alavancas, telégrafo e piloto' },
+          { id: 'porto', label: 'Manobra de porto', hint: 'Rebocadores empurrando ou puxando o casco na superfície, com máquina e leme' },
         ],
       },
       { id: 'console', label: 'Console integrado', hint: 'Estações de governo, piloto e sistemas com cena 3D ampliável e instrumentos de navegação' },
       { id: 'mapa', label: 'Mapa tático', hint: 'Posição geográfica, rota, contatos e fundo' },
       { id: 'sonar', label: 'Sonar', hint: 'Laboratório acústico (ondas, eco e zona de sombra), TMA, cascata, escuta e pulso 3D' },
-      { id: 'armas', label: 'Armas', hint: 'Sala de torpedos: lançamento automático ou passo a passo, tubo em 3D, submarino inimigo, torpedo de combate e míssil SM39 (Exocet) contra fragata ou alvo em terra' },
+      {
+        id: 'armas',
+        label: 'Armas',
+        modeLabel: 'Lançamento',
+        hint: 'Sala de torpedos: lançamento automático ou passo a passo, tubo em 3D, submarino inimigo, torpedo de combate e míssil SM39 (Exocet) contra fragata ou alvo em terra',
+        modes: [{ id: 'discricao', label: 'Ameaças e discrição', hint: 'Exposição dos mastros, ruído irradiado e contra-detecção, aeronave de patrulha, torpedo de exercício contra o SX-1 e despistadores' }],
+      },
       {
         id: 'sinalizacao',
         label: 'Sinalização & Emergência',
@@ -113,7 +129,14 @@ export const NAV_GROUPS: NavGroup[] = [
         hint: 'Cartões com o estado de cada sistema e atalhos para as telas de detalhe',
         modes: [{ id: 'auxiliares', label: 'Arquitetura', hint: 'Ar comprimido, hidráulica, elétrica e compartimentos: arquitetura e estado' }],
       },
-      { id: 'lastro', key: '2', label: 'Lastro e compensação', hint: 'TLP, garrafas de ar AP, coletor e circuito de compensação' },
+      {
+        id: 'lastro',
+        key: '2',
+        label: 'Lastro e compensação',
+        modeLabel: 'Circuitos',
+        hint: 'TLP, garrafas de ar AP, coletor e circuito de compensação',
+        modes: [{ id: 'pesagem', label: 'Pesagem', hint: 'Cálculo de compensação antes de mergulhar: previsto × real' }],
+      },
       { id: 'trim', key: '3', label: 'Trim e banda', hint: 'Distribuição de massas, G e B, transferências de trim e banda' },
       {
         id: 'propulsao',
@@ -121,9 +144,24 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Propulsão e energia',
         modeLabel: 'Linha de eixo',
         hint: 'Linha de eixo, hélice, bateria, cargas, diesel-geradores e snorkel',
-        modes: [{ id: 'energia', label: 'Fluxo de energia', hint: 'Balanço elétrico como diagrama de fluxo' }],
+        modes: [
+          { id: 'energia', label: 'Fluxo de energia', hint: 'Balanço elétrico como diagrama de fluxo' },
+          { id: 'distribuicao', label: 'Distribuição', hint: 'Disjuntores por carga, rejeição automática e temperatura da bateria' },
+        ],
       },
-      { id: 'seguranca', key: '5', label: 'Segurança', hint: 'Alarmes, registro, sensores redundantes e injeção de falhas' },
+
+      {
+        id: 'seguranca',
+        key: '5',
+        label: 'Segurança',
+        modeLabel: 'Alarmes e falhas',
+        hint: 'Alarmes, registro, sensores redundantes e injeção de falhas',
+        modes: [
+          { id: 'avarias', label: 'Controle de avarias', hint: 'Quadro de avarias: alagamento, esgoto contra a pressão do mar, portas estanques e incêndio' },
+          { id: 'atmosfera', label: 'Atmosfera', hint: 'O₂, CO₂, H₂ e CO do ar interno, absorvedores, queimadores, O₂ de reserva, ventilação pelo snorkel e autonomia' },
+          { id: 'instrutor', label: 'Instrutor', hint: 'Falhas e ameaças programadas por instante ou por condição' },
+        ],
+      },
     ],
   },
   {
@@ -153,7 +191,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'analise',
     label: 'Análise',
     short: 'Análise',
-    hint: 'Gráficos do histórico e testes de validação da física',
+    hint: 'Gráficos do histórico, testes de validação da física e debriefing do exercício',
     screens: [
       {
         id: 'historico',
@@ -161,9 +199,19 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Histórico',
         modeLabel: 'Gráficos',
         hint: 'Gráficos sincronizados, marcas dos comandos, antes × depois e CSV',
-        modes: [{ id: 'validacao', label: 'Validação', hint: 'Testes de validação física executados no navegador' }],
+        modes: [
+          { id: 'validacao', label: 'Validação', hint: 'Testes de validação física executados no navegador' },
+          { id: 'debriefing', label: 'Debriefing', hint: 'Avaliação pós-exercício: alarmes, reações aos eventos do instrutor, limites e relatório' },
+        ],
       },
     ],
+  },
+  {
+    id: 'laboratorios',
+    label: 'Laboratórios',
+    short: 'Labs',
+    hint: 'Experimentos didáticos com a física do simulador: estabilidade, flutuabilidade, lemes e ar comprimido',
+    screens: [{ id: 'laboratorios', label: 'Laboratórios', hint: 'Curva GZ e prova de inclinação, flutuabilidade × profundidade, lemes e estol, ar para soprar × profundidade' }],
   },
   {
     id: 'ajustes',
@@ -245,6 +293,10 @@ export const ALARM_SCREEN: Record<string, ScreenId> = {
   Propulsão: 'propulsao',
   Segurança: 'seguranca',
   Sinalização: 'sinalizacao',
+  Atmosfera: 'atmosfera',
+  Avarias: 'avarias',
+  Discrição: 'discricao',
+  Ameaça: 'discricao',
 };
 
 export type NavMark = 'alarm' | 'warn';

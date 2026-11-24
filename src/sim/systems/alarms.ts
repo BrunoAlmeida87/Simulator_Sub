@@ -10,6 +10,11 @@
 import { CAVITATION_ALARM_ON, CAVITATION_ALARM_OFF, CAVITATION_ALARM_DELAY } from './cavitation';
 import type { SimState } from '../core/state';
 import type { VesselConfig } from '../config/types';
+import { atmospherePercent } from './atmosphere';
+import { nearestThreat } from './threat';
+
+/** composição da atmosfera em % (cache por passo não é necessário: poucas contas) */
+const atm = (s: SimState) => atmospherePercent(s);
 
 export interface AlarmEvalContext {
   cfg: VesselConfig;
@@ -77,6 +82,22 @@ export const ALARM_DEFS: AlarmDef[] = [
   { id: 'SIG_BUOY', priority: 4, text: 'Boia de emergência na água', delay: 0, system: 'Sinalização',
     cond: (c) => !!c.s.signals?.runs.some((r) => r.kind === 'boia'),
     detail: (c) => { const b = c.s.signals!.runs.find((r) => r.kind === 'boia')!; return b.phase === 'ativo' ? (b.tx === 'ok' ? 'transmitindo (fictício)' : 'transmissão em falha') : b.phase; } },
+  // --- sistemas da Fase 3 (atmosfera, avarias, distribuição, discrição, ameaça)
+  { id: 'ATM_CO2_HIGH', priority: 2, text: 'CO₂ elevado na atmosfera interna', delay: 3, system: 'Atmosfera', cond: (c) => (atm(c.s)?.co2 ?? 0) > 3, detail: (c) => `${atm(c.s)!.co2.toFixed(2)} %` },
+  { id: 'ATM_CO2', priority: 3, text: 'CO₂ acima do normal', delay: 5, system: 'Atmosfera', cond: (c) => (atm(c.s)?.co2 ?? 0) > 1.5, detail: (c) => `${atm(c.s)!.co2.toFixed(2)} %` },
+  { id: 'ATM_O2_LOW', priority: 2, text: 'O₂ baixo na atmosfera interna', delay: 3, system: 'Atmosfera', cond: (c) => (atm(c.s)?.o2 ?? 21) < 16, detail: (c) => `${atm(c.s)!.o2.toFixed(1)} %` },
+  { id: 'ATM_O2', priority: 3, text: 'O₂ abaixo do normal', delay: 5, system: 'Atmosfera', cond: (c) => (atm(c.s)?.o2 ?? 21) < 18, detail: (c) => `${atm(c.s)!.o2.toFixed(1)} %` },
+  { id: 'ATM_H2_CRIT', priority: 1, text: 'H₂ perigoso (próximo do limite de explosividade)', delay: 1, system: 'Atmosfera', cond: (c) => (atm(c.s)?.h2 ?? 0) > 3, detail: (c) => `${atm(c.s)!.h2.toFixed(2)} % (LIE ≈ 4 %)` },
+  { id: 'ATM_H2', priority: 2, text: 'H₂ elevado (recarga da bateria)', delay: 3, system: 'Atmosfera', cond: (c) => (atm(c.s)?.h2 ?? 0) > 2, detail: (c) => `${atm(c.s)!.h2.toFixed(2)} %` },
+  { id: 'ATM_CO', priority: 2, text: 'CO na atmosfera interna', delay: 3, system: 'Atmosfera', cond: (c) => (atm(c.s)?.coPpm ?? 0) > 50, detail: (c) => `${atm(c.s)!.coPpm.toFixed(0)} ppm` },
+  { id: 'FIRE', priority: 1, text: 'INCÊNDIO', delay: 0, system: 'Avarias', cond: (c) => Object.values(c.s.damage?.fires ?? {}).some((f) => f.detected && f.intensity > 0), detail: (c) => c.cfg.compartments.filter((x) => c.s.damage?.fires[x.id]?.detected && c.s.damage.fires[x.id].intensity > 0).map((x) => `${x.name}: ${(c.s.damage!.fires[x.id].intensity * 100).toFixed(0)} %`).join('; ') },
+  { id: 'BILGE_DEPTH', priority: 3, text: 'Bomba de esgoto sem vazão (pressão do mar acima da bomba)', delay: 5, system: 'Avarias', cond: (c) => Object.entries(c.s.damage?.pumps ?? {}).some(([id, p]) => p.cmd && p.power > 0 && p.flow < 1e-5 && (c.s.flooding[(c.cfg.damage?.bilgePumps.find((b) => b.id === id)?.compartment) ?? '']?.water ?? 0) > 0) },
+  { id: 'BATT_TEMP_CRIT', priority: 2, text: 'Temperatura da bateria crítica', delay: 2, system: 'Elétrico', cond: (c) => (c.s.distribution?.batteryTemp ?? 0) > (c.cfg.distribution?.battery.critTemp ?? 55), detail: (c) => `${c.s.distribution!.batteryTemp.toFixed(1)} °C` },
+  { id: 'BATT_TEMP', priority: 3, text: 'Temperatura da bateria elevada', delay: 5, system: 'Elétrico', cond: (c) => (c.s.distribution?.batteryTemp ?? 0) > (c.cfg.distribution?.battery.warnTemp ?? 45), detail: (c) => `${c.s.distribution!.batteryTemp.toFixed(1)} °C` },
+  { id: 'LOAD_SHED', priority: 3, text: 'Cargas rejeitadas automaticamente', delay: 0, system: 'Elétrico', cond: (c) => (c.s.distribution?.shed.length ?? 0) > 0, detail: (c) => c.s.distribution!.shed.join(', ') },
+  { id: 'ESM_AIR', priority: 3, text: 'MAGE: radar de aeronave de patrulha interceptado', delay: 0, system: 'Discrição', cond: (c) => !!c.s.stealth?.aircraft?.esmWarned },
+  { id: 'AIR_DETECT', priority: 2, text: 'Detectado por aeronave de patrulha (exercício)', delay: 0, system: 'Discrição', cond: (c) => c.s.stealth?.aircraft?.detectedAt != null && c.s.t - c.s.stealth.aircraft.detectedAt < 60 },
+  { id: 'TORPEDO', priority: 1, text: 'TORPEDO EM APROXIMAÇÃO (exercício)', delay: 0, system: 'Ameaça', cond: (c) => nearestThreat(c.s) < (c.cfg.threat?.warnRange ?? 6000), detail: (c) => `${(nearestThreat(c.s) / 1000).toFixed(2)} km` },
   { id: 'SENSOR_FAIL', priority: 3, text: 'Sensor em falha', delay: 0, system: 'Instrumentação', cond: (c) => Object.values(c.s.sensors).some((x) => x.failMode !== 'normal'), detail: (c) => Object.entries(c.s.sensors).filter(([, x]) => x.failMode !== 'normal').map(([k, x]) => `${k} (${x.failMode})`).join(', ') },
 ];
 

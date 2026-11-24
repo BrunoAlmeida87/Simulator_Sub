@@ -33,6 +33,7 @@ import {
   qNormalize,
   qToMat3,
   vCross,
+  vSub,
   type Mat3,
   type Quat,
   type Vec3,
@@ -77,6 +78,10 @@ export interface ForceInputs {
   waveCache?: WaveCache | null;
   /** reação do lançamento de torpedo (corpo; ausente fora da ejeção) */
   launch?: Wrench;
+  /** força dos rebocadores (corpo; ausente sem rebocador puxando ou empurrando) */
+  tugs?: Wrench;
+  /** corrente marinha (NED, m/s; ausente = sem corrente): a hidrodinâmica usa a velocidade relativa à água */
+  current?: Vec3;
 }
 
 export interface WaveCache {
@@ -138,6 +143,8 @@ export interface ForceBreakdown {
   waves: Wrench; // forças de inércia das ondas (Froude–Krylov + difração simplificada)
   /** reação da ejeção de torpedo (zero fora do disparo) */
   launch: Wrench;
+  /** rebocadores (zero sem rebocador atuando) */
+  tugs: Wrench;
   total: Wrench;
   hs: HydrostaticResult;
   rho: number;
@@ -178,6 +185,8 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const wb = fi.waveCache !== undefined ? fi.waveCache : computeWaveCache(geom, env, bs.pos, R, tt, cfg.hull.diameter);
   const hs = computeHydrostatics(geom, bs.pos, R, fi.sliceScratch, wb ? wb.eta : undefined);
   const dp = env.gaugePressureAt(Math.max(0, axisDepth));
+  // velocidade em relação à água (sem corrente é a própria velocidade do corpo)
+  const vr: Vec3 = fi.current ? vSub(bs.vel, mulMat3TVec(R, fi.current)) : bs.vel;
   const displaced = Math.max(0, hs.volume - cfg.hull.compressibility * dp * fi.compressibleVolume * hs.immersedFraction);
   const imm = hs.immersedFraction;
 
@@ -190,7 +199,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const buoyancy: Wrench = { F: Bb, M: vCross(hs.center, Bb) };
 
   // --- casco
-  const hf = hullForces(cfg, geom, bs.vel, bs.omega, rho, hs.sliceImmersion, imm, axisDepth, wb ? { vy: wb.vy, vz: wb.vz } : undefined);
+  const hf = hullForces(cfg, geom, vr, bs.omega, rho, hs.sliceImmersion, imm, axisDepth, wb ? { vy: wb.vy, vz: wb.vz } : undefined);
 
   // --- forças de inércia das ondas por fatia: (C_FK + C_a)·ρ·A·dx·a_água (transversais)
   const waves = zeroWrench();
@@ -218,7 +227,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   for (const f of cfg.fins) {
     const depth = bs.pos.z + R[6] * f.position.x + R[7] * f.position.y + R[8] * f.position.z;
     const etaF = wf.active && depth < 25 ? wf.elevation(bs.pos.x + R[0] * f.position.x, bs.pos.y + R[3] * f.position.x, tt) : 0;
-    const fr = finForce(f, fi.finAngles[f.id] ?? 0, bs.vel, bs.omega, rho, finImmersion(depth + etaF));
+    const fr = finForce(f, fi.finAngles[f.id] ?? 0, vr, bs.omega, rho, finImmersion(depth + etaF));
     fins[f.id] = fr;
     addWrench(finsTotal, fr);
   }
@@ -267,7 +276,8 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const w = bs.omega;
   const m = mp.mass;
   const I = mp.inertia;
-  const a1: Vec3 = { x: A.X * imm * v.x, y: A.Y * imm * v.y, z: A.Z * imm * v.z };
+  // massa adicional: termos com a velocidade relativa à água (corrente uniforme); corpo rígido com a absoluta
+  const a1: Vec3 = { x: A.X * imm * vr.x, y: A.Y * imm * vr.y, z: A.Z * imm * vr.z };
   const b1: Vec3 = { x: A.K * imm * w.x, y: A.M * imm * w.y, z: A.N * imm * w.z };
   const Iw: Vec3 = { x: I.x * w.x, y: I.y * w.y, z: I.z * w.z };
   const wxv = vCross(w, v);
@@ -277,7 +287,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   const kM = cfg.hydro.munkFactor;
   const a1xwFull = vCross(a1, w);
   const a1xw: Vec3 = { x: a1xwFull.x * kM, y: a1xwFull.y * kM, z: a1xwFull.z * kM };
-  const munkFull = vCross(a1, v);
+  const munkFull = vCross(a1, vr);
   const munk: Vec3 = { x: munkFull.x * kM, y: munkFull.y * kM, z: munkFull.z * kM };
   const wxIw = vCross(w, Iw);
   const b1xw = vCross(b1, w);
@@ -287,8 +297,10 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
   };
 
   const launch = fi.launch ?? zeroWrench();
+  const tugs = fi.tugs ?? zeroWrench();
   const total = zeroWrench();
   for (const c of [weight, buoyancy, hf.resistance, hf.crossflow, hf.lift, hf.damping, finsTotal, propeller, contact, coriolis, waves, launch]) addWrench(total, c);
+  if (fi.tugs) addWrench(total, tugs);
 
   return {
     weight,
@@ -304,6 +316,7 @@ export function computeForces(bs: BodyState, fi: ForceInputs): ForceBreakdown {
     munk,
     waves,
     launch,
+    tugs,
     total,
     hs,
     rho,

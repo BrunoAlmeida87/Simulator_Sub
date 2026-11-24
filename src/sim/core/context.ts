@@ -23,6 +23,8 @@ export interface StepContext {
   /** profundidade (m, NED) de um ponto dado no referencial do corpo */
   depthOf: (p: Vec3) => number;
   busPowered: boolean;
+  /** disjuntor da bomba de transferência de compensação (BTC) fechado e barramento energizado (ausente = busPowered) */
+  btcPowered?: boolean;
   /** fator 0..1 de disponibilidade hidráulica para atuadores */
   hydraulicFactor: number;
   rhoLocal: number;

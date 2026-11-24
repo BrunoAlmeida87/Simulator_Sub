@@ -1719,3 +1719,24 @@ kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line2); border-radiu
   color: var(--muted, #8aa);
   font-size: 13px;
 }
+
+/* sistemas da Fase 3 (components/StatusBits.tsx e telas de atmosfera, avarias, distribuição, discrição, porto, laboratórios, instrutor) */
+.lvl-row { display: grid; gap: 3px; margin-bottom: 9px; }
+.lvl-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.lvl-head > span:first-child { flex: 1 1 140px; min-width: 0; }
+.lvl-note { font-size: 11px; }
+.kv3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 12px; margin: 0; }
+.kv3 > div { min-width: 0; }
+.kv3 dt { font-size: 11px; color: var(--muted); }
+.kv3 dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.p3-svg { width: 100%; height: auto; display: block; }
+.p3-table { width: 100%; }
+.p3-table td, .p3-table th { padding: 3px 6px; }
+.p3-scroll { overflow-x: auto; max-width: 100%; }
+.p3-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.p3-field { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.p3-field input[type='range'] { width: min(220px, 60vw); }
+.p3-field input[type='number'] { width: 80px; }
+.p3-field select { max-width: 100%; }
+.tm-air { background: transparent; border: 0; color: #e9f8ff; font-size: 18px; line-height: 20px; text-align: center; text-shadow: 0 0 3px #000; }
